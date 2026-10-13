@@ -1,5 +1,6 @@
 import { AI_KEYS, cleanAiSetting } from '../shared/ai'
 import { BRIEFING_KEYS, cleanBriefingSetting } from '../shared/briefing'
+import { cleanHermanSetting, HERMAN_KEYS } from '../shared/herman'
 import { cleanMeetingsSetting, MEETINGS_KEYS } from '../shared/meetings'
 import { cleanHistorySetting, HISTORY_KEYS, MAX_VERSION_LABEL } from '../shared/versions'
 import { isValidId, MAX_SETTING_CHARS } from './db/blocks'
@@ -28,9 +29,10 @@ const CLIENT_ID_RE = /^[A-Za-z0-9_-]+$/
 const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
 /**
  * Exact keys the renderer may write. The `history.*` ones are the four the History settings show,
- * the `ai.*` ones the five the AI settings show; nothing else in those namespaces.
+ * the `ai.*` ones the five the AI settings show, the `herman.*` ones the seven the Herman settings
+ * show (what he remembers, `herman.memory`, is not among them); nothing else in those namespaces.
  */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS])
+const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
 const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
 
@@ -160,6 +162,7 @@ export function settingValueFor(key: string, value: unknown): unknown {
   if (key.startsWith('ai.')) return aiSettingValue(key, value)
   if (key.startsWith('briefing.')) return briefingSettingValue(key, value)
   if (key.startsWith('meetings.')) return meetingsSettingValue(key, value)
+  if (key.startsWith('herman.')) return hermanSettingValue(key, value)
   if (!key.startsWith('history.')) return settingValue(value)
   if (value === undefined || value === null) return null
   const clean = cleanHistorySetting(key, value)
@@ -197,6 +200,17 @@ function meetingsSettingValue(key: string, value: unknown): unknown {
   if (value === undefined || value === null) return null
   if (key === 'meetings.whisperPath' || key === 'meetings.modelPath') throw new Error('The file can only be chosen with the file dialog')
   const clean = cleanMeetingsSetting(key, value)
+  if (clean === undefined) throw new Error('Invalid setting value')
+  return clean
+}
+
+/**
+ * The Herman settings choose among things the main process holds (a voice, a frequency), so each
+ * is one of a fixed set of values: no free text of his persona can be stored. Null resets one.
+ */
+function hermanSettingValue(key: string, value: unknown): unknown {
+  if (value === undefined || value === null) return null
+  const clean = cleanHermanSetting(key, value)
   if (clean === undefined) throw new Error('Invalid setting value')
   return clean
 }
