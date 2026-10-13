@@ -37,7 +37,7 @@ import type { SqlDriver, SqlStatement } from './driver'
 import { configure, migrate } from './schema'
 import { searchBlocks } from './search'
 import { searchText } from './text'
-import { BulkChange, formatStamp, RESTORE_LABEL_PREFIX, VersionStore } from './versions'
+import { buildSnapshot, BulkChange, formatStamp, RESTORE_LABEL_PREFIX, VersionStore } from './versions'
 import { byIdsSql, LINEAGE_SQL, liveFilter, pagesAbove, pick, subtreeSql, walk, type Link, type TreeNode } from './tree'
 
 export { BLOCK_TYPES, isBlockType, isPageLike, isValidId, MAX_SETTING_CHARS } from './blocks'
@@ -46,6 +46,28 @@ export { ftsQuery, likePattern, searchText } from './text'
 
 const MAX_SETTING_KEY = 200
 const ROOT_ORDER_KEY = 'rootOrder'
+/** When the order of the workspace root last changed: sync needs to know which of two reorders is the later one. */
+const ROOT_ORDER_AT_KEY = 'rootOrderAt'
+
+/** What a sync writes in one transaction (see Repository.applySync). */
+export interface SyncChange {
+  /** Blocks to insert or to overwrite, exactly as given: the timestamps are theirs. */
+  put: Block[]
+  /** Blocks to remove for good; descendants that go with them are listed themselves. */
+  remove: string[]
+  /** The new order of the workspace root, when it changed. */
+  root?: { order: string[]; at: number }
+  /** Pages whose current state is stored as a version before anything is written. */
+  snapshots: { pageId: string; label: string }[]
+  /** Versions built from the state another device had (the tree of the page there, root first). */
+  foreign: { pageId: string; label: string; tree: Block[] }[]
+  /** Pages whose content changed as a whole: editors showing them drop their undo history. */
+  resetPages: string[]
+  /** Settings written with the blocks, so that a crash leaves both or neither. */
+  settings: Record<string, unknown>
+  /** Runs last, inside the transaction. */
+  finish?: () => void
+}
 
 /** The columns of a row that structural checks need: no JSON, nothing to parse. */
 interface Head {
@@ -395,6 +417,7 @@ export class Repository {
   private setOrder(parentId: string | null, ids: string[]): void {
     if (parentId === null) {
       this.setSetting(ROOT_ORDER_KEY, ids)
+      this.setSetting(ROOT_ORDER_AT_KEY, this.now())
       return
     }
     this.orders.set(parentId, { ids, at: this.now(), dirty: true })
@@ -1384,6 +1407,130 @@ export class Repository {
     if (pages) notes.push(`${pages} ${pages === 1 ? 'sub-page was not copied and stays' : 'sub-pages were not copied and stay'} in the original page.`)
     if (views) notes.push(`${views} linked ${views === 1 ? 'view was' : 'views were'} left out because the database no longer exists.`)
     return { pageId: copy.id, backupId: null, notes }
+  }
+
+  // -------------------------------------------------------------------- sync
+  //
+  // What ../sync needs from the database: the stored rows as they are, the order of the
+  // root, the per-page export state, and one transaction that writes a merged workspace.
+
+  /** Every stored block row, unparsed. */
+  syncRows(): Row[] {
+    this.flushOrders()
+    return this.stmt(`SELECT ${COLS} FROM blocks`).all() as Row[]
+  }
+
+  /** Ids at the workspace root, in order, and when that order last changed. */
+  rootOrder(): { order: string[]; at: number } {
+    const at = this.getSetting<unknown>(ROOT_ORDER_AT_KEY)
+    return { order: this.order(null), at: typeof at === 'number' && Number.isFinite(at) ? at : 0 }
+  }
+
+  /** The fingerprint each page had when it was last uploaded. */
+  syncStates(): Map<string, string> {
+    const out = new Map<string, string>()
+    for (const r of this.stmt('SELECT page_id, hash FROM sync_state').all() as { page_id: string; hash: string }[]) out.set(r.page_id, r.hash)
+    return out
+  }
+
+  /** Replaces the export state: `states` is everything that is uploaded now. */
+  setSyncStates(states: ReadonlyMap<string, string>, settings: Record<string, unknown> = {}): void {
+    this.transaction(() => {
+      this.writeSyncStates(states)
+      for (const [key, value] of Object.entries(settings)) this.setSetting(key, value)
+    })
+  }
+
+  private writeSyncStates(states: ReadonlyMap<string, string>): void {
+    const before = this.syncStates()
+    const at = this.clock()
+    for (const id of before.keys()) if (!states.has(id)) this.stmt('DELETE FROM sync_state WHERE page_id = ?').run(id)
+    for (const [id, hash] of states) {
+      if (before.get(id) === hash) continue
+      this.stmt(
+        'INSERT INTO sync_state (page_id, hash, exported_at) VALUES (?, ?, ?) ON CONFLICT(page_id) DO UPDATE SET hash = excluded.hash, exported_at = excluded.exported_at'
+      ).run(id, hash, at)
+    }
+  }
+
+  clearSyncStates(): void {
+    this.stmt('DELETE FROM sync_state').run()
+  }
+
+  /**
+   * Writes the outcome of a sync in one transaction: versions of what is about to be replaced
+   * first, then the blocks exactly as merged (their timestamps included, which is what makes
+   * the next merge see them as unchanged), the root order, and the settings that say which
+   * commit this state corresponds to. The search index, the change feed and the version
+   * history are kept up to date like for any other mutation. `states` is asked, once
+   * everything is written, for the export state that goes with it.
+   */
+  applySync(change: SyncChange, states?: () => ReadonlyMap<string, string>): void {
+    this.transaction(() => {
+      for (const { pageId, label } of change.snapshots) {
+        const h = this.head(pageId)
+        if (h && isPageLike(h.type)) this.versions.capture(pageId, 'sync', label.slice(0, MAX_VERSION_LABEL), true)
+      }
+      for (const { pageId, label, tree } of change.foreign) {
+        const h = this.head(pageId)
+        if (!h || !isPageLike(h.type)) continue
+        const snapshot = buildSnapshot(tree.map((b) => ({ ...b, props: chartProps(mergeProps({}, b.props)) })))
+        if (snapshot) this.versions.storeSnapshot(pageId, snapshot, 'sync', label.slice(0, MAX_VERSION_LABEL))
+      }
+      // The ordinary capture policy applies to every page about to change.
+      for (const pageId of change.resetPages) {
+        const h = this.head(pageId)
+        if (h && isPageLike(h.type)) this.versions.beforeWrite(pageId)
+      }
+      for (const id of change.remove) {
+        assertId(id)
+        const h = this.head(id)
+        if (!h) continue
+        this.deleteRow(id, h.rid)
+        if (isPageLike(h.type)) this.versions.dropPage(id)
+      }
+      const stamp = (value: unknown): number => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0)
+      let latest = this.lastNow
+      for (const b of change.put) {
+        assertId(b.id)
+        assertType(b.type)
+        if (b.parentId !== null) assertId(b.parentId, 'parentId')
+        const content = b.content.filter(isValidId)
+        const props = chartProps(mergeProps({}, b.props))
+        const trashedAt = b.trashedAt === null || !isPageLike(b.type) ? null : stamp(b.trashedAt)
+        const updatedAt = stamp(b.updatedAt)
+        latest = Math.max(latest, updatedAt)
+        const r = this.stmt('SELECT rid, props FROM blocks WHERE id = ?').get(b.id) as { rid: number; props: string } | undefined
+        if (!r) {
+          this.insertRow({ id: b.id, type: b.type, parentId: b.parentId, content, props, createdAt: stamp(b.createdAt), updatedAt, trashedAt })
+          continue
+        }
+        this.stmt(
+          'UPDATE blocks SET type = ?, parent_id = ?, content = ?, props = ?, created_at = ?, updated_at = ?, trashed_at = ? WHERE rid = ?'
+        ).run(b.type, b.parentId, JSON.stringify(content), serializeProps(props), stamp(b.createdAt), updatedAt, trashedAt, r.rid)
+        const text = searchText(props)
+        if (text !== searchText(parseProps(r.props))) {
+          this.stmt('DELETE FROM blocks_fts WHERE rowid = ?').run(r.rid)
+          this.insertFts(r.rid, b.id, text)
+        }
+        this.orders.delete(b.id)
+        this.mark(b.id)
+      }
+      // Edits made here from now on are later than anything that was just received.
+      this.lastNow = latest
+      if (change.root) {
+        this.setSetting(ROOT_ORDER_KEY, change.root.order.filter(isValidId))
+        this.setSetting(ROOT_ORDER_AT_KEY, stamp(change.root.at))
+      }
+      for (const [key, value] of Object.entries(change.settings)) this.setSetting(key, value)
+      for (const pageId of change.resetPages) {
+        if (!this.head(pageId)) continue
+        this.pendingResets.add(pageId)
+        this.mark(pageId)
+      }
+      change.finish?.()
+      if (states) this.writeSyncStates(states())
+    })
   }
 
   // ---------------------------------------------------------------- settings

@@ -28,7 +28,7 @@ import type { SqlStatement } from './driver'
  * mutations it is made of.
  */
 
-const KINDS: readonly VersionKind[] = ['auto', 'manual', 'restore', 'daily']
+const KINDS: readonly VersionKind[] = ['auto', 'manual', 'restore', 'daily', 'sync']
 const FORMAT = 1
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -670,7 +670,7 @@ export class VersionStore {
     const { json, hash } = serializeSnapshot(snapshot)
     const latest = this.latest(pageId)
     if (latest && latest.hash === hash) return { info: toInfo(latest), stored: false, textSize }
-    if (kind === 'restore') {
+    if (kind === 'restore' || kind === 'sync') {
       // The state about to be replaced only needs to be in some version: undoing a restore adds nothing.
       const same = this.host
         .stmt(`SELECT ${INFO_COLS} FROM page_versions WHERE page_id = ? AND hash = ? ORDER BY created_at DESC LIMIT 1`)
@@ -688,6 +688,36 @@ export class VersionStore {
     if (this.bytes !== null) this.bytes += data.byteLength
     this.txn?.stored.add(pageId)
     return { info, stored: true, textSize }
+  }
+
+  /**
+   * Stores a snapshot that was built elsewhere (the state another device had of the page) as a
+   * version of `pageId`, unless a version with the same content exists. Must run inside a transaction.
+   */
+  storeSnapshot(pageId: string, snapshot: SnapshotContent, kind: VersionKind, label: string | null): VersionInfo | null {
+    if (snapshot.rootId !== pageId) return null
+    const { json, hash } = serializeSnapshot(snapshot)
+    const same = this.host.stmt('SELECT 1 AS x FROM page_versions WHERE page_id = ? AND hash = ? LIMIT 1').get(pageId, hash)
+    if (same) return null
+    const data = encodeSnapshot(json)
+    const info: VersionInfo = {
+      id: randomUUID(),
+      pageId,
+      createdAt: this.host.now(),
+      kind,
+      label,
+      blockCount: snapshotBlockCount(snapshot),
+      textSize: snapshotTextSize(snapshot)
+    }
+    this.host
+      .stmt(
+        `INSERT INTO page_versions (id, page_id, created_at, kind, label, block_count, text_size, data, hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(info.id, pageId, info.createdAt, kind, label, info.blockCount, info.textSize, data, hash)
+    if (this.bytes !== null) this.bytes += data.byteLength
+    this.txn?.stored.add(pageId)
+    return info
   }
 
   /** "Save version": the current state as a version that is never pruned, with an optional name. */

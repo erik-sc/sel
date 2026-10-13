@@ -14,6 +14,7 @@ import { initTree } from './store/tree'
 import { bootUi, initUi, resolveTheme } from './store/ui'
 import { notifyError } from './ui/toast'
 import { initAi } from './ai/gate'
+import { initSync } from './sync/store'
 
 bootMark('start')
 
@@ -37,6 +38,8 @@ const settings = Promise.all([
 void initTree()
 // Whether the AI entry points exist at all (`ai.enabled`); they stay hidden until this answers.
 void initAi()
+// The state of sync, for the indicator in the sidebar (nothing is loaded for it unless this device syncs).
+void initSync()
 void initTabs(initialPageId()).then(() => {
   // The page about to be shown: fetch its blocks while the editor's code loads.
   const pageId = tabPage(activeTab())

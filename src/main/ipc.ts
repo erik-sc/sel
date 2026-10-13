@@ -3,6 +3,7 @@ import { IPC } from '../shared/api'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import type { Repository } from './db/repository'
+import type { SyncBridge } from './sync'
 import { ChangeFeed } from './changes'
 import { pickImage, saveGeneratedImage, saveImage } from './files'
 import { isTrustedSender, toExternalUrl } from './security'
@@ -37,7 +38,18 @@ function applyTheme(repo: Repository, theme: unknown): void {
 
 type Handler = (args: unknown[], event: IpcMainInvokeEvent) => unknown
 
-export function registerIpc({ repo, ready, createWindow }: IpcContext): void {
+/** What the app's lifecycle needs from sync (see ./sync), without loading it. */
+export interface SyncHooks {
+  /** Loads sync and starts its timers when this device is connected to a repository. */
+  start(): void
+  /** A last upload on the way out, bounded to a few seconds; null when there is nothing to wait for. */
+  beforeQuit(): Promise<void> | null
+}
+
+const SYNC_URL_KEY = 'sync.remoteUrl'
+const APPEARANCE_SETTING = 'appearance'
+
+export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHooks {
   const changes = new ChangeFeed((change: ChangeEvent) => {
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send(IPC.change, change)
@@ -62,7 +74,12 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): void {
         throw arg.toIpcError(err)
       } finally {
         // Reads leave nothing to drain; a failed mutation was rolled back and leaves nothing either.
-        if (origin !== null) changes.add(origin, repo.drainChanges(), repo.drainResets())
+        if (origin !== null) {
+          const ids = repo.drainChanges()
+          changes.add(origin, ids, repo.drainResets())
+          // Something changed on this device: sync uploads it once things have been quiet for a moment.
+          if (ids.length) syncBridge?.noteLocalChange()
+        }
       }
     })
   }
@@ -145,6 +162,11 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): void {
     const key = arg.writableSettingKey(a)
     if (key === THEME_KEY) return applyTheme(repo, b)
     repo.setSetting(key, arg.settingValueFor(key, b))
+    // The appearance is synced: when it changed here decides which device's change stands.
+    if (key === APPEARANCE_SETTING) {
+      repo.setSetting('sync.appearanceAt', Date.now())
+      syncBridge?.noteLocalChange()
+    }
     // Which program runs, and whether any does, is decided by these: the cached answer is stale.
     if (key.startsWith('ai.')) aiBridge?.service.invalidate()
   })
@@ -170,6 +192,24 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): void {
   // Goes through a native dialog: the renderer never names a path to run.
   handle('ai:pickCli', async (_args, event) => (await ai()).pickCli(windowOf(event)))
 
+  // ---- sync (drives the git installed on this computer; see ./sync)
+  // Loaded when this device is connected to a repository, or when a window first asks. What a
+  // sync changes in the database reaches the windows like any other change, from the origin
+  // `sync` that no window has.
+  let syncBridge: SyncBridge | null = null
+  const sync = async (): Promise<SyncBridge> =>
+    (syncBridge ??= new (await import('./sync')).SyncBridge(repo, () => changes.add('sync', repo.drainChanges(), repo.drainResets())))
+  app.on('will-quit', () => syncBridge?.dispose())
+  handle('sync:status', async () => (await sync()).status())
+  handle('sync:setup', async ([a]) => (await sync()).setup(a))
+  handle('sync:now', async () => (await sync()).now())
+  handle('sync:pause', async ([a]) => (await sync()).pause(a))
+  handle('sync:disconnect', async ([a]) => (await sync()).disconnect(a))
+  handle('sync:unlock', async ([a]) => (await sync()).unlock(a))
+  handle('sync:setEncryption', async ([a]) => (await sync()).setEncryption(a))
+  // Goes through a native dialog: the renderer never names a path to run.
+  handle('sync:pickGit', async (_args, event) => (await sync()).pickGit(windowOf(event)))
+
   // ---- window controls (the renderer draws them on frameless windows)
   handle('window:isMaximized', (_args, event) => windowOf(event)?.isMaximized() ?? false)
   on(IPC.windowMinimize, (win) => win.minimize())
@@ -179,4 +219,17 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): void {
     else win.maximize()
   })
   on(IPC.windowClose, (win) => win.close())
+
+  return {
+    start() {
+      if (typeof repo.getSetting(SYNC_URL_KEY) !== 'string') return
+      sync().then(
+        (bridge) => bridge.start(),
+        (err: unknown) => console.error('[main] sync could not be started', err)
+      )
+    },
+    beforeQuit() {
+      return syncBridge?.wantsQuitSync ? syncBridge.beforeQuit() : null
+    }
+  }
 }

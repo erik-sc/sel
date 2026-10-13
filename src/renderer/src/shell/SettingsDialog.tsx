@@ -1,10 +1,10 @@
 // The settings window itself. Loaded on demand through SettingsModal.tsx.
-import { useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import type { Theme } from '@shared/types'
 import { AppearancePanel } from '@/appearance/AppearancePanel'
 import '@/appearance/appearance.css'
 import { Segmented } from '@/appearance/controls'
-import { setSettingsOpen, setTheme, useUi } from '@/store/ui'
+import { setSettingsOpen, setTheme, useUi, type SettingsSection } from '@/store/ui'
 import { Button, IconButton } from '@/ui/Button'
 import { Modal } from '@/ui/Modal'
 import { Close } from '@/ui/icons'
@@ -18,14 +18,18 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: 'system', label: 'System' }
 ]
 
-type Section = 'general' | 'appearance' | 'history' | 'ai'
+type Section = SettingsSection
 
 const SECTIONS: { value: Section; label: string }[] = [
   { value: 'general', label: 'General' },
   { value: 'appearance', label: 'Appearance' },
   { value: 'history', label: 'History' },
-  { value: 'ai', label: 'AI' }
+  { value: 'ai', label: 'AI' },
+  { value: 'sync', label: 'Sync' }
 ]
+
+// Sync settings are a chunk of their own: most people open Settings for something else.
+const SyncSection = lazy(() => import('@/sync/SyncSettings').then((module) => ({ default: module.SyncSection })))
 
 export function SettingsDialog() {
   const open = useUi((state) => state.settingsOpen)
@@ -37,8 +41,16 @@ export function SettingsDialog() {
 }
 
 function SettingsBody() {
-  const [section, setSection] = useState<Section>('general')
+  const requested = useUi((state) => state.settingsSection)
+  const [section, setSection] = useState<Section>(requested ?? 'general')
   const title = SECTIONS.find((entry) => entry.value === section)?.label
+
+  // Something outside asked for a section (the sync indicator): show it, once.
+  useEffect(() => {
+    if (requested === null) return
+    setSection(requested)
+    useUi.setState({ settingsSection: null })
+  }, [requested])
 
   return (
     <>
@@ -64,7 +76,19 @@ function SettingsBody() {
           </IconButton>
         </header>
         <div className="settings2-content">
-          {section === 'general' ? <GeneralSection /> : section === 'history' ? <HistorySection /> : section === 'ai' ? <AiSection /> : <AppearancePanel />}
+          {section === 'general' ? (
+            <GeneralSection />
+          ) : section === 'history' ? (
+            <HistorySection />
+          ) : section === 'ai' ? (
+            <AiSection />
+          ) : section === 'sync' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <SyncSection />
+            </Suspense>
+          ) : (
+            <AppearancePanel />
+          )}
         </div>
       </div>
     </>

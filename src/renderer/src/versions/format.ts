@@ -66,13 +66,14 @@ export function groupByDay(versions: VersionInfo[], now: number): DayGroup[] {
 export function kindLabel(kind: VersionKind): string {
   if (kind === 'manual') return 'Saved'
   if (kind === 'restore') return 'Before restore'
+  if (kind === 'sync') return 'Sync'
   return 'Auto'
 }
 
 /** Badge colour class suffix. */
 export function kindTone(kind: VersionKind): 'auto' | 'saved' | 'restore' {
   if (kind === 'manual') return 'saved'
-  if (kind === 'restore') return 'restore'
+  if (kind === 'restore' || kind === 'sync') return 'restore'
   return 'auto'
 }
 

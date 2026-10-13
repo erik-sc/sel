@@ -658,7 +658,7 @@ describe('query plans', () => {
       PRAGMA user_version = 1;
     `)
     const r = new Repo(db)
-    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(3)
+    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(4)
     const names = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all() as { name: string }[]).map((x) => x.name)
     expect(names).toContain('blocks_pages_recent_idx')
     // Migration 3: the version history table, empty.

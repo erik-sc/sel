@@ -17,6 +17,7 @@ import { createPage, reportError } from './actions'
 import { PageRow, PageTree } from './PageTree'
 import { preloadSettings } from './SettingsModal'
 import { TrashPopover, preloadTrash } from './TrashPopover'
+import { SyncIndicator } from '@/sync/SyncIndicator'
 
 /** Pixels the divider moves per arrow key press. */
 const RESIZE_STEP = 16
@@ -158,16 +159,20 @@ export const Sidebar = memo(function Sidebar() {
             <Trash />
             <span>Trash</span>
           </button>
-          <button
-            type="button"
-            className="sidebar-action"
-            onPointerEnter={preloadSettings}
-            onFocus={preloadSettings}
-            onClick={() => setSettingsOpen(true)}
-          >
-            <Settings />
-            <span>Settings</span>
-          </button>
+          <div className="sync-footer-row">
+            <button
+              type="button"
+              className="sidebar-action"
+              onPointerEnter={preloadSettings}
+              onFocus={preloadSettings}
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Settings />
+              <span>Settings</span>
+            </button>
+            {/* Nothing at all until this device syncs; then a quiet icon that says how it is going. */}
+            <SyncIndicator />
+          </div>
         </footer>
       </div>
       <Resizer />

@@ -59,6 +59,15 @@ const MIGRATIONS: string[] = [
     hash        TEXT NOT NULL
   );
   CREATE INDEX page_versions_page_idx ON page_versions(page_id, created_at DESC);
+  `,
+  // Sync (see ../sync): what was last uploaded of each page. `hash` is a fingerprint of the
+  // page's stored rows, so that a cycle only rewrites the files of pages that changed since.
+  `
+  CREATE TABLE sync_state (
+    page_id     TEXT PRIMARY KEY,
+    hash        TEXT NOT NULL,
+    exported_at INTEGER NOT NULL
+  ) WITHOUT ROWID;
   `
 ]
 

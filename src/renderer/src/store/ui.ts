@@ -11,12 +11,16 @@ interface UiState {
   expanded: Record<string, true>
   quickFindOpen: boolean
   settingsOpen: boolean
+  /** The section Settings should show when it next opens (a click-through from elsewhere); null: wherever it was. */
+  settingsSection: SettingsSection | null
   theme: Theme
   /** Page currently being renamed inline in the sidebar. */
   renamingId: string | null
   /** Page whose version history is open, if any. */
   historyPageId: string | null
 }
+
+export type SettingsSection = 'general' | 'appearance' | 'history' | 'ai' | 'sync'
 
 export const SIDEBAR_MIN = 200
 export const SIDEBAR_MAX = 480
@@ -31,6 +35,7 @@ export const useUi = create<UiState>(() => ({
   expanded: {},
   quickFindOpen: false,
   settingsOpen: false,
+  settingsSection: null,
   theme: 'system',
   renamingId: null,
   historyPageId: null

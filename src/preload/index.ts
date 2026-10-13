@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { AI_CHANNELS, type AiEvent } from '@shared/ai'
 import { IPC, type Api, type MenuCommand } from '@shared/api'
+import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
 import type { ChangeEvent } from '@shared/types'
 
 // This script runs sandboxed: it may use `electron`'s renderer modules and web
@@ -53,6 +54,14 @@ const api: Api = {
         return handler
       })
       return () => types.forEach((type, index) => ipcRenderer.removeListener(AI_CHANNELS[type], handlers[index]))
+    }
+  },
+  sync: {
+    ...ns<Omit<Api['sync'], 'onStatus'>>('sync', ['status', 'setup', 'now', 'pause', 'disconnect', 'pickGit', 'unlock', 'setEncryption']),
+    onStatus(listener) {
+      const handler = (_: unknown, status: SyncStatus): void => listener(status)
+      ipcRenderer.on(SYNC_CHANNEL, handler)
+      return () => ipcRenderer.removeListener(SYNC_CHANNEL, handler)
     }
   },
   app: {

@@ -5,7 +5,7 @@ import { DEFAULT_SIZE, fitBounds, MIN_SIZE, type SavedBounds } from './bounds'
 import { openDatabase, type Repository } from './db'
 import { isValidId } from './db/blocks'
 import { handleFileProtocol, registerFileScheme } from './files'
-import { readTheme, registerIpc } from './ipc'
+import { readTheme, registerIpc, type SyncHooks } from './ipc'
 import { attachShortcuts, buildMenu } from './menu'
 import { DEV_URL, isAllowedRequest, isAppUrl, isDevServerUrl, RENDERER_FILE, toExternalUrl } from './security'
 import { flushTrace, mark } from './trace'
@@ -15,6 +15,9 @@ const BOUNDS_KEY = 'windowBounds'
 const ALLOWED_PERMISSIONS: ReadonlySet<string> = new Set(['clipboard-sanitized-write'])
 
 let repo: Repository | null = null
+let syncHooks: SyncHooks | null = null
+/** How long after the first window is shown the first sync starts. */
+const SYNC_START_DELAY_MS = 1500
 
 mark('main script start')
 // Privileged schemes have to be declared before the app is ready.
@@ -325,8 +328,11 @@ function start(store: Repository): void {
       hardenSession(session.defaultSession)
       nativeTheme.themeSource = readTheme(store)
       handleFileProtocol()
-      registerIpc({ repo: store, ready: seedWorkspace(store), createWindow: (pageId) => void createWindow(pageId) })
-      createWindow()
+      const hooks = registerIpc({ repo: store, ready: seedWorkspace(store), createWindow: (pageId) => void createWindow(pageId) })
+      syncHooks = hooks
+      const first = createWindow()
+      // Sync never competes with the first paint: it starts once the window is on screen.
+      first.once('show', () => setTimeout(() => hooks.start(), SYNC_START_DELAY_MS).unref())
       mark('window created')
       scheduleHistoryMaintenance(store)
       // On macOS the menu is the menu bar and owns the app shortcuts. Elsewhere it is never
@@ -347,6 +353,18 @@ function start(store: Repository): void {
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
+  })
+
+  // What is still to upload goes out on the way out, when that takes a few seconds at most.
+  // The database stays open until `will-quit`, which only comes after this.
+  let leaving = false
+  app.on('before-quit', (event) => {
+    if (leaving) return
+    const upload = syncHooks?.beforeQuit()
+    if (!upload) return
+    leaving = true
+    event.preventDefault()
+    void upload.catch((err: unknown) => console.error('[main] the last sync failed', err)).finally(() => app.quit())
   })
 
   app.on('will-quit', closeDatabase)

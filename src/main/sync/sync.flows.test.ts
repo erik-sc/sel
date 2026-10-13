@@ -1,0 +1,301 @@
+/**
+ * Sync against real git, the everyday flows: upload, download, edits both ways, conflicts, files, settings, races.
+ * Skipped, with a message, on a computer without git (see ./harness.ts).
+ */
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { expect, it } from 'vitest'
+import { SyncEngine } from './engine'
+import { bareRemote, commitCount, device, git, pair, plain, PNG, remoteFiles, suite, sync } from './harness'
+
+suite('sync with real git: flows', () => {
+  it('uploads a workspace to an empty repository in the documented layout', async () => {
+    const remote = bareRemote()
+    const a = device('Desk', 1_000_000)
+    const page = a.page('Projects')
+    a.text(page.id, 'First line')
+    const sub = a.page('Nested', page.id)
+    a.text(sub.id, 'Inside the nested page')
+
+    const status = await a.setup(remote)
+    expect(status).toMatchObject({ configured: true, state: 'idle', branch: 'main', deviceName: 'Desk', encrypted: false, pending: 0 })
+    expect(status.lastSyncAt).toBeGreaterThan(0)
+    expect(status.gitVersion).toMatch(/^\d+\.\d+/)
+
+    const files = remoteFiles(remote)
+    expect([...files.keys()].sort()).toEqual(['README.md', `pages/${page.id}.json`, `pages/${sub.id}.json`, 'selida.json', 'workspace.json'].sort())
+    expect(JSON.parse(files.get('selida.json')!.toString())).toMatchObject({ app: 'selida', format: 1, createdBy: 'Desk' })
+    expect(files.get('README.md')!.toString()).toContain('Do not edit these files by hand')
+    expect(JSON.parse(files.get('workspace.json')!.toString()).root).toEqual([page.id])
+    // One page per file, up to the nested page; one block per line; still one JSON document.
+    const text = files.get(`pages/${page.id}.json`)!.toString()
+    const lines = text.trimEnd().split('\n')
+    expect(lines).toHaveLength(4)
+    const parsed = JSON.parse(text) as { page: string; blocks: { id: string; type: string }[] }
+    expect(parsed.page).toBe(page.id)
+    expect(parsed.blocks.map((b) => b.type).sort()).toEqual(['page', 'text'])
+    expect(parsed.blocks.map((b) => b.id)).toEqual([...parsed.blocks.map((b) => b.id)].sort())
+    expect(text).not.toContain('Inside the nested page')
+    expect(git(remote, 'log', '-1', '--format=%an <%ae>|%s', 'main').trim()).toBe('Desk <selida@localhost>|Sync from Desk')
+    expect(git(remote, 'log', '-1', '--format=%b', 'main')).toContain('selida-sync: pages=2 removed=0')
+    // Nothing of the user's global git configuration was touched, and nothing was forced.
+    for (const { args } of a.spawns) {
+      if (args.includes('push')) expect(args.some((arg) => arg === '--force' || arg === '-f' || arg.startsWith('+') || arg.includes('force'))).toBe(false)
+      expect(args.includes('--global') || args.includes('--system')).toBe(false)
+    }
+  })
+
+  it('downloads the workspace on a second device: tree, search and root order', async () => {
+    const remote = bareRemote()
+    const a = device('Device A', 1_000_000)
+    const first = a.page('Alpha')
+    a.text(first.id, 'Searchable sentence about otters')
+    const second = a.page('Beta')
+    a.repo.create({ type: 'to_do', parentId: second.id, props: { title: [['Buy milk']], checked: true } })
+    await a.setup(remote)
+
+    const b = device('Device B', 2_000_000)
+    const status = await b.setup(remote)
+    expect(status.lastError).toBeUndefined()
+    expect(b.titles()).toEqual(['Alpha', 'Beta'])
+    expect(b.texts(first.id)).toEqual(['Searchable sentence about otters'])
+    expect(b.repo.getTree(second.id)[1]).toMatchObject({ type: 'to_do', props: { checked: true } })
+    expect(b.repo.search('otters').map((hit) => hit.pageId)).toEqual([first.id])
+    // Timestamps are the ones of the device that wrote the blocks.
+    expect(b.repo.get(first.id)?.updatedAt).toBe(a.repo.get(first.id)?.updatedAt)
+    expect(b.applied).toBe(1)
+    expect(status.activity[0]).toMatchObject({ received: 2, sent: 0, from: 'Device A', conflicts: [] })
+    // Nothing to upload: the second device made no commit.
+    expect(commitCount(remote)).toBe(1)
+  })
+
+  it('carries alternating edits back and forth', async () => {
+    const { remote, a, b, pageId, blocks } = await pair()
+    a.repo.update(blocks[0], { props: { title: [['one, edited on A']] } })
+    a.text(pageId, 'four')
+    await sync(a, b)
+    expect(b.texts(pageId)).toEqual(['one, edited on A', 'two', 'three', 'four'])
+
+    b.repo.update(blocks[1], { props: { title: [['two, edited on B']] } })
+    b.repo.delete(blocks[2])
+    const added = b.page('Made on B')
+    await sync(b, a)
+    expect(a.texts(pageId)).toEqual(['one, edited on A', 'two, edited on B', 'four'])
+    expect(a.titles()).toEqual(['Shared page', 'Made on B'])
+    expect(a.repo.get(added.id)).toMatchObject({ type: 'page' })
+
+    // Moving to the trash and reordering the root travel too.
+    a.repo.move(added.id, null, null)
+    a.repo.delete(pageId)
+    await sync(a, b)
+    expect(b.titles()).toEqual(['Made on B'])
+    expect(b.repo.listTrash().map((p) => p.id)).toEqual([pageId])
+    b.repo.restore(pageId)
+    await sync(b, a)
+    expect(a.titles().sort()).toEqual(['Made on B', 'Shared page'])
+    // A cycle with nothing to do makes no commit.
+    const before = commitCount(remote)
+    await sync(a, b, a)
+    expect(commitCount(remote)).toBe(before)
+  })
+
+  it('merges offline edits to different blocks and different keys without conflict', async () => {
+    const { a, b, pageId, blocks } = await pair()
+    const todo = a.repo.create({ type: 'to_do', parentId: pageId, props: { title: [['task']], checked: false } })
+    await sync(a, b)
+    // Both offline.
+    a.repo.update(blocks[0], { props: { title: [['A changed one']] } })
+    a.repo.update(todo.id, { props: { checked: true } })
+    b.repo.update(blocks[2], { props: { title: [['B changed three']] } })
+    b.repo.update(todo.id, { props: { title: [['task, reworded']] } })
+    await sync(a, b, a)
+    for (const d of [a, b]) {
+      expect(d.texts(pageId)).toEqual(['A changed one', 'two', 'B changed three', 'task, reworded'])
+      expect(d.repo.get(todo.id)?.props).toMatchObject({ checked: true, title: [['task, reworded']] })
+      expect(d.engine.status().activity.flatMap((entry) => entry.conflicts)).toEqual([])
+    }
+  })
+
+  it('keeps the losing local state in version history when both devices changed the same block', async () => {
+    const { a, b, pageId, blocks } = await pair()
+    // B edits first (its clock is ahead, so its edit is the later one), A edits and syncs first.
+    b.repo.update(blocks[0], { props: { title: [['B wins']] } })
+    a.repo.update(blocks[0], { props: { title: [['A loses']] } })
+    a.repo.update(blocks[1], { props: { title: [['A only']] } })
+    await sync(a)
+    // B: its own block is later, so the remote's version is the one that is not kept.
+    const onB = await b.engine.now()
+    expect(onB.lastError).toBeUndefined()
+    expect(b.texts(pageId)).toEqual(['B wins', 'A only', 'three'])
+    expect(onB.activity[0].conflicts).toEqual([{ pageId, title: 'Shared page', blocks: 1 }])
+    const keptOnB = b.repo.listVersions(pageId).filter((v) => v.kind === 'sync')
+    expect(keptOnB.map((v) => v.label)).toEqual(['From Device A, not kept by sync'])
+    const theirs = b.repo.getVersion(keptOnB[0].id)
+    expect(theirs.blocks.map((block) => plain(block.props.title))).toContain('A loses')
+
+    // A: receives B's block. Nothing conflicts there any more (it has not changed since), so
+    // its old text is replaced like any received edit; the page history still has it.
+    await sync(a)
+    expect(a.texts(pageId)).toEqual(['B wins', 'A only', 'three'])
+
+    // The other direction: the local edit is the older one and loses.
+    a.repo.update(blocks[2], { props: { title: [['A, earlier']] } })
+    b.repo.update(blocks[2], { props: { title: [['B, later']] } })
+    await sync(b)
+    const onA = await a.engine.now()
+    expect(a.texts(pageId)).toEqual(['B wins', 'A only', 'B, later'])
+    expect(onA.activity[0].conflicts).toEqual([{ pageId, title: 'Shared page', blocks: 1 }])
+    const keptOnA = a.repo.listVersions(pageId).filter((v) => v.kind === 'sync')
+    expect(keptOnA.map((v) => v.label)).toEqual(['Before sync from Device B'])
+    const mine = a.repo.getVersion(keptOnA[0].id)
+    expect(mine.blocks.map((block) => plain(block.props.title))).toContain('A, earlier')
+    await sync(b, a)
+    expect(a.texts(pageId)).toEqual(b.texts(pageId))
+  })
+
+  it('announces changed blocks and reset pages to the windows when a merge is applied', async () => {
+    const { a, pageId, blocks } = await pair()
+    const b = device('Device C', 3_000_000)
+    let changes: string[] = []
+    let resets: string[] = []
+    const engine = new SyncEngine({
+      repo: b.repo,
+      dir: join(b.dir, 'sync'),
+      filesDir: b.filesDir,
+      hostName: 'Device C',
+      allowLocal: true,
+      secrets: { load: () => null, save: () => undefined },
+      acceptImage: () => true,
+      onApplied: () => {
+        changes = b.repo.drainChanges()
+        resets = b.repo.drainResets()
+      }
+    })
+    const remote = a.engine.status().remoteUrl as string
+    await engine.setup({ remoteUrl: remote })
+    expect(changes).toEqual(expect.arrayContaining([pageId, ...blocks]))
+    expect(resets).toEqual([pageId])
+    a.repo.update(blocks[0], { props: { title: [['changed']] } })
+    await sync(a)
+    changes = []
+    await engine.now()
+    expect(changes).toEqual(expect.arrayContaining([blocks[0]]))
+    expect(resets).toEqual([pageId])
+  })
+
+  it('resolves delete against edit: the edit survives, an untouched block goes', async () => {
+    const { a, b, pageId, blocks } = await pair()
+    a.repo.delete(blocks[0])
+    a.repo.delete(blocks[1])
+    b.repo.update(blocks[0], { props: { title: [['one, still needed']] } })
+    await sync(a, b, a)
+    for (const d of [a, b]) expect(d.texts(pageId)).toEqual(['one, still needed', 'three'])
+  })
+
+  it('brings a page back for a block edited on another device after the page was deleted for good', async () => {
+    const { a, b, pageId, blocks } = await pair()
+    a.repo.delete(pageId)
+    a.repo.deleteForever(pageId)
+    b.repo.update(blocks[1], { props: { title: [['edited after the delete']] } })
+    await sync(a, b, a)
+    for (const d of [a, b]) {
+      expect(d.titles()).toEqual(['Shared page'])
+      expect(d.texts(pageId)).toEqual(['edited after the delete'])
+    }
+  })
+
+  it('round-trips images referenced by pages', async () => {
+    const remote = bareRemote()
+    const a = device('Device A', 1_000_000)
+    const name = '0b0f6c2e-1111-4222-8333-444455556666.png'
+    writeFileSync(join(a.filesDir, name), PNG)
+    const page = a.page('Pictures')
+    a.repo.create({ type: 'image', parentId: page.id, props: { url: `selida-file://files/${name}` } })
+    // Never uploaded: nothing refers to it.
+    writeFileSync(join(a.filesDir, 'unused-picture.png'), PNG)
+    await a.setup(remote)
+    expect([...remoteFiles(remote).keys()].filter((path) => path.startsWith('files/'))).toEqual([`files/${name}`])
+
+    const b = device('Device B', 2_000_000)
+    await b.setup(remote)
+    expect(readFileSync(join(b.filesDir, name)).equals(PNG)).toBe(true)
+    expect(readdirSync(b.filesDir)).toEqual([name])
+  })
+
+  it('does not store a file from the repository that is not an image, or whose name is not one the app writes', async () => {
+    const remote = bareRemote()
+    const a = device('Device A', 1_000_000)
+    const name = 'aaaaaaaa-1111-4222-8333-444455556666.png'
+    writeFileSync(join(a.filesDir, name), Buffer.from('#!/bin/sh\necho not an image, whatever the name says\n'))
+    const page = a.page('Odd')
+    a.repo.create({ type: 'image', parentId: page.id, props: { url: `selida-file://files/${name}` } })
+    a.repo.create({ type: 'image', parentId: page.id, props: { url: 'selida-file://files/../../evil.png' } })
+    await a.setup(remote)
+    const b = device('Device B', 2_000_000)
+    await b.setup(remote)
+    expect(readdirSync(b.filesDir)).toEqual([])
+    expect(b.texts(page.id)).toHaveLength(2)
+  })
+
+  it('round-trips the appearance settings and merges them per token', async () => {
+    const { a, b } = await pair()
+    a.repo.setSetting('appearance', { version: 1, light: { '--accent': '#ff0000' }, dark: {}, shared: {}, customCss: '', presetId: null })
+    a.repo.setSetting('sync.appearanceAt', 5000)
+    await sync(a)
+    const onB = await b.engine.now()
+    expect(b.repo.getSetting('appearance')).toMatchObject({ light: { '--accent': '#ff0000' } })
+    expect(onB.activity[0]).toMatchObject({ appearance: true })
+
+    // Different tokens on each device: both stay.
+    a.repo.setSetting('appearance', { version: 1, light: { '--accent': '#ff0000', '--radius-m': '2px' }, dark: {}, shared: {}, customCss: '', presetId: null })
+    a.repo.setSetting('sync.appearanceAt', 6000)
+    b.repo.setSetting('appearance', { version: 1, light: { '--accent': '#ff0000' }, dark: { '--accent': '#00ff00' }, shared: {}, customCss: '.x{}', presetId: null })
+    b.repo.setSetting('sync.appearanceAt', 7000)
+    await sync(a, b, a)
+    const expected = { light: { '--accent': '#ff0000', '--radius-m': '2px' }, dark: { '--accent': '#00ff00' }, customCss: '.x{}' }
+    expect(a.repo.getSetting('appearance')).toMatchObject(expected)
+    expect(b.repo.getSetting('appearance')).toMatchObject(expected)
+    // Window state, tabs, AI and history settings never leave the device.
+    a.repo.setSetting('ai.model', 'opus')
+    a.repo.setSetting('windowBounds', { x: 1 })
+    a.repo.setSetting('history.enabled', false)
+    await sync(a, b)
+    expect(b.repo.getSetting('ai.model')).toBeNull()
+    expect(b.repo.getSetting('windowBounds')).toBeNull()
+    expect(b.repo.getSetting('history.enabled')).toBeNull()
+  })
+
+  it('never puts the version history table or local settings in the repository', async () => {
+    const { remote, a, pageId } = await pair()
+    a.repo.saveVersion(pageId, 'A secret label')
+    a.repo.setSetting('shell.tabs', [{ id: 'tab-secret' }])
+    a.text(pageId, 'another line')
+    await sync(a)
+    const everything = [...remoteFiles(remote).values()].map((bytes) => bytes.toString()).join('\n')
+    expect(everything).not.toContain('A secret label')
+    expect(everything).not.toContain('tab-secret')
+    expect(everything).toContain('another line')
+  })
+
+  it('starts over when another device pushes between the fetch and the push', async () => {
+    const { remote, a, b, pageId, blocks } = await pair()
+    a.repo.update(blocks[0], { props: { title: [['from A']] } })
+    b.repo.update(blocks[1], { props: { title: [['from B']] } })
+    let raced = 0
+    a.hook = async (step) => {
+      if (step !== 'push' || raced++) return
+      // B gets its commit in first: A's push is no longer a fast-forward.
+      await sync(b)
+    }
+    await sync(a)
+    expect(raced).toBeGreaterThan(1)
+    a.hook = null
+    expect(a.texts(pageId)).toEqual(['from A', 'from B', 'three'])
+    await sync(b)
+    expect(b.texts(pageId)).toEqual(['from A', 'from B', 'three'])
+    // No push was ever forced: the history is linear and contains both devices' commits.
+    const authors = git(remote, 'log', '--format=%an', 'main').trim().split('\n')
+    expect(authors).toEqual(expect.arrayContaining(['Device A', 'Device B']))
+    expect(git(remote, 'rev-list', '--merges', '--count', 'main').trim()).toBe('0')
+  })
+})

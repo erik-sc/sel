@@ -1,4 +1,5 @@
 import type { AiEvent, AiRequest, AiStatus } from './ai'
+import type { SyncSetup, SyncStatus } from './sync'
 import type {
   Block,
   ChangeEvent,
@@ -136,6 +137,35 @@ export interface Api {
     pickCli(): Promise<AiStatus | null>
     /** `ai:delta`, `ai:done` and `ai:error` for this window's requests. Returns an unsubscribe function. */
     onEvent(listener: (event: AiEvent) => void): () => void
+  }
+
+  /**
+   * Sync between this person's devices through a private git repository they own. Selida
+   * drives the git installed on this computer, which signs in by itself: no token is stored
+   * here. Every method resolves with the state afterwards; what went wrong is in `lastError`.
+   */
+  sync: {
+    status(): Promise<SyncStatus>
+    /**
+     * Connects this device and runs the first sync. When a decision is needed (`needs-choice`,
+     * `not-selida-repo`, `passphrase-required`…) `lastError` names it and nothing was set up.
+     */
+    setup(input: SyncSetup): Promise<SyncStatus>
+    now(): Promise<SyncStatus>
+    pause(paused: boolean): Promise<SyncStatus>
+    /** Stops syncing on this device and removes its local clone. Nothing on the remote is ever deleted. */
+    disconnect(options: { keepRemote: true }): Promise<SyncStatus>
+    /**
+     * Opens a file dialog to choose the git program and stores the choice (`sync.gitPath`), the
+     * only way that setting gets a value. Null when cancelled.
+     */
+    pickGit(): Promise<SyncStatus | null>
+    /** Enters the passphrase of a repository another device encrypted. */
+    unlock(passphrase: string): Promise<SyncStatus>
+    /** Turns encryption on or changes the passphrase (a string), or turns it off (null): everything is uploaded again. */
+    setEncryption(passphrase: string | null): Promise<SyncStatus>
+    /** `sync:status`, sent to every window whenever the state changes. Returns an unsubscribe function. */
+    onStatus(listener: (status: SyncStatus) => void): () => void
   }
 
   app: {

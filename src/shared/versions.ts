@@ -9,7 +9,8 @@ import type { BlockProps, BlockType, PropertyValue, RichText } from './types'
  * views plus the title, icon and values of each row, never a row's body.
  */
 
-export type VersionKind = 'auto' | 'manual' | 'restore' | 'daily'
+/** `sync`: kept when a sync replaced something that was changed on two devices. */
+export type VersionKind = 'auto' | 'manual' | 'restore' | 'daily' | 'sync'
 
 export interface VersionInfo {
   id: string
