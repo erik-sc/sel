@@ -75,6 +75,10 @@ All style values live in one file, `src/renderer/src/styles/tokens.css`. Compone
 | `Ctrl+Shift+L` | Light / dark |
 | `/` | Insert a block |
 
+## License
+
+[MIT](LICENSE)
+
 ---
 
 *Selida* is Greek for *page*.

@@ -4,6 +4,7 @@
   "description": "Local-first block-based notes and databases",
   "main": "./out/main/index.js",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
