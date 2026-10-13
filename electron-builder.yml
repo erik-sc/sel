@@ -1,5 +1,5 @@
 # Packaging (electron-builder). `npm run pack` = unpacked app in release/, `npm run dist` = installer.
-# No auto-update, no code signing, no publishing.
+# No auto-update, no code signing, no publishing. The icon is build/icon.ico, rendered from build/icon.svg.
 appId: app.sel
 productName: sel
 
