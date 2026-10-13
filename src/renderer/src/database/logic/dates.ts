@@ -211,6 +211,26 @@ export function calendarMatrix(year: number, month: number, weekStart = 0): Cale
   return weeks
 }
 
+/** The seven days of the week `iso` falls in, starting on `weekStart` (0 = Sunday). Empty for a non-day. */
+export function weekOf(iso: string, weekStart = 0): string[] {
+  const ms = parseDayMs(iso)
+  if (ms === null) return []
+  const lead = (new Date(ms).getUTCDay() - weekStart + 7) % 7
+  return Array.from({ length: 7 }, (_, index) => addDays(isoFromUtc(ms), index - lead))
+}
+
+/** "October 2026", or "September – October 2026" when the days from `fromIso` to `toIso` span two months. */
+export function monthRangeLabel(fromIso: string, toIso: string, locale?: string): string {
+  const from = parseDayMs(fromIso)
+  const to = parseDayMs(toIso)
+  if (from === null || to === null) return ''
+  try {
+    return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).formatRange(new Date(from), new Date(to))
+  } catch {
+    return formatCivil(from, locale, { month: 'long', year: 'numeric' })
+  }
+}
+
 export interface FormatOptions {
   locale?: string
   currency?: string

@@ -1,6 +1,6 @@
 /*
  * The calendar screen. A month grid in the manner of a database's calendar view (hairlines, a
- * filled circle for today), wider than the page measure, with the chosen day beside it when
+ * filled circle for today), or a week with its hours down the side, wider than the page measure, with the chosen day beside it when
  * there is room and under it when there is not. The day's lists are the Today screen's own
  * (today.css); only what the grid needs is here. Every colour, size and duration is a token.
  */
@@ -239,6 +239,225 @@
   color: var(--text-tertiary);
   font-size: var(--text-xs);
   line-height: 20px;
+}
+
+/* ---- month or week ---- */
+
+.cal-views {
+  display: flex;
+  margin-right: 10px;
+  padding: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-4);
+}
+
+.cal-view {
+  height: calc(var(--control-height) - 4px);
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.cal-view:hover,
+.cal-view:focus-visible {
+  color: var(--text);
+}
+
+.cal-view[aria-pressed='true'] {
+  background: var(--bg-elevated);
+  box-shadow: 0 0 0 var(--hairline) var(--border);
+  color: var(--text);
+}
+
+/* ---- the week: seven days of hours, under what fills each day ---- */
+
+.cal-week {
+  --cal-hour: 48px;
+  --cal-gutter: 48px;
+  max-height: clamp(360px, 100vh - 280px, 760px);
+  overflow-y: auto;
+  border-radius: var(--radius-m);
+  background: var(--fill-4);
+}
+
+.cal-week-row {
+  display: grid;
+  grid-template-columns: var(--cal-gutter) repeat(7, minmax(0, 1fr));
+}
+
+/* Stays in sight while the hours scroll under it. */
+.cal-week-row.is-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-bottom: var(--hairline) solid var(--border-strong);
+  background: linear-gradient(var(--fill-4), var(--fill-4)), var(--bg-solid);
+}
+
+.cal-week-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 5px 5px 7px;
+  border-left: var(--hairline) solid var(--border);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.cal-week-head:hover {
+  background: var(--bg-hover);
+}
+
+.cal-week-head.is-selected {
+  background: var(--accent-soft);
+}
+
+.cal-week-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-width: 0;
+  padding-left: 5px;
+}
+
+.cal-week-name .cal-day-number {
+  align-self: auto;
+  margin-bottom: 0;
+}
+
+.cal-week-weekday {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.cal-week-head.is-today .cal-day-number {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: var(--weight-semibold);
+}
+
+.cal-week-row.is-hours {
+  height: calc(var(--cal-hour) * 24);
+}
+
+.cal-week-gutter {
+  position: relative;
+}
+
+.cal-hour {
+  position: absolute;
+  right: 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+/* A hairline at every hour, drawn rather than built. */
+.cal-week-col {
+  position: relative;
+  min-width: 0;
+  border-left: var(--hairline) solid var(--border);
+  background: repeating-linear-gradient(to bottom, transparent 0 calc(var(--cal-hour) - var(--hairline)), var(--border) calc(var(--cal-hour) - var(--hairline)) var(--cal-hour));
+  cursor: pointer;
+}
+
+.cal-week-col.is-selected {
+  background-color: var(--accent-soft);
+}
+
+/* An event at its hours: its calendar's colour, with a rule down its left. */
+.cal-block {
+  position: absolute;
+  container-type: inline-size;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  padding: 2px 4px 2px 6px;
+  border-left: 2px solid;
+  border-radius: var(--radius-xs);
+  /* The tint over the page's own colour, so the hour lines do not show through; the outline parts neighbours. */
+  background: linear-gradient(var(--block-bg), var(--block-bg)), var(--bg-solid);
+  border-left-color: var(--block);
+  outline: 1px solid var(--bg-solid);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
+.cal-block > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-block.is-short {
+  flex-direction: row;
+  gap: 5px;
+}
+
+.cal-block-title {
+  flex: none;
+  max-width: 100%;
+  font-weight: var(--weight-semibold);
+}
+
+.cal-block.is-short .cal-block-title {
+  flex: 0 1 auto;
+}
+
+.cal-block-time {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Side by side with others, a short one has room for its title alone. */
+@container (max-width: 72px) {
+  .cal-block.is-short .cal-block-time {
+    display: none;
+  }
+}
+
+.cal-block.is-past {
+  opacity: 0.6;
+}
+
+/* Now: a line across today, with a bead where it starts. */
+.cal-now {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  height: 1.5px;
+  background: var(--accent);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.cal-now::before {
+  position: absolute;
+  top: 50%;
+  left: -3.5px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  content: '';
+  transform: translateY(-50%);
 }
 
 /* ---- the chosen day ---- */

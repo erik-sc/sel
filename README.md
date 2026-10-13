@@ -16,7 +16,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Go back.** Every page keeps a version history. Compare, restore, or restore as a copy.
 
-**Start the day.** Today shows your calendar, the tasks that are open and a phrase worth reading: Marcus Aurelius, the Dhammapada, Thoreau, or one of your own. Calendar shows the month: your events and the tasks that are due, day by day.
+**Start the day.** Today shows your calendar, the tasks that are open and a phrase worth reading: Marcus Aurelius, the Dhammapada, Thoreau, or one of your own. Calendar shows the month, or the week hour by hour: your events and the tasks that are due, day by day.
 
 **Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. The audio never leaves the computer.
 

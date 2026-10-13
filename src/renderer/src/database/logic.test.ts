@@ -294,6 +294,23 @@ describe('dates', () => {
     expect(flat).toHaveLength(29)
   })
 
+  it('weekOf gives the seven days around a day', () => {
+    expect(L.weekOf('2026-10-13')).toEqual(['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17'])
+    expect(L.weekOf('2026-10-11')[0]).toBe('2026-10-11')
+    expect(L.weekOf('2026-10-11', 1)[0]).toBe('2026-10-05')
+    expect(L.weekOf('2027-01-01')[0]).toBe('2026-12-27')
+    expect(L.weekOf('nope')).toEqual([])
+  })
+
+  it('monthRangeLabel names one month, or the two a span touches', () => {
+    // The spaces around the dash are thin ones or plain ones, depending on the ICU at hand.
+    const label = (from: string, to: string): string => L.monthRangeLabel(from, to, 'en-US').replace(/\s/g, ' ')
+    expect(label('2026-10-11', '2026-10-17')).toBe('October 2026')
+    expect(label('2026-09-27', '2026-10-03')).toBe('September – October 2026')
+    expect(label('2026-12-27', '2027-01-02')).toBe('December 2026 – January 2027')
+    expect(L.monthRangeLabel('nope', '2026-10-03')).toBe('')
+  })
+
   it('rowsByDay spreads ranges', () => {
     const map = L.rowsByDay(rows, schema.date)
     expect(ids(map.get('2026-01-05')!)).toEqual(['r2'])

@@ -1,6 +1,6 @@
 {
   "name": "sel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first block-based notes and databases",
   "main": "./out/main/index.js",
   "private": true,
