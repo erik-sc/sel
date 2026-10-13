@@ -131,6 +131,17 @@ export const TOKENS: TokenDef[] = [
   color('Surfaces', '--bg-solid', 'Solid background', '#faf8f4', '#1d1c1a', 'Used where content must not show through.'),
   color('Surfaces', '--bg-hover', 'Hover', 'rgba(84, 72, 48, 0.07)', 'rgba(232, 222, 200, 0.06)'),
   color('Surfaces', '--bg-active', 'Pressed and selected', 'rgba(84, 72, 48, 0.12)', 'rgba(232, 222, 200, 0.11)'),
+  color(
+    'Surfaces',
+    '--bg-menu-active',
+    'Menu highlight',
+    'rgba(84, 72, 48, 0.12)',
+    'rgba(232, 222, 200, 0.11)',
+    'The row under the pointer or the keys in a menu.'
+  ),
+  color('Surfaces', '--text-menu-active', 'Text on menu highlight', '#24221d', '#e8e3d9'),
+  color('Surfaces', '--bg-menu-danger', 'Menu highlight, destructive', 'rgba(176, 67, 47, 0.13)', 'rgba(220, 122, 104, 0.16)'),
+  color('Surfaces', '--text-menu-danger', 'Text on destructive highlight', '#b0432f', '#dc7a68'),
   color('Surfaces', '--fill-1', 'Fill 1 (strongest)', 'rgba(84, 72, 48, 0.16)', 'rgba(232, 222, 200, 0.18)'),
   color('Surfaces', '--fill-2', 'Fill 2', 'rgba(84, 72, 48, 0.12)', 'rgba(232, 222, 200, 0.14)'),
   color('Surfaces', '--fill-3', 'Fill 3', 'rgba(84, 72, 48, 0.09)', 'rgba(232, 222, 200, 0.1)'),
@@ -179,6 +190,12 @@ export const TOKENS: TokenDef[] = [
   weight('--weight-semibold', 'Semibold weight', 600),
   weight('--weight-bold', 'Bold weight', 600),
   weight('--weight-title', 'Title weight', 400),
+  def('Typography', 'number', '--weight-heading', 'Heading weight', '500', undefined, {
+    min: 100,
+    max: 900,
+    step: 100,
+    description: 'Heading 1. Smaller headings and dialog titles use it too, but never go above the semibold weight.'
+  }),
   def('Typography', 'number', '--leading-ui', 'Interface line height', '1.3', undefined, { min: 1, max: 2, step: 0.05 }),
   def('Typography', 'number', '--leading-body', 'Body line height', '1.7', undefined, { min: 1, max: 2.2, step: 0.05 }),
   def('Typography', 'number', '--leading-title', 'Title line height', '1.2', undefined, { min: 0.9, max: 1.8, step: 0.05 }),
@@ -231,6 +248,16 @@ export const TOKENS: TokenDef[] = [
   px('Layout & density', '--tabbar-height', 'Tab bar height', 40, 28, 64),
   px('Layout & density', '--page-width', 'Page width', 560, 480, 1400, 10),
   px('Layout & density', '--page-padding-x', 'Page side padding', 64, 0, 160, 2),
+  px(
+    'Layout & density',
+    '--database-width',
+    'Embedded database width',
+    880,
+    480,
+    1800,
+    10,
+    'A database inside a page may grow this wide, beyond the text, when the window has room.'
+  ),
   px('Layout & density', '--cover-height', 'Page cover height', 200, 80, 480, 4),
   px('Layout & density', '--panel-gap', 'Gap between panels', 8, 0, 32),
   px('Layout & density', '--control-height', 'Control height', 30, 20, 48),
@@ -246,6 +273,13 @@ export const TOKENS: TokenDef[] = [
   px('Charts', '--chart-point-size', 'Point size', 2.5, 0, 8, 0.5, 'Radius of the dots on line and area charts.'),
   def('Charts', 'number', '--chart-grid-opacity', 'Grid line opacity', '0.7', undefined, { min: 0, max: 1, step: 0.05 }),
   def('Charts', 'number', '--chart-area-opacity', 'Area fill opacity', '0.15', undefined, { min: 0, max: 1, step: 0.05 }),
+  def('Charts', 'percent', '--chart-series-strength', 'Series colour strength', '72%', '100%', {
+    min: 20,
+    max: 100,
+    step: 1,
+    unit: '%',
+    description: 'Below 100%, series colours are softened towards the background.'
+  }),
 
   // ---- shadows ----
   shadow(

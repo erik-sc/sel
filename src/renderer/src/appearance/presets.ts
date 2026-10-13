@@ -28,6 +28,11 @@ function accent(hex: string, rgb: string, text: string, soft: number, ring: numb
   }
 }
 
+/** The solid bar of accent the Glass looks highlight a menu row with. */
+function menuBar(hex: string, text: string) {
+  return { '--bg-menu-active': hex, '--text-menu-active': text, '--text-menu-danger': text }
+}
+
 function wallpaper(base: string, c1: string, c2: string, c3: string, c4: string) {
   return { '--wall-base': base, '--wall-1': c1, '--wall-2': c2, '--wall-3': c3, '--wall-4': c4 }
 }
@@ -42,6 +47,7 @@ const GLASS = {
     '--weight-medium': '500',
     '--weight-bold': '700',
     '--weight-title': '700',
+    '--weight-heading': '700',
     '--leading-body': '1.55',
     '--leading-title': '1.15',
     '--tracking-title': '-0.022em',
@@ -52,6 +58,7 @@ const GLASS = {
     '--radius-l': '18px',
     '--radius-xl': '26px',
     '--page-width': '720px',
+    '--database-width': '720px',
     '--block-gap': '2px',
     '--glass-saturate': '180%',
     '--glass-thick-blur': '44px',
@@ -71,6 +78,7 @@ const GLASS = {
     '--wall-3': '#c7b8ff',
     '--wall-4': '#b6f0e2',
     '--wall-intensity': '0.85',
+    '--chart-series-strength': '100%',
     '--bg': 'rgba(255, 255, 255, 0.62)',
     '--bg-sidebar': 'rgba(255, 255, 255, 0.36)',
     '--bg-elevated': 'rgba(250, 250, 252, 0.78)',
@@ -81,6 +89,10 @@ const GLASS = {
     '--glass-highlight': 'rgba(255, 255, 255, 0.9)',
     '--bg-hover': 'rgba(120, 120, 128, 0.12)',
     '--bg-active': 'rgba(120, 120, 128, 0.2)',
+    '--bg-menu-active': '#007aff',
+    '--text-menu-active': '#ffffff',
+    '--bg-menu-danger': '#ff3b30',
+    '--text-menu-danger': '#ffffff',
     '--fill-1': 'rgba(120, 120, 128, 0.2)',
     '--fill-2': 'rgba(120, 120, 128, 0.16)',
     '--fill-3': 'rgba(118, 118, 128, 0.12)',
@@ -130,6 +142,7 @@ const GLASS = {
     '--wall-3': '#45288f',
     '--wall-4': '#0f5c58',
     '--wall-intensity': '0.7',
+    '--chart-series-strength': '100%',
     '--bg': 'rgba(28, 28, 32, 0.58)',
     '--bg-sidebar': 'rgba(30, 30, 36, 0.4)',
     '--bg-elevated': 'rgba(44, 44, 50, 0.76)',
@@ -140,6 +153,10 @@ const GLASS = {
     '--glass-highlight': 'rgba(255, 255, 255, 0.14)',
     '--bg-hover': 'rgba(120, 120, 128, 0.2)',
     '--bg-active': 'rgba(120, 120, 128, 0.34)',
+    '--bg-menu-active': '#0a84ff',
+    '--text-menu-active': '#ffffff',
+    '--bg-menu-danger': '#ff453a',
+    '--text-menu-danger': '#ffffff',
     '--fill-1': 'rgba(120, 120, 128, 0.36)',
     '--fill-2': 'rgba(120, 120, 128, 0.32)',
     '--fill-3': 'rgba(118, 118, 128, 0.24)',
@@ -211,6 +228,7 @@ export const PRESETS: Preset[] = [
       '--border': 'rgba(40, 34, 22, 0.22)',
       '--border-strong': 'rgba(40, 34, 22, 0.5)',
       '--glass-border': 'rgba(40, 34, 22, 0.16)',
+      '--text-menu-active': '#12110f',
       ...accent('#273763', '39, 55, 99', '#ffffff', 0.13, 0.9, 0.26)
     },
     dark: {
@@ -225,6 +243,7 @@ export const PRESETS: Preset[] = [
       '--border': 'rgba(240, 230, 210, 0.2)',
       '--border-strong': 'rgba(240, 230, 210, 0.42)',
       '--glass-border': 'rgba(240, 230, 210, 0.16)',
+      '--text-menu-active': '#f6f2ea',
       ...accent('#bcc8ea', '188, 200, 234', '#101218', 0.18, 0.9, 0.32)
     }
   },
@@ -300,12 +319,14 @@ export const PRESETS: Preset[] = [
     light: {
       ...GLASS.light,
       ...wallpaper('#eeeef0', '#c9c9cf', '#e2e2e6', '#b4b4bc', '#d8d8de'),
-      ...accent('#6e6e73', '110, 110, 115', '#ffffff', 0.16, 0.5, 0.26)
+      ...accent('#6e6e73', '110, 110, 115', '#ffffff', 0.16, 0.5, 0.26),
+      ...menuBar('#6e6e73', '#ffffff')
     },
     dark: {
       ...GLASS.dark,
       ...wallpaper('#0c0c0d', '#3a3a3f', '#232326', '#4a4a50', '#2c2c30'),
-      ...accent('#a1a1a6', '161, 161, 166', '#1c1c1e', 0.24, 0.6, 0.36)
+      ...accent('#a1a1a6', '161, 161, 166', '#1c1c1e', 0.24, 0.6, 0.36),
+      ...menuBar('#a1a1a6', '#1c1c1e')
     }
   },
   {
@@ -316,12 +337,14 @@ export const PRESETS: Preset[] = [
     light: {
       ...GLASS.light,
       ...wallpaper('#fff3ea', '#ffb199', '#ffd08a', '#ff9ec2', '#ffc9a8'),
-      ...accent('#f0532d', '240, 83, 45', '#ffffff', 0.14, 0.5, 0.22)
+      ...accent('#f0532d', '240, 83, 45', '#ffffff', 0.14, 0.5, 0.22),
+      ...menuBar('#f0532d', '#ffffff')
     },
     dark: {
       ...GLASS.dark,
       ...wallpaper('#140b0e', '#8f2f1b', '#8a5a12', '#7a1f4c', '#5c2a14'),
-      ...accent('#ff7a59', '255, 122, 89', '#2a0f08', 0.22, 0.6, 0.34)
+      ...accent('#ff7a59', '255, 122, 89', '#2a0f08', 0.22, 0.6, 0.34),
+      ...menuBar('#ff7a59', '#2a0f08')
     }
   },
   {
@@ -332,12 +355,14 @@ export const PRESETS: Preset[] = [
     light: {
       ...GLASS.light,
       ...wallpaper('#ecf7f4', '#9be8d0', '#a8c8ff', '#c9b8ff', '#b8f5c4'),
-      ...accent('#00917c', '0, 145, 124', '#ffffff', 0.14, 0.5, 0.22)
+      ...accent('#00917c', '0, 145, 124', '#ffffff', 0.14, 0.5, 0.22),
+      ...menuBar('#00917c', '#ffffff')
     },
     dark: {
       ...GLASS.dark,
       ...wallpaper('#06110f', '#0f6b5c', '#1b3f8f', '#4a2a8f', '#1c6b32'),
-      ...accent('#2fd6b8', '47, 214, 184', '#04221d', 0.22, 0.6, 0.32)
+      ...accent('#2fd6b8', '47, 214, 184', '#04221d', 0.22, 0.6, 0.32),
+      ...menuBar('#2fd6b8', '#04221d')
     }
   },
   {
@@ -380,7 +405,8 @@ export const PRESETS: Preset[] = [
       '--text-tertiary': 'rgba(0, 0, 0, 0.56)',
       '--border': 'rgba(0, 0, 0, 0.4)',
       '--border-strong': 'rgba(0, 0, 0, 0.7)',
-      ...accent('#0040dd', '0, 64, 221', '#ffffff', 0.2, 0.9, 0.3)
+      ...accent('#0040dd', '0, 64, 221', '#ffffff', 0.2, 0.9, 0.3),
+      ...menuBar('#0040dd', '#ffffff')
     },
     dark: {
       ...GLASS.dark,
@@ -396,7 +422,8 @@ export const PRESETS: Preset[] = [
       '--text-tertiary': 'rgba(255, 255, 255, 0.6)',
       '--border': 'rgba(255, 255, 255, 0.45)',
       '--border-strong': 'rgba(255, 255, 255, 0.75)',
-      ...accent('#409cff', '64, 156, 255', '#000000', 0.3, 0.95, 0.45)
+      ...accent('#409cff', '64, 156, 255', '#000000', 0.3, 0.95, 0.45),
+      ...menuBar('#409cff', '#000000')
     }
   }
 ]

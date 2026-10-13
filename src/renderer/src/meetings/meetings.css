@@ -378,7 +378,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-h3);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-subheading);
   letter-spacing: var(--tracking-title);
 }
 

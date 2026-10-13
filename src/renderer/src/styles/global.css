@@ -21,6 +21,14 @@ html {
   background-color: var(--wall-base);
 }
 
+/*
+ * Derived from tokens, so not a token itself: headings below Heading 1 and dialog titles follow
+ * --weight-heading but never outweigh bold text set beside them.
+ */
+:root {
+  --weight-subheading: min(var(--weight-heading), var(--weight-semibold));
+}
+
 html[data-theme='dark'] {
   color-scheme: dark;
 }

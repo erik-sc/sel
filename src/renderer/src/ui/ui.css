@@ -170,13 +170,13 @@
 }
 
 .ui-menu-item.is-active {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--bg-menu-active);
+  color: var(--text-menu-active);
 }
 
 .ui-menu-item.is-danger.is-active {
-  background: var(--danger);
-  color: var(--accent-text);
+  background: var(--bg-menu-danger);
+  color: var(--text-menu-danger);
 }
 
 .ui-menu-item.is-disabled {
