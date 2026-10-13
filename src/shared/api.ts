@@ -1,4 +1,5 @@
 import type { AiEvent, AiRequest, AiStatus } from './ai'
+import type { BriefingApi } from './briefing'
 import type {
   Block,
   ChangeEvent,
@@ -138,6 +139,12 @@ export interface Api {
     onEvent(listener: (event: AiEvent) => void): () => void
   }
 
+  /**
+   * The morning briefing ("Today"): calendars the user connected, open tasks, the day's phrase.
+   * See shared/briefing.ts. A calendar's address goes in once and never comes back.
+   */
+  briefing: BriefingApi
+
   app: {
     getTheme(): Promise<Theme>
     setTheme(theme: Theme): Promise<void>
@@ -180,6 +187,7 @@ export type MenuCommand =
   | 'new-window'
   | 'version-history'
   | 'toggle-assistant'
+  | 'open-today'
 
 /** ipc channel names. invoke channels are `<namespace>:<method>`. */
 export const IPC = {

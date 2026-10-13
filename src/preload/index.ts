@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { AI_CHANNELS, type AiEvent } from '@shared/ai'
+import { BRIEFING_CHANGED, type BriefingApi } from '@shared/briefing'
 import { IPC, type Api, type MenuCommand } from '@shared/api'
 import type { ChangeEvent } from '@shared/types'
 
@@ -20,8 +21,8 @@ const call =
   (...args: unknown[]) =>
     ipcRenderer.invoke(channel, clientId, ...args)
 
-const ns = <T extends object>(namespace: string, methods: readonly string[]): T =>
-  Object.fromEntries(methods.map((m) => [m, call(`${namespace}:${m}`)])) as T
+const ns = <T extends object>(namespace: string, methods: readonly string[], separator = ':'): T =>
+  Object.fromEntries(methods.map((m) => [m, call(`${namespace}${separator}${m}`)])) as T
 
 const api: Api = {
   clientId,
@@ -53,6 +54,24 @@ const api: Api = {
         return handler
       })
       return () => types.forEach((type, index) => ipcRenderer.removeListener(AI_CHANNELS[type], handlers[index]))
+    }
+  },
+  briefing: {
+    ...ns<Omit<BriefingApi, 'calendars' | 'onChanged'>>('briefing', [
+      'get',
+      'anotherPhrase',
+      'completeTask',
+      'undoCompleteTask',
+      'ensurePhrasesDatabase',
+      'addPhrase',
+      'databases',
+      'brief'
+    ]),
+    calendars: ns('briefing:calendars', ['list', 'add', 'update', 'remove', 'test'], '.'),
+    onChanged(listener) {
+      const handler = (): void => listener()
+      ipcRenderer.on(BRIEFING_CHANGED, handler)
+      return () => ipcRenderer.removeListener(BRIEFING_CHANGED, handler)
     }
   },
   app: {

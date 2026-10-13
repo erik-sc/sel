@@ -34,7 +34,8 @@ const SHORTCUTS: Shortcut[] = [
   { command: 'reopen-tab', accelerator: 'CmdOrCtrl+Shift+T', key: 't', ctrl: true, shift: true },
   { command: 'new-window', accelerator: 'CmdOrCtrl+Shift+N', key: 'n', ctrl: true, shift: true },
   { command: 'version-history', accelerator: 'CmdOrCtrl+Alt+Shift+H', key: 'h', ctrl: true, shift: true, alt: true },
-  { command: 'toggle-assistant', accelerator: 'CmdOrCtrl+J', key: 'j', ctrl: true }
+  { command: 'toggle-assistant', accelerator: 'CmdOrCtrl+J', key: 'j', ctrl: true },
+  { command: 'open-today', accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true }
 ]
 
 export function sendCommand(command: MenuCommand, arg?: unknown, target?: BrowserWindow | null): void {
@@ -117,6 +118,8 @@ export function buildMenu(): void {
     {
       label: 'View',
       submenu: [
+        item('Today', 'open-today'),
+        { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar'),
         item('Toggle Assistant', 'toggle-assistant'),
         item('Toggle Light/Dark Theme', 'toggle-theme'),
