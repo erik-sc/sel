@@ -174,6 +174,9 @@ export function validateCalendarUrl(input: unknown, policy: NetPolicy = {}): URL
   if (host === 'localhost' || LOCAL_SUFFIXES.some((suffix) => host.endsWith(suffix) || host === suffix.slice(1))) throw blocked()
   url.hostname = host
   url.hash = ''
+  // Outlook publishes a calendar as two links that differ only in the ending: `calendar.html`
+  // (a web page) and `calendar.ics` (the data). People tend to copy the first one.
+  if (/\/owa\/calendar\/.+\/calendar\.html$/i.test(url.pathname)) url.pathname = url.pathname.replace(/\.html$/i, '.ics')
   return url
 }
 

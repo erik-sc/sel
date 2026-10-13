@@ -26,6 +26,14 @@ async function failure(promise: Promise<unknown>): Promise<CalendarError> {
 }
 
 describe('calendar addresses', () => {
+  it('reads an Outlook published calendar from its .ics twin when given the .html link', () => {
+    const html = 'https://outlook.office365.com/owa/calendar/0123abcd@example.org/4567ef890123/calendar.html'
+    expect(validateCalendarUrl(html).href).toBe('https://outlook.office365.com/owa/calendar/0123abcd@example.org/4567ef890123/calendar.ics')
+    // Already the data link, and pages elsewhere, are left alone.
+    expect(validateCalendarUrl(html.replace('.html', '.ics')).pathname.endsWith('/calendar.ics')).toBe(true)
+    expect(validateCalendarUrl('https://example.org/calendar.html').pathname).toBe('/calendar.html')
+  })
+
   it('accepts public https addresses and normalises webcal', () => {
     expect(validateCalendarUrl('https://calendar.google.com/calendar/ical/me%40example.com/private-abc123/basic.ics').href).toBe(
       'https://calendar.google.com/calendar/ical/me%40example.com/private-abc123/basic.ics'
