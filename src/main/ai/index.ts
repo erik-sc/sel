@@ -4,7 +4,7 @@ import { AI_CHANNELS, type AiDone, type AiError, type AiRequest, type AiStatus }
 import type { Repository } from '../db/repository'
 import { inspectCli } from './locate'
 import { loadMeeting, prepareMeeting, type MeetingSource } from './meeting'
-import { buildPrompt } from './prompts'
+import { buildPrompt, type BriefingPromptData } from './prompts'
 import { aiRequest, loadContext } from './request'
 import { AiService, type PromptBuilder } from './service'
 
@@ -29,7 +29,11 @@ export class AiBridge {
   /** Windows whose requests are cancelled when they go away. */
   private readonly watched = new WeakSet<WebContents>()
 
-  constructor(private readonly repo: Repository) {
+  constructor(
+    private readonly repo: Repository,
+    /** Today's agenda and open tasks as stored, for a question about the day. */
+    day?: () => Promise<BriefingPromptData | null>
+  ) {
     const override = devCliOverride(process.env['SELIDA_AI_CLI'], app.isPackaged)
     const script = override && /\.(m|c)?js$/i.test(override) ? override : null
     this.service = new AiService({
@@ -38,6 +42,11 @@ export class AiBridge {
       getSetting: (key) => (key === 'ai.cliPath' && override && !script ? override : repo.getSetting(key)),
       devScript: script,
       loadContext: async (request) => {
+        // A question about the day: what is stored of it is read here; the window sent none of it.
+        if (request.today) {
+          const data = (await day?.()) ?? null
+          return data ? { day: data } : {}
+        }
         // The Markdown converter is shared with export/import and loaded on first use.
         const markdown = await import('../markdown')
         return loadContext(

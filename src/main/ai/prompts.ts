@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { AI_LANGUAGE_LABELS, type AiAction, type AiLanguage, type AiRequest, type AiTone, type AiTurn } from '../../shared/ai'
+import { PASSAGES_RULE, PERSONA_INTRO, PERSONA_LANGUAGE_RULE, passagesBody, personaRules, type PersonaVoice } from './herman'
 
 /**
  * Prompt construction. It lives in the main process on purpose: a renderer names an action and
@@ -30,6 +31,8 @@ export interface PromptContext {
   blocksMarkdown?: string
   /** `consolidate` on a meeting page: what the main process read of that meeting. */
   meeting?: MeetingPromptData
+  /** `ask` about the day: today's agenda and open tasks, as the main process has them stored. */
+  day?: BriefingPromptData
 }
 
 /** A recorded meeting as the prompt sees it. Every string is content: said or written by anyone. */
@@ -51,6 +54,13 @@ export interface PromptOptions {
   nonce?: string
   /** `ai.language`: the language for answers that are not a rewrite of existing text. */
   defaultLanguage?: AiLanguage | 'auto' | null
+  /**
+   * Herman's voice, for the conversation (`ask`) and the briefing. It is the name of one of the
+   * voices this process holds (see ./herman.ts): no text of a persona ever comes in from outside.
+   */
+  voice?: PersonaVoice | null
+  /** `ask` with a voice: ids of bundled passages he may quote. Ids of anything else give nothing. */
+  passageIds?: readonly string[]
 }
 
 /** Keeps the first and last part of `text` and says how much was left out in between. */
@@ -94,7 +104,7 @@ interface Task {
   markdown?: boolean
 }
 
-function taskFor(request: AiRequest, hasFocus: boolean): Task {
+function taskFor(request: AiRequest, hasFocus: boolean, aboutDay = false): Task {
   const what = hasFocus ? 'the text in the TEXT section' : 'the page in the PAGE section'
   const keep = 'Return only the rewritten text, as a replacement for the original. Keep its meaning, its facts and names, its language and its Markdown structure; do not add headings or lists that were not there.'
   switch (request.action) {
@@ -183,6 +193,16 @@ function taskFor(request: AiRequest, hasFocus: boolean): Task {
         rules: ['Return only the text that should go into the page.']
       }
     case 'ask':
+      if (aboutDay) {
+        return {
+          task: 'Answer the question in the USER REQUEST section about the user\'s day, which the TODAY section describes.',
+          rules: [
+            'Base the answer on the TODAY section: the date and time, the agenda and the open tasks as this app has them. Do not invent events, times, people or tasks.',
+            'When the section does not contain the answer, say so plainly.',
+            'Be concise. The CONVERSATION section, when present, holds the earlier turns of this chat.'
+          ]
+        }
+      }
       return {
         task: 'Answer the question in the USER REQUEST section about the page in the PAGE section.',
         rules: [
@@ -241,9 +261,18 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   const pageOnly = request.action === 'title'
   // The text the action works on: a selection or named blocks. Without one it works on the page.
   const focus = isContinue || isMeeting || pageOnly ? undefined : (selection ?? blocks)
-  const spec = taskFor(request, focus !== undefined)
+  const day = request.action === 'ask' && !page ? context.day : undefined
+  const spec = taskFor(request, focus !== undefined, day !== undefined)
 
-  const lines: string[] = ['You are the writing assistant built into Selida, a notes app.', '', `Task: ${spec.task}`]
+  // Herman speaks in the conversation only: the tools that rewrite text have no voice of their own.
+  const voice = request.action === 'ask' ? (options.voice ?? null) : null
+  const passages = voice ? passagesBody(options.passageIds) : ''
+  const lines: string[] = [voice ? PERSONA_INTRO : 'You are the writing assistant built into Selida, a notes app.', '', `Task: ${spec.task}`]
+  if (voice) {
+    lines.push('', 'Your voice:')
+    for (const rule of personaRules(voice)) lines.push(`- ${rule}`)
+    if (passages) lines.push(`- ${PASSAGES_RULE}`)
+  }
   const rules = [...(spec.rules ?? [])]
 
   if (request.action !== 'translate') {
@@ -254,7 +283,9 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
         ? `Write in ${AI_LANGUAGE_LABELS[language]}.`
         : request.action === 'consolidate'
           ? 'Write in the language the meeting was held in (the language of the transcript), whatever language the notes are in, section headings included.'
-          : 'Write in the language of the content.'
+          : voice
+            ? PERSONA_LANGUAGE_RULE
+            : 'Write in the language of the content.'
     )
   }
   if (spec.markdown !== false) rules.push(...FORMAT_RULES)
@@ -265,6 +296,7 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
     section('PAGE', truncateMiddle(page, PROMPT_CAPS.page), title ? `${note ? `${note}; ` : ''}title: ${scrub(title).replace(/\s+/g, ' ').slice(0, 200)}` : note)
   }
   if (focus !== undefined) section('TEXT', truncateMiddle(focus, PROMPT_CAPS.focus))
+  if (day) section('TODAY', dayBody(day), 'titles of calendar events and tasks, written by the user or by people who sent invitations')
   if (isContinue) {
     const before = selection ?? ''
     // What comes right before the caret is the end of the passage: keep the end.
@@ -288,6 +320,8 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
     if (notes?.trim()) section('NOTES', truncateMiddle(notes, PROMPT_CAPS.notes))
   }
   if (request.action === 'ask' && request.history?.length) section('CONVERSATION', historyText(request.history, PROMPT_CAPS.history))
+  // Text of the bundled collection, read by this process: offered as something to quote, and still not instructions.
+  if (passages) section('PASSAGES', passages, 'from the collection bundled with this app; the only text that may be quoted')
 
   lines.push('', 'Rules:')
   for (const rule of rules) lines.push(`- ${rule}`)
@@ -350,6 +384,26 @@ export function buildCondensePrompt(part: string, index: number, total: number, 
 
 // ---- briefing ---------------------------------------------------------------
 
+/** The day as one section body: now, the agenda, the tasks. Every line is tidied and capped. */
+function dayBody(data: BriefingPromptData): string {
+  const line = (text: string): string => {
+    // eslint-disable-next-line no-control-regex
+    const clean = String(text).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim()
+    return clean.length > BRIEFING_PROMPT_CAPS.line ? `${clean.slice(0, BRIEFING_PROMPT_CAPS.line - 1)}…` : clean
+  }
+  const list = (items: readonly string[], empty: string): string => {
+    const lines = items.slice(0, BRIEFING_PROMPT_CAPS.lines).map((item) => `- ${line(item)}`)
+    if (items.length > BRIEFING_PROMPT_CAPS.lines) lines.push(`- (and ${items.length - BRIEFING_PROMPT_CAPS.lines} more)`)
+    return lines.length ? lines.join('\n') : empty
+  }
+  return [
+    `Now: ${line(data.date)}, ${line(data.time)}`,
+    `Agenda:\n${list(data.events, '(nothing scheduled)')}${data.tomorrow ? `\n\nFirst thing tomorrow:\n- ${line(data.tomorrow)}` : ''}`,
+    `Overdue tasks:\n${list(data.overdue, '(none)')}`,
+    `Tasks for today:\n${list(data.today, '(none)')}`
+  ].join('\n\n')
+}
+
 /** What the briefing prompt is built from. Every string in it is content: titles written by anyone. */
 export interface BriefingPromptData {
   /** The day, written out ("Tuesday, 13 October 2026"), and the time it is now ("08:05"). */
@@ -385,19 +439,27 @@ export function buildBriefingPrompt(data: BriefingPromptData, options: PromptOpt
     return lines.length ? lines.join('\n') : empty
   }
   const section = (label: string, body: string): string => `<<<${label} ${nonce}>>>\n${body}\n<<<END ${label} ${nonce}>>>`
-  const task = 'Tell the user about their day in one short paragraph, as a calm friend would say it aloud.'
+  const voice = options.voice ?? null
+  const task = voice
+    ? 'Tell the user about their day in one short paragraph, the way you would say it aloud to someone you wish well.'
+    : 'Tell the user about their day in one short paragraph, as a calm friend would say it aloud.'
   const language = options.defaultLanguage && options.defaultLanguage !== 'auto' ? options.defaultLanguage : undefined
   const tasks = [`Overdue:\n${list(data.overdue, '(none)')}`, `For today:\n${list(data.today, '(none)')}`].join('\n\n')
   const agenda = `${list(data.events, '(nothing scheduled)')}${data.tomorrow ? `\n\nFirst thing tomorrow:\n- ${line(data.tomorrow)}` : ''}`
   return [
-    'You are the assistant built into Selida, a notes app. The user opened their morning briefing and asked for a spoken-style summary of the day.',
+    voice
+      ? `${PERSONA_INTRO} The user opened their morning briefing and asked you about the day.`
+      : 'You are the assistant built into Selida, a notes app. The user opened their morning briefing and asked for a spoken-style summary of the day.',
     '',
     `Task: ${task}`,
+    ...(voice ? ['', 'Your voice:', ...personaRules(voice).map((rule) => `- ${rule}`)] : []),
     '',
     'Rules:',
     '- Three to five sentences, one paragraph, plain text. No lists, no headings, no Markdown, no emoji, no greeting and no sign-off.',
     '- Say what the day looks like: how full it is, what comes first, what matters most among the tasks, and anything overdue. Mention tomorrow only if it is worth a clause.',
-    '- Use only what is in the sections below. Do not invent events, times, people or tasks, and do not give advice that was not asked for.',
+    voice
+      ? '- Use only what is in the sections below. Do not invent events, times, people or tasks. You may end with one short piece of counsel or one question about the day, when the day calls for it; no quotation.'
+      : '- Use only what is in the sections below. Do not invent events, times, people or tasks, and do not give advice that was not asked for.',
     '- Keep titles as they are written, without quoting every one of them. Be warm and unhurried, never chirpy.',
     `- ${language ? `Write in ${AI_LANGUAGE_LABELS[language]}.` : 'Write in the language most of the titles are written in; in English when that is unclear.'}`,
     '',

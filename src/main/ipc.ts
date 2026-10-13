@@ -3,6 +3,7 @@ import { IPC } from '../shared/api'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
+import { registerHermanIpc, type HermanHooks } from './herman/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
@@ -188,7 +189,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // Nothing of it is loaded until a window asks. A request is validated, and its prompt built,
   // in this process; its events go back to the window that made it and to no other.
   let aiBridge: AiBridge | null = null
-  const ai = async (): Promise<AiBridge> => (aiBridge ??= new (await import('./ai')).AiBridge(repo))
+  const ai = async (): Promise<AiBridge> => (aiBridge ??= new (await import('./ai')).AiBridge(repo, () => briefing.promptData()))
   app.on('will-quit', () => aiBridge?.dispose())
   handle('ai:status', async ([a]) => (await ai()).status(a))
   handle('ai:run', async ([a], event) => (await ai()).run(a, event.sender))
@@ -215,7 +216,14 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   handle('sync:pickGit', async (_args, event) => (await sync()).pickGit(windowOf(event)))
 
   // ---- briefing (the Today screen: calendars, open tasks, the day's phrase; see ./briefing)
-  registerBriefingIpc({ handle, repo, ai })
+  let herman: HermanHooks | null = null
+  const briefing = registerBriefingIpc({
+    handle,
+    repo,
+    ai,
+    onTaskCompleted: (sender) => herman?.taskCompleted(sender),
+    onTaskUncompleted: () => herman?.taskUncompleted()
+  })
 
   // ---- meetings (recording, local transcription; see ./meetings). What a transcription writes
   // reaches the windows like any other change, from the origin `meetings` that no window has.
@@ -227,6 +235,19 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       changes.add('meetings', ids, repo.drainResets())
       if (ids.length) syncBridge?.noteLocalChange()
     }
+  })
+
+  // ---- herman (the assistant's face: his settings, and what he says unasked; see ./herman).
+  // What he says unasked is composed in this process from the day's tasks and agenda as stored:
+  // no model is called for it, and nothing is fetched.
+  herman = registerHermanIpc({
+    handle,
+    repo,
+    day: async () => {
+      const { tasks, events } = await briefing.stored()
+      return { tasks: { overdue: tasks.overdue, today: tasks.today }, events: events.today }
+    },
+    recording: () => meetings.recordingWindow() !== null
   })
 
   // ---- window controls (the renderer draws them on frameless windows)

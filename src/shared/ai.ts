@@ -87,6 +87,11 @@ export interface AiRequest {
   /** `consolidate` only: the raw transcript and the rough notes taken meanwhile. */
   transcript?: string
   notes?: string
+  /**
+   * `ask` only, without a page: the question is about the day. The main process adds today's
+   * agenda and open tasks, as it has them stored; the window sends none of it.
+   */
+  today?: boolean
 }
 
 export type AiUnavailableReason = 'not-found' | 'not-executable' | 'unknown-version' | 'disabled'

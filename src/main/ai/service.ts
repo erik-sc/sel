@@ -7,6 +7,8 @@ import { AI_DEFAULTS, AI_MODEL_RE, AI_TIMEOUT_LIMITS, isAiLanguage, type AiLangu
 import { buildArgs, buildEnv, buildSpawn, type SpawnSpec } from './command'
 import { classifyFailure, failure, type Failure } from './errors'
 import { envValue, locateCli, type CliLocation, type LocateResult } from './locate'
+import { activeVoice } from '../../shared/herman'
+import { selectPassages, type PersonaVoice } from './herman'
 import { NdjsonParser, readEvent } from './ndjson'
 import { buildPrompt, type PromptContext } from './prompts'
 
@@ -75,8 +77,8 @@ export interface AiServiceOptions {
   timeoutMs?: number
 }
 
-/** Builds a whole prompt in the main process; it is told the language answers default to. */
-export type PromptBuilder = (language: AiLanguage | 'auto') => string | Promise<string>
+/** Builds a whole prompt in the main process; it is told the language answers default to, and the voice that is on. */
+export type PromptBuilder = (language: AiLanguage | 'auto', voice: PersonaVoice | null) => string | Promise<string>
 
 interface Job {
   id: string
@@ -411,12 +413,17 @@ export class AiService {
       }
       const stored = this.setting('ai.language')
       const language = isAiLanguage(stored) ? stored : 'auto'
+      // Herman's voice: which of the voices held here is on (`herman.*`), never words from a setting.
+      const voice = activeVoice(this.setting('herman.enabled'), this.setting('herman.voice'))
       if (job.build) {
-        prompt = await job.build(language)
+        prompt = await job.build(language, voice)
       } else {
         const context = await this.options.loadContext(job.request)
         if (job.state !== 'starting') return
-        prompt = buildPrompt(job.request, context, { defaultLanguage: language })
+        const speaks = voice !== null && job.request.action === 'ask'
+        // What he may quote is chosen here, from the bundled collection, by what was asked.
+        const passageIds = speaks ? selectPassages(`${job.request.instruction ?? ''}\n${job.request.selectionText ?? ''}`).map((quote) => quote.id) : []
+        prompt = buildPrompt(job.request, context, { defaultLanguage: language, ...(speaks ? { voice, passageIds } : {}) })
       }
       if (job.state !== 'starting') return
       spec = this.spawnSpec(cli, buildArgs({ model: this.model() }))

@@ -1,6 +1,7 @@
 import type { AiEvent, AiRequest, AiStatus } from './ai'
 import type { SyncSetup, SyncStatus } from './sync'
 import type { BriefingApi } from './briefing'
+import type { HermanApi } from './herman'
 import type { MeetingsApi } from './meetings'
 import type {
   Block,
@@ -181,6 +182,13 @@ export interface Api {
    * computer by whisper.cpp, and notes written up by the AI service. See shared/meetings.ts.
    */
   meetings: MeetingsApi
+
+  /**
+   * Herman, the face and the voice of the assistant: his settings as the main process reads
+   * them, and the short lines he offers unasked, which are composed locally and never by a
+   * model. See shared/herman.ts.
+   */
+  herman: HermanApi
 
   app: {
     getTheme(): Promise<Theme>

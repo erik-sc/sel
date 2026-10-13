@@ -1,5 +1,7 @@
 import type { IpcMainInvokeEvent, WebContents } from 'electron'
+import type { BriefingPromptData } from '../ai/prompts'
 import type { PromptBuilder } from '../ai/service'
+import type { Briefing } from '../../shared/briefing'
 import type { Repository } from '../db/repository'
 import type { BriefingBridge } from './index'
 
@@ -17,16 +19,33 @@ export interface BriefingIpcContext {
   repo: Repository
   /** The AI bridge, for the optional "Brief me" paragraph. */
   ai: () => Promise<{ runPrompt(build: PromptBuilder, sender: WebContents): { id: string } }>
+  /** A task was marked done from a window, or that was taken back (Herman notices a streak). */
+  onTaskCompleted?: (sender: WebContents) => void
+  onTaskUncompleted?: () => void
 }
 
-export function registerBriefingIpc({ handle, repo, ai }: BriefingIpcContext): void {
+export interface BriefingAccess {
+  /** The briefing from what is stored: no calendar is read for it. */
+  stored(): Promise<Briefing>
+  /** The same, as the lines a prompt about the day is written from. */
+  promptData(): Promise<BriefingPromptData>
+}
+
+export function registerBriefingIpc({ handle, repo, ai, onTaskCompleted, onTaskUncompleted }: BriefingIpcContext): BriefingAccess {
   let bridge: BriefingBridge | null = null
   const briefing = async (): Promise<BriefingBridge> => (bridge ??= new (await import('./index')).BriefingBridge(repo))
 
   handle('briefing:get', async ([force]) => (await briefing()).service.get(force === true))
   handle('briefing:anotherPhrase', async () => (await briefing()).service.anotherPhrase())
-  handle('briefing:completeTask', async ([id]) => (await briefing()).service.completeTask(id))
-  handle('briefing:undoCompleteTask', async ([token]) => (await briefing()).service.undoCompleteTask(token))
+  handle('briefing:completeTask', async ([id], event) => {
+    const result = (await briefing()).service.completeTask(id)
+    onTaskCompleted?.(event.sender)
+    return result
+  })
+  handle('briefing:undoCompleteTask', async ([token]) => {
+    ;(await briefing()).service.undoCompleteTask(token)
+    onTaskUncompleted?.()
+  })
   handle('briefing:ensurePhrasesDatabase', async () => (await briefing()).service.ensurePhrasesDatabase())
   handle('briefing:addPhrase', async ([id]) => (await briefing()).service.addPhrase(id))
   handle('briefing:databases', async () => (await briefing()).service.databases())
@@ -58,6 +77,9 @@ export function registerBriefingIpc({ handle, repo, ai }: BriefingIpcContext): v
   handle('briefing:brief', async (_args, event) => {
     const b = await briefing()
     const { buildBriefingPrompt } = await import('../ai/prompts')
-    return (await ai()).runPrompt((language) => buildBriefingPrompt(b.service.promptData(), { defaultLanguage: language }), event.sender)
+    // With Herman on, he is the one who answers ("Ask Herman about today"): the same request, in his voice.
+    return (await ai()).runPrompt((language, voice) => buildBriefingPrompt(b.service.promptData(), { defaultLanguage: language, voice }), event.sender)
   })
+
+  return { stored: async () => (await briefing()).service.build(), promptData: async () => (await briefing()).service.promptData() }
 }

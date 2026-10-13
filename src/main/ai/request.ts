@@ -18,7 +18,8 @@ const KEYS: ReadonlySet<string> = new Set([
   'tone',
   'history',
   'transcript',
-  'notes'
+  'notes',
+  'today'
 ])
 
 /** Actions that are about existing content: they need a page, blocks or a selection. */
@@ -84,6 +85,13 @@ export function aiRequest(value: unknown): AiRequest {
   if (transcript) request.transcript = transcript
   const notes = optionalText(raw['notes'], 'notes', AI_LIMITS.notes)
   if (notes) request.notes = notes
+
+  if (raw['today'] !== undefined && raw['today'] !== null) {
+    if (typeof raw['today'] !== 'boolean') throw new Error('Invalid AI request')
+    // About the day or about a page, not both; and only a question can be about the day.
+    if (raw['today'] && (request.action !== 'ask' || pageId)) throw new Error('Invalid AI request')
+    if (raw['today']) request.today = true
+  }
 
   const { action } = request
   if ((action === 'custom' || action === 'ask') && !request.instruction) throw new Error('The request is empty')

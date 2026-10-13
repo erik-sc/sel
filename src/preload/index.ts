@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { AI_CHANNELS, type AiEvent } from '@shared/ai'
 import { BRIEFING_CHANGED, type BriefingApi } from '@shared/briefing'
 import { IPC, type Api, type MenuCommand } from '@shared/api'
+import { HERMAN_NUDGE_CHANNEL, type HermanApi } from '@shared/herman'
 import { MEETINGS_CHANNELS, type MeetingsApi } from '@shared/meetings'
 import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
 import type { ChangeEvent } from '@shared/types'
@@ -117,6 +118,11 @@ const api: Api = {
     }
   },
   meetings,
+  herman: {
+    ...ns<Pick<HermanApi, 'state' | 'met' | 'reset'>>('herman', ['state', 'met', 'reset']),
+    nudge: ns('herman:nudge', ['next', 'dismiss'], '.'),
+    onNudge: subscribe(HERMAN_NUDGE_CHANNEL)
+  },
   app: {
     ...ns<Omit<Api['app'], 'platform' | 'window'>>('app', [
       'getTheme',
