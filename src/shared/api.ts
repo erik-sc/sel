@@ -1,6 +1,7 @@
 import type { AiEvent, AiRequest, AiStatus } from './ai'
 import type { SyncSetup, SyncStatus } from './sync'
 import type { BriefingApi } from './briefing'
+import type { AgentKind, AiAgentInfo } from './council'
 import type { HermanApi } from './herman'
 import type { MeetingsApi } from './meetings'
 import type {
@@ -138,7 +139,17 @@ export interface Api {
      * that setting gets a value. Null when cancelled; otherwise the status with the chosen file.
      */
     pickCli(): Promise<AiStatus | null>
-    /** `ai:delta`, `ai:done` and `ai:error` for this window's requests. Returns an unsubscribe function. */
+    /**
+     * Other programs that can answer for a seat of Herman's council (see shared/council.ts).
+     * A program's path only ever comes from a search of PATH or the native file dialog.
+     */
+    agents: {
+      list(): Promise<AiAgentInfo[]>
+      /** Connects a program of this kind: found on PATH, or (with `pick`, or when not found) chosen in a file dialog. Null when cancelled. */
+      connect(kind: AgentKind, pick?: boolean): Promise<AiAgentInfo | null>
+      remove(id: string): Promise<AiAgentInfo[]>
+    }
+    /** `ai:delta`, `ai:done`, `ai:error` and `ai:council` for this window's requests. Returns an unsubscribe function. */
     onEvent(listener: (event: AiEvent) => void): () => void
   }
 

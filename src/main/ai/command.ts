@@ -177,10 +177,12 @@ const ENV_ALLOW: ReadonlySet<string> = new Set(
  * in this process's environment are not passed on; the program signs in with what it stored
  * itself when the user ran it.
  */
-export function buildEnv(env: NodeJS.ProcessEnv = process.env, extra: Record<string, string> = {}): Record<string, string> {
+export function buildEnv(env: NodeJS.ProcessEnv = process.env, extra: Record<string, string> = {}, alsoAllow: readonly string[] = []): Record<string, string> {
   const out: Record<string, string> = {}
+  // A connected program may need to know where it keeps its own configuration (see agents.ts).
+  const more = new Set(alsoAllow.map((name) => name.toUpperCase()))
   for (const [key, value] of Object.entries(env)) {
-    if (value !== undefined && ENV_ALLOW.has(key.toUpperCase())) out[key] = value
+    if (value !== undefined && (ENV_ALLOW.has(key.toUpperCase()) || more.has(key.toUpperCase()))) out[key] = value
   }
   // Plain output, and no self-update in the middle of a request.
   out['NO_COLOR'] = '1'

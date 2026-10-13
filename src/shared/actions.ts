@@ -1,0 +1,224 @@
+/**
+ * What the assistant may propose to build: pages, databases, rows, content added to a page.
+ * The model has no tools. It writes its proposal as JSON in one fenced block at the end of an
+ * answer; this file reads that block, strictly, and the window shows it as a proposal. Nothing
+ * is created until the user presses Apply (see renderer/ai/actions.ts).
+ */
+
+export const ACTIONS_FENCE = 'sel-actions'
+
+export const ACTION_LIMITS = {
+  actions: 12,
+  rows: 200,
+  properties: 24,
+  options: 40,
+  title: 200,
+  name: 100,
+  markdown: 60_000,
+  cell: 2000,
+  json: 400_000
+} as const
+
+export const ACTION_PROPERTY_TYPES = ['title', 'text', 'number', 'select', 'multi_select', 'date', 'checkbox', 'url'] as const
+export type ActionPropertyType = (typeof ACTION_PROPERTY_TYPES)[number]
+
+export const ACTION_VIEWS = ['table', 'board', 'list', 'gallery', 'calendar'] as const
+export type ActionView = (typeof ACTION_VIEWS)[number]
+
+export type ActionCell = string | number | boolean | string[] | null
+/** Property name → value. `Name` (or the name of the title property) is the row's title. */
+export type ActionRow = Record<string, ActionCell>
+
+export interface ActionProperty {
+  name: string
+  type: ActionPropertyType
+  options?: string[]
+}
+
+/**
+ * Where something goes, or what it is about: `current` (the page in front), the id of a page
+ * or database, or `@name` for something an earlier action of the same proposal creates.
+ */
+export type ActionTarget = string
+
+export type HermanAction =
+  | { do: 'create-page'; title: string; icon?: string; parent?: ActionTarget; markdown?: string; ref?: string }
+  | { do: 'append'; page: ActionTarget; markdown: string }
+  | { do: 'create-database'; title: string; icon?: string; parent?: ActionTarget; view?: ActionView; properties: ActionProperty[]; rows: ActionRow[]; ref?: string }
+  | { do: 'add-rows'; database: ActionTarget; rows: ActionRow[] }
+
+export interface ParsedAnswer {
+  /** The answer without the proposal block. */
+  text: string
+  actions: HermanAction[]
+  /** A block was opened and is not closed yet: the answer is still streaming. */
+  pending: boolean
+  /** Entries of the block that were not understood and are left out. */
+  rejected: number
+}
+
+const OPEN_RE = new RegExp('(^|\\n)[ \\t]*```+[ \\t]*' + ACTIONS_FENCE + '[ \\t]*\\r?\\n')
+const CLOSE_RE = /\r?\n[ \t]*```+[ \t]*(?=\r?\n|$)/
+const TARGET_RE = /^(?:current|@[A-Za-z0-9_-]{1,32}|[A-Za-z0-9_-]{8,64})$/
+const REF_RE = /^[A-Za-z0-9_-]{1,32}$/
+
+const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
+
+// eslint-disable-next-line no-control-regex
+const oneLine = (value: unknown, max: number): string => (typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '')
+
+function target(value: unknown): ActionTarget | undefined {
+  return typeof value === 'string' && TARGET_RE.test(value) ? value : undefined
+}
+
+function markdown(value: unknown): string {
+  return typeof value === 'string' ? value.slice(0, ACTION_LIMITS.markdown) : ''
+}
+
+/** One emoji, or nothing: the only kind of icon a proposal can set. */
+function icon(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const text = value.trim()
+  return text.length <= 16 && /^\p{Extended_Pictographic}(?:️|‍\p{Extended_Pictographic})*$/u.test(text) ? text : undefined
+}
+
+function cell(value: unknown): ActionCell | undefined {
+  if (value === null || typeof value === 'boolean') return value
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
+  if (typeof value === 'string') return value.slice(0, ACTION_LIMITS.cell)
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string').slice(0, ACTION_LIMITS.options).map((item) => item.slice(0, ACTION_LIMITS.name))
+  return undefined
+}
+
+function rows(value: unknown): ActionRow[] {
+  if (!Array.isArray(value)) return []
+  const out: ActionRow[] = []
+  for (const item of value.slice(0, ACTION_LIMITS.rows)) {
+    if (!isObject(item)) continue
+    const row: ActionRow = {}
+    for (const [key, raw] of Object.entries(item).slice(0, ACTION_LIMITS.properties + 1)) {
+      const name = oneLine(key, ACTION_LIMITS.name)
+      const clean = cell(raw)
+      // A plain object keyed by what the model wrote: names that would reach a prototype are dropped.
+      if (name && clean !== undefined && name !== '__proto__' && name !== 'constructor' && name !== 'prototype') row[name] = clean
+    }
+    if (Object.keys(row).length) out.push(row)
+  }
+  return out
+}
+
+function properties(value: unknown): ActionProperty[] {
+  if (!Array.isArray(value)) return []
+  const out: ActionProperty[] = []
+  for (const item of value.slice(0, ACTION_LIMITS.properties)) {
+    if (!isObject(item)) continue
+    const name = oneLine(item['name'], ACTION_LIMITS.name)
+    const type = item['type']
+    if (!name || typeof type !== 'string' || !(ACTION_PROPERTY_TYPES as readonly string[]).includes(type)) continue
+    const property: ActionProperty = { name, type: type as ActionPropertyType }
+    if ((type === 'select' || type === 'multi_select') && Array.isArray(item['options'])) {
+      property.options = [...new Set(item['options'].map((option) => oneLine(option, ACTION_LIMITS.name)).filter(Boolean))].slice(0, ACTION_LIMITS.options)
+    }
+    out.push(property)
+  }
+  return out
+}
+
+/** One entry of the block as an action, or null when it is not one. */
+export function cleanAction(value: unknown): HermanAction | null {
+  if (!isObject(value)) return null
+  const ref = typeof value['ref'] === 'string' && REF_RE.test(value['ref']) ? value['ref'] : undefined
+  switch (value['do']) {
+    case 'create-page': {
+      const title = oneLine(value['title'], ACTION_LIMITS.title)
+      if (!title) return null
+      const action: HermanAction = { do: 'create-page', title }
+      const glyph = icon(value['icon'])
+      if (glyph) action.icon = glyph
+      if (value['parent'] !== undefined && value['parent'] !== null) {
+        const parent = target(value['parent'])
+        if (!parent) return null
+        action.parent = parent
+      }
+      const body = markdown(value['markdown'])
+      if (body.trim()) action.markdown = body
+      if (ref) action.ref = ref
+      return action
+    }
+    case 'append': {
+      const page = target(value['page'])
+      const body = markdown(value['markdown'])
+      return page && body.trim() ? { do: 'append', page, markdown: body } : null
+    }
+    case 'create-database': {
+      const title = oneLine(value['title'], ACTION_LIMITS.title)
+      if (!title) return null
+      const action: HermanAction = { do: 'create-database', title, properties: properties(value['properties']), rows: rows(value['rows']) }
+      const glyph = icon(value['icon'])
+      if (glyph) action.icon = glyph
+      if (value['parent'] !== undefined && value['parent'] !== null) {
+        const parent = target(value['parent'])
+        if (!parent) return null
+        action.parent = parent
+      }
+      if (typeof value['view'] === 'string' && (ACTION_VIEWS as readonly string[]).includes(value['view'])) action.view = value['view'] as ActionView
+      if (ref) action.ref = ref
+      return action
+    }
+    case 'add-rows': {
+      const database = target(value['database'])
+      const list = rows(value['rows'])
+      return database && list.length ? { do: 'add-rows', database, rows: list } : null
+    }
+    default:
+      return null
+  }
+}
+
+/**
+ * Splits an answer into what is read and what is proposed. Only the first block counts; every
+ * block is taken out of the text. A block that does not parse proposes nothing.
+ */
+export function splitActions(answer: string): ParsedAnswer {
+  let text = answer
+  let actions: HermanAction[] = []
+  let rejected = 0
+  let pending = false
+  let first = true
+  for (;;) {
+    const open = OPEN_RE.exec(text)
+    if (!open) break
+    const start = open.index + open[1].length
+    const bodyStart = open.index + open[0].length
+    // The fence may close right away (an empty block) or after the JSON.
+    const rest = text.slice(bodyStart - 1)
+    const close = CLOSE_RE.exec(rest)
+    if (!close) {
+      pending = true
+      text = text.slice(0, start)
+      break
+    }
+    const body = rest.slice(1, close.index)
+    text = text.slice(0, start) + rest.slice(close.index + close[0].length)
+    if (!first) continue
+    first = false
+    if (body.length > ACTION_LIMITS.json) {
+      rejected++
+      continue
+    }
+    try {
+      const parsed: unknown = JSON.parse(body)
+      const list = Array.isArray(parsed) ? parsed : [parsed]
+      for (const item of list.slice(0, ACTION_LIMITS.actions)) {
+        const action = cleanAction(item)
+        if (action) actions.push(action)
+        else rejected++
+      }
+      rejected += Math.max(0, list.length - ACTION_LIMITS.actions)
+    } catch {
+      actions = []
+      rejected++
+    }
+  }
+  return { text: text.replace(/\n{3,}/g, '\n\n').trimEnd(), actions, pending, rejected }
+}

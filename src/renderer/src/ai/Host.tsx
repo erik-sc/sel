@@ -2,6 +2,7 @@
 // sheet are fetched the first time they are shown; nothing of them is in the start-up bundle.
 import { Suspense, lazy, useEffect, useState } from 'react'
 import type { JSX } from 'react'
+import { WindowControls } from '@/shell/WindowControls'
 import { useAiGate } from './gate'
 
 const loadPanel = (): Promise<typeof import('./AssistantPanel')> => import('./AssistantPanel')
@@ -13,12 +14,21 @@ export function preloadAssistant(): void {
   void loadPanel().catch(() => undefined)
 }
 
-/** The assistant panel, to the right of the page. */
+/** The assistant panel: a third panel of the shell, to the right of the content sheet and as tall as the window. */
 export function AssistantDock(): JSX.Element | null {
   const open = useAiGate((state) => state.enabled && state.panelOpen)
   if (!open) return null
   return (
-    <Suspense fallback={<aside className="assistant" aria-busy="true" />}>
+    <Suspense
+      fallback={
+        <aside className="assistant glass" aria-busy="true">
+          <header className="assistant-head">
+            <h2 />
+            <WindowControls />
+          </header>
+        </aside>
+      }
+    >
       <AssistantPanel />
     </Suspense>
   )

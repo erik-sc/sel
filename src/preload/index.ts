@@ -80,9 +80,10 @@ const api: Api = {
   versions: ns('versions', ['list', 'get', 'current', 'save', 'rename', 'delete', 'restore', 'stats', 'clear']),
   files: ns('files', ['pickImage', 'saveImage', 'saveGeneratedImage']),
   ai: {
-    ...ns<Omit<Api['ai'], 'onEvent'>>('ai', ['status', 'run', 'cancel', 'pickCli']),
+    ...ns<Omit<Api['ai'], 'onEvent' | 'agents'>>('ai', ['status', 'run', 'cancel', 'pickCli']),
+    agents: ns('ai:agents', ['list', 'connect', 'remove'], '.'),
     onEvent(listener) {
-      const types = ['delta', 'done', 'error'] as const
+      const types = ['delta', 'done', 'error', 'council'] as const
       const handlers = types.map((type) => {
         const handler = (_: unknown, payload: object): void => listener({ type, ...payload } as AiEvent)
         ipcRenderer.on(AI_CHANNELS[type], handler)

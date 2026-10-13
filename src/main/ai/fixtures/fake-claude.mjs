@@ -64,6 +64,11 @@ function answer(prompt) {
     return ['## Scope', '', '- Editor', '- Sync', '', '## Timeline', '', '- Launch in May', '', '## Open questions', '', '- Pricing review'].join('\n')
   }
   if (task.startsWith('Continue writing')) return 'The next step is to agree on the date with everyone involved, so that the announcement and the release notes can be prepared in time.'
+  if (task.startsWith('Give Herman your counsel')) return `From where I stand (${/^You are ([A-Za-z]+),/.exec(prompt)?.[1] ?? 'a member'}): the date is the part to look at again before anything else is promised.`
+  if (task.startsWith('Answer the question') && /\b(create|make|build|add)\b/i.test(request)) {
+    const proposal = [{ do: 'create-page', title: 'Launch checklist', icon: '🚀', markdown: '## Before\n\n- [ ] Confirm the date\n- [ ] Write the guide' }]
+    return `Here is a page for that.\n\n\`\`\`sel-actions\n${JSON.stringify(proposal)}\n\`\`\``
+  }
   if (task.startsWith('Answer the question')) return `Here is what the page says about that:\n\n- The launch moves to **May**.\n- The sync work is the part that is late.\n\nYou asked: *${request.slice(0, 120)}*`
   if (task.startsWith('Turn the meeting transcript')) {
     return ['## Summary', '', 'The team agreed on the May launch.', '', '## Decisions', '', '- Launch in May', '', '## Action items', '', '- [ ] **Ana** writes the guide by Friday', '', '## Open questions', '', '- Who reviews pricing?'].join('\n')

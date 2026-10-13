@@ -239,7 +239,8 @@ function BriefMe(): JSX.Element | null {
 
   useEffect(() => {
     const off = window.api.ai.onEvent((event) => {
-      if (event.id !== current.current) return
+      // The briefing never asks the council.
+      if (event.id !== current.current || event.type === 'council') return
       noteAiEvent(event.type, event.type === 'error' && event.code === 'cancelled')
       if (event.type === 'delta') setState((previous) => (previous.phase === 'running' ? { ...previous, text: previous.text + event.text } : previous))
       else if (event.type === 'done') {

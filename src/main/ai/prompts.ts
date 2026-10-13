@@ -1,5 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import { AI_LANGUAGE_LABELS, type AiAction, type AiLanguage, type AiRequest, type AiTone, type AiTurn } from '../../shared/ai'
+import { ACTIONS_FENCE } from '../../shared/actions'
+import type { CouncilMemberId } from '../../shared/council'
+import { COUNCIL_RULE, councilBody, MEMBER_LANGUAGE_RULE, MEMBER_TASK, memberIntro, memberRules, type CouncilOpinion } from './council'
 import { PASSAGES_RULE, PERSONA_INTRO, PERSONA_LANGUAGE_RULE, passagesBody, personaRules, type PersonaVoice } from './herman'
 
 /**
@@ -31,8 +34,12 @@ export interface PromptContext {
   blocksMarkdown?: string
   /** `consolidate` on a meeting page: what the main process read of that meeting. */
   meeting?: MeetingPromptData
-  /** `ask` about the day: today's agenda and open tasks, as the main process has them stored. */
+  /** `ask`: today's agenda and open tasks, as the main process has them stored. */
   day?: BriefingPromptData
+  /** `ask`: where the page sits and what else the workspace holds (see ./context.ts). */
+  workspace?: string
+  /** `ask`: excerpts of other pages that seem to bear on the question. */
+  related?: string
 }
 
 /** A recorded meeting as the prompt sees it. Every string is content: said or written by anyone. */
@@ -61,7 +68,31 @@ export interface PromptOptions {
   voice?: PersonaVoice | null
   /** `ask` with a voice: ids of bundled passages he may quote. Ids of anything else give nothing. */
   passageIds?: readonly string[]
+  /**
+   * `ask`: the prompt is for one member of Herman's council instead of for him. The name of a
+   * persona this process holds (see ./council.ts), like a voice.
+   */
+  member?: CouncilMemberId | null
+  /** `ask`: what the council said, for Herman to weigh. Text written by models: data like any other. */
+  council?: readonly CouncilOpinion[]
 }
+
+/**
+ * How the assistant proposes to build something. It has no tools: it describes what it would
+ * create as JSON in one fenced block, which the window reads strictly (shared/actions.ts) and
+ * shows as a proposal. Nothing is created until the user presses Apply.
+ */
+export const ACTIONS_RULES: readonly string[] = [
+  `You can build things in the app. When the user asks you to make, add or fill in something (a page, a plan, a list, a table or database, rows or entries, notes added to a page), end your reply with one fenced code block whose language is ${ACTIONS_FENCE}, holding a JSON array of actions. Before it, say in a sentence or two what it will do. The user sees it as a proposal with an Apply button, and nothing changes until they press it. Leave the block out whenever nothing is to be created or changed; it does not count toward the length of a reply.`,
+  'The actions: {"do":"create-page","title":"…","icon":"one emoji (optional)","parent":"…","markdown":"its content","ref":"a"}; {"do":"append","page":"…","markdown":"what to add at the end"}; {"do":"create-database","title":"…","parent":"…","view":"table|board|list|gallery|calendar","properties":[{"name":"…","type":"text|number|select|multi_select|date|checkbox|url","options":["…"]}],"rows":[{"Name":"…","a property name":"…"}],"ref":"b"}; {"do":"add-rows","database":"…","rows":[{"Name":"…"}]}.',
+  'A parent, page or database is "current" (the page in the PAGE section), an id shown in square brackets in the WORKSPACE or RELATED section, or "@a" for what an earlier action of the same block created with "ref":"a". Leave "parent" out to create at the top level. Use only ids that appear in the sections; never make one up.',
+  'In a row, "Name" is its title and every other key is the name of a property. Values: text, numbers, true or false, dates as YYYY-MM-DD, the name of an option for a select and a list of names for a multi_select. To add rows to a database that exists, use the property names the WORKSPACE section gives for it.',
+  'Markdown inside an action follows the Markdown rules below. Put real content into what you create, drawn from the conversation and the sections: never an empty shell, and nothing the user did not ask for.'
+]
+
+const CONTEXT_RULE =
+  'The WORKSPACE section, when present, says what time it is, where the page sits and what else the user keeps in this app; RELATED holds excerpts of other pages that may bear on the question; TODAY holds their agenda and open tasks. Use them when the question reaches beyond the page, and say which page something comes from. Do not recite them.'
+
 
 /** Keeps the first and last part of `text` and says how much was left out in between. */
 export function truncateMiddle(text: string, max: number): string {
@@ -104,7 +135,7 @@ interface Task {
   markdown?: boolean
 }
 
-function taskFor(request: AiRequest, hasFocus: boolean, aboutDay = false): Task {
+function taskFor(request: AiRequest, hasFocus: boolean, aboutDay = false, hasPage = true): Task {
   const what = hasFocus ? 'the text in the TEXT section' : 'the page in the PAGE section'
   const keep = 'Return only the rewritten text, as a replacement for the original. Keep its meaning, its facts and names, its language and its Markdown structure; do not add headings or lists that were not there.'
   switch (request.action) {
@@ -203,6 +234,15 @@ function taskFor(request: AiRequest, hasFocus: boolean, aboutDay = false): Task 
           ]
         }
       }
+      if (!hasPage) {
+        return {
+          task: 'Answer the question in the USER REQUEST section. The user is not on a page: the sections say what they keep in this app.',
+          rules: [
+            'Base the answer on the sections when they bear on the question, and on general knowledge otherwise. Do not invent pages, events or tasks.',
+            'Be concise. The CONVERSATION section, when present, holds the earlier turns of this chat.'
+          ]
+        }
+      }
       return {
         task: 'Answer the question in the USER REQUEST section about the page in the PAGE section.',
         rules: [
@@ -261,19 +301,36 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   const pageOnly = request.action === 'title'
   // The text the action works on: a selection or named blocks. Without one it works on the page.
   const focus = isContinue || isMeeting || pageOnly ? undefined : (selection ?? blocks)
-  const day = request.action === 'ask' && !page ? context.day : undefined
-  const spec = taskFor(request, focus !== undefined, day !== undefined)
+  const isAsk = request.action === 'ask'
+  // The agenda and the tasks go along with every question; one asked with no page and nothing else to go on is about the day.
+  const day = isAsk ? context.day : undefined
+  const workspace = isAsk && context.workspace?.trim() ? context.workspace : undefined
+  const related = isAsk && context.related?.trim() ? context.related : undefined
+  const aboutDay = day !== undefined && !page && (request.today === true || workspace === undefined)
+  // A member of the council answers instead of Herman: the same sections, another point of view.
+  const member = isAsk ? (options.member ?? null) : null
+  const council = isAsk && !member ? councilBody(options.council ?? []) : ''
+  const base = taskFor(request, focus !== undefined, aboutDay, page !== undefined || !isAsk)
+  const spec: Task = member ? { ...base, task: MEMBER_TASK } : base
 
   // Herman speaks in the conversation only: the tools that rewrite text have no voice of their own.
-  const voice = request.action === 'ask' ? (options.voice ?? null) : null
+  const voice = isAsk && !member ? (options.voice ?? null) : null
   const passages = voice ? passagesBody(options.passageIds) : ''
-  const lines: string[] = [voice ? PERSONA_INTRO : 'You are the writing assistant built into sel, a notes app.', '', `Task: ${spec.task}`]
+  const lines: string[] = [member ? memberIntro(member) : voice ? PERSONA_INTRO : 'You are the writing assistant built into sel, a notes app.', '', `Task: ${spec.task}`]
+  if (member) {
+    lines.push('', 'Your point of view:')
+    for (const rule of memberRules(member)) lines.push(`- ${rule}`)
+  }
   if (voice) {
     lines.push('', 'Your voice:')
     for (const rule of personaRules(voice)) lines.push(`- ${rule}`)
     if (passages) lines.push(`- ${PASSAGES_RULE}`)
   }
   const rules = [...(spec.rules ?? [])]
+  if (workspace || related || (day && !aboutDay)) rules.push(CONTEXT_RULE)
+  if (council) rules.push(COUNCIL_RULE)
+  // Only the one who answers the user proposes anything; the council advises.
+  if (isAsk && !member) rules.push(...ACTIONS_RULES)
 
   if (request.action !== 'translate') {
     const fallback = options.defaultLanguage && options.defaultLanguage !== 'auto' ? options.defaultLanguage : undefined
@@ -283,9 +340,11 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
         ? `Write in ${AI_LANGUAGE_LABELS[language]}.`
         : request.action === 'consolidate'
           ? 'Write in the language the meeting was held in (the language of the transcript), whatever language the notes are in, section headings included.'
-          : voice
-            ? PERSONA_LANGUAGE_RULE
-            : 'Write in the language of the content.'
+          : member
+            ? MEMBER_LANGUAGE_RULE
+            : voice
+              ? PERSONA_LANGUAGE_RULE
+              : 'Write in the language of the content.'
     )
   }
   if (spec.markdown !== false) rules.push(...FORMAT_RULES)
@@ -296,6 +355,8 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
     section('PAGE', truncateMiddle(page, PROMPT_CAPS.page), title ? `${note ? `${note}; ` : ''}title: ${scrub(title).replace(/\s+/g, ' ').slice(0, 200)}` : note)
   }
   if (focus !== undefined) section('TEXT', truncateMiddle(focus, PROMPT_CAPS.focus))
+  if (workspace) section('WORKSPACE', workspace, 'what the user keeps in this app: titles of pages and databases, each followed by its id in square brackets')
+  if (related) section('RELATED', related, 'excerpts of other pages of the user, found by searching for the words of the question')
   if (day) section('TODAY', dayBody(day), 'titles of calendar events and tasks, written by the user or by people who sent invitations')
   if (isContinue) {
     const before = selection ?? ''
@@ -322,6 +383,8 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   if (request.action === 'ask' && request.history?.length) section('CONVERSATION', historyText(request.history, PROMPT_CAPS.history))
   // Text of the bundled collection, read by this process: offered as something to quote, and still not instructions.
   if (passages) section('PASSAGES', passages, 'from the collection bundled with this app; the only text that may be quoted')
+  // What other models answered when asked: advice for him to weigh, and data like everything else here.
+  if (council) section('COUNCIL', council, 'what the members of your council answered, each from one point of view')
 
   lines.push('', 'Rules:')
   for (const rule of rules) lines.push(`- ${rule}`)

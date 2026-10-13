@@ -1,3 +1,5 @@
+import type { CouncilEvent } from './council'
+
 /**
  * AI workflows: the shapes shared by the main process (which finds and drives the Claude Code
  * program installed on this computer) and the renderer (which asks for an action and shows what
@@ -92,6 +94,12 @@ export interface AiRequest {
    * agenda and open tasks, as it has them stored; the window sends none of it.
    */
   today?: boolean
+  /**
+   * `ask` only: Herman consults his council first. The seats that are taken each answer the
+   * question from their own point of view (see shared/council.ts), and he answers with their
+   * counsel in front of him. Which seats, programs and models is read from the settings.
+   */
+  council?: boolean
 }
 
 export type AiUnavailableReason = 'not-found' | 'not-executable' | 'unknown-version' | 'disabled'
@@ -125,9 +133,9 @@ export interface AiError {
   detail?: string
 }
 
-export type AiEvent = ({ type: 'delta' } & AiDelta) | ({ type: 'done' } & AiDone) | ({ type: 'error' } & AiError)
+export type AiEvent = ({ type: 'delta' } & AiDelta) | ({ type: 'done' } & AiDone) | ({ type: 'error' } & AiError) | ({ type: 'council' } & CouncilEvent)
 
-export const AI_CHANNELS = { delta: 'ai:delta', done: 'ai:done', error: 'ai:error' } as const
+export const AI_CHANNELS = { delta: 'ai:delta', done: 'ai:done', error: 'ai:error', council: 'ai:council' } as const
 
 // ---- settings ---------------------------------------------------------------
 
