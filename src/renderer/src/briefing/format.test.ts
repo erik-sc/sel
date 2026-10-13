@@ -2,7 +2,7 @@ process.env.TZ = 'America/Sao_Paulo'
 
 import { describe, expect, it } from 'vitest'
 import type { BriefingEvent, BriefingTask, BriefingTasks } from '../../../shared/briefing'
-import { agendaByDay, calendarNotes, clock, dayStart, dueLabel, eventMoments, eventTime, longDate, phraseSource, phraseText, shortClock, taskGroups, untilMidnight, updatedLabel } from './format'
+import { agendaByDay, calendarNotes, clock, dayStart, dayTimeline, dueLabel, eventMoments, eventTime, longDate, phraseSource, phraseText, shortClock, taskGroups, untilMidnight, updatedLabel } from './format'
 
 const at = (hour: number, minute = 0, day = 13): number => new Date(2026, 9, day, hour, minute).getTime()
 const event = (start: number, end: number, allDay = false): { start: number; end: number; allDay: boolean } => ({ start, end, allDay })
@@ -168,5 +168,34 @@ describe('the days of the calendar', () => {
     expect(ids('2026-10-13')).toEqual([['conference', 'overnight'], []])
     expect(ids('2026-10-14')).toEqual([['conference', 'overnight', 'moment'], ['a']])
     expect(ids('2026-10-15')).toEqual([[], []])
+  })
+
+  it('places the events of a day on its hours, side by side where they overlap', () => {
+    const from = at(0)
+    const to = at(0, 0, 14)
+    const placed = dayTimeline(
+      [
+        { id: 'conference', ...event(from, to, true) },
+        { id: 'standup', ...event(at(9), at(9, 15)) },
+        { id: 'review', ...event(at(10), at(12)) },
+        { id: 'call', ...event(at(11), at(11, 30)) },
+        { id: 'lunch', ...event(at(11, 30), at(13)) },
+        { id: 'overnight', ...event(at(22, 0, 12), at(1)) },
+        { id: 'late', ...event(at(23, 50), at(2, 0, 14)) },
+        { id: 'away', ...event(at(12, 0, 12), at(12, 0, 14)) }
+      ],
+      from,
+      to
+    )
+    expect(placed.map(({ event: { id }, start, end, lane, lanes }) => [id, start, end, lane, lanes])).toEqual([
+      ['overnight', 0, 60, 0, 1],
+      // A quarter of an hour is drawn as half an hour, so that it can be read.
+      ['standup', 540, 570, 0, 1],
+      ['review', 600, 720, 0, 2],
+      ['call', 660, 690, 1, 2],
+      // Free again once the call is over.
+      ['lunch', 690, 780, 1, 2],
+      ['late', 1410, 1440, 0, 1]
+    ])
   })
 })

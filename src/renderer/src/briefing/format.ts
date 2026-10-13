@@ -83,7 +83,69 @@ export function agendaByDay(days: readonly string[], events: readonly BriefingEv
   return out
 }
 
-export type EventMoment = 'past' | 'now' | 'next' | 'later' | 'day'
+const DAY_MINUTES = 1440
+
+/** Whether an event fills the whole of the day `[from, to)`: it is drawn as a band, not at an hour. */
+export function fillsDay(event: Pick<BriefingEvent, 'start' | 'end' | 'allDay'>, from: number, to: number): boolean {
+  return event.allDay || (event.start <= from && event.end >= to)
+}
+
+/** An event placed on the hours of a day: minutes from midnight, and its lane among those it overlaps. */
+export interface TimedEvent<T> {
+  event: T
+  /** Minutes from midnight, on the clock of that day; cut to the day. */
+  start: number
+  end: number
+  /** Which of the `lanes` side-by-side columns it takes, from 0. */
+  lane: number
+  lanes: number
+}
+
+/**
+ * The events of the day `[from, to)` that have an hour, placed for a time grid. An event is
+ * never shorter than `least` minutes, so that it can be read; those that overlap, as drawn,
+ * share the width: each takes the first free lane, and a run of events that touch one another
+ * is divided into as many lanes as the run needed.
+ */
+export function dayTimeline<T extends Pick<BriefingEvent, 'start' | 'end' | 'allDay'>>(events: readonly T[], from: number, to: number, least = 30): TimedEvent<T>[] {
+  const minute = (ms: number): number => {
+    if (ms <= from) return 0
+    if (ms >= to) return DAY_MINUTES
+    const date = new Date(ms)
+    return date.getHours() * 60 + date.getMinutes()
+  }
+  const placed = events
+    .filter((event) => !fillsDay(event, from, to))
+    .map((event) => {
+      const start = Math.min(minute(event.start), DAY_MINUTES - least)
+      return { event, start, end: Math.min(DAY_MINUTES, Math.max(minute(event.end), start + least)), lane: 0, lanes: 1 }
+    })
+    .sort((a, b) => a.start - b.start || b.end - a.end)
+
+  let run: TimedEvent<T>[] = []
+  let runEnd = 0
+  /** When each lane of the run is free again. */
+  let free: number[] = []
+  const close = (): void => {
+    for (const item of run) item.lanes = free.length
+  }
+  for (const item of placed) {
+    if (run.length && item.start >= runEnd) {
+      close()
+      run = []
+      free = []
+    }
+    const lane = free.findIndex((end) => end <= item.start)
+    item.lane = lane < 0 ? free.length : lane
+    free[item.lane] = item.end
+    run.push(item)
+    runEnd = Math.max(runEnd, item.end)
+  }
+  close()
+  return placed
+}
+
+export type EventMoment ='past' | 'now' | 'next' | 'later' | 'day'
 
 /**
  * Where each event stands at `now`: over, going on, the next one to start, or later. All-day
