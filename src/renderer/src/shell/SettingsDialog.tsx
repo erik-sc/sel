@@ -89,6 +89,8 @@ function SettingsBody() {
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
               <SyncSection />
             </Suspense>
+          ) : section === 'today' ? (
+            <TodaySection />
           ) : (
             <AppearancePanel />
           )}
