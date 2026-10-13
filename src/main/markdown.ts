@@ -258,7 +258,7 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
     }
     case 'page': {
       const title = inlineToMarkdown(p.title) || 'Untitled'
-      return [`[${p.icon ? `${p.icon} ` : ''}${title}](sel://page/${b.id})`]
+      return [`[${title}](sel://page/${b.id})`]
     }
     case 'database':
       return databaseToMarkdown(repo, b)

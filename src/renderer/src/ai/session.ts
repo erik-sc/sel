@@ -230,7 +230,7 @@ export function acceptAi(ctrl: EditorController, markdown: string): boolean {
   return true
 }
 
-/** A suggested title was chosen: the page gets it (and the emoji, when it has no icon yet). One undo step. */
+/** A suggested title was chosen: the page gets it (and the shape drawn from its emoji, when it has no icon yet). One undo step. */
 export function applyAiTitle(ctrl: EditorController, title: string, emoji: string): void {
   const page = getBlock(ctrl.pageId)
   const session = ctrl.ui.getState().ai

@@ -359,7 +359,15 @@ function propChanges(from: SnapshotBlock, to: SnapshotBlock, isRoot: boolean): P
   }
   if ((a.color ?? '') !== (b.color ?? '')) out.push({ label: 'Colour', from: colorName(a.color), to: colorName(b.color) })
   if ((a.language ?? '') !== (b.language ?? '')) out.push({ label: 'Language', from: short(a.language) === 'None' ? 'Plain text' : short(a.language), to: short(b.language) === 'None' ? 'Plain text' : short(b.language) })
-  if ((a.icon ?? '') !== (b.icon ?? '')) out.push({ label: 'Icon', from: short(a.icon), to: short(b.icon) })
+  if ((a.icon ?? '') !== (b.icon ?? '')) {
+    // A callout's icon is an emoji and can be shown; a page's is a shape, which has no name.
+    const named = to.type === 'callout' || from.type === 'callout'
+    out.push(
+      named
+        ? { label: 'Icon', from: short(a.icon), to: short(b.icon) }
+        : { label: 'Icon', from: a.icon ? 'Set' : 'None', to: b.icon ? (a.icon ? 'Changed' : 'Set') : 'None' }
+    )
+  }
   if ((a.url ?? '') !== (b.url ?? '')) out.push({ label: to.type === 'image' ? 'Image' : 'Link', from: short(a.url), to: short(b.url) })
   if ((a.cover ?? '') !== (b.cover ?? '')) out.push({ label: 'Cover', from: a.cover ? 'Set' : 'None', to: b.cover ? (a.cover ? 'Changed' : 'Set') : 'None' })
   if (isRoot && !!a.fullWidth !== !!b.fullWidth) out.push({ label: 'Width', from: a.fullWidth ? 'Full width' : 'Default', to: b.fullWidth ? 'Full width' : 'Default' })

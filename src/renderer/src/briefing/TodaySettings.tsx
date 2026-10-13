@@ -24,6 +24,7 @@ import { Button } from '@/ui/Button'
 import { notifyError } from '@/ui/toast'
 import { updatedLabel } from './format'
 import './settings.css'
+import { ShapeIcon } from '@/ui/ShapeIcon'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'On' },
@@ -448,7 +449,11 @@ export function TodaySection(): JSX.Element {
               <input type="checkbox" checked={isChosen(database)} disabled={!database.detected} onChange={() => toggleDatabase(database)} />
               <span className="ap-row-text">
                 <span className="ap-row-label">
-                  {database.icon ? `${database.icon} ` : ''}
+                  {database.icon && (
+                    <span className="ts-check-icon">
+                      <ShapeIcon icon={database.icon} />
+                    </span>
+                  )}
                   {database.name}
                 </span>
                 {!database.detected && <span className="ap-row-help">No Status with a “Done” option and no “Done” checkbox, so its rows cannot be told open from done.</span>}

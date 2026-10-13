@@ -15,6 +15,7 @@ import { isBusy } from './machine'
 import { MarkdownView } from './MarkdownView'
 import { AI_GLYPH, acceptAi, applyAiTitle, discardAi, type AiSession } from './session'
 import './ai.css'
+import { ShapeIcon } from '@/ui/ShapeIcon'
 
 interface HighlightRegistry {
   set(name: string, highlight: object): void
@@ -196,7 +197,7 @@ export function InlineAi({ session }: { session: AiSession }): JSX.Element {
               {titles.map((entry, index) => (
                 <button key={index} type="button" role="option" aria-selected="false" className="ai-title-option" onClick={() => applyAiTitle(ctrl, entry.title, entry.emoji)}>
                   <span className="ai-title-emoji" aria-hidden="true">
-                    {entry.emoji}
+                    {entry.emoji && <ShapeIcon icon={entry.emoji} />}
                   </span>
                   <span>{entry.title}</span>
                 </button>
