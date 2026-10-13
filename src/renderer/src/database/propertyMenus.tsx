@@ -38,7 +38,11 @@ export function AddPropertyMenu({
       id: type,
       label: L.TYPE_LABELS[type],
       icon: <TypeIcon type={type} />,
-      onSelect: () => onAdded?.(actions.addProperty(databaseId, type, viewId))
+      onSelect: () => {
+        // Not `onAdded?.(addProperty(...))`: without a listener that would skip the add itself.
+        const id = actions.addProperty(databaseId, type, viewId)
+        onAdded?.(id)
+      }
     }))
   ]
   return (
