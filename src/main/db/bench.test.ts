@@ -4,17 +4,17 @@ import type { Repository, TreeInput } from './repository'
 import { openTestRepository } from './testing'
 
 /**
- * Repository benchmark on a 50k-block workspace. Skipped unless SELIDA_BENCH=1:
+ * Repository benchmark on a 50k-block workspace. Skipped unless SEL_BENCH=1:
  *
- *   SELIDA_BENCH=1 npx vitest run src/main/db/bench.test.ts
+ *   SEL_BENCH=1 npx vitest run src/main/db/bench.test.ts
  *
  * Runs on node:sqlite in `:memory:`, so it measures the repository's own work
  * (statements, JSON, tree assembly) rather than disk latency.
  */
-const enabled = process.env['SELIDA_BENCH'] === '1'
+const enabled = process.env['SEL_BENCH'] === '1'
 
 const WORDS = (
-  'selida local first block page database note draft idea plan review meeting project design ' +
+  'sel local first block page database note draft idea plan review meeting project design ' +
   'research summary action report margin kernel orchid lantern quartz harbor velvet cinder maple'
 ).split(' ')
 
@@ -93,7 +93,7 @@ function time(label: string, runs: number, fn: () => unknown, results: Record<st
   results[label] = `${samples[Math.floor(samples.length / 2)].toFixed(2)} ms`
 }
 
-describe.skipIf(!enabled)('benchmark (SELIDA_BENCH=1)', () => {
+describe.skipIf(!enabled)('benchmark (SEL_BENCH=1)', () => {
   it('reports timings on a 50k-block workspace', () => {
     const repo = openTestRepository()
     const results: Record<string, string> = {}

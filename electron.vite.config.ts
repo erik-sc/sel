@@ -32,7 +32,7 @@ if (!electronVersion.startsWith(`${ELECTRON_MAJOR}.`)) {
  */
 function devCsp(): Plugin {
   return {
-    name: 'selida:dev-csp',
+    name: 'sel:dev-csp',
     apply: 'serve',
     transformIndexHtml(html) {
       const relaxed = html.replace("connect-src 'none'", "connect-src 'self' ws://localhost:* ws://127.0.0.1:*")

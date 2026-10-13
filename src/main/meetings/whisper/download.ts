@@ -28,8 +28,8 @@ const MESSAGES: Record<DownloadFailure, string> = {
   offline: 'The server could not be reached. Check the connection and try again.',
   timeout: 'The download stopped responding. Try again; it continues where it left off.',
   'not-found': 'The file is no longer at its address.',
-  'too-large': 'The file on the server is larger than the one Selida expects, so it was refused.',
-  'digest-mismatch': 'The downloaded file is not the one Selida expects (its checksum is different). It was deleted.',
+  'too-large': 'The file on the server is larger than the one sel expects, so it was refused.',
+  'digest-mismatch': 'The downloaded file is not the one sel expects (its checksum is different). It was deleted.',
   'disk-full': 'There is not enough free disk space for the download.',
   cancelled: 'The download was cancelled.',
   failed: 'The download failed.'

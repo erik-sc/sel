@@ -463,7 +463,7 @@ describe('robustness', () => {
     const { mkdtempSync, existsSync, statSync, rmSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
     const { join } = await import('node:path')
-    const dir = mkdtempSync(join(tmpdir(), 'selida-db-'))
+    const dir = mkdtempSync(join(tmpdir(), 'sel-db-'))
     const file = join(dir, 'test.db')
     try {
       const first = openTestRepository(file)
@@ -603,8 +603,8 @@ describe('query plans', () => {
       plans.set(sql.replace(/\s+/g, ' ').trim(), rows.map((p) => p.detail).join(' | '))
     }
     expect(plans.size).toBeGreaterThan(25)
-    // SELIDA_PLANS=1 prints every statement with its plan.
-    if (process.env['SELIDA_PLANS'] === '1') {
+    // SEL_PLANS=1 prints every statement with its plan.
+    if (process.env['SEL_PLANS'] === '1') {
       process.stdout.write([...plans].map(([sql, plan]) => `${sql}\n    => ${plan}`).join('\n') + '\n')
     }
 
@@ -658,7 +658,7 @@ describe('query plans', () => {
       PRAGMA user_version = 1;
     `)
     const r = new Repo(db)
-    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(4)
+    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(5)
     const names = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all() as { name: string }[]).map((x) => x.name)
     expect(names).toContain('blocks_pages_recent_idx')
     // Migration 3: the version history table, empty.

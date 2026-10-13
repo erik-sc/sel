@@ -68,7 +68,7 @@ function tasksDatabase(): string {
 }
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'selida-briefing-'))
+  dir = mkdtempSync(join(tmpdir(), 'sel-briefing-'))
   repo = openTestRepository()
   now = new Date(2026, 9, 13, 8, 5).getTime()
   fetches = 0

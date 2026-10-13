@@ -23,8 +23,8 @@ suite('sync with real git: flows', () => {
     expect(status.gitVersion).toMatch(/^\d+\.\d+/)
 
     const files = remoteFiles(remote)
-    expect([...files.keys()].sort()).toEqual(['README.md', `pages/${page.id}.json`, `pages/${sub.id}.json`, 'selida.json', 'workspace.json'].sort())
-    expect(JSON.parse(files.get('selida.json')!.toString())).toMatchObject({ app: 'selida', format: 1, createdBy: 'Desk' })
+    expect([...files.keys()].sort()).toEqual(['README.md', `pages/${page.id}.json`, `pages/${sub.id}.json`, 'sel.json', 'workspace.json'].sort())
+    expect(JSON.parse(files.get('sel.json')!.toString())).toMatchObject({ app: 'sel', format: 1, createdBy: 'Desk' })
     expect(files.get('README.md')!.toString()).toContain('Do not edit these files by hand')
     expect(JSON.parse(files.get('workspace.json')!.toString()).root).toEqual([page.id])
     // One page per file, up to the nested page; one block per line; still one JSON document.
@@ -36,8 +36,8 @@ suite('sync with real git: flows', () => {
     expect(parsed.blocks.map((b) => b.type).sort()).toEqual(['page', 'text'])
     expect(parsed.blocks.map((b) => b.id)).toEqual([...parsed.blocks.map((b) => b.id)].sort())
     expect(text).not.toContain('Inside the nested page')
-    expect(git(remote, 'log', '-1', '--format=%an <%ae>|%s', 'main').trim()).toBe('Desk <selida@localhost>|Sync from Desk')
-    expect(git(remote, 'log', '-1', '--format=%b', 'main')).toContain('selida-sync: pages=2 removed=0')
+    expect(git(remote, 'log', '-1', '--format=%an <%ae>|%s', 'main').trim()).toBe('Desk <sel@localhost>|Sync from Desk')
+    expect(git(remote, 'log', '-1', '--format=%b', 'main')).toContain('sel-sync: pages=2 removed=0')
     // Nothing of the user's global git configuration was touched, and nothing was forced.
     for (const { args } of a.spawns) {
       if (args.includes('push')) expect(args.some((arg) => arg === '--force' || arg === '-f' || arg.startsWith('+') || arg.includes('force'))).toBe(false)
@@ -210,7 +210,7 @@ suite('sync with real git: flows', () => {
     const name = '0b0f6c2e-1111-4222-8333-444455556666.png'
     writeFileSync(join(a.filesDir, name), PNG)
     const page = a.page('Pictures')
-    a.repo.create({ type: 'image', parentId: page.id, props: { url: `selida-file://files/${name}` } })
+    a.repo.create({ type: 'image', parentId: page.id, props: { url: `sel-file://files/${name}` } })
     // Never uploaded: nothing refers to it.
     writeFileSync(join(a.filesDir, 'unused-picture.png'), PNG)
     await a.setup(remote)
@@ -228,8 +228,8 @@ suite('sync with real git: flows', () => {
     const name = 'aaaaaaaa-1111-4222-8333-444455556666.png'
     writeFileSync(join(a.filesDir, name), Buffer.from('#!/bin/sh\necho not an image, whatever the name says\n'))
     const page = a.page('Odd')
-    a.repo.create({ type: 'image', parentId: page.id, props: { url: `selida-file://files/${name}` } })
-    a.repo.create({ type: 'image', parentId: page.id, props: { url: 'selida-file://files/../../evil.png' } })
+    a.repo.create({ type: 'image', parentId: page.id, props: { url: `sel-file://files/${name}` } })
+    a.repo.create({ type: 'image', parentId: page.id, props: { url: 'sel-file://files/../../evil.png' } })
     await a.setup(remote)
     const b = device('Device B', 2_000_000)
     await b.setup(remote)

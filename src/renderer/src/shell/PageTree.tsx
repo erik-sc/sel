@@ -24,7 +24,7 @@ import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { sidebarPageMenu } from './pageMenu'
 
-const DRAG_TYPE = 'application/x-selida-page'
+const DRAG_TYPE = 'application/x-sel-page'
 /** Left padding of a root row, and how much each level adds, in px. */
 const ROW_PADDING = 6
 const INDENT = 14

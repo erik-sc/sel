@@ -16,8 +16,8 @@ const UNSAFE_URL_CHARS = /[\u0000-\u0020\u007f-\u009f\s\u200b-\u200f\u2028-\u202
 
 const WEB_PROTOCOL = /^https?:\/\//i
 const BARE_DOMAIN = /^[\w-]+(\.[\w-]+)+(:\d+)?([/?#].*)?$/
-/** `selida-file://files/<generated name>.<ext>`: the only shape the main process serves. */
-const LOCAL_IMAGE = /^selida-file:\/\/files\/[A-Za-z0-9_-]{1,80}\.[a-z0-9]{1,5}$/
+/** `sel-file://files/<generated name>.<ext>`: the only shape the main process serves. */
+const LOCAL_IMAGE = /^sel-file:\/\/files\/[A-Za-z0-9_-]{1,80}\.[a-z0-9]{1,5}$/
 
 function wellFormed(url: string): boolean {
   return url.length > 0 && url.length <= MAX_URL_LENGTH && !UNSAFE_URL_CHARS.test(url)

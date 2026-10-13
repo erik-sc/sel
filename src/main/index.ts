@@ -8,6 +8,7 @@ import { handleFileProtocol, registerFileScheme } from './files'
 import { readTheme, registerIpc, type SyncHooks } from './ipc'
 import { recordingGrants } from './meetings/grant'
 import { handleDisplayMedia } from './meetings/register'
+import { adoptLegacyProfile, DB_FILE } from './legacy'
 import { attachShortcuts, buildMenu } from './menu'
 import { DEV_URL, isAllowedRequest, isAppUrl, isDevServerUrl, RENDERER_FILE, toExternalUrl } from './security'
 import { flushTrace, mark } from './trace'
@@ -94,7 +95,7 @@ function createWindow(pageId?: string): BrowserWindow {
     minWidth: MIN_SIZE.width,
     minHeight: MIN_SIZE.height,
     show: false,
-    title: 'Selida',
+    title: 'sel',
     // What the OS paints until the page has: the wallpaper base of the theme about to render.
     backgroundColor: windowBackground(repo?.getSetting(APPEARANCE_KEY), nativeTheme.shouldUseDarkColors),
     // The renderer draws its own title bar and window controls.
@@ -304,12 +305,12 @@ function scheduleHistoryMaintenance(store: Repository): void {
  */
 function openStore(): Repository | null {
   try {
-    const opened = openDatabase(join(app.getPath('userData'), 'selida.db'))
+    const opened = openDatabase(join(app.getPath('userData'), DB_FILE))
     mark('db open')
     return opened
   } catch (err) {
     console.error('[main] could not open the database', err)
-    dialog.showErrorBox('Selida could not open its database', err instanceof Error ? err.message : String(err))
+    dialog.showErrorBox('sel could not open its database', err instanceof Error ? err.message : String(err))
     app.exit(1)
     return null
   }
@@ -345,7 +346,7 @@ function start(store: Repository): void {
     .whenReady()
     .then(() => {
       mark('app ready')
-      if (process.platform === 'win32') app.setAppUserModelId('app.selida')
+      if (process.platform === 'win32') app.setAppUserModelId('app.sel')
       hardenSession(session.defaultSession)
       nativeTheme.themeSource = readTheme(store)
       handleFileProtocol()
@@ -399,7 +400,28 @@ function start(store: Repository): void {
   app.on('will-quit', closeDatabase)
 }
 
-if (!app.requestSingleInstanceLock()) {
+/**
+ * Notes made under the app's earlier name become this app's. Before the instance lock, which
+ * is the first thing to create the data folder.
+ */
+function adoptEarlierNotes(): boolean {
+  try {
+    adoptLegacyProfile(app.getPath('userData'))
+    return true
+  } catch (err) {
+    console.error('[main] could not bring over the notes of the earlier app', err)
+    dialog.showErrorBox(
+      'sel could not bring over your notes',
+      'Your notes were made when this app was called Selida, and they could not be moved. Close Selida if it is open, then start sel again. Nothing was lost.'
+    )
+    app.exit(1)
+    return false
+  }
+}
+
+if (!adoptEarlierNotes()) {
+  /* leaving */
+} else if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   repo = openStore()

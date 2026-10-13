@@ -1,5 +1,5 @@
 {
-  "name": "selida",
+  "name": "sel",
   "version": "0.1.0",
   "description": "Local-first block-based notes and databases",
   "main": "./out/main/index.js",

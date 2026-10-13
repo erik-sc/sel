@@ -82,7 +82,7 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
   const [existing, setExisting] = useState(false)
   const locked = existing || problem?.code === 'passphrase-required' || problem?.code === 'wrong-passphrase'
   const choosing = problem?.code === 'needs-choice'
-  const foreign = problem?.code === 'not-selida-repo'
+  const foreign = problem?.code === 'not-sel-repo'
   const badUrl = urlProblem(url, status.localRemotes === true)
   const badPass = encrypt || locked ? passphraseProblem(passphrase, locked ? null : repeat) : null
   const needsPass = (encrypt || locked) && (passphrase === '' || (!locked && repeat !== passphrase))
@@ -150,12 +150,12 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
           <h3 className="ap-group-title">Sync between your devices</h3>
         </div>
         <p className="sync-lede">
-          Selida can keep your pages the same on all your devices by saving them to a private git repository that you own. Each device reads and writes there
+          sel can keep your pages the same on all your devices by saving them to a private git repository that you own. Each device reads and writes there
           in the background, and changes made on two devices are merged.
         </p>
         <ul className="sync-needs">
           <li>A private repository that is yours, for example on GitHub. Start with an empty one.</li>
-          <li>Git on this computer, signed in to that account. Selida uses it as it is and stores no password or token.</li>
+          <li>Git on this computer, signed in to that account. sel uses it as it is and stores no password or token.</li>
         </ul>
       </section>
 
@@ -312,7 +312,7 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
             <p>{problem.message}</p>
             {foreign && (
               <p className="sync-problem-help">
-                Selida can still use it: it will add its own files next to what is there and will not change or delete anything else. An empty repository of
+                sel can still use it: it will add its own files next to what is there and will not change or delete anything else. An empty repository of
                 its own is the tidier choice.
               </p>
             )}
@@ -455,7 +455,7 @@ function Connected({ status }: { status: SyncStatus }): JSX.Element {
           <Fact label="Address" value={status.remoteUrl ?? ''} mono />
           <Fact label="Branch" value={status.branch} mono />
           <Fact label="This device" value={status.deviceName} />
-          <Fact label="Git" value={status.gitVersion ? `Version ${status.gitVersion}, signed in by itself. Selida stores no token.` : 'Not checked yet'} />
+          <Fact label="Git" value={status.gitVersion ? `Version ${status.gitVersion}, signed in by itself. sel stores no token.` : 'Not checked yet'} />
           <Encryption status={status} busy={working !== null || syncing} onChange={(passphrase) => act('encrypt', () => window.api.sync.setEncryption(passphrase), 'The encryption could not be changed.')} working={working === 'encrypt'} />
         </div>
       </section>

@@ -54,7 +54,7 @@ function announce(status: SyncStatus, entry: SyncActivity | undefined): void {
   const problem = status.state === 'syncing' ? announced : (status.lastError?.code ?? null)
   if (problem && problem !== announced && status.lastError) {
     const calm = status.state === 'offline'
-    toast(calm ? 'Selida is offline. Your changes will sync when the connection is back.' : status.lastError.message, {
+    toast(calm ? 'sel is offline. Your changes will sync when the connection is back.' : status.lastError.message, {
       kind: calm ? 'info' : 'error',
       duration: calm ? 6000 : 12_000,
       action: calm ? undefined : { label: 'Open Sync settings', run: openSyncSettings }

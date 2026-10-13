@@ -108,7 +108,7 @@ export function isExternalUrl(url: unknown): url is string {
  * The network policy, enforced in the main process on top of the page's CSP:
  * the renderer may talk to the dev server (unpackaged builds only) and load
  * remote images over https. Everything else on a network scheme is cancelled.
- * Local schemes (file:, data:, blob:, devtools:, selida-file:) are not network
+ * Local schemes (file:, data:, blob:, devtools:, sel-file:) are not network
  * access and are left to the CSP.
  */
 export function isAllowedRequest(url: string, resourceType: string, devUrl: string | undefined = DEV_URL): boolean {

@@ -82,16 +82,16 @@ const repo = openTestRepository()
 let hooks: SyncHooks
 
 beforeAll(() => {
-  electron.userData = mkdtempSync(join(tmpdir(), 'selida-sync-ipc-'))
+  electron.userData = mkdtempSync(join(tmpdir(), 'sel-sync-ipc-'))
   // A shipped app must ignore this.
-  process.env['SELIDA_SYNC_ALLOW_LOCAL'] = '1'
+  process.env['SEL_SYNC_ALLOW_LOCAL'] = '1'
   hooks = registerIpc({ repo, ready: Promise.resolve(), createWindow: () => undefined })
   repo.create({ type: 'page', parentId: null, props: { title: [['A page']] } })
 })
 
 afterAll(() => {
   for (const fn of electron.quit) fn()
-  delete process.env['SELIDA_SYNC_ALLOW_LOCAL']
+  delete process.env['SEL_SYNC_ALLOW_LOCAL']
   repo.close()
   rmSync(electron.userData, { recursive: true, force: true, maxRetries: 20, retryDelay: 150 })
 })

@@ -134,7 +134,7 @@ describe('store', () => {
     const offline = status({ state: 'offline', lastError: { code: 'offline', message: 'The repository could not be reached.' } })
     emit(status({ state: 'syncing' }))
     emit(offline)
-    expect(messages()).toEqual(['Selida is offline. Your changes will sync when the connection is back.'])
+    expect(messages()).toEqual(['sel is offline. Your changes will sync when the connection is back.'])
     for (const item of toasts.useToasts.getState().toasts) toasts.dismissToast(item.id)
     for (let i = 0; i < 5; i++) {
       emit({ ...offline, state: 'syncing' })

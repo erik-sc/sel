@@ -25,7 +25,7 @@ describe('safeExternalUrl (what a url cell may open)', () => {
     'vbscript:msgbox(1)',
     'smb://host/share',
     'ms-msdt:/id',
-    'selida-file://x.png',
+    'sel-file://x.png',
     'blob:https://example.com/1',
     'about:blank',
     '//example.com',
@@ -59,7 +59,7 @@ describe('coverStyle (gallery covers)', () => {
   })
 
   it('accepts local and http(s) images, quoted', () => {
-    expect(L.coverStyle('selida-file://abc.png')).toEqual({ kind: 'image', backgroundImage: 'url("selida-file://abc.png")' })
+    expect(L.coverStyle('sel-file://abc.png')).toEqual({ kind: 'image', backgroundImage: 'url("sel-file://abc.png")' })
     expect(L.coverStyle('https://example.com/a%20b.png?x=1')).toEqual({
       kind: 'image',
       backgroundImage: 'url("https://example.com/a%20b.png?x=1")'
@@ -95,7 +95,7 @@ describe('coverStyle (gallery covers)', () => {
     "https://example.com/a.png'); background: red; x: url('",
     'https://example.com/a.png\\"); x: url(\\"',
     'https://example.com/a.png)}body{display:none}',
-    'selida-file://a.png") url("https://evil.example'
+    'sel-file://a.png") url("https://evil.example'
   ])('a crafted image url cannot break out of url(): %j', (cover) => {
     const style = L.coverStyle(cover)
     // Refusing the value outright is fine too; what must never happen is a break-out.

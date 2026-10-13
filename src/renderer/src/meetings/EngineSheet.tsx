@@ -127,7 +127,7 @@ export function EngineSheet(): JSX.Element {
       </header>
       <div className="mt-sheet-body">
         <p className="mt-sheet-lead">
-          Meetings are transcribed on this computer by whisper.cpp, an open-source program. Your audio never leaves the computer. Selida needs to download the program and a speech model once; this is the only time
+          Meetings are transcribed on this computer by whisper.cpp, an open-source program. Your audio never leaves the computer. sel needs to download the program and a speech model once; this is the only time
           this feature goes online.
         </p>
         {status === null ? (
@@ -161,12 +161,12 @@ export function EngineSheet(): JSX.Element {
               <dt>Model</dt>
               <dd>{formatBytes(status.offer.models[model])}, from huggingface.co/ggerganov/whisper.cpp</dd>
               <dt>Check</dt>
-              <dd>Each file is compared with a checksum built into Selida before it is used. A file that differs is deleted.</dd>
+              <dd>Each file is compared with a checksum built into sel before it is used. A file that differs is deleted.</dd>
             </dl>
           </>
         ) : (
           <p className="mt-sheet-note">
-            Selida cannot download the program for this system. Install whisper.cpp yourself, then choose its <code className="mt-code">whisper-cli</code> program and a model file (ggml-….bin) here.
+            sel cannot download the program for this system. Install whisper.cpp yourself, then choose its <code className="mt-code">whisper-cli</code> program and a model file (ggml-….bin) here.
           </p>
         )}
         {download && <DownloadProgress download={download} onCancel={() => void window.api.meetings.engine.cancelDownload()} />}

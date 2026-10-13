@@ -34,7 +34,7 @@ export class AiBridge {
     /** Today's agenda and open tasks as stored, for a question about the day. */
     day?: () => Promise<BriefingPromptData | null>
   ) {
-    const override = devCliOverride(process.env['SELIDA_AI_CLI'], app.isPackaged)
+    const override = devCliOverride(process.env['SEL_AI_CLI'], app.isPackaged)
     const script = override && /\.(m|c)?js$/i.test(override) ? override : null
     this.service = new AiService({
       // Empty and dedicated: with its tools off the program reads nothing, and there is nothing here to read.

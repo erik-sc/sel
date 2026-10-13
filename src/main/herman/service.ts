@@ -50,7 +50,7 @@ export interface HermanFastMode {
 export const FAST_MODE: HermanFastMode = { gapMs: 6000, idleMs: 3000, editingScale: 400 }
 
 /**
- * `SELIDA_HERMAN_FAST=1` asks for the quick timings. Only an unpackaged build listens: a
+ * `SEL_HERMAN_FAST=1` asks for the quick timings. Only an unpackaged build listens: a
  * shipped app keeps his restraint whatever the environment says.
  */
 export function devFastMode(raw: string | undefined, isPackaged: boolean): HermanFastMode | null {

@@ -18,7 +18,7 @@ import { envValue, type CliLocation } from './locate'
  * put between double quotes on a cmd.exe command line.
  */
 export const SYSTEM_PROMPT =
-  'You are the writing assistant inside Selida, a notes app. You only write text. Follow the task in the user message exactly and reply with the requested text only.'
+  'You are the writing assistant inside sel, a notes app. You only write text. Follow the task in the user message exactly and reply with the requested text only.'
 
 /** Flags every request carries. All but `--max-turns` are listed by `claude --help` (2.1.296); see the notes. */
 export const BASE_ARGS: readonly string[] = [

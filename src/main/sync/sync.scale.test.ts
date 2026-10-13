@@ -16,7 +16,7 @@ suite('sync with real git: scale', () => {
     writeFileSync(join(a.filesDir, name), PNG)
     const page = a.page('Top secret plans')
     a.text(page.id, 'The launch code is swordfish')
-    a.repo.create({ type: 'image', parentId: page.id, props: { url: `selida-file://files/${name}` } })
+    a.repo.create({ type: 'image', parentId: page.id, props: { url: `sel-file://files/${name}` } })
     a.repo.setSetting('appearance', { version: 1, light: { '--accent': '#123456' }, dark: {}, shared: {}, customCss: '', presetId: null })
     const status = await a.setup(remote, { passphrase: 'correct horse battery' })
     expect(status).toMatchObject({ configured: true, encrypted: true })
@@ -30,11 +30,11 @@ suite('sync with real git: scale', () => {
       // No id, no image name, nothing readable: not in the names, not in the contents.
       expect(path).not.toContain(page.id)
       expect(path).not.toContain(name)
-      if (path === 'selida.json' || path === 'README.md') continue
+      if (path === 'sel.json' || path === 'README.md') continue
       const bytes = files.get(path)!
       for (const secret of ['swordfish', 'Top secret', page.id, '#123456', 'IHDR-and-some-pixels']) expect(bytes.includes(secret), `${path}: ${secret}`).toBe(false)
     }
-    const meta = JSON.parse(files.get('selida.json')!.toString()) as Record<string, unknown>
+    const meta = JSON.parse(files.get('sel.json')!.toString()) as Record<string, unknown>
     expect(Object.keys(meta).sort()).toEqual(['app', 'encryption', 'format'])
     expect(meta['encryption']).toMatchObject({ kdf: 'scrypt', v: 1 })
     // The key is with the OS keychain, never in the settings; the passphrase itself is nowhere.
@@ -291,7 +291,7 @@ suite('sync with real git: scale', () => {
     const oneEdit = await time(() => sync(a))
     b.repo.update(b.repo.getTree(ids[20])[9].id, { props: { title: [['edited on B']] } })
     const mergeDown = await time(() => sync(b))
-    // The parts that are Selida's own work, without git.
+    // The parts that are sel's own work, without git.
     const rows = a.repo.syncRows()
     const { fingerprintPages, workspaceFromRows } = await import('./format')
     const { mergeWorkspace } = await import('./merge')

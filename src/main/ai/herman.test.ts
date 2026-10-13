@@ -20,7 +20,7 @@ import { AiService, type AiResult } from './service'
 const FAKE = fileURLToPath(new URL('./fixtures/fake-claude.mjs', import.meta.url))
 const ID = 'aaaaaaaaaaaaaaaaaaaaa'
 const N = 'cafebabe'
-const PLAIN_INTRO = 'You are the writing assistant built into Selida, a notes app.'
+const PLAIN_INTRO = 'You are the writing assistant built into sel, a notes app.'
 
 const at = (prompt: string, needle: string): number => {
   const index = prompt.indexOf(needle)
@@ -62,7 +62,7 @@ describe('the voice in the prompt', () => {
     expect(rules).toMatch(/No emoji/)
     expect(rules).toMatch(/No stage directions/)
     expect(rules).toMatch(/Do not call yourself an AI model, and do not pretend to be human/)
-    expect(rules).toContain("Selida's assistant, speaking through the Claude on this computer")
+    expect(rules).toContain("sel's assistant, speaking through the Claude on this computer")
     expect(rules).toMatch(/do not know.*say so plainly/i)
     // The shorter voice is the same voice with a tighter cap.
     const brief = personaRules('brief')
@@ -288,7 +288,7 @@ describe('the briefing in his voice', () => {
 
   it('is the same request with his voice added, and stays what it was without it', () => {
     const plain = buildBriefingPrompt(data, { nonce: N })
-    expect(plain).toContain('You are the assistant built into Selida, a notes app.')
+    expect(plain).toContain('You are the assistant built into sel, a notes app.')
     expect(plain).toContain('do not give advice that was not asked for')
     expect(plain).not.toContain('Herman')
     expect(buildBriefingPrompt(data, { nonce: N, voice: null })).toBe(plain)
@@ -313,7 +313,7 @@ describe('the voice as the service applies it', () => {
   let root = ''
 
   beforeAll(() => {
-    root = mkdtempSync(join(tmpdir(), 'selida-herman-'))
+    root = mkdtempSync(join(tmpdir(), 'sel-herman-'))
   })
   afterAll(() => {
     rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 150 })

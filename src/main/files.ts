@@ -53,7 +53,7 @@ function toBytes(data: unknown): Uint8Array {
   throw new Error('Image data must be an ArrayBuffer')
 }
 
-/** Validates image bytes and writes them under a generated name. Returns the `selida-file://` url. */
+/** Validates image bytes and writes them under a generated name. Returns the `sel-file://` url. */
 export async function storeImage(bytes: Uint8Array, dir: string = filesDir()): Promise<string> {
   if (bytes.byteLength === 0) throw new Error('The image is empty')
   if (bytes.byteLength > MAX_IMAGE_BYTES) throw new Error(TOO_LARGE)
@@ -106,7 +106,7 @@ export async function saveGeneratedImage(win: BrowserWindow | null, png: Uint8Ar
   return { saved: true, path }
 }
 
-/** Maps a `selida-file://files/<name>` url to a path inside the files dir, or null. */
+/** Maps a `sel-file://files/<name>` url to a path inside the files dir, or null. */
 export function resolveFileUrl(url: string, dir = filesDir()): string | null {
   let parsed: URL
   try {
@@ -147,7 +147,7 @@ function status(code: number, headers: Record<string, string> = {}): Response {
 }
 
 /**
- * Answers one `selida-file:` request: GET only, a single stored image, never a
+ * Answers one `sel-file:` request: GET only, a single stored image, never a
  * directory listing, never a path outside `dir` (also not through a symlink).
  */
 export async function serveFile(request: { method: string; url: string }, dir: string = filesDir()): Promise<Response> {

@@ -1,7 +1,7 @@
 /**
  * Adversarial tests for the appearance sanitiser. The policy under test: nothing a theme file,
  * a stored setting, another window or the custom CSS field supplies may make the app fetch
- * from a remote host; only `selida-file:` and `data:image/` urls are allowed.
+ * from a remote host; only `sel-file:` and `data:image/` urls are allowed.
  */
 import { describe, expect, it } from 'vitest'
 import { PRESET_MAP } from './presets'
@@ -33,7 +33,7 @@ function expectNoRemote(css: string): void {
   expect(flat).not.toMatch(/@\s*(import|namespace)/i)
   expect(flat).not.toMatch(/(image-set|image|src|expression)\s*\(/i)
   for (const match of flat.matchAll(/url\s*\(\s*["']?([^"')]*)/gi)) {
-    expect(match[1]).toMatch(/^(selida-file:|data:image\/)/i)
+    expect(match[1]).toMatch(/^(sel-file:|data:image\/)/i)
   }
 }
 
@@ -50,7 +50,7 @@ describe('custom css: no remote requests', () => {
     ['simple escape in the name', `a{background:ur\\l(https://${EVIL}/x)}`],
     ['escapes inside the url', `a{background:url(ht\\74ps://${EVIL}/x)}`],
     ['escapes inside a quoted url', `a{background:url("\\68ttps://${EVIL}/x")}`],
-    ['remote url with a local-looking tail', `a{background:url(https://${EVIL}/selida-file:x)}`],
+    ['remote url with a local-looking tail', `a{background:url(https://${EVIL}/sel-file:x)}`],
     ['leading space before a remote url', `a{background:url("  https://${EVIL}/x")}`],
     ['escaped newline before the scheme', `a{background:url("\\a https://${EVIL}/x")}`],
     ['javascript url', `a{background:url(javascript:fetch('//${EVIL}'))}`],
@@ -121,9 +121,9 @@ describe('custom css: no remote requests', () => {
 
   it('keeps local urls and ordinary css untouched', () => {
     const keep = [
-      'a{background:url("selida-file://images/a.png")}',
+      'a{background:url("sel-file://images/a.png")}',
       "a{background:url('data:image/png;base64,AAAA')}",
-      'a{background:URL( selida-file://images/a.png )}',
+      'a{background:URL( sel-file://images/a.png )}',
       'a{background:url(data:image/svg+xml;utf8,%3Csvg%3E)}',
       '@media (min-width: 1px){.a{color:red}}',
       '@font-face{font-family:x;src:local("Inter")}',
@@ -201,16 +201,16 @@ describe('token values: no remote requests, no way out of the declaration', () =
       `url("file:///c:/x.png")`,
       `url("javascript:alert(1)")`,
       `url("data:text/html,x")`,
-      `url(" selida-file://a.png")`,
-      `url("selida-file://a.png") url("https://${EVIL}/x")`,
-      `url("selida-file://a\\.png")`,
-      `url("selida-file://a.png")}body{color:red`,
-      `image-set("selida-file://a.png" 1x)`,
+      `url(" sel-file://a.png")`,
+      `url("sel-file://a.png") url("https://${EVIL}/x")`,
+      `url("sel-file://a\\.png")`,
+      `url("sel-file://a.png")}body{color:red`,
+      `image-set("sel-file://a.png" 1x)`,
       `url("data:image/png;base64,${'A'.repeat(MAX_IMAGE_LENGTH)}")`
     ]) {
       expect(cleanValue(image, value), value.slice(0, 80)).toBeNull()
     }
-    expect(cleanValue(image, 'URL("SELIDA-FILE://images/a.png")')).toBe('URL("SELIDA-FILE://images/a.png")')
+    expect(cleanValue(image, 'URL("SEL-FILE://images/a.png")')).toBe('URL("SEL-FILE://images/a.png")')
   })
 
   it('rejects numbers outside the range of their control', () => {
@@ -280,11 +280,11 @@ describe('imported and stored state is untrusted', () => {
   it('re-sanitising stored state is stable', () => {
     const data = sanitizeAppearance({
       light: { '--accent': '#ff0000' },
-      shared: { '--wall-image': 'url("selida-file://images/a.png")', '--glass-blur': '10px' },
-      customCss: '.a{background:url("selida-file://images/a.png")}\r\n@import "x";',
+      shared: { '--wall-image': 'url("sel-file://images/a.png")', '--glass-blur': '10px' },
+      customCss: '.a{background:url("sel-file://images/a.png")}\r\n@import "x";',
       presetId: 'glass'
     })
-    expect(data.shared['--wall-image']).toBe('url("selida-file://images/a.png")')
+    expect(data.shared['--wall-image']).toBe('url("sel-file://images/a.png")')
     expect(sanitizeAppearance(JSON.parse(JSON.stringify({ version: 1, ...data })))).toEqual(data)
   })
 })

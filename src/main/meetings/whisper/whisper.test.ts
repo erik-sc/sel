@@ -15,7 +15,7 @@ import { DOWNLOAD_HOSTS, PINNED, type PinnedFile, type PinnedSet } from './pinne
 import { buildWhisperArgs, parseProgress, parseWhisperJson, runWhisper, sanitiseStderr, WhisperError, whisperEnv, whisperThreads, whisperTimeoutMs, type WhisperProgram } from './run'
 import { extractZip, isSafeEntryName, readZipDirectory, ZipError, ZIP_LIMITS } from './zip'
 
-const ROOT = mkdtempSync(join(tmpdir(), 'selida-whisper-'))
+const ROOT = mkdtempSync(join(tmpdir(), 'sel-whisper-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true }))
 let serial = 0
 const fresh = (name: string): string => {
@@ -457,7 +457,7 @@ describe('whisper-cli arguments and output', () => {
   })
 
   it('cleans what the program says before anybody sees it', () => {
-    expect(sanitiseStderr('\u001b[31merror\u001b[0m: failed to open C:\\Users\\ana\\AppData\\Roaming\\Selida\\recordings\\x\\mic.wav\n')).toBe('error: failed to open …')
+    expect(sanitiseStderr('\u001b[31merror\u001b[0m: failed to open C:\\Users\\ana\\AppData\\Roaming\\sel\\recordings\\x\\mic.wav\n')).toBe('error: failed to open …')
     expect(sanitiseStderr('whisper_print_progress_callback: progress =  45%\nerror: out of memory at /home/ana/.cache/whisper/model.bin\n')).toBe('error: out of memory at …')
     expect(sanitiseStderr('')).toBeUndefined()
   })
@@ -660,7 +660,7 @@ describe('the engine', () => {
     settings.set('meetings.model', 'medium')
     expect((await target.status()).model?.id).toBe('base')
     expect(await target.storageBytes()).toBeGreaterThan(model.length * 2)
-    // Remove: everything Selida put there goes.
+    // Remove: everything sel put there goes.
     expect((await target.remove()).state).toBe('missing-program')
     expect(existsSync(dir)).toBe(false)
   })

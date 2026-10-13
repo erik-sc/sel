@@ -26,7 +26,7 @@ function seed(repo: Repository): string {
   add('text', page, {
     title: [
       ['Welcome to '],
-      ['Selida', [['b']]],
+      ['sel', [['b']]],
       [' — a local-first workspace. Everything here is a block, and everything lives in a file on '],
       ['your', [['i']]],
       [' computer.']

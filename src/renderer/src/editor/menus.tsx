@@ -221,7 +221,7 @@ export function BlockMenu(): JSX.Element | null {
       id: 'link',
       label: 'Copy link to block',
       icon: <LinkIcon size={14} />,
-      onSelect: () => void navigator.clipboard.writeText(`selida://${ctrl.pageId}#${menu.id}`)
+      onSelect: () => void navigator.clipboard.writeText(`sel://${ctrl.pageId}#${menu.id}`)
     }
   ]
   return (

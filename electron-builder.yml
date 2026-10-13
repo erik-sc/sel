@@ -1,7 +1,7 @@
 # Packaging (electron-builder). `npm run pack` = unpacked app in release/, `npm run dist` = installer.
 # No auto-update, no code signing, no publishing.
-appId: app.selida
-productName: Selida
+appId: app.sel
+productName: sel
 
 directories:
   output: release
@@ -52,9 +52,10 @@ win:
 nsis:
   # Installs for the current user (under %LOCALAPPDATA%\Programs), without a UAC prompt.
   oneClick: true
+  artifactName: sel-${version}-setup.${ext}
   perMachine: false
   allowElevation: false
-  # The user's notes live in %APPDATA%\selida and are never removed by the uninstaller.
+  # The user's notes live in %APPDATA%\sel and are never removed by the uninstaller.
   deleteAppDataOnUninstall: false
   # Block maps only serve differential auto-updates, which this app does not have.
   differentialPackage: false

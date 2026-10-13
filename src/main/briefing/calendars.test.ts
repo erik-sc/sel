@@ -19,7 +19,7 @@ const cipher: Cipher = {
 
 let dir = ''
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'selida-briefing-'))
+  dir = mkdtempSync(join(tmpdir(), 'sel-briefing-'))
 })
 afterEach(() => {
   vi.restoreAllMocks()

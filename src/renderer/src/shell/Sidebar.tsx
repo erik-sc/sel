@@ -107,7 +107,7 @@ export const Sidebar = memo(function Sidebar() {
           <span className="workspace-badge" aria-hidden="true">
             S
           </span>
-          <span className="workspace-name">Selida</span>
+          <span className="workspace-name">sel</span>
           <IconButton label="Close sidebar" onClick={toggleSidebar}>
             <ChevronLeft />
           </IconButton>

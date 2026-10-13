@@ -1,15 +1,16 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto'
 import { deflateRawSync, inflateRawSync } from 'node:zlib'
+import { LEGACY_NAME } from '../../shared/legacy'
 import type { EncryptionParams } from './format'
 
 /**
  * Optional client-side encryption of what goes into the repository.
  *
  * The key comes from the passphrase with scrypt and a random salt; the salt and the scrypt
- * parameters are public (they live in selida.json), the passphrase and the key never leave
+ * parameters are public (they live in sel.json), the passphrase and the key never leave
  * this device. Every file is sealed with AES-256-GCM under a fresh nonce; the names of pages
  * and images are replaced by a keyed hash, and the real name travels inside the sealed file.
- * A small sealed constant in selida.json tells a wrong passphrase apart from damaged data.
+ * A small sealed constant in sel.json tells a wrong passphrase apart from damaged data.
  */
 
 export interface Keys {
@@ -22,7 +23,9 @@ export interface Keys {
 const MAGIC = Buffer.from('SLD1')
 const NONCE_BYTES = 12
 const TAG_BYTES = 16
-const CHECK_TEXT = 'selida-key-check'
+const CHECK_TEXT = 'sel-key-check'
+/** What a repository encrypted under the app's earlier name sealed instead. */
+const LEGACY_CHECK_TEXT = `${LEGACY_NAME}-key-check`
 const DEFAULT_COST = { N: 1 << 15, r: 8, p: 1 } as const
 const MAX_INFLATED = 512 * 1024 * 1024
 
@@ -50,14 +53,17 @@ export function sealCheck(keys: Keys): string {
 export function keysMatch(keys: Keys, params: EncryptionParams): boolean {
   try {
     const opened = open(keys, Buffer.from(params.check, 'base64'))
-    const expected = Buffer.from(CHECK_TEXT)
-    return opened.name === 'check' && opened.bytes.length === expected.length && timingSafeEqual(opened.bytes, expected)
+    if (opened.name !== 'check') return false
+    return [CHECK_TEXT, LEGACY_CHECK_TEXT].some((text) => {
+      const expected = Buffer.from(text)
+      return opened.bytes.length === expected.length && timingSafeEqual(opened.bytes, expected)
+    })
   } catch {
     return false
   }
 }
 
-/** A new salt and the key for `passphrase`, with the public parameters to store in selida.json. */
+/** A new salt and the key for `passphrase`, with the public parameters to store in sel.json. */
 export async function createEncryption(passphrase: string, cost: { N: number; r: number; p: number } = DEFAULT_COST): Promise<{ params: EncryptionParams; keys: Keys }> {
   const salt = randomBytes(16)
   const keys = await derive(passphrase, salt, cost)

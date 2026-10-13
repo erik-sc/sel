@@ -424,12 +424,12 @@ export type CoverStyle = { kind: 'css'; background: string } | { kind: 'image'; 
 
 const CSS_COVER =
   /^(var\(--c-[a-z-]+\)|linear-gradient\((\d+deg, )?var\(--c-[a-z-]+\)(, var\(--c-[a-z-]+\))+\))$/
-const IMAGE_COVER = /^(selida-file:|https?:\/\/)/i
+const IMAGE_COVER = /^(sel-file:|https?:\/\/)/i
 
 /**
  * Turns a stored `props.cover` into something safe to put in a style attribute.
  * Same policy as the page header: token-based colours/gradients verbatim, images
- * only from `selida-file:` / http(s), percent-encoded and quoted so that no
+ * only from `sel-file:` / http(s), percent-encoded and quoted so that no
  * character can close the `url()` and inject further CSS. Everything else: null.
  */
 export function coverStyle(cover: unknown): CoverStyle | null {

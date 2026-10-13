@@ -1,13 +1,13 @@
 /**
- * Startup timeline, off unless `--selida-trace-startup` is on the command line
- * or `SELIDA_TRACE_STARTUP=1` is in the environment. Times are milliseconds
+ * Startup timeline, off unless `--sel-trace-startup` is on the command line
+ * or `SEL_TRACE_STARTUP=1` is in the environment. Times are milliseconds
  * since the OS created the process, so they include Electron's own boot.
  *
  * The flag is deliberately not called `--trace-startup`: that is a Chromium
  * switch, and passing it makes Chromium record its own startup trace (an extra
  * tracing process and a slower launch), which would distort what is measured.
  */
-const enabled = process.argv.includes('--selida-trace-startup') || process.env['SELIDA_TRACE_STARTUP'] === '1'
+const enabled = process.argv.includes('--sel-trace-startup') || process.env['SEL_TRACE_STARTUP'] === '1'
 
 // `getCreationTime` is Electron-only (absent under vitest); fall back to the JS time origin.
 const created = enabled ? ((process as { getCreationTime?: () => number | null }).getCreationTime?.() ?? null) : null

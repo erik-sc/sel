@@ -400,9 +400,9 @@ describe('name resolution', () => {
   })
 })
 
-// Off by default: the suite never touches the network. `SELIDA_NET_SMOKE=1 npx vitest run src/main/briefing/net.test.ts`
+// Off by default: the suite never touches the network. `SEL_NET_SMOKE=1 npx vitest run src/main/briefing/net.test.ts`
 // makes one request to example.com to check the real https path: system resolver, pinned address, TLS by name.
-describe.runIf(process.env['SELIDA_NET_SMOKE'] === '1')('network smoke test', () => {
+describe.runIf(process.env['SEL_NET_SMOKE'] === '1')('network smoke test', () => {
   it('reaches a public https host through the address it validated', async () => {
     const connected: string[] = []
     const result = await fetchCalendar('https://example.com/', { onConnect: (address) => connected.push(address) })

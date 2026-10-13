@@ -74,8 +74,8 @@ const repo = openTestRepository()
 const CHANNELS = ['herman:state', 'herman:nudge.next', 'herman:nudge.dismiss', 'herman:met', 'herman:reset'] as const
 
 beforeAll(() => {
-  electron.userData = mkdtempSync(join(tmpdir(), 'selida-herman-ipc-'))
-  delete process.env['SELIDA_HERMAN_FAST']
+  electron.userData = mkdtempSync(join(tmpdir(), 'sel-herman-ipc-'))
+  delete process.env['SEL_HERMAN_FAST']
   registerIpc({ repo, ready: Promise.resolve(), createWindow: () => undefined })
   // No quiet hours and frequent nudges, so that the tests do not depend on the hour they run at.
   repo.setSetting('herman.quietHours', { from: 0, to: 0 })

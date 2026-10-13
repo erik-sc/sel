@@ -37,7 +37,7 @@ const MAX_NESTING = 32
  */
 const INLINE_SCAN_BUDGET = 50_000_000
 /** Link targets an imported document may carry; anything else is kept as plain text. */
-const LINK_RE = /^(https?:\/\/|mailto:|selida:\/\/)/i
+const LINK_RE = /^(https?:\/\/|mailto:|sel:\/\/)/i
 const LIST_TYPES = new Set<BlockType>(['bulleted_list', 'numbered_list', 'to_do', 'toggle'])
 const INDENT = '    '
 
@@ -258,7 +258,7 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
     }
     case 'page': {
       const title = inlineToMarkdown(p.title) || 'Untitled'
-      return [`[${p.icon ? `${p.icon} ` : ''}${title}](selida://page/${b.id})`]
+      return [`[${p.icon ? `${p.icon} ` : ''}${title}](sel://page/${b.id})`]
     }
     case 'database':
       return databaseToMarkdown(repo, b)
@@ -513,7 +513,7 @@ function tableToDatabase(header: string[], rows: string[][]): Node {
 }
 
 function isSafeImageUrl(url: string): boolean {
-  return /^(https?:\/\/|selida-file:\/\/files\/|data:image\/(png|jpe?g|gif|webp|avif);base64,)/i.test(url)
+  return /^(https?:\/\/|sel-file:\/\/files\/|data:image\/(png|jpe?g|gif|webp|avif);base64,)/i.test(url)
 }
 
 /** Parses a pragmatic subset of CommonMark/GFM into a block tree. */

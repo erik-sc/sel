@@ -29,7 +29,7 @@ export function bootMark(stage: BootStage): void {
  * synchronously. The copy is only ever a hint: the real settings still load, win, and
  * refresh it. Readers must validate what they get exactly like the setting itself.
  */
-const MIRROR_PREFIX = 'selida.boot.'
+const MIRROR_PREFIX = 'sel.boot.'
 
 function storage(): Storage | null {
   try {

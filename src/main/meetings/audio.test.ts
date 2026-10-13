@@ -9,7 +9,7 @@ import { parseRange, recordingUrl, resolveRecordingUrl, serveRecording } from '.
 import { patchedHead, patchWebmDuration } from './webm'
 import { parseWavHeader, peakOf, readWavInfo, repairWav, sliceWav, WAV_HEADER_BYTES, wavHeader, WavWriter } from './wav'
 
-const ROOT = mkdtempSync(join(tmpdir(), 'selida-meetings-audio-'))
+const ROOT = mkdtempSync(join(tmpdir(), 'sel-meetings-audio-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true }))
 let serial = 0
 const fresh = (name: string): string => join(ROOT, `${++serial}-${name}`)
@@ -265,19 +265,19 @@ describe('serving recordings', () => {
     expect(resolveRecordingUrl(recordingUrl(ID, 'mic', 'webm'), dir)?.file).toBe(join(dir, ID, 'mic.webm'))
     expect(resolveRecordingUrl(recordingUrl(ID, 'system', 'wav'), dir)?.format).toBe('wav')
     for (const url of [
-      `selida-file://recordings/${ID}/meeting.json`,
-      `selida-file://recordings/${ID}/transcript.json`,
-      `selida-file://recordings/${ID}/mic.mp3`,
-      `selida-file://recordings/${ID}/chunks/mic.webm`,
-      `selida-file://recordings/${ID}/..%2F..%2Fsecret.wav`,
-      `selida-file://recordings/${ID}/%2e%2e/mic.webm`,
-      `selida-file://recordings/../secret.wav`,
-      `selida-file://recordings/..%2Fsecret.wav/mic.wav`,
-      `selida-file://recordings/bad.id/mic.webm`,
-      `selida-file://recordings//mic.webm`,
-      `selida-file://recordings/${ID}/mic.webm?x=1`,
-      `selida-file://files/${ID}/mic.webm`,
-      `selida-file://user@recordings/${ID}/mic.webm`,
+      `sel-file://recordings/${ID}/meeting.json`,
+      `sel-file://recordings/${ID}/transcript.json`,
+      `sel-file://recordings/${ID}/mic.mp3`,
+      `sel-file://recordings/${ID}/chunks/mic.webm`,
+      `sel-file://recordings/${ID}/..%2F..%2Fsecret.wav`,
+      `sel-file://recordings/${ID}/%2e%2e/mic.webm`,
+      `sel-file://recordings/../secret.wav`,
+      `sel-file://recordings/..%2Fsecret.wav/mic.wav`,
+      `sel-file://recordings/bad.id/mic.webm`,
+      `sel-file://recordings//mic.webm`,
+      `sel-file://recordings/${ID}/mic.webm?x=1`,
+      `sel-file://files/${ID}/mic.webm`,
+      `sel-file://user@recordings/${ID}/mic.webm`,
       `file:///${ID}/mic.webm`,
       'not a url'
     ]) {
@@ -302,7 +302,7 @@ describe('serving recordings', () => {
 
   it('answers 404 for anything else, and refuses other methods', async () => {
     expect((await get(recordingUrl(ID, 'system', 'webm'))).status).toBe(404)
-    expect((await get(`selida-file://recordings/${ID}/meeting.json`)).status).toBe(404)
+    expect((await get(`sel-file://recordings/${ID}/meeting.json`)).status).toBe(404)
     expect((await serveRecording({ method: 'POST', url: recordingUrl(ID, 'mic', 'webm') }, dir)).status).toBe(405)
   })
 

@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { deflateSync, inflateSync } from 'node:zlib'
+import { modernizeUrls } from '../../shared/legacy'
 import { sourceIdOf } from '../../shared/linked'
 import { plainText } from '../../shared/richtext'
 import type { Block, BlockProps, PropertyValue, RichText } from '../../shared/types'
@@ -336,7 +337,8 @@ export function decodeSnapshot(data: unknown, cleanProps: (props: Record<string,
   try {
     if (!(data instanceof Uint8Array)) throw new Error('not a blob')
     const json = inflateSync(data, { maxOutputLength: MAX_INFLATED_BYTES }).toString('utf8')
-    raw = JSON.parse(json)
+    // A snapshot taken under the app's earlier name shows its images like any other.
+    raw = JSON.parse(modernizeUrls(json))
   } catch {
     throw new Error(DAMAGED)
   }

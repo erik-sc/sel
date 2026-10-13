@@ -12,10 +12,10 @@ import { extractZip, ZipError } from './zip'
  * Where the transcription program and its model are, and how they get there. Free of
  * Electron imports (unit-tested); the file dialogs live in ../index.ts.
  *
- *   <dir>/<version>/whisper-cli(.exe) + the libraries beside it   Selida's own copy
- *   <dir>/models/ggml-<name>.bin                                   models Selida downloaded
+ *   <dir>/<version>/whisper-cli(.exe) + the libraries beside it   sel's own copy
+ *   <dir>/models/ggml-<name>.bin                                   models sel downloaded
  *
- * A program the user chose (`meetings.whisperPath`) comes before Selida's copy, and a model
+ * A program the user chose (`meetings.whisperPath`) comes before sel's copy, and a model
  * file they chose (`meetings.modelPath`) before a downloaded one. Both settings only ever get
  * a value from a native file dialog.
  */
@@ -148,7 +148,7 @@ export class WhisperEngine {
   }
 
   /**
-   * Downloads the program (when Selida has none) and the model `id`, each verified against
+   * Downloads the program (when sel has none) and the model `id`, each verified against
    * its pinned digest before it is put in place. One download at a time; resolves when it is
    * over, with the status afterwards. Never rejects: what went wrong is in `error`.
    */
@@ -161,7 +161,7 @@ export class WhisperEngine {
     const work = async (): Promise<void> => {
       const archiveSpec = this.pins.programs[this.platformKey]
       if ((await isFile(join(this.managedDir, this.programName))) === null) {
-        if (!archiveSpec) throw new Error('Selida cannot download the program for this system. Choose one instead.')
+        if (!archiveSpec) throw new Error('sel cannot download the program for this system. Choose one instead.')
         const archive = join(this.options.dir, `program-${this.pins.version}.zip`)
         // An archive left by a run that ended between download and unpacking is not trusted: it is fetched and verified again.
         await rm(archive, { force: true })
@@ -248,7 +248,7 @@ export class WhisperEngine {
     this.download?.abort.abort()
   }
 
-  /** Deletes Selida's copy of the program and its models, and forgets the chosen paths. */
+  /** Deletes sel's copy of the program and its models, and forgets the chosen paths. */
   async remove(): Promise<EngineStatus> {
     this.download?.abort.abort()
     await this.download?.done

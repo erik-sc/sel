@@ -6,7 +6,7 @@ import { createGunzip } from 'node:zlib'
 import type { CalendarErrorCode } from '../../shared/briefing'
 
 /**
- * The one place where Selida itself goes on the network: reading a calendar the user connected.
+ * The one place where sel itself goes on the network: reading a calendar the user connected.
  * It runs in the main process on Node's own https client, which shares nothing with the windows:
  * no cookies, no cache, no referrer, no proxy settings, and none of the session's permissions.
  *
@@ -28,7 +28,7 @@ export const NET_LIMITS = {
   bytes: 5 * 1024 * 1024
 } as const
 
-export const USER_AGENT = 'Selida'
+export const USER_AGENT = 'sel'
 
 /** A failure with a sanitised reason and a fixed message: nothing of the address is in it. */
 export class CalendarError extends Error {

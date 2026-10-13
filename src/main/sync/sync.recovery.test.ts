@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { openTestRepository } from '../db/testing'
 import { SyncEngine, type SyncStep } from './engine'
-import { bareRemote, commitCount, device, git, pair, plain, remoteFiles, suite, sync, unique } from './harness'
+import { bareRemote, commitCount, device, git, pair, plain, PNG, remoteFiles, ROOT, suite, sync, unique } from './harness'
 
 suite('sync with real git: recovery', () => {
   it('gives up for now when other devices keep winning the race', async () => {
@@ -156,7 +156,7 @@ suite('sync with real git: recovery', () => {
     }
   })
 
-  it('refuses a repository that has files and no Selida data, unless told to use it anyway', async () => {
+  it('refuses a repository that has files and no sel data, unless told to use it anyway', async () => {
     const remote = bareRemote()
     const work = unique('work')
     mkdirSync(work)
@@ -171,7 +171,7 @@ suite('sync with real git: recovery', () => {
     const a = device('Device A', 1_000_000)
     const page = a.page('Mine')
     const refused = await a.setup(remote)
-    expect(refused).toMatchObject({ configured: false, state: 'needs-setup', lastError: { code: 'not-selida-repo' } })
+    expect(refused).toMatchObject({ configured: false, state: 'needs-setup', lastError: { code: 'not-sel-repo' } })
     expect(a.repo.getSetting('sync.remoteUrl')).toBeNull()
     expect(existsSync(join(a.dir, 'sync', 'repo'))).toBe(false)
     expect(commitCount(remote)).toBe(1)
@@ -179,10 +179,10 @@ suite('sync with real git: recovery', () => {
     const accepted = await a.setup(remote, { useAnyway: true })
     expect(accepted.lastError).toBeUndefined()
     const files = remoteFiles(remote)
-    // Their files are all still there, untouched; Selida's are next to them.
+    // Their files are all still there, untouched; sel's are next to them.
     expect(files.get('README.md')!.toString()).toBe('# Someone else\'s project\n')
     expect(files.get('src/main.c')!.toString()).toContain('int main')
-    expect(files.has('SELIDA.md')).toBe(true)
+    expect(files.has('SEL.md')).toBe(true)
     expect(files.has(`pages/${page.id}.json`)).toBe(true)
     // And they stay there through later syncs, also from a second device.
     a.repo.delete(page.id)
@@ -269,5 +269,54 @@ suite('sync with real git: recovery', () => {
     expect(b.titles().sort()).toEqual(['Local', 'Secret'])
     await b.engine.disconnect()
     expect(b.secrets.value).toBeNull()
+  })
+
+  it('reads a repository written when the app was called Selida, and renames what is in it on the next upload', async () => {
+    const remote = bareRemote()
+    const a = device('Device A', 1_000_000)
+    const name = '0b0f6c2e-1111-4222-8333-444455556666.png'
+    writeFileSync(join(a.filesDir, name), PNG)
+    const page = a.page('Pictures')
+    const image = a.repo.create({ type: 'image', parentId: page.id, props: { url: `sel-file://files/${name}` } })
+    const words = a.page('Words')
+    a.text(words.id, 'nothing to rename here')
+    await a.setup(remote)
+
+    // The same repository as the earlier app left it.
+    const work = unique('work')
+    git(ROOT, 'clone', '-q', remote, work)
+    const rewrite = (path: string, from: string, to: string): void => writeFileSync(join(work, path), readFileSync(join(work, path), 'utf8').replaceAll(from, to))
+    git(work, 'mv', 'sel.json', 'selida.json')
+    rewrite('selida.json', '"app": "sel"', '"app": "selida"')
+    rewrite('README.md', '<!-- sel:managed -->', '<!-- selida:managed -->')
+    rewrite(`pages/${page.id}.json`, 'sel-file://', 'selida-file://')
+    git(work, 'add', '-A')
+    git(work, '-c', 'user.name=Device A', '-c', 'user.email=selida@localhost', 'commit', '-q', '-m', 'Sync from Device A')
+    git(work, 'push', '-q', 'origin', 'main')
+    expect(remoteFiles(remote).get(`pages/${page.id}.json`)!.toString()).toContain(`selida-file://files/${name}`)
+    expect(remoteFiles(remote).get('selida.json')!.toString()).toContain('"app": "selida"')
+
+    // A second device joins it as it is: the page and its image arrive under today's address.
+    const b = device('Device B', 2_000_000)
+    expect((await b.setup(remote)).lastError).toBeUndefined()
+    expect(b.titles().sort()).toEqual(['Pictures', 'Words'])
+    expect(b.repo.get(image.id)?.props.url).toBe(`sel-file://files/${name}`)
+    expect(readFileSync(join(b.filesDir, name)).equals(PNG)).toBe(true)
+
+    // Whoever uploads next brings the repository over, and no file is lost on the way.
+    await sync(a, b)
+    const files = remoteFiles(remote)
+    expect([...files.keys()].sort()).toEqual(['README.md', `files/${name}`, `pages/${page.id}.json`, `pages/${words.id}.json`, 'sel.json', 'workspace.json'].sort())
+    expect(JSON.parse(files.get('sel.json')!.toString())).toMatchObject({ app: 'sel', format: 1 })
+    expect(files.get('README.md')!.toString()).toContain('<!-- sel:managed -->')
+    expect(files.get(`pages/${page.id}.json`)!.toString()).toContain(`sel-file://files/${name}`)
+    expect(files.get(`pages/${page.id}.json`)!.toString()).not.toContain('selida')
+    expect(a.repo.get(image.id)?.props.url).toBe(`sel-file://files/${name}`)
+
+    // Both devices carry on from there.
+    a.text(words.id, 'written after the rename')
+    await sync(a, b)
+    expect(b.texts(words.id)).toEqual(['nothing to rename here', 'written after the rename'])
+    expect(a.titles().sort()).toEqual(['Pictures', 'Words'])
   })
 })

@@ -128,7 +128,7 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
 
     context = new AudioContext({ sampleRate: PCM.sampleRate, latencyHint: 'playback' })
     await context.audioWorklet.addModule(workletUrl)
-    const node = new AudioWorkletNode(context, 'selida-pcm', { numberOfInputs: 2, numberOfOutputs: 0, channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' })
+    const node = new AudioWorkletNode(context, 'sel-pcm', { numberOfInputs: 2, numberOfOutputs: 0, channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' })
     context.createMediaStreamSource(mic).connect(node, 0, 0)
     if (system) context.createMediaStreamSource(system).connect(node, 0, 1)
 

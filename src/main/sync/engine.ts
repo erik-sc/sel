@@ -27,6 +27,7 @@ import {
   FORMAT,
   FormatError,
   imageNames,
+  LEGACY,
   mergeAppearance,
   pagesOf,
   pageTree,
@@ -60,7 +61,7 @@ import { checkWorkspace, diffWorkspace, emptyWorkspace, mergeWorkspace, pageOf, 
  *
  * `sync.lastCommit` is the commit the database last agreed with: the base of the next merge.
  * It only ever names a commit that is on the remote, so a clone that was lost or damaged can
- * be made again and the merge repeated. Nothing is forced, and nothing but Selida's own clone
+ * be made again and the merge repeated. Nothing is forced, and nothing but sel's own clone
  * is ever reset or cleaned.
  *
  * Free of Electron: the app wires it to windows, safeStorage and timers in ./index.ts.
@@ -194,7 +195,7 @@ interface RepoTree {
   appearanceText: string | null
   appearance: AppearanceFile | null
   ws: Workspace
-  /** Files that are not Selida's. */
+  /** Files that are not sel's. */
   foreign: number
   /** The device that made the commit. */
   author: string
@@ -215,8 +216,10 @@ function emptyTree(): RepoTree {
 function isOurPath(path: string): boolean {
   return (
     path === PATHS.meta ||
+    path === LEGACY.meta ||
     path === PATHS.readme ||
     path === PATHS.readmeAlt ||
+    path === LEGACY.readmeAlt ||
     path === PATHS.workspace ||
     path === PATHS.appearance ||
     path.startsWith(PATHS.pages) ||
@@ -226,7 +229,7 @@ function isOurPath(path: string): boolean {
 
 function toFailure(err: unknown): SyncFailure {
   if (err instanceof SyncFailure) return err
-  if (err instanceof FormatError) return err.newer ? new SyncFailure('unsupported-format') : new SyncFailure('failed', 'The repository holds data Selida cannot read. Nothing was changed on this device.')
+  if (err instanceof FormatError) return err.newer ? new SyncFailure('unsupported-format') : new SyncFailure('failed', 'The repository holds data sel cannot read. Nothing was changed on this device.')
   if (err instanceof WrongKeyError) return new SyncFailure('wrong-passphrase')
   const code = (err as { code?: unknown } | null)?.code
   if (code === 'ENOSPC' || code === 'EDQUOT') return new SyncFailure('disk-full')
@@ -587,7 +590,7 @@ export class SyncEngine {
       if (type === 'blob') tree.entries.set(path, sha)
     }
     for (const path of tree.entries.keys()) if (!isOurPath(path)) tree.foreign++
-    const metaSha = tree.entries.get(PATHS.meta)
+    const metaSha = tree.entries.get(PATHS.meta) ?? tree.entries.get(LEGACY.meta)
     const pageShas: string[] = []
     if (metaSha) for (const [path, sha] of tree.entries) if (path.startsWith(PATHS.pages)) pageShas.push(sha)
     const rootSha = metaSha ? tree.entries.get(PATHS.workspace) : undefined
@@ -714,8 +717,8 @@ export class SyncEngine {
     const remote = await this.readTree(git, remoteHead)
     if (!remote) throw new SyncFailure('failed', SYNC_MESSAGES.failed, true)
     if (!remote.meta) {
-      if (remote.foreign > 0 && !config.useAnyway) throw new SyncFailure('not-selida-repo')
-      // Nothing of Selida's is there (yet): this device's pages go on top of what is.
+      if (remote.foreign > 0 && !config.useAnyway) throw new SyncFailure('not-sel-repo')
+      // Nothing of sel's is there (yet): this device's pages go on top of what is.
       this.repo.applySync({ put: [], remove: [], snapshots: [], foreign: [], resetPages: [], settings: { [KEYS.lastCommit]: remoteHead, [KEYS.encrypted]: null } }, () => new Map())
       return outcome
     }
@@ -805,7 +808,8 @@ export class SyncEngine {
       for (const pageId of remote.pages.keys()) if (!states.has(pageId)) states.set(pageId, DIRTY)
       states.set(STATE_ROOT, remote.rootText === rootText ? sha1(rootText) : DIRTY)
       states.set(STATE_APPEARANCE, remote.appearanceText === appearanceText || (remote.appearanceText === null && appearance.value == null) ? sha1(appearanceText) : DIRTY)
-      states.set(STATE_META, remoteHead)
+      // A repository still under the app's earlier name counts as not written yet: the upload renames it.
+      if (!remote.entries.has(LEGACY.meta)) states.set(STATE_META, remoteHead)
       return states
     })
     this.options.onApplied?.()
@@ -864,7 +868,23 @@ export class SyncEngine {
     // ---- what this tree is: an existing workspace (encrypted or not), or a new one
     let meta: RepoMeta | null = null
     const metaFile = join(this.repoDir, PATHS.meta)
+    const legacyFile = join(this.repoDir, LEGACY.meta)
     if (existsSync(metaFile)) meta = parseMeta(await readFile(metaFile, 'utf8'))
+    else if (existsSync(legacyFile)) {
+      // The same workspace, written under the app's earlier name: its own files take today's.
+      meta = parseMeta(await readFile(legacyFile, 'utf8'))
+      await rm(legacyFile, { force: true })
+      await this.writeTreeFile(PATHS.meta, serializeMeta(meta))
+      for (const [was, now] of [
+        [PATHS.readme, PATHS.readme],
+        [LEGACY.readmeAlt, PATHS.readmeAlt]
+      ]) {
+        const file = join(this.repoDir, was)
+        if (!existsSync(file) || !(await readFile(file, 'utf8')).includes(LEGACY.readmeMark)) continue
+        await rm(file, { force: true })
+        await this.writeTreeFile(now, README_TEXT)
+      }
+    }
     let codec = PLAIN
     if (!meta) {
       const pending = this.secrets().pending
@@ -908,7 +928,7 @@ export class SyncEngine {
     await this.step('commit')
     await git.run(['add', '-A', '--', '.'])
     let head = base
-    const summary = `selida-sync: pages=${changed.size} removed=${removed.length} format=${FORMAT}`
+    const summary = `sel-sync: pages=${changed.size} removed=${removed.length} format=${FORMAT}`
     const commit = await git.run(['commit', '-q', '--no-verify', '-F', '-'], { input: `Sync from ${config.device}\n\n${summary}\n`, allowFailure: true })
     if (commit.code === 0) head = await this.headCommit(git, config.branch)
     // The files came out exactly as they already were: there is nothing to commit, and that is fine.
@@ -1022,7 +1042,7 @@ export class SyncEngine {
    * Connects this device to a repository and runs the first sync. Everything is checked
    * before anything is stored: the address, that git can reach it, what is in it, the
    * passphrase. Resolves with the status; when a decision is needed (`needs-choice`,
-   * `not-selida-repo`, `passphrase-required`…) the status says so in `lastError` and nothing
+   * `not-sel-repo`, `passphrase-required`…) the status says so in `lastError` and nothing
    * was set up.
    */
   setup(input: SyncSetup): Promise<SyncStatus> {
@@ -1053,13 +1073,14 @@ export class SyncEngine {
           const listing = await git.run(['ls-tree', '-r', '-z', '--name-only', '--full-tree', head, '--'])
           const paths = listing.stdout.toString('utf8').split('\0').filter(Boolean)
           foreign = paths.filter((path) => !isOurPath(path)).length
-          if (paths.includes(PATHS.meta)) {
-            const blob = await git.run(['cat-file', 'blob', `${head}:${PATHS.meta}`])
+          const metaPath = [PATHS.meta, LEGACY.meta].find((path) => paths.includes(path))
+          if (metaPath) {
+            const blob = await git.run(['cat-file', 'blob', `${head}:${metaPath}`])
             meta = parseMeta(blob.stdout.toString('utf8'))
             existing = paths.some((path) => path.startsWith(PATHS.pages))
           }
         }
-        if (!meta && foreign > 0 && !config.useAnyway) throw new SyncFailure('not-selida-repo')
+        if (!meta && foreign > 0 && !config.useAnyway) throw new SyncFailure('not-sel-repo')
         if (meta?.encryption) {
           let keys = this.keysFor(meta.encryption)
           if (input.passphrase !== undefined) keys = await unlockEncryption(input.passphrase, meta.encryption)
@@ -1152,7 +1173,8 @@ export class SyncEngine {
         await this.ensureClone(git, config)
         const head = await this.fetch(git, config.branch)
         if (!head) throw new SyncFailure('failed', 'The repository is empty.')
-        const blob = await git.run(['cat-file', 'blob', `${head}:${PATHS.meta}`], { allowFailure: true })
+        let blob = await git.run(['cat-file', 'blob', `${head}:${PATHS.meta}`], { allowFailure: true })
+        if (blob.code !== 0) blob = await git.run(['cat-file', 'blob', `${head}:${LEGACY.meta}`], { allowFailure: true })
         const meta = blob.code === 0 ? parseMeta(blob.stdout.toString('utf8')) : null
         if (meta?.encryption) {
           const keys = await unlockEncryption(passphrase, meta.encryption)
@@ -1226,7 +1248,7 @@ export class SyncEngine {
 
         await this.prepareTree(git, config.branch, base)
         for (const path of old.entries.keys()) {
-          if (path.startsWith(PATHS.pages) || path.startsWith(PATHS.files) || path === PATHS.workspace || path === PATHS.appearance) await rm(join(this.repoDir, path), { force: true })
+          if (path.startsWith(PATHS.pages) || path.startsWith(PATHS.files) || path === PATHS.workspace || path === PATHS.appearance || path === LEGACY.meta) await rm(join(this.repoDir, path), { force: true })
         }
         const meta: RepoMeta = { app: APP, format: FORMAT, workspaceId: old.meta.workspaceId ?? randomUUID(), createdBy: old.meta.createdBy ?? config.device }
         if (params) meta.encryption = params
@@ -1242,7 +1264,7 @@ export class SyncEngine {
         await this.step('commit')
         await git.run(['add', '-A', '--', '.'])
         const what = passphrase === null ? 'Remove encryption' : old.codec.encrypted ? 'Change passphrase' : 'Turn on encryption'
-        await git.run(['commit', '-q', '--no-verify', '--allow-empty', '-F', '-'], { input: `${what} from ${config.device}\n\nselida-sync: reupload format=${FORMAT}\n` })
+        await git.run(['commit', '-q', '--no-verify', '--allow-empty', '-F', '-'], { input: `${what} from ${config.device}\n\nsel-sync: reupload format=${FORMAT}\n` })
         const head = await this.headCommit(git, config.branch)
         await this.step('push')
         const ref = `refs/heads/${config.branch}`

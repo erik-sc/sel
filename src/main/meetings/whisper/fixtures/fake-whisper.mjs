@@ -1,5 +1,5 @@
 // A stand-in for whisper.cpp's `whisper-cli`, for tests and for driving the UI without the real
-// program. It takes the flags Selida passes (-m -f -l -t -oj -of -pp -np), reads the WAV it is
+// program. It takes the flags sel passes (-m -f -l -t -oj -of -pp -np), reads the WAV it is
 // given, prints "progress" lines to stderr the way `-pp` does and writes `<-of>.json` in the
 // shape `-oj` writes. It "hears" a sentence in every five seconds that are not silent, so the
 // result follows the audio. It never touches the network.
@@ -61,7 +61,7 @@ async function main() {
   }
   if (has('error') || (has('fail-once') && !existsSync('fake-whisper-failed'))) {
     if (has('fail-once')) writeFileSync('fake-whisper-failed', '1')
-    process.stderr.write(`\u001b[31merror\u001b[0m: failed to process audio at C:\\Users\\secret\\AppData\\Roaming\\Selida\\recordings\\x\\mic.wav\n`)
+    process.stderr.write(`\u001b[31merror\u001b[0m: failed to process audio at C:\\Users\\secret\\AppData\\Roaming\\sel\\recordings\\x\\mic.wav\n`)
     process.exit(3)
   }
   if (has('hang') || has('hang-tree')) {

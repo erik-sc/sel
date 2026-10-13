@@ -85,8 +85,8 @@ let pageId = ''
 let blockId = ''
 
 beforeAll(() => {
-  electron.userData = mkdtempSync(join(tmpdir(), 'selida-ai-ipc-'))
-  process.env['SELIDA_AI_CLI'] = FAKE
+  electron.userData = mkdtempSync(join(tmpdir(), 'sel-ai-ipc-'))
+  process.env['SEL_AI_CLI'] = FAKE
   registerIpc({ repo, ready: Promise.resolve(), createWindow: () => undefined })
   pageId = repo.create({ type: 'page', parentId: null, props: { title: [['Release plan']] } }).id
   blockId = repo.create({ type: 'text', parentId: pageId, props: { title: [['We ship teh editor in May.']] } }).id
@@ -94,7 +94,7 @@ beforeAll(() => {
 
 afterAll(() => {
   for (const fn of electron.quit) fn()
-  delete process.env['SELIDA_AI_CLI']
+  delete process.env['SEL_AI_CLI']
   repo.close()
   rmSync(electron.userData, { recursive: true, force: true, maxRetries: 20, retryDelay: 150 })
 })

@@ -1,7 +1,7 @@
 import type { WhisperModelId } from '../../../shared/meetings'
 
 /**
- * Exactly what Selida may download for transcription, and what each file must hash to. A
+ * Exactly what sel may download for transcription, and what each file must hash to. A
  * download is renamed into place only when its SHA-256 equals the digest written here, so a
  * changed file on the server, a hijacked redirect or a damaged transfer all end the same way:
  * the file is deleted and nothing of it is ever run or loaded.
@@ -51,7 +51,7 @@ export const PINNED: PinnedSet = {
   programs: {
     'win32-x64': { url: `${RELEASE}/whisper-bin-x64.zip`, size: 8_928_640, sha256: '6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb' },
     'win32-arm64': { url: `${RELEASE}/whisper-bin-win-cpu-arm64.zip`, size: 4_371_193, sha256: '28c37e7b598c3d9bbfef94f3bd67f2ee6f12b7c86f3da5edcf5e4308d615ff6d' }
-    // macOS and Linux: no archive with a ready `whisper-cli` and a digest that Selida unpacks
+    // macOS and Linux: no archive with a ready `whisper-cli` and a digest that sel unpacks
     // (the Ubuntu builds are tarballs, there is none for macOS). There the user chooses a
     // program and a model file themselves.
   },

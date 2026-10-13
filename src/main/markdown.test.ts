@@ -70,7 +70,7 @@ describe('export', () => {
     add('quote', { title: [['wise\nwords']] })
     add('code', { title: [['let a = `1`\n```']], language: 'js' })
     add('divider')
-    add('image', { url: 'selida-file://files/abc.png', caption: [['cap']] })
+    add('image', { url: 'sel-file://files/abc.png', caption: [['cap']] })
     add('text', { title: [['# not a heading']] })
     const sub = add('page', { title: [['Child']] })
     const db = add('database', {
@@ -110,11 +110,11 @@ describe('export', () => {
         '',
         '---',
         '',
-        '![cap](selida-file://files/abc.png)',
+        '![cap](sel-file://files/abc.png)',
         '',
         '\\# not a heading',
         '',
-        `[Child](selida://page/${sub})`,
+        `[Child](sel://page/${sub})`,
         '',
         '**Tasks**',
         '',
@@ -289,13 +289,13 @@ describe('hostile input', () => {
     expect(parseInline('[x](//evil.test/a)')).toEqual([['x']])
     expect(parseInline('[x](https://example.com)')).toEqual([['x', [['a', 'https://example.com']]]])
     expect(parseInline('[x](mailto:a@example.com)')).toEqual([['x', [['a', 'mailto:a@example.com']]]])
-    expect(parseInline('[x](selida://page/abc)')).toEqual([['x', [['a', 'selida://page/abc']]]])
+    expect(parseInline('[x](sel://page/abc)')).toEqual([['x', [['a', 'sel://page/abc']]]])
   })
 
   it('imports only safe image sources as image blocks', () => {
     const types = (src: string): string[] => parseMarkdown(src).nodes.map((n) => n.type)
     expect(types('![a](https://example.com/a.png)')).toEqual(['image'])
-    expect(types('![a](selida-file://files/a.png)')).toEqual(['image'])
+    expect(types('![a](sel-file://files/a.png)')).toEqual(['image'])
     expect(types('![a](file:///C:/secret.png)')).toEqual(['text'])
     expect(types('![a](javascript:alert)')).toEqual(['text'])
     expect(types('![a](data:image/svg+xml;base64,AAAA)')).toEqual(['text'])

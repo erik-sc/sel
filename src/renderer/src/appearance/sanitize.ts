@@ -66,7 +66,7 @@ export function formatNumeric(token: TokenDef, n: number): string {
 const RESOURCE_FN = /(url|image-set|image|src|cross-fade|element|expression)\s*\(/i
 /** C0 controls (other than the whitespace that gets collapsed) and DEL never belong in a value. */
 const CONTROL_CHARS = /[\u0000-\u0008\u000b\u000e-\u001f\u007f]/
-const LOCAL_IMAGE = /^url\((["'])(?:selida-file:|data:image\/)[^"'()\\\s{}<>]*\1\)$/i
+const LOCAL_IMAGE = /^url\((["'])(?:sel-file:|data:image\/)[^"'()\\\s{}<>]*\1\)$/i
 
 /** Unbalanced brackets or quotes would let a value swallow the declarations that follow it. */
 function isBalanced(text: string): boolean {
@@ -143,7 +143,7 @@ export function cleanValue(token: TokenDef, raw: unknown): string | null {
 
 /*
  * Policy: custom CSS (typed by the user or carried by an imported theme) must never make the
- * app talk to a remote host. The only urls it may reference are `selida-file:` (files copied
+ * app talk to a remote host. The only urls it may reference are `sel-file:` (files copied
  * into the app's data directory) and `data:image/`. Enforced on CSS tokens, not on text, so
  * that escapes (`\75rl(`), case, comments and whitespace cannot hide anything:
  *   - `@import` and `@namespace` rules are removed;
@@ -157,7 +157,7 @@ export function cleanValue(token: TokenDef, raw: unknown): string | null {
  * the <style> element; `</style` is stripped anyway.
  */
 
-const LOCAL_URL = /^(?:selida-file:|data:image\/)/i
+const LOCAL_URL = /^(?:sel-file:|data:image\/)/i
 const BLOCKED_AT_RULES = ['import', 'namespace']
 const URL_FUNCTION = ['url']
 const BLOCKED_FUNCTIONS = ['image-set', 'image', 'src', 'expression']

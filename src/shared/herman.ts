@@ -1,5 +1,5 @@
 /**
- * Herman: the face and the voice of Selida's assistant. A small figure at the edge of the
+ * Herman: the face and the voice of sel's assistant. A small figure at the edge of the
  * window who listens, answers briefly and otherwise leaves you alone. These are the shapes
  * shared by the main process (which holds his voice, composes his counsel from what the app
  * already knows and decides when he may speak) and the renderer (which draws him).

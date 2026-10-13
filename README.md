@@ -1,10 +1,10 @@
-# Selida
+# sel
 
 A quiet place to write and keep things.
 
-Selida is a notes app for your desktop. Pages are made of blocks, databases are made of pages, and everything lives in one file on your computer.
+sel is a notes app for your desktop. Pages are made of blocks, databases are made of pages, and everything lives in one file on your computer.
 
-![A page in Selida, light theme](docs/page-light.png)
+![A page in sel, light theme](docs/page-light.png)
 
 ## What it does
 
@@ -37,6 +37,10 @@ Selida is a notes app for your desktop. Pages are made of blocks, databases are 
 - **Still.** The app makes no network requests of its own, apart from loading images you link to, reading your calendar if you connect one, and downloading the transcription program and a speech model, once, when you ask for it.
 - **Light.** One small window, a short list of dependencies.
 - **Careful.** The interface runs sandboxed, and nothing you paste or import is trusted.
+
+## Get it
+
+Download the installer for Windows from [Releases](https://github.com/erik-sc/sel/releases). It is not code-signed, so Windows asks before running it the first time.
 
 ## Run it
 
@@ -89,4 +93,4 @@ All style values live in one file, `src/renderer/src/styles/tokens.css`. Compone
 
 ---
 
-*Selida* is Greek for *page*.
+*sel* is short for *selida*, Greek for *page*.

@@ -101,7 +101,7 @@ export type MeetingAudioState = 'none' | 'recording' | 'recorded' | 'transcribin
 
 export interface MeetingTrack {
   stream: MeetingStream
-  /** A `selida-file://recordings/…` address the player can load. */
+  /** A `sel-file://recordings/…` address the player can load. */
   url: string
   format: 'webm' | 'wav'
 }
@@ -139,9 +139,9 @@ export interface EngineDownload {
 
 export interface EngineStatus {
   state: EngineState
-  /** True when Selida can download the program for this system (digests are pinned for it). */
+  /** True when sel can download the program for this system (digests are pinned for it). */
   canDownload: boolean
-  /** The program in use: Selida's own copy, or one the user chose. */
+  /** The program in use: sel's own copy, or one the user chose. */
   program?: { path: string; managed: boolean; version: string }
   model?: { path: string; managed: boolean; id: WhisperModelId | null; bytes: number }
   /** What a download would fetch: sizes in bytes, per model. */
@@ -183,7 +183,7 @@ export interface MeetingsApi {
     /** Native file dialogs: the only way a path enters `meetings.whisperPath` / `meetings.modelPath`. */
     pickProgram(): Promise<EngineStatus | null>
     pickModel(): Promise<EngineStatus | null>
-    /** Deletes Selida's own copy of the program and its models, and forgets chosen paths. */
+    /** Deletes sel's own copy of the program and its models, and forgets chosen paths. */
     remove(): Promise<EngineStatus>
   }
   /** Creates a page in the "Meetings" database (made on first use). */

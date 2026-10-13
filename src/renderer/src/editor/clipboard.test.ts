@@ -144,7 +144,7 @@ describe('cleanProps', () => {
     ['file', 'file:///etc/passwd'],
     ['vbscript', 'vbscript:msgbox(1)'],
     ['protocol-relative', '//evil.example/a.png'],
-    ['traversal', 'selida-file://files/../../secret.png']
+    ['traversal', 'sel-file://files/../../secret.png']
   ])('drops an image url that is not allowed (%s)', (_name, url) => {
     expect(cleanProps('image', { url })).toEqual({})
   })
@@ -154,7 +154,7 @@ describe('cleanProps', () => {
     ['data html', 'data:text/html,<script>alert(1)</script>'],
     ['file', 'file:///C:/Windows/System32/calc.exe'],
     ['mailto', 'mailto:me@example.com'],
-    ['app file', 'selida-file://files/a.png']
+    ['app file', 'sel-file://files/a.png']
   ])('drops a bookmark url that is not allowed (%s)', (_name, url) => {
     expect(cleanProps('bookmark', { url })).toEqual({})
   })

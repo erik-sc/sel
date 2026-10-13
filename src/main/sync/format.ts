@@ -1,12 +1,13 @@
 import { createHash } from 'node:crypto'
+import { LEGACY_NAME, modernizeUrls } from '../../shared/legacy'
 import { canonicalJson } from '../../shared/versions'
 import { isBlockType, isValidId, type Row } from '../db/blocks'
 import { isPageLike, normalizeWorkspace, type SyncBlock, type Workspace } from './merge'
 
 /**
- * What Selida writes into the repository, and how it reads it back. Pure: text in, data out.
+ * What sel writes into the repository, and how it reads it back. Pure: text in, data out.
  *
- *   selida.json               what this repository is (format, and how it is encrypted)
+ *   sel.json               what this repository is (format, and how it is encrypted)
  *   README.md                 a note for people who open the repository
  *   workspace.json            the order of the pages at the workspace root
  *   pages/<pageId>.json       one page or database with its own blocks, one block per line
@@ -17,32 +18,43 @@ import { isPageLike, normalizeWorkspace, type SyncBlock, type Workspace } from '
  */
 
 export const FORMAT = 1
-export const APP = 'selida'
+export const APP = 'sel'
 
 export const PATHS = {
-  meta: 'selida.json',
+  meta: 'sel.json',
   readme: 'README.md',
   /** Used when the repository has a README of its own. */
-  readmeAlt: 'SELIDA.md',
+  readmeAlt: 'SEL.md',
   workspace: 'workspace.json',
   appearance: 'settings/appearance.json',
   pages: 'pages/',
   files: 'files/'
 } as const
 
-/** Marks a README as the one Selida wrote. */
-export const README_MARK = '<!-- selida:managed -->'
+/** Marks a README as the one sel wrote. */
+export const README_MARK = '<!-- sel:managed -->'
+
+/**
+ * A repository written when the app was called Selida is the same workspace under other
+ * names. It is read as it is, and the next upload from this app writes today's names.
+ */
+export const LEGACY = {
+  app: LEGACY_NAME,
+  meta: `${LEGACY_NAME}.json`,
+  readmeAlt: 'SELIDA.md',
+  readmeMark: `<!-- ${LEGACY_NAME}:managed -->`
+} as const
 
 export const README_TEXT = `${README_MARK}
-# Selida workspace
+# sel workspace
 
-This repository is managed by Selida, a local-first notes app. It holds one
+This repository is managed by sel, a local-first notes app. It holds one
 person's pages so that they can be used on several devices.
 
-**Do not edit these files by hand.** Selida is the only writer: it rewrites them on every sync,
+**Do not edit these files by hand.** sel is the only writer: it rewrites them on every sync,
 and a change made here can be overwritten or can keep a device from syncing.
 
-- \`selida.json\`: what this repository is.
+- \`sel.json\`: what this repository is.
 - \`workspace.json\`: the order of the top-level pages.
 - \`pages/\`: one file per page or database.
 - \`files/\`: images used in pages.
@@ -56,7 +68,7 @@ const MAX_PAGE_CHARS = 256 * 1024 * 1024
 const MAX_BLOCKS_PER_PAGE = 500_000
 const MAX_PROPS_CHARS = 8 * 1024 * 1024
 
-/** Raised for anything in a repository that is not what Selida writes. */
+/** Raised for anything in a repository that is not what sel writes. */
 export class FormatError extends Error {
   constructor(
     message: string,
@@ -99,11 +111,11 @@ export function parseMeta(text: string): RepoMeta {
   try {
     raw = JSON.parse(text)
   } catch {
-    throw new FormatError('selida.json cannot be read')
+    throw new FormatError('sel.json cannot be read')
   }
-  if (!isPlain(raw) || raw['app'] !== APP || typeof raw['format'] !== 'number') throw new FormatError('selida.json is not a Selida file')
+  if (!isPlain(raw) || (raw['app'] !== APP && raw['app'] !== LEGACY.app) || typeof raw['format'] !== 'number') throw new FormatError('sel.json is not a sel file')
   if (raw['format'] > FORMAT) throw new FormatError('newer format', true)
-  if (raw['format'] < 1) throw new FormatError('selida.json has an unknown format')
+  if (raw['format'] < 1) throw new FormatError('sel.json has an unknown format')
   const meta: RepoMeta = { app: APP, format: raw['format'] }
   if (typeof raw['workspaceId'] === 'string' && isValidId(raw['workspaceId'])) meta.workspaceId = raw['workspaceId']
   if (typeof raw['createdBy'] === 'string') meta.createdBy = raw['createdBy'].slice(0, 100)
@@ -114,9 +126,9 @@ export function parseMeta(text: string): RepoMeta {
     const int = (value: unknown, min: number, max: number): value is number => typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max
     // Bounded: a tampered file must not be able to ask for gigabytes of memory.
     if (!int(N, 1 << 14, 1 << 20) || (N & (N - 1)) !== 0 || !int(r, 1, 16) || !int(p, 1, 4) || 128 * N * r > 512 * 1024 * 1024) {
-      throw new FormatError('selida.json asks for an unsupported key derivation')
+      throw new FormatError('sel.json asks for an unsupported key derivation')
     }
-    if (typeof salt !== 'string' || !BASE64_RE.test(salt) || typeof check !== 'string' || !BASE64_RE.test(check)) throw new FormatError('selida.json is damaged')
+    if (typeof salt !== 'string' || !BASE64_RE.test(salt) || typeof check !== 'string' || !BASE64_RE.test(check)) throw new FormatError('sel.json is damaged')
     meta.encryption = { v: 1, kdf: 'scrypt', N, r, p, salt, check }
   }
   return meta
@@ -183,6 +195,7 @@ function cleanProps(raw: unknown, order: unknown): Record<string, unknown> {
 /** The blocks of a page file, each checked: ids, known types, plain props within the size cap. */
 export function parsePage(text: string): { pageId: string; blocks: SyncBlock[] } {
   if (text.length > MAX_PAGE_CHARS) throw new FormatError('A page file is too large')
+  text = modernizeUrls(text)
   let raw: unknown
   try {
     // A key named `__proto__` has no business in a block at any depth: it is dropped while reading.
@@ -245,7 +258,7 @@ export function workspaceFromPages(pages: Iterable<readonly SyncBlock[]>, root: 
   const blocks = new Map<string, SyncBlock>()
   for (const page of pages) for (const block of page) if (!blocks.has(block.id)) blocks.set(block.id, block)
   let order = root?.root ?? []
-  // A repository without the root file (never written by Selida, but harmless): pages without a parent, oldest first.
+  // A repository without the root file (never written by sel, but harmless): pages without a parent, oldest first.
   if (!root) {
     order = [...blocks.values()]
       .filter((b) => b.parentId === null && b.trashedAt === null && isPageLike(b.type))
@@ -393,7 +406,7 @@ export function workspaceFromRows(rows: readonly Row[], root: { order: string[];
   return normalizeWorkspace({ blocks, root: root.order, rootAt: root.at })
 }
 
-const FILE_URL_RE = /selida-file:\/\/files\/([A-Za-z0-9_-]{1,80}\.(?:png|jpe?g|gif|webp|avif|bmp))/g
+const FILE_URL_RE = /sel(?:ida)?-file:\/\/files\/([A-Za-z0-9_-]{1,80}\.(?:png|jpe?g|gif|webp|avif|bmp))/g
 export const FILE_NAME_RE = /^[A-Za-z0-9_-]{1,80}\.(?:png|jpe?g|gif|webp|avif|bmp)$/
 
 /** Names of the stored images some text (a page file, the appearance settings) refers to. */
@@ -416,7 +429,7 @@ export function serializeAppearance(file: AppearanceFile): string {
 export function parseAppearance(text: string): AppearanceFile {
   let raw: unknown
   try {
-    raw = JSON.parse(text)
+    raw = JSON.parse(modernizeUrls(text))
   } catch {
     throw new FormatError('The appearance settings cannot be read')
   }

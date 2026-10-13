@@ -2,13 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Selida</title>
+    <title>sel</title>
     <!--
       Deny by default. Scripts only from the bundle; inline styles are needed by React and
-      the appearance editor. Images may be local (selida-file:, data:, blob:) or remote over
+      the appearance editor. Images may be local (sel-file:, data:, blob:) or remote over
       https (image blocks, bookmarks, covers) - the main process additionally cancels every
       other network request and strips cookies and referrers (src/main/security.ts).
-      Audio is local only: the recordings of meetings, served by the main process (selida-file:).
+      Audio is local only: the recordings of meetings, served by the main process (sel-file:).
       The recorder's AudioWorklet is a file of the bundle, covered by script-src 'self'.
       `connect-src` is relaxed for the dev server only, by electron.vite.config.ts.
       frame-ancestors and sandbox cannot be set from a meta tag; the page is loaded from
@@ -16,7 +16,7 @@
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: selida-file:; font-src 'self' data:; connect-src 'none'; media-src selida-file:; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: sel-file:; font-src 'self' data:; connect-src 'none'; media-src sel-file:; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'"
     />
     <meta name="referrer" content="no-referrer" />
   </head>

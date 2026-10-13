@@ -20,7 +20,7 @@ const ID = 'aaaaaaaaaaaaaaaaaaaaa'
 
 let root: string
 beforeAll(() => {
-  root = mkdtempSync(join(tmpdir(), 'selida-ai-'))
+  root = mkdtempSync(join(tmpdir(), 'sel-ai-'))
 })
 afterAll(() => {
   rmSync(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 150 })
@@ -209,10 +209,10 @@ describe('the command line', () => {
       AWS_SECRET_ACCESS_KEY: 'x',
       NODE_OPTIONS: '--require ./evil.js',
       ELECTRON_RUN_AS_NODE: '1',
-      SELIDA_AI_CLI: 'x'
+      SEL_AI_CLI: 'x'
     })
     expect(env).toMatchObject({ Path: 'C:\\bin', USERPROFILE: 'C:\\Users\\a', HOME: '/home/a', CLAUDE_CONFIG_DIR: '/cfg', NO_COLOR: '1' })
-    for (const key of ['ANTHROPIC_API_KEY', 'GITHUB_TOKEN', 'AWS_SECRET_ACCESS_KEY', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE', 'SELIDA_AI_CLI']) {
+    for (const key of ['ANTHROPIC_API_KEY', 'GITHUB_TOKEN', 'AWS_SECRET_ACCESS_KEY', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE', 'SEL_AI_CLI']) {
       expect(env).not.toHaveProperty(key)
     }
     expect(buildEnv({}, { ELECTRON_RUN_AS_NODE: '1' })['ELECTRON_RUN_AS_NODE']).toBe('1')
@@ -788,7 +788,7 @@ describe('running requests against the stand-in program', () => {
     expect((await run(target, { action: 'summarize', pageId: ID }).settled).error).toEqual({ code: 'failed', message: expect.any(String), detail: 'The page no longer exists' })
     const leaky = service({
       loadContext: () => {
-        throw Object.assign(new Error('SQLITE_ERROR at C:\\Users\\erik\\selida.db'), { code: 'SQLITE_ERROR' })
+        throw Object.assign(new Error('SQLITE_ERROR at C:\\Users\\erik\\sel.db'), { code: 'SQLITE_ERROR' })
       }
     })
     expect((await run(leaky, { action: 'summarize', pageId: ID }).settled).error).toEqual({ code: 'failed', message: expect.any(String) })

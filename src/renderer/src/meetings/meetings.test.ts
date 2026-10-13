@@ -107,7 +107,7 @@ describe('styles', () => {
 
   it('allows audio from the recordings route only', () => {
     const html = read('../../index.html')
-    expect(html).toContain("media-src selida-file:;")
+    expect(html).toContain("media-src sel-file:;")
     expect(html).toContain("script-src 'self';")
     expect(html).toContain("worker-src 'none'")
     expect(html).toContain("connect-src 'none'")

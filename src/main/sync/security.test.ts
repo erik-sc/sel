@@ -16,7 +16,7 @@ import { SyncEngine } from './engine'
 import { FormatError, mergeAppearance, parseAppearance, parseMeta, parsePage, parseRoot, serializeMeta, serializePage } from './format'
 import { classifyGitFailure, configArgs, Git, GIT_FIXED_ENV, gitCandidates, gitEnv, inspectGit, isNonFastForward, locateGit, parseGitVersion, pinnedRepository } from './git'
 
-const ROOT = mkdtempSync(join(tmpdir(), 'selida-sync-sec-'))
+const ROOT = mkdtempSync(join(tmpdir(), 'sel-sync-sec-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }))
 vi.setConfig({ testTimeout: 120_000 })
 
@@ -212,7 +212,7 @@ describe('how git is started', () => {
       'core.longpaths=true',
       'gc.auto=0',
       'user.name=Laptop',
-      'user.email=selida@localhost',
+      'user.email=sel@localhost',
       'protocol.ext.allow=never',
       'protocol.file.allow=never',
       'commit.gpgsign=false',
@@ -301,7 +301,7 @@ describe('what a failure says', () => {
   it('explains what to do about a sign-in problem without storing anything', () => {
     expect(SYNC_MESSAGES['auth-failed']).toContain('Git Credential Manager')
     expect(SYNC_MESSAGES['auth-failed']).toContain('gh auth login')
-    expect(SYNC_MESSAGES['auth-failed']).toContain('Selida stores no token')
+    expect(SYNC_MESSAGES['auth-failed']).toContain('sel stores no token')
   })
 
   it('keeps every sync setting out of the renderer\'s reach for writing', () => {
@@ -526,25 +526,25 @@ describe('files read from a repository', () => {
 
   it('checks the meta file and bounds the key derivation it may ask for', () => {
     const ok = { v: 1, kdf: 'scrypt', N: 32768, r: 8, p: 1, salt: 'AAAAAAAAAAAAAAAAAAAAAA==', check: 'AAAA' }
-    expect(parseMeta(serializeMeta({ app: 'selida', format: 1, workspaceId: 'w1', createdBy: 'Laptop' }))).toEqual({ app: 'selida', format: 1, workspaceId: 'w1', createdBy: 'Laptop' })
+    expect(parseMeta(serializeMeta({ app: 'sel', format: 1, workspaceId: 'w1', createdBy: 'Laptop' }))).toEqual({ app: 'sel', format: 1, workspaceId: 'w1', createdBy: 'Laptop' })
     // An encrypted repository says nothing else in the clear.
-    expect(JSON.parse(serializeMeta({ app: 'selida', format: 1, workspaceId: 'w1', createdBy: 'Laptop', encryption: ok as never }))).toEqual({ app: 'selida', format: 1, encryption: ok })
+    expect(JSON.parse(serializeMeta({ app: 'sel', format: 1, workspaceId: 'w1', createdBy: 'Laptop', encryption: ok as never }))).toEqual({ app: 'sel', format: 1, encryption: ok })
     for (const meta of [
       'x',
       '{}',
       '{"app":"other","format":1}',
-      '{"app":"selida","format":0}',
-      JSON.stringify({ app: 'selida', format: 1, encryption: { ...ok, N: 2 ** 30 } }),
-      JSON.stringify({ app: 'selida', format: 1, encryption: { ...ok, N: 30000 } }),
-      JSON.stringify({ app: 'selida', format: 1, encryption: { ...ok, r: 1000 } }),
-      JSON.stringify({ app: 'selida', format: 1, encryption: { ...ok, N: 2 ** 20, r: 16 } }),
-      JSON.stringify({ app: 'selida', format: 1, encryption: { ...ok, p: 0 } }),
-      JSON.stringify({ app: 'selida', format: 1, encryption: { ...ok, salt: '../../x' } }),
-      JSON.stringify({ app: 'selida', format: 1, encryption: { ...ok, check: 5 } })
+      '{"app":"sel","format":0}',
+      JSON.stringify({ app: 'sel', format: 1, encryption: { ...ok, N: 2 ** 30 } }),
+      JSON.stringify({ app: 'sel', format: 1, encryption: { ...ok, N: 30000 } }),
+      JSON.stringify({ app: 'sel', format: 1, encryption: { ...ok, r: 1000 } }),
+      JSON.stringify({ app: 'sel', format: 1, encryption: { ...ok, N: 2 ** 20, r: 16 } }),
+      JSON.stringify({ app: 'sel', format: 1, encryption: { ...ok, p: 0 } }),
+      JSON.stringify({ app: 'sel', format: 1, encryption: { ...ok, salt: '../../x' } }),
+      JSON.stringify({ app: 'sel', format: 1, encryption: { ...ok, check: 5 } })
     ]) {
       expect(() => parseMeta(meta), meta.slice(0, 80)).toThrow(FormatError)
     }
-    for (const newer of ['{"app":"selida","format":9}', JSON.stringify({ app: 'selida', format: 1, encryption: { ...ok, kdf: 'argon2id' } })]) {
+    for (const newer of ['{"app":"sel","format":9}', JSON.stringify({ app: 'sel', format: 1, encryption: { ...ok, kdf: 'argon2id' } })]) {
       expect(() => parseMeta(newer)).toThrow(expect.objectContaining({ newer: true }))
     }
   })

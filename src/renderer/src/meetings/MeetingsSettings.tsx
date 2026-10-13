@@ -103,7 +103,7 @@ export function MeetingsSection(): JSX.Element {
         ? 'The program is here, but there is no speech model yet.'
         : status.canDownload
           ? 'Not installed. Meetings can be recorded; they are transcribed once this is set up.'
-          : 'Selida cannot download the program for this system. Choose one you installed.'
+          : 'sel cannot download the program for this system. Choose one you installed.'
   const wantedMissing = ready && status.model?.managed && status.model.id !== values.model
 
   return (

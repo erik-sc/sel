@@ -5,6 +5,7 @@
  * other windows over a BroadcastChannel.
  */
 import { create } from 'zustand'
+import { LEGACY_NAME, modernizeUrls } from '../../../shared/legacy'
 import { readMirror, writeMirror } from '../boot'
 import { notifyError } from '../ui/toast'
 import { PRESET_MAP } from './presets'
@@ -30,7 +31,9 @@ const CHANNEL_NAME = 'appearance'
 const SAVE_DELAY = 400
 /** Synchronous copy of the saved overrides, applied before the first frame (see boot.ts). */
 const MIRROR_KEY = 'appearance'
-const FILE_FORMAT = 'selida-theme'
+const FILE_FORMAT = 'sel-theme'
+/** Themes exported under the app's earlier name are still themes. */
+const LEGACY_FILE_FORMAT = `${LEGACY_NAME}-theme`
 /** Largest theme file accepted, in characters (and, before reading, in bytes). */
 export const MAX_IMPORT_LENGTH = 2_000_000
 
@@ -237,17 +240,17 @@ export function importJson(text: string): { ok: boolean; error?: string } {
   if (text.length > MAX_IMPORT_LENGTH) return { ok: false, error: 'The file is too large to be a theme.' }
   let parsed: unknown
   try {
-    parsed = JSON.parse(text)
+    parsed = JSON.parse(modernizeUrls(text))
   } catch {
     return { ok: false, error: 'The file is not valid JSON.' }
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    return { ok: false, error: 'The file is not a Selida theme.' }
+    return { ok: false, error: 'The file is not a sel theme.' }
   }
   const record = parsed as Record<string, unknown>
   const hasContent = ['light', 'dark', 'shared', 'customCss'].some((key) => key in record)
-  if (!hasContent || ('format' in record && record.format !== FILE_FORMAT)) {
-    return { ok: false, error: 'The file is not a Selida theme.' }
+  if (!hasContent || ('format' in record && record.format !== FILE_FORMAT && record.format !== LEGACY_FILE_FORMAT)) {
+    return { ok: false, error: 'The file is not a sel theme.' }
   }
   const data = sanitizeAppearance(record)
   const supplied = ['light', 'dark', 'shared'].reduce((sum, key) => {

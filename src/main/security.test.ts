@@ -35,7 +35,7 @@ describe('toExternalUrl', () => {
     'ms-msdt:/id PCWDiagnostic',
     'search-ms:query=x',
     'vscode://file/x',
-    'selida://page/abc',
+    'sel://page/abc',
     'C:\\Windows\\System32\\calc.exe',
     '\\\\server\\share\\x.exe',
     '/etc/passwd',
@@ -73,12 +73,12 @@ describe('resolveDevUrl / isAppUrl', () => {
   })
 
   it('recognizes only the bundled renderer file in production', () => {
-    const file = join(tmpdir(), 'selida-app', 'renderer', 'index.html')
+    const file = join(tmpdir(), 'sel-app', 'renderer', 'index.html')
     const url = pathToFileURL(file).toString()
     expect(isAppUrl(url, undefined, file)).toBe(true)
     expect(isAppUrl(`${url}?page=abc#x`, undefined, file)).toBe(true)
-    expect(isAppUrl(pathToFileURL(join(tmpdir(), 'selida-app', 'renderer', 'other.html')).toString(), undefined, file)).toBe(false)
-    expect(isAppUrl(pathToFileURL(join(tmpdir(), 'selida-app', 'renderer', 'x', '..', 'index.html')).toString(), undefined, file)).toBe(true)
+    expect(isAppUrl(pathToFileURL(join(tmpdir(), 'sel-app', 'renderer', 'other.html')).toString(), undefined, file)).toBe(false)
+    expect(isAppUrl(pathToFileURL(join(tmpdir(), 'sel-app', 'renderer', 'x', '..', 'index.html')).toString(), undefined, file)).toBe(true)
     expect(isAppUrl('https://example.com/index.html', undefined, file)).toBe(false)
     expect(isAppUrl('http://localhost:5173/', undefined, file)).toBe(false)
     expect(isAppUrl('about:blank', undefined, file)).toBe(false)
@@ -110,7 +110,7 @@ describe('isAllowedRequest', () => {
 
   it('leaves local schemes to the CSP and allows the dev server only when one is configured', () => {
     expect(isAllowedRequest('file:///C:/app/index.html', 'mainFrame', undefined)).toBe(true)
-    expect(isAllowedRequest('selida-file://files/a.png', 'image', undefined)).toBe(true)
+    expect(isAllowedRequest('sel-file://files/a.png', 'image', undefined)).toBe(true)
     expect(isAllowedRequest('data:image/png;base64,AAAA', 'image', undefined)).toBe(true)
     const dev = 'http://localhost:5173/'
     expect(isAllowedRequest('http://localhost:5173/src/main.tsx', 'script', dev)).toBe(true)
@@ -120,18 +120,18 @@ describe('isAllowedRequest', () => {
   })
 })
 
-describe('selida-file protocol', () => {
+describe('sel-file protocol', () => {
   let dir: string
   let outside: string
   let stored: string
 
   beforeAll(async () => {
-    const root = await mkdtemp(join(tmpdir(), 'selida-files-'))
+    const root = await mkdtemp(join(tmpdir(), 'sel-files-'))
     dir = join(root, 'files')
     outside = join(root, 'secret.png')
     await mkdir(dir)
     await writeFile(outside, PNG)
-    await writeFile(join(root, 'selida.db'), 'db')
+    await writeFile(join(root, 'sel.db'), 'db')
     stored = await storeImage(PNG, dir)
     await writeFile(join(dir, 'page.html'), '<script>1</script>')
     await writeFile(join(dir, 'vector.svg'), '<svg onload="1"/>')
@@ -142,7 +142,7 @@ describe('selida-file protocol', () => {
   })
 
   it('stores images under a generated name with the sniffed extension', () => {
-    expect(stored).toMatch(/^selida-file:\/\/files\/[0-9a-f-]{36}\.png$/)
+    expect(stored).toMatch(/^sel-file:\/\/files\/[0-9a-f-]{36}\.png$/)
   })
 
   it('rejects data that is not an accepted image, whatever it claims to be', async () => {
@@ -160,24 +160,24 @@ describe('selida-file protocol', () => {
   })
 
   it.each([
-    'selida-file://files/../selida.db',
-    'selida-file://files/..%2Fselida.db',
-    'selida-file://files/%2e%2e%2fsecret.png',
-    'selida-file://files/..%5Csecret.png',
-    'selida-file://files/sub/a.png',
-    'selida-file://files/%00.png',
-    'selida-file://files/a.png%00.html',
-    'selida-file://files/C:%5CWindows%5Cwin.ini',
-    'selida-file://files/',
-    'selida-file://files/.',
-    'selida-file://files/..',
-    'selida-file://files/.png',
-    'selida-file://files/page.html',
-    'selida-file://files/vector.svg',
-    'selida-file://files/a.png.exe',
-    'selida-file://other/a.png',
-    'selida-file://user@files/a.png',
-    'selida-file://files:81/a.png',
+    'sel-file://files/../sel.db',
+    'sel-file://files/..%2Fsel.db',
+    'sel-file://files/%2e%2e%2fsecret.png',
+    'sel-file://files/..%5Csecret.png',
+    'sel-file://files/sub/a.png',
+    'sel-file://files/%00.png',
+    'sel-file://files/a.png%00.html',
+    'sel-file://files/C:%5CWindows%5Cwin.ini',
+    'sel-file://files/',
+    'sel-file://files/.',
+    'sel-file://files/..',
+    'sel-file://files/.png',
+    'sel-file://files/page.html',
+    'sel-file://files/vector.svg',
+    'sel-file://files/a.png.exe',
+    'sel-file://other/a.png',
+    'sel-file://user@files/a.png',
+    'sel-file://files:81/a.png',
     'file:///etc/passwd',
     'https://files/a.png',
     'not a url'
@@ -187,10 +187,10 @@ describe('selida-file protocol', () => {
   })
 
   it('keeps every resolved path inside the directory', () => {
-    const full = resolveFileUrl('selida-file://files/abc-123_X.png?x=1#y', dir)
+    const full = resolveFileUrl('sel-file://files/abc-123_X.png?x=1#y', dir)
     expect(full).toBe(join(dir, 'abc-123_X.png'))
     // Dot segments are collapsed by the URL parser and can never climb above the host root.
-    expect(resolveFileUrl('selida-file://files/a/../../secret.png', dir)).toBe(join(dir, 'secret.png'))
+    expect(resolveFileUrl('sel-file://files/a/../../secret.png', dir)).toBe(join(dir, 'secret.png'))
   })
 
   it('serves a stored image with a fixed content type and nosniff', async () => {
@@ -208,8 +208,8 @@ describe('selida-file protocol', () => {
       expect(res.status).toBe(405)
       expect(res.headers.get('allow')).toBe('GET')
     }
-    expect((await serveFile({ method: 'GET', url: 'selida-file://files/sub.png' }, dir)).status).toBe(404)
-    expect((await serveFile({ method: 'GET', url: 'selida-file://files/missing.png' }, dir)).status).toBe(404)
+    expect((await serveFile({ method: 'GET', url: 'sel-file://files/sub.png' }, dir)).status).toBe(404)
+    expect((await serveFile({ method: 'GET', url: 'sel-file://files/missing.png' }, dir)).status).toBe(404)
   })
 
   it('refuses a symlink that points out of the directory', async (ctx) => {
@@ -219,8 +219,8 @@ describe('selida-file protocol', () => {
       // Creating symlinks needs a privilege this machine does not grant.
       return ctx.skip()
     }
-    expect(resolveFileUrl('selida-file://files/link.png', dir)).not.toBeNull()
-    expect((await serveFile({ method: 'GET', url: 'selida-file://files/link.png' }, dir)).status).toBe(404)
+    expect(resolveFileUrl('sel-file://files/link.png', dir)).not.toBeNull()
+    expect((await serveFile({ method: 'GET', url: 'sel-file://files/link.png' }, dir)).status).toBe(404)
   })
 })
 

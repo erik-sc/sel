@@ -6,7 +6,7 @@
 // from the app's own origin (the page's CSP allows no blob: or data: scripts).
 const BATCH = 1600
 
-class SelidaPcm extends AudioWorkletProcessor {
+class SelPcm extends AudioWorkletProcessor {
   constructor() {
     super()
     this.reset()
@@ -43,4 +43,4 @@ class SelidaPcm extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('selida-pcm', SelidaPcm)
+registerProcessor('sel-pcm', SelPcm)

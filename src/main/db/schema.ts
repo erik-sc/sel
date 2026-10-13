@@ -68,6 +68,14 @@ const MIGRATIONS: string[] = [
     hash        TEXT NOT NULL,
     exported_at INTEGER NOT NULL
   ) WITHOUT ROWID;
+  `,
+  // The app was called Selida before its first release (see ../../shared/legacy.ts): the
+  // addresses it stored under that name become today's. The same text, so no block counts as
+  // edited; forgetting what sync wrote last makes the next upload bring the repository over too.
+  `
+  UPDATE blocks SET props = replace(replace(props, 'selida-file://', 'sel-file://'), 'selida://', 'sel://') WHERE props LIKE '%selida%://%';
+  UPDATE settings SET value = replace(value, 'selida-file://', 'sel-file://') WHERE value LIKE '%selida-file://%';
+  DELETE FROM sync_state WHERE page_id = '~meta';
   `
 ]
 

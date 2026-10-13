@@ -9,9 +9,9 @@ import { ALL_TYPES, isTextType } from './blockTypes'
 import { isColorValue, parseRichText, textOf } from './richtext-dom'
 import { isSafeImageUrl, sanitizeHref } from './sanitize'
 
-export const MIME_BLOCKS = 'application/x-selida-blocks'
-export const MIME_RICHTEXT = 'application/x-selida-richtext'
-export const MIME_DRAG = 'application/x-selida-drag'
+export const MIME_BLOCKS = 'application/x-sel-blocks'
+export const MIME_RICHTEXT = 'application/x-sel-richtext'
+export const MIME_DRAG = 'application/x-sel-drag'
 
 /** Limits for clipboard payloads; anything beyond them is dropped. */
 export const MAX_CLIP_JSON_LENGTH = 8_000_000

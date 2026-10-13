@@ -107,9 +107,9 @@ export interface Api {
   }
 
   files: {
-    /** Opens a file picker, copies the image into the app data dir and returns a `selida-file://` url. */
+    /** Opens a file picker, copies the image into the app data dir and returns a `sel-file://` url. */
     pickImage(): Promise<string | null>
-    /** Stores pasted/dropped image bytes and returns a `selida-file://` url. */
+    /** Stores pasted/dropped image bytes and returns a `sel-file://` url. */
     saveImage(data: ArrayBuffer, extension: string): Promise<string>
     /**
      * Asks where to save a PNG the renderer generated (a chart) and writes it there.
@@ -119,8 +119,8 @@ export interface Api {
   }
 
   /**
-   * AI workflows. Selida drives the Claude Code program installed on this computer, signed in
-   * with the user's own account: no key is stored here and Selida makes no network request.
+   * AI workflows. sel drives the Claude Code program installed on this computer, signed in
+   * with the user's own account: no key is stored here and sel makes no network request.
    * The prompt is built in the main process from the ids and options in the request.
    */
   ai: {
@@ -143,7 +143,7 @@ export interface Api {
   }
 
   /**
-   * Sync between this person's devices through a private git repository they own. Selida
+   * Sync between this person's devices through a private git repository they own. sel
    * drives the git installed on this computer, which signs in by itself: no token is stored
    * here. Every method resolves with the state afterwards; what went wrong is in `lastError`.
    */
@@ -151,7 +151,7 @@ export interface Api {
     status(): Promise<SyncStatus>
     /**
      * Connects this device and runs the first sync. When a decision is needed (`needs-choice`,
-     * `not-selida-repo`, `passphrase-required`…) `lastError` names it and nothing was set up.
+     * `not-sel-repo`, `passphrase-required`…) `lastError` names it and nothing was set up.
      */
     setup(input: SyncSetup): Promise<SyncStatus>
     now(): Promise<SyncStatus>
@@ -244,4 +244,4 @@ export const IPC = {
   windowClose: 'window:close'
 } as const
 
-export const FILE_PROTOCOL = 'selida-file'
+export const FILE_PROTOCOL = 'sel-file'

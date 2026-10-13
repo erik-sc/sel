@@ -275,12 +275,12 @@ function Calendars(): JSX.Element {
           <li>Copy that address and paste it above.</li>
         </ol>
         <p>
-          Outlook calls it “Publish a calendar” (the ICS link); iCloud, “Public Calendar”. Anyone who has the address can read the calendar, so Selida keeps it
+          Outlook calls it “Publish a calendar” (the ICS link); iCloud, “Public Calendar”. Anyone who has the address can read the calendar, so sel keeps it
           encrypted on this computer and never shows it again. To take access away, reset the secret address in your calendar’s settings.
         </p>
       </details>
       <p className="ap-note">
-        Connecting a calendar is the one thing that makes Selida go online by itself: it reads the address above every 15 minutes or so, over https, and sends
+        Connecting a calendar is the one thing that makes sel go online by itself: it reads the address above every 15 minutes or so, over https, and sends
         nothing else. With no calendar connected, it makes no request at all.
       </p>
     </section>
@@ -387,7 +387,7 @@ export function TodaySection(): JSX.Element {
           <h3 className="ap-group-title">Today</h3>
         </div>
         <div className="ap-list">
-          <Row label="Open at start-up" help="Once a day shows Today the first time you open Selida each day.">
+          <Row label="Open at start-up" help="Once a day shows Today the first time you open sel each day.">
             <Segmented label="Open at start-up" value={values.openOnLaunch} options={LAUNCH} onChange={(value) => set('openOnLaunch', value)} />
           </Row>
           <Row label="Your name" help="For the greeting. Leave empty for none.">
@@ -498,7 +498,7 @@ export function TodaySection(): JSX.Element {
           </Row>
         </div>
         <p className="ap-note">
-          The phrases that come with Selida are passages from texts in the public domain — Marcus Aurelius, Epictetus, Seneca, the Dhammapada, the Tao Te Ching,
+          The phrases that come with sel are passages from texts in the public domain — Marcus Aurelius, Epictetus, Seneca, the Dhammapada, the Tao Te Ching,
           Thoreau, Tagore and others — and the same one stays all day. Writers still in copyright, Hermann Hesse among them, cannot be bundled: add the passages
           you love to your own phrases, where they are yours alone.
         </p>

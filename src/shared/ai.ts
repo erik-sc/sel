@@ -1,7 +1,7 @@
 /**
  * AI workflows: the shapes shared by the main process (which finds and drives the Claude Code
  * program installed on this computer) and the renderer (which asks for an action and shows what
- * streams back). Selida stores no API key and makes no network request itself.
+ * streams back). sel stores no API key and makes no network request itself.
  */
 
 export const AI_ACTIONS = [

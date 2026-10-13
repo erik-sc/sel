@@ -243,7 +243,7 @@ export function configArgs(context: GitContext): string[] {
     'protocol.ext.allow=never',
     `protocol.file.allow=${context.allowLocal ? 'user' : 'never'}`,
     `user.name=${context.deviceName}`,
-    'user.email=selida@localhost'
+    'user.email=sel@localhost'
   ]
   return settings.flatMap((setting) => ['-c', setting])
 }

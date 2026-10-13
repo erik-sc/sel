@@ -15,7 +15,7 @@ import { cleanSegments, cleanSpeaker, mergeTranscript, paragraphSpans, renameSpe
 import { WhisperEngine } from './whisper/engine'
 import { WhisperError, type WhisperRun } from './whisper/run'
 
-const ROOT = mkdtempSync(join(tmpdir(), 'selida-meetings-service-'))
+const ROOT = mkdtempSync(join(tmpdir(), 'sel-meetings-service-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true }))
 let serial = 0
 const FAKE = fileURLToPath(new URL('./whisper/fixtures/fake-whisper.mjs', import.meta.url))
@@ -190,8 +190,8 @@ describe('recording', () => {
     const info = await w.service.stop(OWNER, token)
     expect(info).toMatchObject({ state: 'recorded', seconds: 2, transcriptPageId: null })
     expect(info.tracks).toEqual([
-      { stream: 'mic', url: `selida-file://recordings/${pageId}/mic.webm`, format: 'webm' },
-      { stream: 'system', url: `selida-file://recordings/${pageId}/system.wav`, format: 'wav' }
+      { stream: 'mic', url: `sel-file://recordings/${pageId}/mic.webm`, format: 'webm' },
+      { stream: 'system', url: `sel-file://recordings/${pageId}/system.wav`, format: 'wav' }
     ])
     const mic = readFileSync(join(folder, 'mic.wav'))
     const system = readFileSync(join(folder, 'system.wav'))
@@ -751,8 +751,8 @@ suite('recordings and sync', () => {
     await service.transcribe(meeting)
     for (let i = 0; i < 200 && (await service.status()).transcribing; i++) await new Promise((resolve) => setTimeout(resolve, 25))
     a.repo.setSetting('meetings.keepOriginal', true)
-    a.repo.create({ type: 'image', parentId: pageId, props: { url: `selida-file://recordings/${meeting}/mic.webm` } })
-    a.repo.create({ type: 'image', parentId: pageId, props: { url: `selida-file://files/../recordings/${meeting}/mic.webm` } })
+    a.repo.create({ type: 'image', parentId: pageId, props: { url: `sel-file://recordings/${meeting}/mic.webm` } })
+    a.repo.create({ type: 'image', parentId: pageId, props: { url: `sel-file://files/../recordings/${meeting}/mic.webm` } })
     // A recording dropped into the images folder by hand is not an image either.
     writeFileSync(join(a.filesDir, 'mic.webm'), 'audio')
     writeFileSync(join(a.filesDir, 'mic.wav'), 'audio')

@@ -1,6 +1,6 @@
 # The bundled phrases and where they come from
 
-Every phrase bundled with Selida is a passage of a public-domain text in a public-domain
+Every phrase bundled with sel is a passage of a public-domain text in a public-domain
 translation. The rule for inclusion: the author died before 1955 **and**, for a translation,
 the translator died before 1955 or the edition was published before 1930.
 

@@ -25,7 +25,7 @@ export function suite(name: string, fn: () => void): void {
 // Every cycle starts git a dozen times, and starting a program is slow on Windows.
 vi.setConfig({ testTimeout: 180_000 })
 
-export const ROOT = mkdtempSync(join(tmpdir(), 'selida-sync-'))
+export const ROOT = mkdtempSync(join(tmpdir(), 'sel-sync-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }))
 
 export const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('IHDR-and-some-pixels-0123456789')])

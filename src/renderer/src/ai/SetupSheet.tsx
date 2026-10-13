@@ -80,7 +80,7 @@ export function SetupSheet(): JSX.Element {
       </header>
       <div className="ai-setup-body">
         <p className="ai-setup-lead">
-          Selida uses the Claude Code app on this computer, signed in with your own Claude account. Nothing is sent by Selida itself.
+          sel uses the Claude Code app on this computer, signed in with your own Claude account. Nothing is sent by sel itself.
         </p>
         {signIn ? (
           <ol className="ai-steps">
@@ -91,7 +91,7 @@ export function SetupSheet(): JSX.Element {
             </li>
             <li>
               <span className="ai-step-title">Come back and try again</span>
-              <span className="ai-step-help">Selida uses that sign-in from then on. It never sees your password.</span>
+              <span className="ai-step-help">sel uses that sign-in from then on. It never sees your password.</span>
             </li>
           </ol>
         ) : (

@@ -110,7 +110,7 @@ export function EmptyState() {
   return (
     <div className="empty-state">
       <div className="empty-state-inner">
-        <h1>Selida</h1>
+        <h1>sel</h1>
         <p>Open a page from the sidebar, or start something new.</p>
         <div className="page-state-actions">
           <Button

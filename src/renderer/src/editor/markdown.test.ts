@@ -192,7 +192,7 @@ describe('block catalogue', () => {
 
   it('recognises token-based covers only', () => {
     for (const preset of COVER_PRESETS) expect(isCssCover(preset)).toBe(true)
-    expect(isCssCover('selida-file://a.png')).toBe(false)
+    expect(isCssCover('sel-file://a.png')).toBe(false)
     expect(isCssCover('url(https://evil.example/x.png)')).toBe(false)
     expect(isCssCover('var(--c-blue-bg); background: url(x)')).toBe(false)
   })

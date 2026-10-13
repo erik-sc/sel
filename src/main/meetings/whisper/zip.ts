@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { crc32, inflateRawSync } from 'node:zlib'
 
 /**
- * A reader for the one archive Selida unpacks: the whisper.cpp release, after its digest was
+ * A reader for the one archive sel unpacks: the whisper.cpp release, after its digest was
  * verified. Written here rather than handed to `Expand-Archive` or `tar` because unpacking is
  * exactly where an archive attacks: this reads the directory first, refuses the whole archive
  * for a single entry that is not a plain relative file, and then writes only the few entries
@@ -98,7 +98,7 @@ export function readZipDirectory(archive: Buffer): ZipEntry[] {
     // Made on a Unix system: the high half of the attributes is the file mode. 0o12 is a symbolic link.
     if (madeBy >> 8 === 3 && ((external >>> 16) & 0o170000) === 0o120000) throw new ZipError('it contains a symbolic link')
     const directory = name.endsWith('/')
-    if (!directory && method !== 0 && method !== 8) throw new ZipError('it uses a compression Selida does not read')
+    if (!directory && method !== 0 && method !== 8) throw new ZipError('it uses a compression sel does not read')
     if (!directory) entries.push({ name, method, compressedSize, size, crc, offset })
   }
   return entries

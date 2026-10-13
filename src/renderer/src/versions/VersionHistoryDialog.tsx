@@ -246,7 +246,7 @@ function HistoryBody({ pageId }: { pageId: string }): JSX.Element {
   }
 
   const emptyText = policy.enabled
-    ? `Selida saves a version on its own: when you start editing this page after a pause of ${countLabel(policy.minutes, 'minute')} or more, before a large deletion, before a restore, and when you quit. You can also save one yourself at any time.`
+    ? `sel saves a version on its own: when you start editing this page after a pause of ${countLabel(policy.minutes, 'minute')} or more, before a large deletion, before a restore, and when you quit. You can also save one yourself at any time.`
     : 'Automatic versions are turned off in Settings, under History. You can still save a version yourself.'
 
   return (

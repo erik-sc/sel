@@ -22,7 +22,7 @@ import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { WindowControls } from './WindowControls'
 
-const DRAG_TYPE = 'application/x-selida-tab'
+const DRAG_TYPE = 'application/x-sel-tab'
 
 interface TabItemProps {
   tab: Tab

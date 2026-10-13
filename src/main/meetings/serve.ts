@@ -5,7 +5,7 @@ import { RECORDINGS_HOST, type MeetingStream } from '../../shared/meetings'
 import { isValidId } from '../db/blocks'
 
 /**
- * Playback of a recording: `selida-file://recordings/<meeting id>/<mic|system>.<webm|wav>`.
+ * Playback of a recording: `sel-file://recordings/<meeting id>/<mic|system>.<webm|wav>`.
  * A route of its own beside the images (../files.ts), just as narrow: GET only, exactly the
  * four file names a recording has, inside the folder of one meeting whose name is a valid
  * block id, never through a symbolic link, served as audio and as nothing else. Byte ranges

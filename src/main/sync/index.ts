@@ -23,7 +23,7 @@ const QUIT_BUDGET_MS = 4000
 /** Waits between automatic attempts after consecutive failures. */
 const BACKOFF_MS = [60_000, 2 * 60_000, 5 * 60_000, 15 * 60_000]
 /** Failures no retry can fix: automatic attempts stop until something changes. */
-const NEEDS_A_PERSON: ReadonlySet<SyncErrorCode> = new Set(['git-not-found', 'not-selida-repo', 'passphrase-required', 'wrong-passphrase', 'unsupported-format', 'repo-not-found'])
+const NEEDS_A_PERSON: ReadonlySet<SyncErrorCode> = new Set(['git-not-found', 'not-sel-repo', 'passphrase-required', 'wrong-passphrase', 'unsupported-format', 'repo-not-found'])
 
 /**
  * Whether a folder on this computer may be used as the remote: for development and automated
@@ -115,7 +115,7 @@ export class SyncBridge {
       dir,
       filesDir: filesDir(),
       hostName: hostname(),
-      allowLocal: allowLocalRemotes(process.env['SELIDA_SYNC_ALLOW_LOCAL'], app.isPackaged),
+      allowLocal: allowLocalRemotes(process.env['SEL_SYNC_ALLOW_LOCAL'], app.isPackaged),
       secrets: keychainStore(join(dir, 'keys.bin')),
       acceptImage: (bytes) => sniffImage(bytes) !== null,
       onApplied: broadcast,

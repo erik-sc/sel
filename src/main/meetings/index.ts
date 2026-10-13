@@ -23,21 +23,21 @@ export function recordingsDir(): string {
 /**
  * Stand-ins for development and automated checks of the UI, read by unpackaged builds only: a
  * shipped app never takes the program to run, or what to download, from the environment.
- *   SELIDA_WHISPER_CLI   a program (or a .mjs script) to run instead of whisper-cli
- *   SELIDA_WHISPER_PINS  a JSON file that replaces the pinned downloads (a local stub server)
+ *   SEL_WHISPER_CLI   a program (or a .mjs script) to run instead of whisper-cli
+ *   SEL_WHISPER_PINS  a JSON file that replaces the pinned downloads (a local stub server)
  */
 export function devWhisper(env: NodeJS.ProcessEnv, isPackaged: boolean): { program: string | null; pins: PinnedSet | null } {
   if (isPackaged) return { program: null, pins: null }
   let pins: PinnedSet | null = null
-  const file = env['SELIDA_WHISPER_PINS']
+  const file = env['SEL_WHISPER_PINS']
   if (file) {
     try {
       pins = JSON.parse(readFileSync(file, 'utf8')) as PinnedSet
     } catch (err) {
-      console.error('[meetings] SELIDA_WHISPER_PINS could not be read', err)
+      console.error('[meetings] SEL_WHISPER_PINS could not be read', err)
     }
   }
-  return { program: env['SELIDA_WHISPER_CLI'] || null, pins }
+  return { program: env['SEL_WHISPER_CLI'] || null, pins }
 }
 
 function broadcast(channel: string, payload: unknown): void {

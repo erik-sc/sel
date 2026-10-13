@@ -143,7 +143,7 @@ export function AiSection(): JSX.Element {
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">AI features</span>
-              <span className="ap-row-help">Summaries, writing help and the assistant. When off, nothing AI appears anywhere in Selida.</span>
+              <span className="ap-row-help">Summaries, writing help and the assistant. When off, nothing AI appears anywhere in sel.</span>
             </div>
             <div className="ap-row-control">
               <Segmented label="AI features" value={enabled ? 'on' : 'off'} options={ON_OFF} onChange={(value) => toggle(value === 'on')} />
@@ -151,7 +151,7 @@ export function AiSection(): JSX.Element {
           </div>
         </div>
         <p className="ap-note">
-          Selida uses the Claude Code app on this computer, signed in with your own Claude account. No key is stored in Selida, and nothing is sent by Selida
+          sel uses the Claude Code app on this computer, signed in with your own Claude account. No key is stored in sel, and nothing is sent by sel
           itself.
         </p>
       </section>

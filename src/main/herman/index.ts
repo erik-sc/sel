@@ -18,7 +18,7 @@ export class HermanBridge {
     day: () => Promise<HermanDay>,
     private readonly recording: () => boolean
   ) {
-    const fast = devFastMode(process.env['SELIDA_HERMAN_FAST'], app.isPackaged)
+    const fast = devFastMode(process.env['SEL_HERMAN_FAST'], app.isPackaged)
     this.fast = fast !== null
     this.service = new HermanService({
       getSetting: (key) => repo.getSetting(key),

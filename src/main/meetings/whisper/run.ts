@@ -90,7 +90,7 @@ export function parseWhisperJson(text: string): WhisperOutput {
     throw new Error('The transcription program wrote something that is not JSON.')
   }
   const root = data as { result?: { language?: unknown }; transcription?: unknown } | null
-  if (!root || typeof root !== 'object' || !Array.isArray(root.transcription)) throw new Error('The transcription program wrote a result Selida does not understand.')
+  if (!root || typeof root !== 'object' || !Array.isArray(root.transcription)) throw new Error('The transcription program wrote a result sel does not understand.')
   const language = typeof root.result?.language === 'string' && LANGUAGE_RE.test(root.result.language) ? root.result.language : null
   const segments: Segment[] = []
   for (const item of root.transcription.slice(0, MAX_SEGMENTS) as { offsets?: { from?: unknown; to?: unknown }; timestamps?: { from?: unknown; to?: unknown }; text?: unknown }[]) {

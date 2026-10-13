@@ -180,7 +180,7 @@ function GeneralSection() {
         <div className="ap-list">
           <div className="ap-row">
             <div className="ap-row-text">
-              <span className="ap-row-label">Selida</span>
+              <span className="ap-row-label">sel</span>
               <span className="ap-row-help">
                 A local-first workspace for notes and databases. Everything you write is stored on this device.
               </span>

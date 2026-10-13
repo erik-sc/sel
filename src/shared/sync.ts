@@ -1,7 +1,7 @@
 /**
  * Sync: the shapes shared by the main process (which drives git and merges) and the renderer
- * (which shows the state and asks for a setup). One person, several devices: Selida keeps a
- * clone of a private repository the user owns and exchanges pages through it. Selida stores no
+ * (which shows the state and asks for a setup). One person, several devices: sel keeps a
+ * clone of a private repository the user owns and exchanges pages through it. sel stores no
  * token; git signs in with whatever the user set up on this computer.
  */
 
@@ -12,7 +12,7 @@ export type SyncErrorCode =
   | 'auth-failed'
   | 'repo-not-found'
   | 'offline'
-  | 'not-selida-repo'
+  | 'not-sel-repo'
   | 'rejected'
   | 'conflict-retry-exhausted'
   | 'disk-full'
@@ -24,7 +24,7 @@ export type SyncErrorCode =
   /** The repository is encrypted and no passphrase was given on this device. */
   | 'passphrase-required'
   | 'wrong-passphrase'
-  /** Written by a newer Selida. */
+  /** Written by a newer sel. */
   | 'unsupported-format'
   | 'cancelled'
 
@@ -81,7 +81,7 @@ export interface SyncSetup {
   /** First sync when both this device and the repository have pages. */
   mode?: SyncMode
   passphrase?: string
-  /** The repository has other files and no Selida data: add Selida's files next to them. */
+  /** The repository has other files and no sel data: add sel's files next to them. */
   useAnyway?: boolean
 }
 
@@ -116,19 +116,19 @@ export const SYNC_KEYS = [
 export const SYNC_MESSAGES: Record<SyncErrorCode, string> = {
   'git-not-found': 'Git was not found on this computer. Install Git, or choose the git program.',
   'auth-failed':
-    'Git is not signed in to this repository. Sign in to GitHub with git on this computer (for example with Git Credential Manager or "gh auth login"), then try again. Selida stores no token.',
+    'Git is not signed in to this repository. Sign in to GitHub with git on this computer (for example with Git Credential Manager or "gh auth login"), then try again. sel stores no token.',
   'repo-not-found': 'The repository was not found. Check the address, and that git on this computer is signed in to an account that can open it.',
-  offline: 'The repository could not be reached. Selida will try again when the connection is back.',
-  'not-selida-repo': 'This repository has other files in it and no Selida data.',
+  offline: 'The repository could not be reached. sel will try again when the connection is back.',
+  'not-sel-repo': 'This repository has other files in it and no sel data.',
   rejected: 'The repository refused the upload. Check that this account can write to it and that the branch is not protected.',
-  'conflict-retry-exhausted': 'Another device kept uploading at the same moment. Selida will try again shortly.',
+  'conflict-retry-exhausted': 'Another device kept uploading at the same moment. sel will try again shortly.',
   'disk-full': 'There is not enough free disk space to sync.',
   failed: 'Sync could not be completed.',
   'invalid-url': 'Enter the HTTPS or SSH address of a git repository, without a user name or token in it.',
   'needs-choice': 'This device already has pages, and so does the repository. Choose what to do with the pages of this device.',
   'passphrase-required': 'This repository is encrypted. Enter its passphrase.',
   'wrong-passphrase': 'The passphrase is not the one this repository was encrypted with.',
-  'unsupported-format': 'This repository was written by a newer version of Selida. Update Selida on this device.',
+  'unsupported-format': 'This repository was written by a newer version of sel. Update sel on this device.',
   cancelled: 'Sync was stopped.'
 }
 

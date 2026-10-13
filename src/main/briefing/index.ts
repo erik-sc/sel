@@ -40,7 +40,7 @@ export class BriefingBridge {
     const dir = join(app.getPath('userData'), 'briefing')
     // A local stub calendar for development and automated checks. Only an unpackaged build
     // reads the variable: a shipped app never takes a network exception from the environment.
-    const loopback = devLoopback(process.env['SELIDA_BRIEFING_LOOPBACK'], app.isPackaged)
+    const loopback = devLoopback(process.env['SEL_BRIEFING_LOOPBACK'], app.isPackaged)
     const policy = (): NetPolicy => ({ allowLoopbackHttp: loopback })
     const store = new CalendarStore(join(dir, 'calendars.bin'), cipher, policy)
     const calendars = new CalendarService({ store, cacheFile: join(dir, 'calendar-cache.json'), policy, onChange: () => this.changed() })

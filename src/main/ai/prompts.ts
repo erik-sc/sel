@@ -267,7 +267,7 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   // Herman speaks in the conversation only: the tools that rewrite text have no voice of their own.
   const voice = request.action === 'ask' ? (options.voice ?? null) : null
   const passages = voice ? passagesBody(options.passageIds) : ''
-  const lines: string[] = [voice ? PERSONA_INTRO : 'You are the writing assistant built into Selida, a notes app.', '', `Task: ${spec.task}`]
+  const lines: string[] = [voice ? PERSONA_INTRO : 'You are the writing assistant built into sel, a notes app.', '', `Task: ${spec.task}`]
   if (voice) {
     lines.push('', 'Your voice:')
     for (const rule of personaRules(voice)) lines.push(`- ${rule}`)
@@ -361,7 +361,7 @@ export function buildCondensePrompt(part: string, index: number, total: number, 
   const task = `Condense part ${index + 1} of ${total} of a meeting transcript into detailed notes, so that nothing that matters is lost.`
   const language = options.defaultLanguage && options.defaultLanguage !== 'auto' ? options.defaultLanguage : undefined
   return [
-    'You are the writing assistant built into Selida, a notes app.',
+    'You are the writing assistant built into sel, a notes app.',
     '',
     `Task: ${task}`,
     '',
@@ -449,7 +449,7 @@ export function buildBriefingPrompt(data: BriefingPromptData, options: PromptOpt
   return [
     voice
       ? `${PERSONA_INTRO} The user opened their morning briefing and asked you about the day.`
-      : 'You are the assistant built into Selida, a notes app. The user opened their morning briefing and asked for a spoken-style summary of the day.',
+      : 'You are the assistant built into sel, a notes app. The user opened their morning briefing and asked for a spoken-style summary of the day.',
     '',
     `Task: ${task}`,
     ...(voice ? ['', 'Your voice:', ...personaRules(voice).map((rule) => `- ${rule}`)] : []),

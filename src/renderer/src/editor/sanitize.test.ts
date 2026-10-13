@@ -59,7 +59,7 @@ describe('sanitizeHref', () => {
     ['file windows', 'file://C:/Windows/System32/calc.exe'],
     ['UNC path', '\\\\evil.example\\share\\x.exe'],
     ['blob', 'blob:https://example.com/1234'],
-    ['app protocol', 'selida-file://files/a.png'],
+    ['app protocol', 'sel-file://files/a.png'],
     ['custom protocol', 'ms-msdt:/id PCWDiagnostic'],
     ['smb', 'smb://evil.example/share'],
     ['ftp', 'ftp://example.com/x'],
@@ -109,7 +109,7 @@ describe('isUrl', () => {
 
 describe('isSafeImageUrl', () => {
   it('allows stored files and remote http(s) images', () => {
-    expect(isSafeImageUrl('selida-file://files/0b9d7c1e-5a55-4d0e-9b3f-2f1c6f0a7e11.png')).toBe(true)
+    expect(isSafeImageUrl('sel-file://files/0b9d7c1e-5a55-4d0e-9b3f-2f1c6f0a7e11.png')).toBe(true)
     expect(isSafeImageUrl('https://example.com/a.png?w=100')).toBe(true)
     expect(isSafeImageUrl('http://example.com/a.png')).toBe(true)
   })
@@ -125,13 +125,13 @@ describe('isSafeImageUrl', () => {
     ['protocol-relative', '//evil.example/a.png'],
     ['backslashes', 'https:\\\\evil.example\\a.png'],
     ['credentials', 'https://good.example@evil.example/a.png'],
-    ['app file outside the files host', 'selida-file://abc.png'],
-    ['app file traversal', 'selida-file://files/../../secret.png'],
-    ['app file encoded traversal', 'selida-file://files/%2e%2e%2fsecret.png'],
-    ['app file sub-path', 'selida-file://files/a/b.png'],
-    ['app file other host', 'selida-file://evil/a.png'],
-    ['app file with query', 'selida-file://files/a.png?x=1'],
-    ['app file without extension', 'selida-file://files/abc'],
+    ['app file outside the files host', 'sel-file://abc.png'],
+    ['app file traversal', 'sel-file://files/../../secret.png'],
+    ['app file encoded traversal', 'sel-file://files/%2e%2e%2fsecret.png'],
+    ['app file sub-path', 'sel-file://files/a/b.png'],
+    ['app file other host', 'sel-file://evil/a.png'],
+    ['app file with query', 'sel-file://files/a.png?x=1'],
+    ['app file without extension', 'sel-file://files/abc'],
     ['whitespace', 'https://example.com/a b.png'],
     ['newline', 'https://example.com/a\n.png'],
     ['quote', 'https://example.com/a".png']
@@ -143,7 +143,7 @@ describe('isSafeImageUrl', () => {
 describe('cssImage / coverStyle', () => {
   it('wraps a safe url in a quoted url() token', () => {
     expect(cssImage('https://example.com/a.png')).toBe('url("https://example.com/a.png")')
-    expect(cssImage('selida-file://files/abc.png')).toBe('url("selida-file://files/abc.png")')
+    expect(cssImage('sel-file://files/abc.png')).toBe('url("sel-file://files/abc.png")')
   })
 
   it('does not double-encode percent escapes', () => {
