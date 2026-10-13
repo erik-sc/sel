@@ -252,7 +252,7 @@ describe('selecting tasks', () => {
       ],
       { today: TODAY, includeTodos: true, todoSince: 0 }
     )
-    expect(titles(selected.today)).toEqual(['High', 'Medium', 'Low', 'None', 'A to-do'])
+    expect(titles(selected.today)).toEqual(['High', 'Medium', 'None', 'Low', 'A to-do'])
   })
 
   it('caps each group', () => {

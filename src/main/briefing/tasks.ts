@@ -301,7 +301,8 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
     if (!isOpenRow(signal, props) || isDead(block.parentId)) continue
     const values = valuesOf(props)
     const task: BriefingTask = { id: block.id, kind: 'row', title: titleOf(props) || 'Untitled', pageId: block.id, source: database.name }
-    let rank = 3
+    // Without a priority a task sits between the medium and the low ones.
+    let rank = 1.5
     if (signal.priority) {
       const picked = own(values, signal.priority.property)
       const option = typeof picked === 'string' ? signal.priority.options.get(picked) : undefined

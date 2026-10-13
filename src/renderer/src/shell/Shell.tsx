@@ -4,6 +4,8 @@ import { useUi } from '@/store/ui'
 import { Toaster } from '@/ui/Toaster'
 import { VersionHistory } from '@/versions/VersionHistory'
 import { AiSetup, AssistantDock } from '@/ai/Host'
+import { TodayHost } from '@/briefing/Host'
+import { isTodayRoute } from '@/briefing/route'
 import { EmptyState, PageHost } from './PageHost'
 import { QuickFind } from './QuickFind'
 import { SettingsModal } from './SettingsModal'
@@ -35,7 +37,9 @@ export function Shell() {
         <TopBar />
         <div className="content-row">
           <main className="content">
-            {!ready ? null : pageId && tab ? (
+            {!ready ? null : isTodayRoute(pageId) ? (
+              <TodayHost />
+            ) : pageId && tab ? (
               <PageHost key={`${tab.id}:${pageId}`} pageId={pageId} />
             ) : (
               <EmptyState />

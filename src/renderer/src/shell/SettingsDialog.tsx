@@ -10,6 +10,8 @@ import { Modal } from '@/ui/Modal'
 import { Close } from '@/ui/icons'
 import { HistorySection } from '@/versions/HistorySettings'
 import { AiSection } from '@/ai/AiSettings'
+import { takeSettingsSection } from '@/briefing/route'
+import { TodaySection } from '@/briefing/TodaySettings'
 import { importMarkdown } from './actions'
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -18,13 +20,14 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: 'system', label: 'System' }
 ]
 
-type Section = 'general' | 'appearance' | 'history' | 'ai'
+type Section = 'general' | 'appearance' | 'history' | 'ai' | 'today'
 
 const SECTIONS: { value: Section; label: string }[] = [
   { value: 'general', label: 'General' },
   { value: 'appearance', label: 'Appearance' },
   { value: 'history', label: 'History' },
-  { value: 'ai', label: 'AI' }
+  { value: 'ai', label: 'AI' },
+  { value: 'today', label: 'Today' }
 ]
 
 export function SettingsDialog() {
@@ -37,7 +40,7 @@ export function SettingsDialog() {
 }
 
 function SettingsBody() {
-  const [section, setSection] = useState<Section>('general')
+  const [section, setSection] = useState<Section>(() => takeSettingsSection() ?? 'general')
   const title = SECTIONS.find((entry) => entry.value === section)?.label
 
   return (
@@ -64,7 +67,7 @@ function SettingsBody() {
           </IconButton>
         </header>
         <div className="settings2-content">
-          {section === 'general' ? <GeneralSection /> : section === 'history' ? <HistorySection /> : section === 'ai' ? <AiSection /> : <AppearancePanel />}
+          {section === 'general' ? <GeneralSection /> : section === 'history' ? <HistorySection /> : section === 'ai' ? <AiSection /> : section === 'today' ? <TodaySection /> : <AppearancePanel />}
         </div>
       </div>
     </>

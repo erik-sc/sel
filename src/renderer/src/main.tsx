@@ -14,6 +14,7 @@ import { initTree } from './store/tree'
 import { bootUi, initUi, resolveTheme } from './store/ui'
 import { notifyError } from './ui/toast'
 import { initAi } from './ai/gate'
+import { isTodayRoute, openTodayOnLaunch } from './briefing/route'
 
 bootMark('start')
 
@@ -40,7 +41,9 @@ void initAi()
 void initTabs(initialPageId()).then(() => {
   // The page about to be shown: fetch its blocks while the editor's code loads.
   const pageId = tabPage(activeTab())
-  if (pageId && getBlock(pageId)?.type !== 'database') prefetchTree(pageId)
+  if (pageId && !isTodayRoute(pageId) && getBlock(pageId)?.type !== 'database') prefetchTree(pageId)
+  // Today opens by itself on the first launch of the day (`briefing.openOnLaunch`).
+  void openTodayOnLaunch()
 })
 
 function mount(): void {
