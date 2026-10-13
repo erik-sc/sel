@@ -1,3 +1,4 @@
+import { AI_KEYS, cleanAiSetting } from '../shared/ai'
 import { cleanHistorySetting, HISTORY_KEYS, MAX_VERSION_LABEL } from '../shared/versions'
 import { isValidId, MAX_SETTING_CHARS } from './db/blocks'
 
@@ -23,8 +24,11 @@ export const LIMITS = {
 
 const CLIENT_ID_RE = /^[A-Za-z0-9_-]+$/
 const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
-/** Exact keys the renderer may write. The `history.*` ones are the four the History settings show, nothing else. */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS])
+/**
+ * Exact keys the renderer may write. The `history.*` ones are the four the History settings show,
+ * the `ai.*` ones the five the AI settings show; nothing else in those namespaces.
+ */
+const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
 const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
 
@@ -147,13 +151,27 @@ export function settingValue(value: unknown): unknown {
 }
 
 /**
- * The value stored for a writable key. The history settings steer the main process, so they
- * are typed: a boolean, or a number brought into its range; null resets one to its default.
+ * The value stored for a writable key. The history and AI settings steer the main process, so
+ * they are typed; for history: a boolean, or a number brought into its range; null resets one to its default.
  */
 export function settingValueFor(key: string, value: unknown): unknown {
+  if (key.startsWith('ai.')) return aiSettingValue(key, value)
   if (!key.startsWith('history.')) return settingValue(value)
   if (value === undefined || value === null) return null
   const clean = cleanHistorySetting(key, value)
+  if (clean === undefined) throw new Error('Invalid setting value')
+  return clean
+}
+
+/**
+ * The AI settings decide what the main process runs, so each is typed. Null resets one to its
+ * default. The program's path is the exception: a renderer can clear it but never name one;
+ * a path only comes out of the native file dialog (`ai:pickCli`).
+ */
+function aiSettingValue(key: string, value: unknown): unknown {
+  if (value === undefined || value === null) return null
+  if (key === 'ai.cliPath') throw new Error('The program can only be chosen with the file dialog')
+  const clean = cleanAiSetting(key, value)
   if (clean === undefined) throw new Error('Invalid setting value')
   return clean
 }

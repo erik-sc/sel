@@ -14,6 +14,10 @@ import { BlockMenu, SlashMenu, SourcePickerPopover } from './menus'
 import { SelectionToolbar } from './SelectionToolbar'
 import { SkeletonLines as Skeleton } from '@/ui/Skeleton'
 import { bootMark } from '@/boot'
+import { useAiGate } from '@/ai/gate'
+import { aiOnPage, insertFromAssistant, scopeOf } from '@/ai/session'
+import type { AiTarget } from '@/ai/plan'
+import { AiSlot, preloadInlineAi } from '@/ai/slot'
 import './editor.css'
 
 export interface PageEditorProps {
@@ -27,7 +31,7 @@ export function PageEditor(props: PageEditorProps): JSX.Element {
 }
 
 /** Areas inside the editor that manage their own input (embedded database, row properties). */
-const FOREIGN = '.blk-database-box, .pe-rowprops'
+const FOREIGN = '.blk-database-box, .pe-rowprops, .ai-slot'
 const INTERACTIVE = '.rt, textarea, input, select, button, a, .blk-bookmark, .blk-pagelink'
 /** Vertical mouse travel (px) before a press on empty space becomes a block-selection drag. */
 const DRAG_SELECT_THRESHOLD = 6
@@ -109,6 +113,67 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
       ctrl.dispose()
     }
   }, [pageId, ctrl])
+
+  // The inline prompt opens on a single key (Space on an empty line): its code is fetched while
+  // the page sits idle, so that the first use does not wait for it.
+  const aiOn = useAiGate((state) => state.enabled)
+  useEffect(() => {
+    if (!aiOn || !loaded) return
+    const id = window.requestIdleCallback(preloadInlineAi, { timeout: 3000 })
+    return () => window.cancelIdleCallback(id)
+  }, [aiOn, loaded])
+
+  // A page-level AI action asked for from the page menu ("Summarize page", "Suggest title").
+  const aiCommand = useAiGate((state) => (state.command?.pageId === pageId ? state.command : null))
+  useEffect(() => {
+    if (!aiCommand || !loaded) return
+    useAiGate.setState({ command: null })
+    aiOnPage(ctrl, aiCommand.action, null)
+  }, [aiCommand, loaded, ctrl])
+
+  // While the assistant panel is open it can see what is selected here and put answers into
+  // the page. The selection is remembered when the focus leaves the editor for the panel.
+  const assistantOpen = useAiGate((state) => state.enabled && state.panelOpen)
+  useEffect(() => {
+    if (!assistantOpen) return
+    let scope: AiTarget | null = null
+    let lastBlock: string | null = null
+    const track = (): void => {
+      const root = rootRef.current
+      const active = document.activeElement
+      if (!root || !active || !root.contains(active) || active.closest(FOREIGN)) return
+      const sel = ctrl.currentSel()
+      if (sel?.kind === 'text') lastBlock = sel.blockId.split(':')[0] === pageId ? lastBlock : sel.blockId.split(':')[0]
+      const found = scopeOf(ctrl, sel)
+      scope = found?.target ?? null
+      const current = useAiGate.getState().scope
+      if (found ? current?.text !== found.text || current.pageId !== pageId : current !== null) {
+        useAiGate.setState({ scope: found ? { pageId, text: found.text } : null })
+      }
+    }
+    const bridge = {
+      pageId,
+      insert: (markdown: string, mode: 'below' | 'replace'): boolean => {
+        const done = insertFromAssistant(ctrl, markdown, mode, scope, lastBlock)
+        if (done && mode === 'replace') {
+          scope = null
+          useAiGate.setState({ scope: null })
+        }
+        return done
+      }
+    }
+    track()
+    useAiGate.setState({ editor: bridge })
+    document.addEventListener('selectionchange', track)
+    const offSelected = ctrl.ui.subscribe((state, previous) => {
+      if (state.selected !== previous.selected) track()
+    })
+    return () => {
+      document.removeEventListener('selectionchange', track)
+      offSelected()
+      if (useAiGate.getState().editor === bridge) useAiGate.setState({ editor: null, scope: null })
+    }
+  }, [assistantOpen, ctrl, pageId])
 
   /** True when the event really happened inside the editor surface (not in a portal or embed). */
   const own = (target: EventTarget | null): target is HTMLElement =>
@@ -373,7 +438,10 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
           <>
             <PageHeader page={page} />
             <RowPropertiesGate page={page} />
-            <div className="pe-content pe-body">{loaded ? <BlockList ids={page.content} /> : <Skeleton />}</div>
+            <div className="pe-content pe-body">
+              {loaded && <AiSlot anchorId={null} />}
+              {loaded ? <BlockList ids={page.content} /> : <Skeleton />}
+            </div>
             <div
               className="pe-tail"
               onClick={() => {

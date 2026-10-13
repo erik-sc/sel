@@ -4,10 +4,14 @@ import { createPortal } from 'react-dom'
 import { useStore } from 'zustand'
 import type { Mark } from '@shared/types'
 import { getBlock } from '@/store/blocks'
-import { Code as CodeIcon, Link as LinkIcon, ChevronDown } from '@/ui/icons'
+import { Code as CodeIcon, Link as LinkIcon, ChevronDown, ChevronRight } from '@/ui/icons'
 import { useEditor } from './context'
 import { TURN_INTO } from './blockTypes'
 import { COLOR_NAMES, markValueAt, rangeHasMark, selectionRect } from './richtext-dom'
+import { AI_LANGUAGES, AI_LANGUAGE_LABELS, AI_TONES, AI_TONE_LABELS, type AiAction } from '@shared/ai'
+import { useAiGate } from '@/ai/gate'
+import { AI_GLYPH, aiOnRange, type AiOptions } from '@/ai/session'
+import { preloadInlineAi } from '@/ai/slot'
 
 /** Space the toolbar needs above the selection (its height plus a gap), in px. */
 const TOOLBAR_OFFSET = 44
@@ -15,6 +19,22 @@ const TOOLBAR_OFFSET = 44
 const TOOLBAR_GAP = 8
 /** Half the toolbar's width: keeps the centred bar inside the viewport. */
 const TOOLBAR_HALF_WIDTH = 190
+/** The same with the AI button in the bar. */
+const TOOLBAR_HALF_WIDTH_AI = 220
+
+/** The AI menu of the toolbar, in order. `tone` and `translate` open a second list. */
+const AI_ITEMS: { action: AiAction | null; label: string }[] = [
+  { action: 'improve', label: 'Improve' },
+  { action: 'fix', label: 'Fix spelling and grammar' },
+  { action: 'shorten', label: 'Shorter' },
+  { action: 'lengthen', label: 'Longer' },
+  { action: 'expand', label: 'Expand with detail' },
+  { action: 'simplify', label: 'Simplify' },
+  { action: 'tone', label: 'Change tone' },
+  { action: 'translate', label: 'Translate' },
+  { action: 'explain', label: 'Explain' },
+  { action: null, label: 'Custom…' }
+]
 
 interface Target {
   id: string
@@ -23,7 +43,7 @@ interface Target {
   rect: DOMRect
 }
 
-type Panel = 'link' | 'color' | 'turn' | null
+type Panel = 'link' | 'color' | 'turn' | 'ai' | 'ai-tone' | 'ai-translate' | null
 
 function sameTarget(a: Target, b: Target): boolean {
   return (
@@ -47,6 +67,9 @@ export function SelectionToolbar(): JSX.Element | null {
   const barRef = useRef<HTMLDivElement>(null)
   const mouseDown = useRef(false)
   const linkRequest = useStore(ctrl.ui, (s) => s.linkRequest)
+  const ai = useAiGate((state) => state.enabled)
+  // While an AI preview is open the toolbar stays out of the way.
+  const aiBusy = useStore(ctrl.ui, (s) => s.ai !== null)
 
   const read = useCallback((): Target | null => {
     const key = ctrl.focusedKey()
@@ -121,14 +144,21 @@ export function SelectionToolbar(): JSX.Element | null {
     openLink(t)
   }, [linkRequest, read, openLink])
 
-  if (!target) return null
+  if (!target || aiBusy) return null
   const title = getBlock(target.id)?.props.title
   const has = (kind: string): boolean => rangeHasMark(title, target.start, target.end, kind)
   const range = { id: target.id, start: target.start, end: target.end }
   const above = target.rect.top - TOOLBAR_OFFSET
   const top = above < TOOLBAR_GAP ? target.rect.bottom + TOOLBAR_GAP : above
   const centre = target.rect.left + target.rect.width / 2
-  const left = Math.max(TOOLBAR_HALF_WIDTH, Math.min(centre, window.innerWidth - TOOLBAR_HALF_WIDTH))
+  const half = ai ? TOOLBAR_HALF_WIDTH_AI : TOOLBAR_HALF_WIDTH
+  const left = Math.max(half, Math.min(centre, window.innerWidth - half))
+  const aiOpen = panel === 'ai' || panel === 'ai-tone' || panel === 'ai-translate'
+
+  const runAi = (action: AiAction | null, options?: AiOptions): void => {
+    setPanel(null)
+    aiOnRange(ctrl, action, range, options)
+  }
 
   const markButton = (kind: string, mark: Mark, label: string, content: ReactNode, cls = ''): JSX.Element => (
     <button
@@ -154,6 +184,22 @@ export function SelectionToolbar(): JSX.Element | null {
       if (!(e.target instanceof HTMLInputElement)) e.preventDefault()
     }}>
       <div className="pe-tb-row">
+        {ai && (
+          <>
+            <button
+              type="button"
+              title="Ask AI about the selection"
+              aria-haspopup="menu"
+              aria-expanded={aiOpen}
+              className={`pe-tb-btn pe-tb-wide pe-tb-ai${aiOpen ? ' is-active' : ''}`}
+              onPointerEnter={preloadInlineAi}
+              onClick={() => setPanel(aiOpen ? null : 'ai')}
+            >
+              <span aria-hidden="true">{AI_GLYPH}</span> AI
+            </button>
+            <span className="pe-tb-sep" />
+          </>
+        )}
         <button type="button" className="pe-tb-btn pe-tb-wide" onClick={() => setPanel(panel === 'turn' ? null : 'turn')}>
           Turn into <ChevronDown size={12} />
         </button>
@@ -243,6 +289,46 @@ export function SelectionToolbar(): JSX.Element | null {
               </button>
             ))}
           </div>
+        </div>
+      )}
+      {panel === 'ai' && (
+        <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu">
+          {AI_ITEMS.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              className="pe-tb-turn-item"
+              onClick={() => {
+                if (item.action === 'tone') setPanel('ai-tone')
+                else if (item.action === 'translate') setPanel('ai-translate')
+                else runAi(item.action)
+              }}
+            >
+              <span className="pe-tb-ai-label">{item.label}</span>
+              {(item.action === 'tone' || item.action === 'translate') && <ChevronRight size={12} />}
+            </button>
+          ))}
+        </div>
+      )}
+      {panel === 'ai-tone' && (
+        <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu">
+          <div className="pe-tb-heading">Change tone</div>
+          {AI_TONES.map((tone) => (
+            <button key={tone} type="button" role="menuitem" className="pe-tb-turn-item" onClick={() => runAi('tone', { tone })}>
+              {AI_TONE_LABELS[tone]}
+            </button>
+          ))}
+        </div>
+      )}
+      {panel === 'ai-translate' && (
+        <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu">
+          <div className="pe-tb-heading">Translate to</div>
+          {AI_LANGUAGES.map((language) => (
+            <button key={language} type="button" role="menuitem" className="pe-tb-turn-item" onClick={() => runAi('translate', { language })}>
+              {AI_LANGUAGE_LABELS[language]}
+            </button>
+          ))}
         </div>
       )}
       {panel === 'turn' && (

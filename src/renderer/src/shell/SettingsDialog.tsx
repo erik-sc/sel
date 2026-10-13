@@ -9,6 +9,7 @@ import { Button, IconButton } from '@/ui/Button'
 import { Modal } from '@/ui/Modal'
 import { Close } from '@/ui/icons'
 import { HistorySection } from '@/versions/HistorySettings'
+import { AiSection } from '@/ai/AiSettings'
 import { importMarkdown } from './actions'
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -17,12 +18,13 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: 'system', label: 'System' }
 ]
 
-type Section = 'general' | 'appearance' | 'history'
+type Section = 'general' | 'appearance' | 'history' | 'ai'
 
 const SECTIONS: { value: Section; label: string }[] = [
   { value: 'general', label: 'General' },
   { value: 'appearance', label: 'Appearance' },
-  { value: 'history', label: 'History' }
+  { value: 'history', label: 'History' },
+  { value: 'ai', label: 'AI' }
 ]
 
 export function SettingsDialog() {
@@ -62,7 +64,7 @@ function SettingsBody() {
           </IconButton>
         </header>
         <div className="settings2-content">
-          {section === 'general' ? <GeneralSection /> : section === 'history' ? <HistorySection /> : <AppearancePanel />}
+          {section === 'general' ? <GeneralSection /> : section === 'history' ? <HistorySection /> : section === 'ai' ? <AiSection /> : <AppearancePanel />}
         </div>
       </div>
     </>

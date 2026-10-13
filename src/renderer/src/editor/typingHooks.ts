@@ -8,6 +8,8 @@ import { caretRect, marksAt, replaceRange, rtLength, textOf } from './richtext-d
 import { prevSibling, turnIntoPatch } from './structure'
 import { applyPendingMarks, blockShortcutOps, inlineShortcut, toggleMarkIn, type PendingMarks } from './typing'
 import { textSel, type Sel } from './types'
+import { aiEnabled } from '../ai/gate'
+import { aiFromSlash } from '../ai/session'
 
 /** The slash menu closes once the query is this long... */
 const SLASH_MAX_QUERY = 24
@@ -102,7 +104,7 @@ export class TypingHooks {
     const qStart = s.from + (s.hasSlash ? 1 : 0)
     if (caret < qStart || (s.hasSlash && text[s.from] !== '/')) return this.closeSlash()
     const query = text.slice(qStart, caret)
-    const none = filterSlashItems(query).length === 0
+    const none = filterSlashItems(query, aiEnabled()).length === 0
     if (query.includes('\n') || query.length > SLASH_MAX_QUERY || (none && (query.length > SLASH_MAX_UNMATCHED || !s.hasSlash))) {
       return this.closeSlash()
     }
@@ -113,7 +115,7 @@ export class TypingHooks {
   slashKey(key: string): boolean {
     const s = this.ctrl.ui.getState().slash
     if (!s) return false
-    const items = filterSlashItems(s.query)
+    const items = filterSlashItems(s.query, aiEnabled())
     if (key === 'Escape') {
       this.closeSlash()
       return true
@@ -142,6 +144,12 @@ export class TypingHooks {
     if (!b || !b.parentId) return
     const cut = s.from + (s.hasSlash ? 1 : 0) + s.query.length
     const cleaned = replaceRange(b.props.title, s.from, cut, [])
+    if (item.kind === 'ai') {
+      // The slash text goes (its own undo step); what the action writes waits for the user's Accept.
+      if (rtLength(cleaned) !== rtLength(b.props.title)) ctrl.update(id, { title: cleaned }, { after: textSel(id, s.from) })
+      if (item.ai) aiFromSlash(ctrl, item.ai, id, s.from)
+      return
+    }
     if (item.kind === 'turn') {
       ctrl.commit([{ op: 'update', id, patch: { type: item.type, props: turnIntoPatch(b, item.type, cleaned) } }], {
         after: textSel(id, s.from)

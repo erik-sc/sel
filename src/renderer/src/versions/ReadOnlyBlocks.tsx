@@ -367,6 +367,18 @@ function DatabaseTable({ version, current, diff }: { version: SnapshotContent; c
 
 // ------------------------------------------------------------------------ page
 
+/**
+ * The blocks of a snapshot without the page around them (no title, no scrolling): for content
+ * shown read-only somewhere else, such as an AI answer before it is accepted into a page.
+ */
+export function SnapshotBlocks({ content }: { content: SnapshotContent }): JSX.Element {
+  const lookup = useMemo<Lookup>(
+    () => ({ blocks: new Map(content.blocks.map((block) => [block.id, block])), refs: new Map(), versionRefs: new Set(), diff: null }),
+    [content]
+  )
+  return <BlockList ids={content.blocks[0]?.content ?? []} lookup={lookup} />
+}
+
 export interface SnapshotViewProps {
   version: SnapshotContent
   /** The page as it is now: where removed blocks and rows are read from. */

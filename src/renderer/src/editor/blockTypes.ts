@@ -47,8 +47,10 @@ export interface SlashItem {
   hint: string
   glyph: string
   keywords: string
-  /** `turn` converts the current block; `insert` adds a new block. */
-  kind: 'turn' | 'insert'
+  /** `turn` converts the current block; `insert` adds a new block; `ai` starts an AI action. */
+  kind: 'turn' | 'insert' | 'ai'
+  /** `ai` only: which action. `ask` opens the prompt bar. */
+  ai?: 'continue' | 'summarize' | 'ask' | 'actions' | 'outline'
   type: BlockType
   view?: ViewType
   /** Opens the picker of source databases and inserts a linked view of the chosen one (showing it as `view`). */
@@ -78,15 +80,25 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'chart', label: 'Chart', hint: 'Chart the rows of an existing database', glyph: '◔', keywords: 'chart graph plot bar line pie', kind: 'insert', type: 'database', linked: true, view: 'chart' }
 ]
 
+/** The "AI" group of the slash menu; offered only while AI is turned on (see ai/gate.ts). */
+export const AI_SLASH_ITEMS: SlashItem[] = [
+  { id: 'ai-continue', label: 'Continue writing', hint: 'Carry on from here in the same voice', glyph: '✦', keywords: 'ai continue writing write more', kind: 'ai', ai: 'continue', type: 'text' },
+  { id: 'ai-summarize', label: 'Summarize page', hint: 'Key points and action items', glyph: '✦', keywords: 'ai summarize summary tldr', kind: 'ai', ai: 'summarize', type: 'text' },
+  { id: 'ai-ask', label: 'Ask AI…', hint: 'Describe what to write', glyph: '✦', keywords: 'ai ask write draft generate prompt', kind: 'ai', ai: 'ask', type: 'text' },
+  { id: 'ai-actions', label: 'Action items', hint: 'Extract tasks as a to-do list', glyph: '✦', keywords: 'ai action items tasks todo', kind: 'ai', ai: 'actions', type: 'text' },
+  { id: 'ai-outline', label: 'Outline', hint: 'Turn the notes into a structured outline', glyph: '✦', keywords: 'ai outline structure', kind: 'ai', ai: 'outline', type: 'text' }
+]
+
 /** Entries offered by "Turn into". */
 export const TURN_INTO: SlashItem[] = SLASH_ITEMS.filter((i) => i.kind === 'turn')
 
-export function filterSlashItems(query: string): SlashItem[] {
+export function filterSlashItems(query: string, ai = false): SlashItem[] {
+  const all = ai ? [...AI_SLASH_ITEMS, ...SLASH_ITEMS] : SLASH_ITEMS
   const q = query.trim().toLowerCase()
-  if (!q) return SLASH_ITEMS
+  if (!q) return all
   const starts: SlashItem[] = []
   const contains: SlashItem[] = []
-  for (const item of SLASH_ITEMS) {
+  for (const item of all) {
     const label = item.label.toLowerCase()
     if (label.startsWith(q) || item.keywords.split(' ').some((k) => k.startsWith(q))) starts.push(item)
     else if (label.includes(q) || item.keywords.includes(q)) contains.push(item)

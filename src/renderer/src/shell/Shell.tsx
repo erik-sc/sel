@@ -3,6 +3,7 @@ import { tabPage, useActiveTab, useTabs } from '@/store/tabs'
 import { useUi } from '@/store/ui'
 import { Toaster } from '@/ui/Toaster'
 import { VersionHistory } from '@/versions/VersionHistory'
+import { AiSetup, AssistantDock } from '@/ai/Host'
 import { EmptyState, PageHost } from './PageHost'
 import { QuickFind } from './QuickFind'
 import { SettingsModal } from './SettingsModal'
@@ -32,17 +33,21 @@ export function Shell() {
       <div className="main glass">
         <TabBar />
         <TopBar />
-        <main className="content">
-          {!ready ? null : pageId && tab ? (
-            <PageHost key={`${tab.id}:${pageId}`} pageId={pageId} />
-          ) : (
-            <EmptyState />
-          )}
-        </main>
+        <div className="content-row">
+          <main className="content">
+            {!ready ? null : pageId && tab ? (
+              <PageHost key={`${tab.id}:${pageId}`} pageId={pageId} />
+            ) : (
+              <EmptyState />
+            )}
+          </main>
+          <AssistantDock />
+        </div>
       </div>
       <QuickFind />
       <SettingsModal />
       <VersionHistory />
+      <AiSetup />
       <Toaster />
     </div>
   )

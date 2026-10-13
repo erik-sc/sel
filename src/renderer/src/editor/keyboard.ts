@@ -2,6 +2,7 @@
 import type { KeyboardEvent } from 'react'
 import type { EditorController } from './controller'
 import { caretRect, getSelectionOffsets } from './richtext-dom'
+import { aiPromptAt, wantsAiPrompt } from '../ai/session'
 
 /** A caret at least this close (px) to the box height means the editable has a single line. */
 const SINGLE_LINE_TOLERANCE = 4
@@ -91,6 +92,13 @@ export function onBlockKeyDown(ctrl: EditorController, id: string, e: KeyboardEv
   if (e.altKey) return
 
   switch (key) {
+    case ' ':
+      // Space as the first key in an empty paragraph asks AI to write; any other key just types.
+      if (!e.shiftKey && len === 0 && !slash && wantsAiPrompt(id)) {
+        stop()
+        aiPromptAt(ctrl, id)
+      }
+      return
     case 'Enter':
       stop()
       if (e.shiftKey) ctrl.insertPlain(id, o.start, o.end, '\n')

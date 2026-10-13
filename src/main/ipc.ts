@@ -1,6 +1,7 @@
-import { BrowserWindow, ipcMain, nativeTheme, shell, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme, shell, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import { IPC } from '../shared/api'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
+import type { AiBridge } from './ai'
 import type { Repository } from './db/repository'
 import { ChangeFeed } from './changes'
 import { pickImage, saveGeneratedImage, saveImage } from './files'
@@ -144,6 +145,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): void {
     const key = arg.writableSettingKey(a)
     if (key === THEME_KEY) return applyTheme(repo, b)
     repo.setSetting(key, arg.settingValueFor(key, b))
+    // Which program runs, and whether any does, is decided by these: the cached answer is stale.
+    if (key.startsWith('ai.')) aiBridge?.service.invalidate()
   })
   handle('app:openExternal', async ([a]) => {
     const url = toExternalUrl(a)
@@ -154,6 +157,18 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): void {
     if (BrowserWindow.getAllWindows().length >= MAX_WINDOWS) throw new Error('Too many windows are open')
     createWindow(arg.optionalId(a, 'pageId'))
   })
+
+  // ---- ai (drives the Claude Code program installed on this computer; see ./ai)
+  // Nothing of it is loaded until a window asks. A request is validated, and its prompt built,
+  // in this process; its events go back to the window that made it and to no other.
+  let aiBridge: AiBridge | null = null
+  const ai = async (): Promise<AiBridge> => (aiBridge ??= new (await import('./ai')).AiBridge(repo))
+  app.on('will-quit', () => aiBridge?.dispose())
+  handle('ai:status', async ([a]) => (await ai()).status(a))
+  handle('ai:run', async ([a], event) => (await ai()).run(a, event.sender))
+  handle('ai:cancel', async ([a], event) => (await ai()).cancel(a, event.sender))
+  // Goes through a native dialog: the renderer never names a path to run.
+  handle('ai:pickCli', async (_args, event) => (await ai()).pickCli(windowOf(event)))
 
   // ---- window controls (the renderer draws them on frameless windows)
   handle('window:isMaximized', (_args, event) => windowOf(event)?.isMaximized() ?? false)

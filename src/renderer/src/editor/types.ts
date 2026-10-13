@@ -1,5 +1,6 @@
 // Types shared by the editor controller, its helper modules and the components.
 import type { UpdateBlockInput, ViewType } from '@shared/types'
+import type { AiSession } from '../ai/session'
 import type { Offsets } from './richtext-dom'
 
 /** Offset that every editable clamps to its end. */
@@ -78,6 +79,8 @@ export interface UIState {
   menu: { id: string; rect: DOMRect } | null
   /** Incremented to ask the selection toolbar to open its link editor. */
   linkRequest: number
+  /** The inline AI action whose prompt or preview is on screen, if any (see ai/session.ts). */
+  ai: AiSession | null
 }
 
 export interface CommitOptions {

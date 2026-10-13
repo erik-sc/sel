@@ -1330,3 +1330,34 @@ span.pe-swatch[class*='rt-bg-'] {
 .pe-toolbar .pe-tb-turn-item:hover .pe-menu-glyph {
   color: var(--accent-text);
 }
+
+/* ---- AI entry points (the preview itself is styled in ai/ai.css, loaded with it) ---- */
+
+.pe-slash-item.is-ai .pe-slash-glyph,
+.pe-menu-glyph.is-ai {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.pe-slash-item.is-ai.is-active .pe-slash-glyph {
+  background: transparent;
+  color: var(--accent-text);
+}
+
+.pe-toolbar .pe-tb-ai {
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
+}
+
+.pe-tb-ai-menu {
+  width: 230px;
+  max-height: 340px;
+}
+
+.pe-toolbar .pe-tb-ai-menu .pe-tb-turn-item {
+  padding: 5px 8px;
+}
+
+.pe-tb-ai-label {
+  flex: 1;
+}

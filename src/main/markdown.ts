@@ -280,6 +280,11 @@ export function pageToMarkdown(repo: Repository, id: string): { title: string; m
   return { title, markdown: lines.join('\n') + '\n' }
 }
 
+/** Serializes some blocks (each with its content) to Markdown, in the order given: what the AI actions read of a selection. */
+export function blocksToMarkdown(repo: Repository, blocks: Block[]): string {
+  return blocksToLines(repo, blocks, 0).join('\n')
+}
+
 // =================================================================== import
 
 function sameMarks(a: Mark[] | undefined, b: Mark[] | undefined): boolean {

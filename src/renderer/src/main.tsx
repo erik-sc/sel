@@ -13,6 +13,7 @@ import { activeTab, initTabs, initialPageId, tabPage } from './store/tabs'
 import { initTree } from './store/tree'
 import { bootUi, initUi, resolveTheme } from './store/ui'
 import { notifyError } from './ui/toast'
+import { initAi } from './ai/gate'
 
 bootMark('start')
 
@@ -34,6 +35,8 @@ const settings = Promise.all([
   initAppearance().catch((error) => console.error('could not load appearance', error))
 ]).then(() => bootMark('settings'))
 void initTree()
+// Whether the AI entry points exist at all (`ai.enabled`); they stay hidden until this answers.
+void initAi()
 void initTabs(initialPageId()).then(() => {
   // The page about to be shown: fetch its blocks while the editor's code loads.
   const pageId = tabPage(activeTab())

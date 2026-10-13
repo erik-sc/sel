@@ -63,7 +63,8 @@ export class EditorController {
     sourcePicker: null,
     drop: null,
     menu: null,
-    linkRequest: 0
+    linkRequest: 0,
+    ai: null
   }))
   readonly tree: Tree
   onOpenPage: (id: string, opts?: { newTab?: boolean }) => void = () => {}
@@ -85,6 +86,8 @@ export class EditorController {
   dispose(): void {
     this.selection.dispose()
     this.typing.dispose()
+    // An AI preview belongs to the page on screen: leaving the page ends it (and cancels its request).
+    if (this.ui.getState().ai) this.ui.setState({ ai: null })
   }
 
   // ---- focus and selection (see selection.ts) ---------------------------

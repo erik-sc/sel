@@ -207,6 +207,9 @@ export const Clock = make(
   </>
 )
 
+/** The mark of the AI features: a four-pointed star with a small one beside it. */
+export const Sparkle = make(<path d="M7 2.2l1.3 3.5 3.5 1.3-3.5 1.3L7 11.8 5.7 8.3 2.2 7l3.5-1.3zM12.3 10.6v3M10.8 12.1h3" />)
+
 export const Type = make(<path d="M3 4.4V3h10v1.4M8 3v10M6.2 13h3.6" />)
 
 // ---- charts (the view type and its kinds) ----

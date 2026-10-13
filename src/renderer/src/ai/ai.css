@@ -1,0 +1,744 @@
+/*
+ * AI surfaces: the inline prompt bar and preview, the assistant panel, the setup sheet.
+ * Loaded with whichever of them shows first. Every colour, type size, weight, radius, shadow
+ * and duration is a token from styles/tokens.css.
+ */
+
+/* ---- shared pieces ---- */
+
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 4px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-ui);
+  line-height: 1;
+}
+
+.ai-input {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-height);
+  padding: 0 12px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-pill);
+  outline: none;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-ui);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+.ai-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.ai-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.ai-kbd {
+  margin-left: 2px;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  opacity: 0.7;
+}
+
+.ai-status {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.ai-note {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+}
+
+.ai-error {
+  color: var(--text);
+  font-size: var(--text-ui);
+}
+
+.ai-error p {
+  margin: 0;
+}
+
+.ai-error .ai-error-detail {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Placeholder lines while the first words are on their way. */
+.ai-skeleton {
+  height: 44px;
+  border-radius: var(--radius-s);
+  background:
+    linear-gradient(var(--fill-3), var(--fill-3)) 0 4px / 92% 10px no-repeat,
+    linear-gradient(var(--fill-3), var(--fill-3)) 0 24px / 64% 10px no-repeat;
+  animation: ai-pulse calc(var(--duration) * 6) var(--ease) infinite alternate;
+}
+
+@keyframes ai-pulse {
+  from {
+    opacity: 0.45;
+  }
+}
+
+/* ---- markdown shown read-only (the editor's own block styles, without its page chrome) ---- */
+
+.ai-md.pe-root {
+  display: block;
+  height: auto;
+  overflow: visible;
+  font-size: inherit;
+  user-select: text;
+}
+
+.ai-md > .blk:first-child {
+  margin-top: 0;
+}
+
+.ai-md > .blk:last-child {
+  margin-bottom: 0;
+}
+
+.ai-md .blk-check,
+.ai-md .blk-toggle-btn {
+  pointer-events: none;
+}
+
+.ai-md .vh-code-bar {
+  opacity: 1;
+}
+
+.ai-md .blk-code-lang {
+  padding: 0 16px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.ai-md .vh-code {
+  overflow-x: auto;
+}
+
+/* The text an inline action is about, while the keyboard is in the preview. */
+::highlight(ai-target) {
+  background-color: var(--accent-soft);
+}
+
+/* ---- inline: slot, prompt bar, preview ---- */
+
+.ai-slot {
+  margin: 6px 0 10px;
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  letter-spacing: var(--tracking-ui);
+  line-height: var(--leading-ui);
+  user-select: none;
+}
+
+.ai-slot-loading {
+  height: var(--control-height);
+}
+
+.ai-prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 10px;
+  border: var(--hairline) solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  background: var(--glass-thick-bg);
+  box-shadow: var(--shadow-card), inset 0 1px 0 var(--glass-highlight);
+  animation: ai-in var(--duration) var(--ease);
+}
+
+.ai-prompt:focus-within {
+  box-shadow: var(--shadow-card), 0 0 0 3px var(--focus-ring);
+}
+
+.ai-prompt .ai-input {
+  border-color: transparent;
+  background: transparent;
+  padding: 0 4px;
+}
+
+.ai-prompt .ai-input:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.ai-hint {
+  flex: none;
+  padding-right: 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.ai-card {
+  position: relative;
+  /* Brought into view with some air below its buttons. */
+  scroll-margin-block: var(--control-height);
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  outline: none;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 var(--hairline) color-mix(in srgb, var(--accent) 34%, transparent);
+  animation: ai-in var(--duration) var(--ease);
+}
+
+@keyframes ai-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* Shimmer: a light band travelling along the top edge while the answer streams. */
+.ai-card.is-streaming::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent) 0 0 / 40% 100% no-repeat;
+  animation: ai-shimmer calc(var(--duration) * 7) linear infinite;
+}
+
+@keyframes ai-shimmer {
+  from {
+    background-position: -70% 0;
+  }
+  to {
+    background-position: 170% 0;
+  }
+}
+
+.ai-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 0;
+}
+
+.ai-card-title {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.ai-card-head .ai-status {
+  margin-left: auto;
+}
+
+.ai-card-body {
+  padding: 8px 14px 12px;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.ai-card.is-error .ai-card-body {
+  font-size: var(--text-ui);
+}
+
+.ai-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-top: var(--hairline) solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: var(--fill-4);
+}
+
+.ai-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/*
+ * The preview sits inside the editor, whose reset for its own bare buttons (`.pe-root button`)
+ * outranks the shared button styles: they are restated here, one step more specific.
+ */
+.pe-root .ai-slot .ui-button {
+  height: calc(var(--control-height) - 2px);
+  padding: 0 12px;
+  background-color: var(--fill-3);
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+.pe-root .ai-slot .ui-button:disabled {
+  color: var(--text-tertiary);
+}
+
+.pe-root .ai-slot .ui-button.is-primary {
+  background-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: var(--weight-semibold);
+}
+
+.pe-root .ai-slot .ui-button.is-primary:disabled {
+  background-color: var(--fill-3);
+  color: var(--text-tertiary);
+}
+
+.pe-root .ai-slot .ui-button.is-ghost {
+  padding: 0 10px;
+  background-color: transparent;
+  color: var(--text-secondary);
+}
+
+.pe-root .ai-slot .ui-button.is-ghost:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.ai-bar .ai-input {
+  flex: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* title suggestions: choices that apply on click */
+.ai-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pe-root .ai-slot .ai-title-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius-s);
+  color: var(--text);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-medium);
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.pe-root .ai-slot .ai-title-option:hover,
+.pe-root .ai-slot .ai-title-option:focus-visible {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.ai-title-emoji {
+  flex: none;
+  width: 22px;
+  font-size: var(--text-lg);
+  line-height: 1;
+  text-align: center;
+}
+
+/* ---- assistant panel (its box is in shell.css) ---- */
+
+.assistant-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 10px 10px 8px 14px;
+}
+
+.assistant-head h2 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-ui);
+}
+
+.assistant-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 14px 14px;
+  overflow-y: auto;
+}
+
+.assistant-empty {
+  margin: auto 0;
+  padding: 12px 4px;
+  text-align: center;
+}
+
+.assistant-empty-title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.assistant-empty-help {
+  margin: 0 auto 14px;
+  max-width: 260px;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  line-height: var(--leading-ui);
+}
+
+.assistant-suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.assistant-suggestion {
+  height: var(--control-height);
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-3);
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.assistant-suggestion:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.assistant-message {
+  min-width: 0;
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.assistant-message.is-user {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.assistant-bubble {
+  max-width: 86%;
+  padding: 7px 12px;
+  border-radius: var(--radius-l);
+  border-bottom-right-radius: var(--radius-xs);
+  background: var(--accent);
+  color: var(--accent-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.assistant-message .ai-md .blk-heading_1 > .blk-row > .rt {
+  font-size: var(--text-h3);
+}
+
+.assistant-message .ai-md .blk-heading_2 > .blk-row > .rt {
+  font-size: var(--text-lg);
+}
+
+.assistant-message .ai-md .blk-heading_3 > .blk-row > .rt {
+  font-size: var(--text-body);
+}
+
+.assistant-message .ai-md .blk-heading_1,
+.assistant-message .ai-md .blk-heading_2,
+.assistant-message .ai-md .blk-heading_3 {
+  margin-top: 12px;
+}
+
+.assistant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 6px 0 0 -6px;
+}
+
+.assistant-actions button {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.assistant-actions button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.assistant-actions button:disabled {
+  color: var(--text-tertiary);
+}
+
+.assistant-foot {
+  flex: none;
+  padding: 8px 10px 10px;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.assistant-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.assistant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-3);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.assistant-chip.is-selection {
+  padding-right: 3px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.assistant-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: inherit;
+}
+
+.assistant-chip button:hover {
+  background: var(--bg-hover);
+}
+
+.assistant-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.assistant-composer textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 160px;
+  padding: 7px 10px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-m);
+  outline: none;
+  resize: none;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+.assistant-composer textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.assistant-composer textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* ---- setup sheet ---- */
+
+.ui-modal.ai-setup {
+  /* Wide enough for the install command on one line, whatever the page width is set to. */
+  width: min(calc(var(--sidebar-width) * 2), 100%);
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+}
+
+.ai-setup-head {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 16px 14px 4px 22px;
+}
+
+.ai-setup-head h2 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-title);
+}
+
+.ai-setup-body {
+  padding: 4px 22px 4px;
+  overflow-y: auto;
+}
+
+.ai-setup-lead {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.ai-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-m);
+  background: var(--fill-4);
+  list-style: none;
+  counter-reset: ai-step;
+}
+
+.ai-steps li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 12px 48px;
+  counter-increment: ai-step;
+}
+
+.ai-steps li + li {
+  border-top: var(--hairline) solid var(--border);
+}
+
+.ai-steps li::before {
+  content: counter(ai-step);
+  position: absolute;
+  top: 11px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.ai-step-title {
+  font-weight: var(--weight-semibold);
+}
+
+.ai-step-help {
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+}
+
+.ai-command {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius-s);
+  background: var(--bg-code);
+}
+
+.ai-command code {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-md);
+  /* A narrow window wraps the command; it is never clipped. */
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.ai-setup-note {
+  min-height: 1.3em;
+  margin: 12px 2px 0;
+  color: var(--text);
+  font-size: var(--text-md);
+}
+
+.ai-setup-note.is-quiet {
+  color: var(--text-secondary);
+}
+
+.ai-setup-foot {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 22px 20px;
+}
+
+/* ---- settings ---- */
+
+.ai-path {
+  overflow-wrap: anywhere;
+}
+
+.ai-select {
+  width: auto;
+  font-family: var(--font-sans);
+  max-width: 100%;
+}
+
+.ai-code {
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-code);
+  font-size: calc(1em * var(--code-scale));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-card,
+  .ai-prompt,
+  .ai-skeleton,
+  .ai-card.is-streaming::before {
+    animation: none;
+  }
+
+  /* Still says "working", without moving: a steady line. */
+  .ai-card.is-streaming::before {
+    background: var(--accent);
+    opacity: 0.5;
+  }
+}

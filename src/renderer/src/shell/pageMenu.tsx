@@ -1,6 +1,7 @@
 import type { Block } from '@shared/types'
 import type { MenuItem } from '@/ui/Menu'
-import { ArrowUpRight, Check, Clock, Copy, Page, Plus, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { ArrowUpRight, Check, Clock, Copy, Page, Plus, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { requestPageAi } from '@/ai/gate'
 import { IS_MAC } from '@/ui/platform'
 import { openPage } from '@/store/tabs'
 import { setHistoryPage, setRenaming } from '@/store/ui'
@@ -78,7 +79,7 @@ export function sidebarPageMenu(block: Block): MenuItem[] {
 }
 
 /** Menu behind the "⋯" button in the top bar. */
-export function topBarPageMenu(block: Block): MenuItem[] {
+export function topBarPageMenu(block: Block, ai = false): MenuItem[] {
   const id = block.id
   const items: MenuItem[] = [...openSourceItems(block)]
   if (block.type === 'page') {
@@ -91,6 +92,14 @@ export function topBarPageMenu(block: Block): MenuItem[] {
       },
       { separator: true }
     )
+    // AI actions run in the page's editor: the answer is previewed there and only goes in when accepted.
+    if (ai && !block.trashedAt) {
+      items.push(
+        { id: 'ai-summarize', label: 'Summarize page', icon: <Sparkle />, onSelect: () => requestPageAi(id, 'summarize') },
+        { id: 'ai-title', label: 'Suggest title', icon: <Sparkle />, onSelect: () => requestPageAi(id, 'title') },
+        { separator: true }
+      )
+    }
   }
   items.push(
     {

@@ -14,6 +14,7 @@ import {
 } from '@/store/tabs'
 import { setHistoryPage, setQuickFindOpen, setSettingsOpen, toggleSidebar, toggleTheme, useUi } from '@/store/ui'
 import { createPage, reportError } from './actions'
+import { toggleAssistant } from '@/ai/gate'
 
 function isEditable(target: EventTarget | null): boolean {
   return (
@@ -71,6 +72,9 @@ export function useShellCommands(): void {
           break
         case 'open-page':
           if (isBlockId(arg)) openPage(arg)
+          break
+        case 'toggle-assistant':
+          toggleAssistant()
           break
         case 'version-history': {
           // The shortcut toggles: the history of the page in the active tab.

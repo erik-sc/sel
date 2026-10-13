@@ -1,3 +1,4 @@
+import type { AiEvent, AiRequest, AiStatus } from './ai'
 import type {
   Block,
   ChangeEvent,
@@ -113,6 +114,30 @@ export interface Api {
     saveGeneratedImage(pngBytes: ArrayBuffer | Uint8Array): Promise<{ saved: boolean; path?: string }>
   }
 
+  /**
+   * AI workflows. Selida drives the Claude Code program installed on this computer, signed in
+   * with the user's own account: no key is stored here and Selida makes no network request.
+   * The prompt is built in the main process from the ids and options in the request.
+   */
+  ai: {
+    /** Whether the program was found and answers; cached unless `refresh`. */
+    status(refresh?: boolean): Promise<AiStatus>
+    /**
+     * Starts a request and resolves with its id at once. Its text, its end and any failure
+     * (including the program missing) arrive through `onEvent`. Rejects only for an invalid request.
+     */
+    run(request: AiRequest): Promise<{ id: string }>
+    /** Stops a request of this window. Resolves false when it was already over. */
+    cancel(id: string): Promise<boolean>
+    /**
+     * Opens a file dialog to choose the program and stores the choice (`ai.cliPath`), the only way
+     * that setting gets a value. Null when cancelled; otherwise the status with the chosen file.
+     */
+    pickCli(): Promise<AiStatus | null>
+    /** `ai:delta`, `ai:done` and `ai:error` for this window's requests. Returns an unsubscribe function. */
+    onEvent(listener: (event: AiEvent) => void): () => void
+  }
+
   app: {
     getTheme(): Promise<Theme>
     setTheme(theme: Theme): Promise<void>
@@ -154,6 +179,7 @@ export type MenuCommand =
   | 'reopen-tab'
   | 'new-window'
   | 'version-history'
+  | 'toggle-assistant'
 
 /** ipc channel names. invoke channels are `<namespace>:<method>`. */
 export const IPC = {

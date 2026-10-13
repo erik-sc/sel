@@ -13,6 +13,7 @@ import { isSelected } from './selection'
 import { textSel } from './types'
 import { EditableText } from './EditableText'
 import { BookmarkBlock, CalloutIcon, CodeBlock, ImageBlock, PageLinkBlock } from './blocks'
+import { AiSlot } from '../ai/slot'
 
 export const BlockList = memo(function BlockList({ ids }: { ids: string[] }): JSX.Element {
   const blocks = useBlocks(ids)
@@ -35,6 +36,7 @@ const BlockView = memo(function BlockView({ block, number }: { block: Block; num
   const selected = useStore(ctrl.ui, (s) => isSelected(s.selected, id))
   const drop = useStore(ctrl.ui, (s) => (s.drop?.id === id ? s.drop.pos : null))
   const menuOpen = useStore(ctrl.ui, (s) => s.menu?.id === id)
+  const aiHere = useStore(ctrl.ui, (s) => s.ai?.anchorId === id)
   const collapsed = type === 'toggle' && !!block.props.collapsed
   const nests = type !== 'page' && type !== 'database'
   const showKids = nests && block.content.length > 0 && !collapsed
@@ -43,6 +45,7 @@ const BlockView = memo(function BlockView({ block, number }: { block: Block; num
   if (selected) classes.push('is-selected')
   if (drop) classes.push(`drop-${drop}`)
   if (menuOpen) classes.push('is-menu-open')
+  if (aiHere) classes.push('has-ai')
   if (type === 'to_do' && block.props.checked) classes.push('is-checked')
   const cc = blockColorClass(block.props.color)
   if (cc) classes.push(cc)
@@ -164,6 +167,7 @@ const BlockView = memo(function BlockView({ block, number }: { block: Block; num
           Empty toggle. Click to add a block inside.
         </button>
       )}
+      {aiHere && <AiSlot anchorId={id} />}
     </div>
   )
 })

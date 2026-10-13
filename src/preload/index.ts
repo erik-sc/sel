@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { AI_CHANNELS, type AiEvent } from '@shared/ai'
 import { IPC, type Api, type MenuCommand } from '@shared/api'
 import type { ChangeEvent } from '@shared/types'
 
@@ -42,6 +43,18 @@ const api: Api = {
   search: ns('search', ['query']),
   versions: ns('versions', ['list', 'get', 'current', 'save', 'rename', 'delete', 'restore', 'stats', 'clear']),
   files: ns('files', ['pickImage', 'saveImage', 'saveGeneratedImage']),
+  ai: {
+    ...ns<Omit<Api['ai'], 'onEvent'>>('ai', ['status', 'run', 'cancel', 'pickCli']),
+    onEvent(listener) {
+      const types = ['delta', 'done', 'error'] as const
+      const handlers = types.map((type) => {
+        const handler = (_: unknown, payload: object): void => listener({ type, ...payload } as AiEvent)
+        ipcRenderer.on(AI_CHANNELS[type], handler)
+        return handler
+      })
+      return () => types.forEach((type, index) => ipcRenderer.removeListener(AI_CHANNELS[type], handlers[index]))
+    }
+  },
   app: {
     ...ns<Omit<Api['app'], 'platform' | 'window'>>('app', [
       'getTheme',

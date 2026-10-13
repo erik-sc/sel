@@ -12,7 +12,10 @@ import {
 import { IconButton } from '@/ui/Button'
 import { Menu } from '@/ui/Menu'
 import { Popover } from '@/ui/Popover'
-import { ChevronLeft, ChevronRight, MoreHorizontal, Star, StarFilled } from '@/ui/icons'
+import { ChevronLeft, ChevronRight, MoreHorizontal, Sparkle, Star, StarFilled } from '@/ui/icons'
+import { MOD_KEY } from '@/ui/platform'
+import { toggleAssistant, useAiGate } from '@/ai/gate'
+import { preloadAssistant } from '@/ai/Host'
 import { logError, reportError, toggleFavorite } from './actions'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
@@ -118,6 +121,8 @@ export const TopBar = memo(function TopBar() {
   const moreRef = useRef<HTMLButtonElement>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const isPage = !!block && (block.type === 'page' || block.type === 'database')
+  const ai = useAiGate((state) => state.enabled)
+  const assistantOpen = useAiGate((state) => state.panelOpen)
 
   return (
     <div className="topbar">
@@ -155,8 +160,23 @@ export const TopBar = memo(function TopBar() {
             placement="bottom-end"
             onClose={() => setMenuOpen(false)}
           >
-            <Menu items={topBarPageMenu(block)} onClose={() => setMenuOpen(false)} autoFocus />
+            <Menu items={topBarPageMenu(block, ai)} onClose={() => setMenuOpen(false)} autoFocus />
           </Popover>
+        </div>
+      )}
+      {ai && (
+        <div className="topbar-actions">
+          <IconButton
+            label={assistantOpen ? 'Hide assistant' : 'Assistant'}
+            shortcut={`${MOD_KEY}J`}
+            active={assistantOpen}
+            aria-pressed={assistantOpen}
+            onPointerEnter={preloadAssistant}
+            onFocus={preloadAssistant}
+            onClick={toggleAssistant}
+          >
+            <Sparkle />
+          </IconButton>
         </div>
       )}
     </div>
