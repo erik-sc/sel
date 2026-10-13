@@ -22,6 +22,8 @@ Selida is a notes app for your desktop. Pages are made of blocks, databases are 
 
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
 
+**Meet Herman.** The assistant has a face: an old man drawn in a single line, who keeps a corner of the window. Ask him about a page or about your day. Now and then he says one short thing he noticed, written in advance and chosen on your computer, with no AI involved. Settings → Herman quiets him or sends him away.
+
 **Make it yours.** Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance.
 
 | | |
@@ -60,7 +62,7 @@ npm run typecheck
 
 The code is in `src/`:
 
-- `main/` — the Electron main process: storage, files, version history, AI, the briefing, meetings.
+- `main/` — the Electron main process: storage, files, version history, AI, the briefing, meetings, Herman.
 - `preload/` — the narrow bridge the interface is allowed to use.
 - `renderer/` — the interface: editor, databases, shell, appearance.
 - `shared/` — types both sides agree on.
@@ -75,7 +77,7 @@ All style values live in one file, `src/renderer/src/styles/tokens.css`. Compone
 | `Ctrl+N` | New page |
 | `Ctrl+T` / `Ctrl+W` | New tab / close tab |
 | `Ctrl+\` | Hide the sidebar |
-| `Ctrl+J` | Assistant |
+| `Ctrl+J` | Herman, the assistant |
 | `Ctrl+Alt+T` | Today |
 | `Ctrl+Alt+M` | New meeting |
 | `Ctrl+Shift+L` | Light / dark |

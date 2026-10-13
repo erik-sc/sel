@@ -844,6 +844,7 @@ body.is-resizing .sidebar {
 }
 
 .content-row > .content {
+  position: relative;
   min-width: 0;
 }
 

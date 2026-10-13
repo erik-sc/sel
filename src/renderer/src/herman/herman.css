@@ -1,0 +1,451 @@
+/*
+ * Herman: the figure, the corner he keeps, his speech bubble, his place in the conversation
+ * and on the Today screen. Colours, type sizes and weights, radii, shadows and durations come
+ * from the tokens only; the motion is slow and made of multiples of --duration.
+ */
+
+/* ---- the figure ---- */
+
+/*
+ * --herman-size is his height in pixels and --herman-stroke the width of the line in pixels,
+ * both as plain numbers: the line keeps its width at every size because its width in the
+ * drawing's own units is worked out from the two (the drawing is 116 units tall).
+ */
+.herman-figure {
+  --herman-stroke: 1.6;
+  display: block;
+  flex: none;
+  width: calc(var(--herman-size, 48) * 1px);
+  height: calc(var(--herman-size, 48) * 1px);
+  overflow: visible;
+  color: var(--accent);
+  transform-origin: 50% 94%;
+  /* A breath: one slow swell and release, started by a timer every few seconds. Only the transform moves. */
+  transition: transform calc(var(--duration) * 4) var(--ease);
+}
+
+.herman-figure.is-breathing {
+  transform: scale(1.012, 1.028);
+}
+
+.herman-figure path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* One pose flows into the next: the same path, its points interpolated. */
+.herman-line,
+.herman-halo {
+  transition:
+    d calc(var(--duration) * 2.4) var(--ease),
+    stroke-width calc(var(--duration) * 2) var(--ease);
+}
+
+.herman-line {
+  stroke: currentColor;
+  stroke-width: calc(var(--herman-stroke) * 116 / var(--herman-size, 48));
+}
+
+/* The line is luminous: a wider, faint copy of itself underneath. */
+.herman-halo {
+  stroke: var(--accent-soft);
+  stroke-width: calc(var(--herman-stroke) * var(--herman-halo, 3.4) * 116 / var(--herman-size, 48));
+}
+
+.herman-figure.is-blinking .herman-line,
+.herman-figure.is-blinking .herman-halo {
+  transition-duration: var(--duration-fast);
+}
+
+/*
+ * He draws himself: the one stroke, from the curl of the ear to the foot of the staff, at the
+ * even pace of a hand (which is why this one movement does not use --ease). The glow comes
+ * after the ink.
+ */
+.herman-figure.is-drawn .herman-line {
+  /* One dash as long as the line, held just past its start (a round cap exactly at an end would show as a dot). */
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1.02;
+  animation: herman-draw calc(var(--duration) * 10) ease-in-out calc(var(--duration) * 0.6) forwards;
+}
+
+.herman-figure.is-drawn .herman-halo {
+  opacity: 0;
+  animation: herman-appear calc(var(--duration) * 5) var(--ease) calc(var(--duration) * 9.6) forwards;
+}
+
+@keyframes herman-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes herman-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The small marks beside him: a "z" while he sleeps, a turning curl while he thinks. */
+.herman-mark {
+  stroke: currentColor;
+  stroke-width: calc(var(--herman-stroke) * 0.85 * 116 / var(--herman-size, 48));
+  opacity: 0;
+  transition: opacity calc(var(--duration) * 2) var(--ease);
+}
+
+.herman-figure.is-sleeping .herman-z {
+  opacity: 0.7;
+}
+
+.herman-figure.is-thinking .herman-thought {
+  opacity: 0.85;
+  stroke-dasharray: 0.62 0.38;
+  animation: herman-turn calc(var(--duration) * 9) linear infinite;
+}
+
+@keyframes herman-turn {
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+.herman-line.is-leaving {
+  display: none;
+}
+
+/* ---- his corner ---- */
+
+.herman-dock {
+  --herman-size: 50;
+  /* Small, the glow is kept close to the line, or it would swallow the drawing. */
+  --herman-halo: 2.4;
+  position: absolute;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: min(420px, calc(100% - 32px));
+  pointer-events: none;
+  transition:
+    transform calc(var(--duration) * 1.6) var(--ease),
+    opacity calc(var(--duration) * 1.2) var(--ease),
+    visibility 0s;
+}
+
+.herman-dock.is-medium {
+  --herman-size: 76;
+  --herman-halo: 3;
+}
+
+.herman-dock.is-medium .herman-figure {
+  --herman-stroke: 1.9;
+}
+
+.herman-dock.is-bottom-right {
+  right: 22px;
+  bottom: 18px;
+  flex-direction: row-reverse;
+}
+
+.herman-dock.is-bottom-left {
+  left: 22px;
+  bottom: 18px;
+}
+
+.herman-dock.is-top-right {
+  top: 14px;
+  right: 22px;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+}
+
+.herman-dock.is-top-left {
+  top: 14px;
+  left: 22px;
+  align-items: flex-start;
+}
+
+/* The caret or a menu came near: he steps out of the way and all but disappears. */
+.herman-dock.is-aside {
+  opacity: 0.14;
+  transform: translateY(calc(var(--herman-size) * -1.5px));
+}
+
+.herman-dock.is-top-right.is-aside,
+.herman-dock.is-top-left.is-aside {
+  transform: translateY(calc(var(--herman-size) * 1.5px));
+}
+
+.herman-dock.is-aside .herman-button {
+  pointer-events: none;
+}
+
+/* A dialog is open, something plays full screen, or he is in the conversation. */
+.herman-dock.is-away {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--duration) var(--ease),
+    visibility 0s var(--duration);
+}
+
+.herman-dock.is-dragging {
+  transition: none;
+}
+
+.herman-button {
+  flex: none;
+  padding: 5px;
+  border-radius: var(--radius-l);
+  opacity: 0.5;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-drag: none;
+  transition:
+    opacity calc(var(--duration) * 1.5) var(--ease),
+    background var(--duration) var(--ease);
+}
+
+/* The button is what is pressed, never the drawing inside it (whose parts come and go with his poses). */
+.herman-button .herman-figure {
+  pointer-events: none;
+}
+
+.herman-button:hover,
+.herman-button:focus-visible,
+.herman-dock.is-awake .herman-button {
+  opacity: 1;
+}
+
+.herman-button:hover {
+  background: var(--fill-4);
+}
+
+.herman-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.herman-dock.is-dragging .herman-button {
+  opacity: 1;
+  cursor: grabbing;
+}
+
+/* ---- what he says ---- */
+
+.herman-bubble {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 300px;
+  margin-bottom: 6px;
+  padding: 11px 14px 9px;
+  border-radius: var(--radius-l);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  color: var(--text);
+  pointer-events: auto;
+  animation: herman-rise calc(var(--duration) * 1.6) var(--ease);
+}
+
+.herman-dock.is-top-right .herman-bubble,
+.herman-dock.is-top-left .herman-bubble {
+  margin: 6px 0 0;
+}
+
+.herman-bubble-text {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-regular);
+  line-height: calc((var(--leading-ui) + var(--leading-body)) / 2);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.herman-bubble-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin-top: 7px;
+}
+
+.herman-bubble-actions button {
+  padding: 2px 0;
+  border-radius: var(--radius-xs);
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.herman-bubble-actions button.is-primary {
+  color: var(--accent);
+}
+
+.herman-bubble-actions button:hover,
+.herman-bubble-actions button:focus-visible {
+  color: var(--accent);
+}
+
+.herman-bubble-actions button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@keyframes herman-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.herman-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- in the conversation ---- */
+
+.herman-stage {
+  --herman-size: 112;
+  display: flex;
+  flex: none;
+  justify-content: center;
+  padding: 2px 0 6px;
+  transition: padding calc(var(--duration) * 2) var(--ease);
+}
+
+.herman-stage .herman-figure {
+  --herman-stroke: 2.1;
+  transition:
+    transform calc(var(--duration) * 4) var(--ease),
+    width calc(var(--duration) * 2) var(--ease),
+    height calc(var(--duration) * 2) var(--ease);
+}
+
+.herman-stage.is-large {
+  --herman-size: 156;
+  padding: 14px 0 0;
+}
+
+.herman-stage.is-large .herman-figure {
+  --herman-stroke: 2.4;
+}
+
+.assistant.is-herman .assistant-empty {
+  margin: 0;
+  padding-top: 6px;
+}
+
+/* ---- on the Today screen ---- */
+
+.today-herman {
+  --herman-size: 44;
+  --herman-halo: 2.4;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.today-herman .herman-figure {
+  --herman-stroke: 1.5;
+}
+
+.today-herman span {
+  padding-bottom: 5px;
+}
+
+/* ---- settings ---- */
+
+.herman-settings-figure {
+  --herman-size: 72;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 20px;
+  color: var(--text-secondary);
+  font-family: var(--font-serif);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.herman-settings-figure .herman-figure {
+  --herman-stroke: 1.9;
+}
+
+.herman-settings-figure p {
+  margin: 0;
+  max-width: 400px;
+}
+
+.ap-field.herman-time {
+  width: calc(var(--control-height) * 4.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .herman-figure,
+  .herman-line,
+  .herman-halo,
+  .herman-dock,
+  .herman-stage,
+  .herman-stage .herman-figure {
+    transition: none;
+  }
+
+  .herman-figure.is-breathing {
+    transform: none;
+  }
+
+  /* No stroke that draws itself and no line that travels: poses and the figure itself fade. */
+  .herman-figure.is-drawn .herman-line,
+  .herman-figure.is-drawn .herman-halo {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+    animation: none;
+  }
+
+  /*
+   * A fade is not movement: these two keep their duration, which the app otherwise takes
+   * away from every animation when motion is to be reduced (see global.css).
+   */
+  .herman-body {
+    animation: herman-appear var(--duration) var(--ease);
+    animation-duration: var(--duration) !important;
+  }
+
+  .herman-line.is-leaving {
+    display: inline;
+    animation: herman-appear var(--duration) var(--ease) reverse forwards;
+    animation-duration: var(--duration) !important;
+  }
+
+  .herman-figure.is-thinking .herman-thought {
+    stroke-dasharray: none;
+    animation: none;
+  }
+
+  .herman-bubble {
+    animation: herman-appear var(--duration) var(--ease);
+  }
+
+  .herman-dock.is-aside {
+    transform: none;
+  }
+}

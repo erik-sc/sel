@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { localDay, type Briefing, type BriefingEvent, type BriefingPhrase, type BriefingTask } from '@shared/briefing'
 import { aiReady, useAiGate } from '@/ai/gate'
+import { Figure } from '@/herman/Figure'
+import { noteAiEvent, useHerman } from '@/herman/gate'
 import { newMeeting } from '@/meetings/gate'
 import { refreshTree } from '@/store/tree'
 import { openPage } from '@/store/tabs'
@@ -124,6 +126,7 @@ function openSettings(): void {
 // ---- the phrase ---------------------------------------------------------------
 
 function Phrase({ phrase, hasPhrases, onChange }: { phrase: BriefingPhrase | null; hasPhrases: boolean; onChange: (phrase: BriefingPhrase | null) => void }): JSX.Element | null {
+  const herman = useHerman((state) => state.on)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -190,6 +193,13 @@ function Phrase({ phrase, hasPhrases, onChange }: { phrase: BriefingPhrase | nul
 
   return (
     <section className="today-section today-phrase" aria-label="Phrase of the day">
+      {/* With Herman on, the phrase is something he hands over. Presentation only: the phrase is chosen as before. */}
+      {herman && (
+        <div className="today-herman">
+          <Figure pose="pleased" alive={false} />
+          <span>For today, from Herman</span>
+        </div>
+      )}
       <figure className="today-figure">
         <blockquote className={classes.join(' ')} aria-live="polite">
           {phrase.text}
@@ -389,12 +399,14 @@ type BriefState = { phase: 'idle' } | { phase: 'running' | 'done'; id: string; t
 /** The optional spoken-style paragraph. It runs when asked for, and never by itself. */
 function BriefMe(): JSX.Element | null {
   const enabled = useAiGate((state) => state.enabled)
+  const herman = useHerman((state) => state.on)
   const [state, setState] = useState<BriefState>({ phase: 'idle' })
   const current = useRef<string | null>(null)
 
   useEffect(() => {
     const off = window.api.ai.onEvent((event) => {
       if (event.id !== current.current) return
+      noteAiEvent(event.type, event.type === 'error' && event.code === 'cancelled')
       if (event.type === 'delta') setState((previous) => (previous.phase === 'running' ? { ...previous, text: previous.text + event.text } : previous))
       else if (event.type === 'done') {
         current.current = null
@@ -416,6 +428,7 @@ function BriefMe(): JSX.Element | null {
   const run = (): void => {
     void aiReady().then((ready) => {
       if (!ready) return
+      noteAiEvent('start')
       window.api.briefing.brief().then(
         ({ id }) => {
           current.current = id
@@ -423,6 +436,7 @@ function BriefMe(): JSX.Element | null {
         },
         (error: unknown) => {
           console.error('the briefing paragraph could not start', error)
+          noteAiEvent('rejected')
           setState({ phase: 'failed', message: 'The summary could not be written.' })
         }
       )
@@ -437,7 +451,7 @@ function BriefMe(): JSX.Element | null {
     <section className="today-section today-brief" aria-label="Summary of the day">
       {state.phase === 'idle' && (
         <button type="button" className="today-link" onClick={run}>
-          Brief me
+          {herman ? 'Ask Herman about today' : 'Brief me'}
         </button>
       )}
       {(state.phase === 'running' || state.phase === 'done') && (

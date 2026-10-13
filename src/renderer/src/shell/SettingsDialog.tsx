@@ -27,13 +27,17 @@ const SECTIONS: { value: Section; label: string }[] = [
   { value: 'appearance', label: 'Appearance' },
   { value: 'history', label: 'History' },
   { value: 'ai', label: 'AI' },
-  { value: 'sync', label: 'Sync' },
+  { value: 'herman', label: 'Herman' },
+  { value: 'sync', label: 'Sync' }
+,
   { value: 'today', label: 'Today' },
   { value: 'meetings', label: 'Meetings' }
 ]
 
 // Sync settings are a chunk of their own: most people open Settings for something else.
 const SyncSection = lazy(() => import('@/sync/SyncSettings').then((module) => ({ default: module.SyncSection })))
+// Herman's settings bring his figure and his stylesheet with them.
+const HermanSection = lazy(() => import('@/herman/HermanSettings').then((module) => ({ default: module.HermanSection })))
 // And so are the meetings settings.
 const MeetingsSection = lazy(() => import('@/meetings/MeetingsSettings').then((module) => ({ default: module.MeetingsSection })))
 
@@ -88,6 +92,10 @@ function SettingsBody() {
             <HistorySection />
           ) : section === 'ai' ? (
             <AiSection />
+          ) : section === 'herman' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <HermanSection />
+            </Suspense>
           ) : section === 'sync' ? (
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
               <SyncSection />

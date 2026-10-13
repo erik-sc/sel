@@ -14,6 +14,8 @@ import { initTree } from './store/tree'
 import { bootUi, initUi, resolveTheme } from './store/ui'
 import { notifyError } from './ui/toast'
 import { initAi } from './ai/gate'
+import { initHerman } from './herman/gate'
+import { preloadHerman } from './herman/Host'
 import { initSync } from './sync/store'
 import { initMeetings } from './meetings/gate'
 import { isTodayRoute, openTodayOnLaunch } from './briefing/route'
@@ -40,6 +42,8 @@ const settings = Promise.all([
 void initTree()
 // Whether the AI entry points exist at all (`ai.enabled`); they stay hidden until this answers.
 void initAi()
+// Whether Herman, the assistant's face, is on (`herman.enabled`); his figure is fetched when the app is idle.
+const herman = initHerman()
 // The state of sync, for the indicator in the sidebar (nothing is loaded for it unless this device syncs).
 void initSync()
 initMeetings()
@@ -61,6 +65,7 @@ function mount(): void {
   whenIdle(() => {
     preloadEditor()
     preloadQuickFind()
+    void herman.then(preloadHerman)
   })
 }
 

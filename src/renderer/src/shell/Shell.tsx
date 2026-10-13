@@ -5,6 +5,7 @@ import { Toaster } from '@/ui/Toaster'
 import { VersionHistory } from '@/versions/VersionHistory'
 import { AiSetup, AssistantDock } from '@/ai/Host'
 import { TodayHost } from '@/briefing/Host'
+import { HermanHost } from '@/herman/Host'
 import { MeetingSetup } from '@/meetings/slot'
 import { isTodayRoute } from '@/briefing/route'
 import { EmptyState, PageHost } from './PageHost'
@@ -45,6 +46,7 @@ export function Shell() {
             ) : (
               <EmptyState />
             )}
+            <HermanHost />
           </main>
           <AssistantDock />
         </div>
