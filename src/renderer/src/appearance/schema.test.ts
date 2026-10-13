@@ -71,7 +71,24 @@ describe('presets', () => {
     expect(new Set(PRESETS.map((preset) => preset.id)).size).toBe(PRESETS.length)
     expect(PRESETS.length).toBeGreaterThanOrEqual(6)
     const first = PRESETS[0]
+    expect(first.id).toBe('zen')
     expect({ ...first.light, ...first.dark, ...first.shared }).toEqual({})
+  })
+
+  it('keeps every look designed over the original Glass defaults independent of the Zen defaults', () => {
+    // Glass restores each token Zen changed. A preset that predates Zen and misses one of them
+    // would silently pick up the Zen value there.
+    const glass = PRESETS.find((preset) => preset.id === 'glass')!
+    expect(Object.keys(glass.light).length).toBeGreaterThan(40)
+    expect(Object.keys(glass.dark).length).toBeGreaterThan(40)
+    expect(Object.keys(glass.shared).length).toBeGreaterThan(10)
+    for (const preset of PRESETS) {
+      if (preset.id === 'zen' || preset.id === 'zen-ink') continue
+      for (const bucket of ['light', 'dark', 'shared'] as const) {
+        const missing = Object.keys(glass[bucket]).filter((name) => !Object.hasOwn(preset[bucket], name))
+        expect(missing, `${preset.id}: ${bucket}`).toEqual([])
+      }
+    }
   })
 
   it('only overrides known tokens, in the right set, with valid values', () => {

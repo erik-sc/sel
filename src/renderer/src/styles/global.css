@@ -41,6 +41,10 @@ body {
 
 /* ---- wallpaper: colour mesh, covered by --wall-image when one is set ---- */
 /*
+ * By default (Zen) the mesh colours sit within a few steps of --wall-base, so it reads as an
+ * uneven sheet of paper under soft light, not as colour; the Glass presets feed the same four
+ * gradients saturated colours. Nothing here knows which look is active: it is all token values.
+ *
  * The wallpaper is what the shell panels frost. Nothing else is ever between a panel and the
  * wallpaper, so the frosting is applied here, once, as an ordinary filter that is rasterised
  * with the wallpaper and then reused, instead of as a live backdrop-filter under each panel
@@ -165,7 +169,9 @@ hr {
 
 /* ---- glass surfaces ---- */
 /*
- * The shell panels. Translucent fills over the wallpaper, which is already frosted (above):
+ * The shell panels. In the default look they are the page material itself: no edge
+ * (--glass-border and --glass-highlight transparent), no shadow, only a tone shift.
+ * In the Glass presets they are translucent fills over the wallpaper, which is already frosted (above):
  * no backdrop-filter here. Repeated items (rows, tabs, cards) use the --fill-* tokens.
  */
 .glass {

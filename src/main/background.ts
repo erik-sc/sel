@@ -8,7 +8,7 @@
 
 export const APPEARANCE_KEY = 'appearance'
 const TOKEN = '--wall-base'
-const DEFAULTS = { light: '#eef1f8', dark: '#0b0c14' } as const
+const DEFAULTS = { light: '#f0ede6', dark: '#171614' } as const
 
 /** `#rgb` / `#rrggbb`, or `rgb(r, g, b)` with plain 0-255 integers. Anything else falls back to the default. */
 const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i

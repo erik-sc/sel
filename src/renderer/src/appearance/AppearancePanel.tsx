@@ -6,9 +6,9 @@ import { Database, Page, Search, Star } from '@/ui/icons'
 import { notifyError } from '@/ui/toast'
 import './appearance.css'
 import { ConfirmButton, Segmented, TokenRow } from './controls'
-import { PRESETS } from './presets'
+import { PRESETS, PRESET_MAP } from './presets'
 import type { Preset } from './presets'
-import { countOverrides, sanitizeCustomCss } from './sanitize'
+import { countOverrides, sanitizeAppearance, sanitizeCustomCss } from './sanitize'
 import type { AppearanceData } from './sanitize'
 import { GROUPS, TOKENS, TOKEN_MAP, defaultValue } from './schema'
 import type { ThemeName, TokenDef, TokenGroup } from './schema'
@@ -188,10 +188,27 @@ function thumbStyle(preset: Preset, scope: ThemeName): CSSProperties {
   return style as CSSProperties
 }
 
+function sameMap(a: Record<string, string>, b: Record<string, string>): boolean {
+  const keys = Object.keys(a)
+  return keys.length === Object.keys(b).length && keys.every((key) => a[key] === b[key])
+}
+
+/**
+ * The preset the saved overrides amount to today. The saved presetId alone does not say:
+ * presets are overrides on the defaults, so settings saved under other defaults (a preset
+ * picked before Zen became the default look) no longer add up to the preset they name.
+ */
+function selectedPreset(state: AppearanceData): string | null {
+  if (countOverrides(state) === 0) return PRESETS[0].id
+  const preset = state.presetId === null ? undefined : PRESET_MAP[state.presetId]
+  if (!preset) return null
+  const expected = sanitizeAppearance(preset)
+  const same = (['light', 'dark', 'shared'] as const).every((bucket) => sameMap(state[bucket], expected[bucket]))
+  return same ? preset.id : null
+}
+
 function PresetGallery({ scope }: { scope: ThemeName }) {
-  const presetId = useAppearance((state) => state.presetId)
-  const untouched = useAppearance((state) => countOverrides(state) === 0)
-  const selected = presetId ?? (untouched ? PRESETS[0].id : null)
+  const selected = useAppearance(selectedPreset)
   return (
     <section className="ap-group" aria-label="Presets">
       <div className="ap-group-head">

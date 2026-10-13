@@ -150,11 +150,11 @@ describe('state sanitisation', () => {
         __proto__: 'x',
         constructor: 'x',
         '--glass-blur': '10px',
-        '--danger': '#ff3b30',
+        '--danger': t('--danger').light,
         '--success': 'url(http://x)'
       },
       dark: { '--accent': '#00ff00', '--text': 7 },
-      shared: { '--glass-blur': '10px', '--accent': '#000000', '--radius-m': '12px', '--font-scale': '1.1' },
+      shared: { '--glass-blur': '10px', '--accent': '#000000', '--radius-m': t('--radius-m').light, '--font-scale': '1.1' },
       customCss: '@import "x";.a{}',
       presetId: 'bad id!'
     })
@@ -181,7 +181,7 @@ describe('state sanitisation', () => {
     expect(buildCss(emptyAppearance())).toBe('')
     expect(effectiveValueIn(data, '--accent', 'dark')).toBe('#00ff00')
     expect(effectiveValueIn(data, '--glass-blur', 'dark')).toBe('10px')
-    expect(effectiveValueIn(data, '--danger', 'dark')).toBe('#ff453a')
-    expect(effectiveValueIn(data, '--danger', 'light')).toBe('#ff3b30')
+    expect(effectiveValueIn(data, '--danger', 'dark')).toBe(t('--danger').dark)
+    expect(effectiveValueIn(data, '--danger', 'light')).toBe(t('--danger').light)
   })
 })
