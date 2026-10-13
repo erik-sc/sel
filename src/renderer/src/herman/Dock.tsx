@@ -182,7 +182,11 @@ export function Dock(): JSX.Element | null {
 
     const onKey = (event: KeyboardEvent): void => {
       lastKey = performance.now()
-      if (editable(event.target) && dockRef.current?.parentElement?.contains(event.target)) editing = editingSince(editing, lastKey)
+      if (editable(event.target) && dockRef.current?.parentElement?.contains(event.target)) {
+        editing = editingSince(editing, lastKey)
+        // Once it is being written in, the page is no longer one that was just reopened.
+        untouched = undefined
+      }
     }
     window.addEventListener('keydown', onKey, true)
 
@@ -230,7 +234,7 @@ export function Dock(): JSX.Element | null {
     document.addEventListener('visibilitychange', onVisible)
     // Something he says without being asked just now (a streak of finished tasks).
     const offNudge = window.api.herman.onNudge((nudge) => {
-      if (!bubbleRef.current) setBubble(nudge)
+      if (!bubbleRef.current && !quiet.current.away && !quiet.current.panelOpen) setBubble(nudge)
     })
     return () => {
       stopped = true
