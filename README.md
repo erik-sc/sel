@@ -1,0 +1,80 @@
+# Selida
+
+A quiet place to write and keep things.
+
+Selida is a notes app for your desktop. Pages are made of blocks, databases are made of pages, and everything lives in one file on your computer.
+
+![A page in Selida, light theme](docs/page-light.png)
+
+## What it does
+
+**Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go.
+
+**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters.
+
+**Find.** `Ctrl+P` searches everything.
+
+**Go back.** Every page keeps a version history. Compare, restore, or restore as a copy.
+
+**Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
+
+**Make it yours.** Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance.
+
+| | |
+|---|---|
+| ![Board view](docs/board.png) | ![Chart view, dark theme](docs/chart.png) |
+| ![A page, dark theme](docs/page-dark.png) | ![Appearance settings](docs/appearance.png) |
+
+## Principles
+
+- **Yours.** Your notes are a SQLite file on your disk. No account, no server.
+- **Still.** The app makes no network requests of its own, apart from loading images you link to.
+- **Light.** One small window, a short list of dependencies.
+- **Careful.** The interface runs sandboxed, and nothing you paste or import is trusted.
+
+## Run it
+
+You need [Node.js](https://nodejs.org) 22 or newer.
+
+```bash
+npm install
+npm run dev
+```
+
+To build an unpacked app into `release/`:
+
+```bash
+npm run pack
+```
+
+## Work on it
+
+```bash
+npm test
+npm run typecheck
+```
+
+The code is in `src/`:
+
+- `main/` — the Electron main process: storage, files, version history, AI.
+- `preload/` — the narrow bridge the interface is allowed to use.
+- `renderer/` — the interface: editor, databases, shell, appearance.
+- `shared/` — types both sides agree on.
+
+All style values live in one file, `src/renderer/src/styles/tokens.css`. Components only refer to them.
+
+## Keys
+
+| | |
+|---|---|
+| `Ctrl+P` | Find |
+| `Ctrl+N` | New page |
+| `Ctrl+T` / `Ctrl+W` | New tab / close tab |
+| `Ctrl+\` | Hide the sidebar |
+| `Ctrl+J` | Assistant |
+| `Ctrl+Shift+L` | Light / dark |
+| `/` | Insert a block |
+
+---
+
+*Selida* is Greek for *page*.
