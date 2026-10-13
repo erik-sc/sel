@@ -464,3 +464,37 @@ describe('the "Brief me" prompt', () => {
     expect(many).toContain('(and 60 more)')
   })
 })
+
+describe('the days of the calendar screen', () => {
+  it('gives a span its events and dated tasks, reading a calendar in full for days the cache does not reach', async () => {
+    tasksDatabase()
+    const { service } = make()
+    service.addCalendar({ label: 'Work', url: SECRET, color: 'green' })
+    // At once, from what is held: nothing yet, and it says so.
+    expect(await service.agenda('2026-11-01', '2026-11-30')).toMatchObject({ from: '2026-11-01', to: '2026-11-30', today: '2026-10-13', events: [], tasks: [], complete: false, updatedAt: now })
+    const november = await service.agenda('2026-11-01', '2026-11-30', true)
+    expect(november.complete).toBe(true)
+    expect(november.events.map((event) => event.title)).toEqual(Array.from({ length: 30 }, () => 'Standup'))
+    expect(november.calendars).toMatchObject([{ label: 'Work', ok: true }])
+    expect(JSON.stringify(november)).not.toContain('SECRETTOKEN')
+
+    // The grid of October: the days around the month too, and tasks on the day they are due.
+    const october = await service.agenda('2026-09-27', '2026-10-31')
+    expect(october.tasks.map((task) => [task.title, task.due])).toEqual([
+      ['Pay the rent', '2026-10-10'],
+      ['Call the bank', '2026-10-13']
+    ])
+    expect(october.events.filter((event) => event.title === 'Conference')).toHaveLength(1)
+    expect(october.events.filter((event) => event.title === 'Standup')).toHaveLength(19)
+    expect(fetches).toBe(1)
+  })
+
+  it('touches no network with nothing connected, and refuses what is not a span of days', async () => {
+    const { service } = make()
+    expect(await service.agenda('2026-10-01', '2026-10-31', true)).toMatchObject({ events: [], tasks: [], calendars: [], complete: true })
+    expect(fetches).toBe(0)
+    for (const [from, to] of [['2026-11-01', '2026-10-01'], ['soon', '2026-10-01'], [null, undefined], ['2026-01-01', '2026-12-31'], [20261001, 20261031]]) {
+      await expect(service.agenda(from, to)).rejects.toThrow('Invalid days')
+    }
+  })
+})

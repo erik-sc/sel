@@ -3,125 +3,18 @@
 // calendar's address is never here (the main process keeps it), only its label and host.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { localDay, type Briefing, type BriefingEvent, type BriefingPhrase, type BriefingTask } from '@shared/briefing'
+import { localDay, type Briefing, type BriefingPhrase } from '@shared/briefing'
 import { aiReady, useAiGate } from '@/ai/gate'
 import { Figure } from '@/herman/Figure'
 import { noteAiEvent, useHerman } from '@/herman/gate'
-import { newMeeting } from '@/meetings/gate'
 import { refreshTree } from '@/store/tree'
 import { openPage } from '@/store/tabs'
-import { setSettingsOpen, useUi } from '@/store/ui'
 import { notifyError, toast } from '@/ui/toast'
-import { calendarNotes, clock, dayStart, dueLabel, eventMoments, eventTime, longDate, phraseSource, phraseText, taskGroups, untilMidnight, updatedLabel } from './format'
-import { requestTodaySettings } from './route'
+import { calendarNotes, clock, dayStart, eventMoments, eventTime, longDate, phraseSource, phraseText, taskGroups, updatedLabel } from './format'
+import { EventRow, Lines, TaskRow, openSettings, useCompleteTask, useLive, useNow } from './parts'
 import './today.css'
 
-/** Data older than this is fetched again when the window gets the focus back. */
-const STALE_MS = 10 * 60_000
-/** Changes to pages arrive in bursts while someone types: one reload after they settle. */
-const CHANGE_DEBOUNCE_MS = 500
-
-interface Loaded {
-  data: Briefing | null
-  failed: boolean
-  refreshing: boolean
-}
-
-/** Loads the briefing and keeps it current: on change events, on focus, at midnight, on request. */
-function useBriefing(): Loaded & { refresh: () => void; setPhrase: (phrase: BriefingPhrase | null) => void } {
-  const [state, setState] = useState<Loaded>({ data: null, failed: false, refreshing: false })
-  const alive = useRef(true)
-  const latest = useRef(0)
-  const loadedAt = useRef(0)
-
-  const load = useCallback((force: boolean): void => {
-    const ticket = ++latest.current
-    if (force) setState((current) => ({ ...current, refreshing: true }))
-    window.api.briefing.get(force).then(
-      (data) => {
-        if (!alive.current || ticket !== latest.current) return
-        loadedAt.current = Date.now()
-        setState({ data, failed: false, refreshing: false })
-      },
-      (error: unknown) => {
-        if (!alive.current || ticket !== latest.current) return
-        console.error('the briefing failed to load', error)
-        setState((current) => ({ data: current.data, failed: true, refreshing: false }))
-      }
-    )
-  }, [])
-
-  useEffect(() => {
-    alive.current = true
-    load(false)
-    let debounce: ReturnType<typeof setTimeout> | null = null
-    const soon = (): void => {
-      if (debounce) clearTimeout(debounce)
-      debounce = setTimeout(() => load(false), CHANGE_DEBOUNCE_MS)
-    }
-    const offChanged = window.api.briefing.onChanged(() => load(false))
-    const offBlocks = window.api.onChange(soon)
-    const onFocus = (): void => {
-      if (document.visibilityState === 'visible' && Date.now() - loadedAt.current > STALE_MS) load(false)
-    }
-    window.addEventListener('focus', onFocus)
-    document.addEventListener('visibilitychange', onFocus)
-    // A new day: a new date, a new phrase, another agenda.
-    let midnight: ReturnType<typeof setTimeout>
-    const arm = (): void => {
-      midnight = setTimeout(() => {
-        load(false)
-        arm()
-      }, untilMidnight(Date.now()) + 1000)
-    }
-    arm()
-    // Settings that change what is shown are edited in a window on top of this screen.
-    const offSettings = useUi.subscribe((ui, previous) => {
-      if (previous.settingsOpen && !ui.settingsOpen) load(false)
-    })
-    return () => {
-      alive.current = false
-      if (debounce) clearTimeout(debounce)
-      clearTimeout(midnight)
-      offChanged()
-      offBlocks()
-      offSettings()
-      window.removeEventListener('focus', onFocus)
-      document.removeEventListener('visibilitychange', onFocus)
-    }
-  }, [load])
-
-  const refresh = useCallback(() => load(true), [load])
-  const setPhrase = useCallback((phrase: BriefingPhrase | null) => {
-    setState((current) => (current.data ? { ...current, data: { ...current.data, phrase } } : current))
-  }, [])
-  return { ...state, refresh, setPhrase }
-}
-
-/** The current time, refreshed every half minute: what is "now" and "next" follows the clock. */
-function useNow(): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 30_000)
-    return () => clearInterval(timer)
-  }, [])
-  return now
-}
-
-function Lines({ count = 3 }: { count?: number }): JSX.Element {
-  return (
-    <div className="today-lines" aria-hidden="true">
-      {Array.from({ length: count }, (_, index) => (
-        <div key={index} />
-      ))}
-    </div>
-  )
-}
-
-function openSettings(): void {
-  requestTodaySettings()
-  setSettingsOpen(true)
-}
+const readBriefing = (force: boolean): Promise<Briefing> => window.api.briefing.get(force)
 
 // ---- the phrase ---------------------------------------------------------------
 
@@ -269,32 +162,6 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
     )
   }
 
-  const row = (event: BriefingEvent, moment: string, time: string): JSX.Element => {
-    const calendar = colors.get(event.calendarId)
-    return (
-      <li key={event.id} className={`today-event is-${moment}`}>
-        <span className="today-event-time">{time}</span>
-        <span className="today-dot" style={{ background: `var(--c-${calendar?.color ?? 'gray'})` }} role="img" aria-label={calendar?.label ?? 'Calendar'} title={calendar?.label} />
-        <span className="today-event-body">
-          <span className="today-event-title">
-            {event.title || 'Untitled'}
-            {(moment === 'now' || moment === 'next') && <span className="today-event-mark">{moment === 'now' ? 'Now' : 'Next'}</span>}
-          </span>
-          {event.location && <span className="today-event-meta">{event.location}</span>}
-        </span>
-        {!event.allDay && moment !== 'past' && (
-          <button
-            type="button"
-            className="today-event-notes"
-            onClick={() => void newMeeting({ event: { title: event.title, start: event.start, end: event.end, ...(event.location ? { location: event.location } : {}), ...(event.description ? { description: event.description } : {}) } })}
-          >
-            Take notes
-          </button>
-        )}
-      </li>
-    )
-  }
-
   return (
     <section className="today-section" aria-labelledby="today-agenda">
       <h2 className="today-label" id="today-agenda">
@@ -303,7 +170,11 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
       {today.length === 0 ? (
         <p className="today-quiet">{enabled.length === 0 ? 'Your calendars are turned off.' : 'Nothing scheduled today.'}</p>
       ) : (
-        <ul className="today-list today-agenda">{today.map((event, index) => row(event, moments[index], eventTime(event, from, to)))}</ul>
+        <ul className="today-list today-agenda">
+          {today.map((event, index) => (
+            <EventRow key={event.id} event={event} calendar={colors.get(event.calendarId)} moment={moments[index]} time={eventTime(event, from, to)} />
+          ))}
+        </ul>
       )}
       {tomorrowFirst && (
         <p className="today-tomorrow">
@@ -324,35 +195,8 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
 
 function Tasks({ briefing }: { briefing: Briefing }): JSX.Element {
   const [expanded, setExpanded] = useState(false)
-  /** Tasks ticked here, hidden at once; the next briefing no longer has them. */
-  const [done, setDone] = useState<ReadonlySet<string>>(() => new Set())
+  const { done, complete } = useCompleteTask()
   const { groups, hidden } = useMemo(() => taskGroups(briefing.tasks, expanded, done), [briefing.tasks, expanded, done])
-
-  const complete = (task: BriefingTask): void => {
-    setDone((current) => new Set(current).add(task.id))
-    const restore = (): void =>
-      setDone((current) => {
-        const next = new Set(current)
-        next.delete(task.id)
-        return next
-      })
-    window.api.briefing.completeTask(task.id).then(
-      ({ token }) => {
-        toast('Marked as done.', {
-          action: {
-            label: 'Undo',
-            run: () => {
-              window.api.briefing.undoCompleteTask(token).then(restore, (error: unknown) => notifyError('Could not undo that.', error))
-            }
-          }
-        })
-      },
-      (error: unknown) => {
-        restore()
-        notifyError('Could not mark the task as done.', error)
-      }
-    )
-  }
 
   return (
     <section className="today-section" aria-labelledby="today-tasks">
@@ -367,17 +211,7 @@ function Tasks({ briefing }: { briefing: Briefing }): JSX.Element {
             {(groups.length > 1 || group.key !== 'today') && <h3 className="today-group-label">{group.label}</h3>}
             <ul className="today-list">
               {group.tasks.map((task) => (
-                <li key={task.id} className="today-task">
-                  <button type="button" className="today-check" aria-label={`Mark "${task.title}" as done`} onClick={() => complete(task)} />
-                  <button type="button" className="today-task-open" onClick={(event) => openPage(task.pageId, { newTab: event.ctrlKey || event.metaKey })}>
-                    <span className="today-task-title">{task.title}</span>
-                    <span className="today-task-meta">
-                      {[task.source, task.due && task.due !== briefing.date ? dueLabel(task.due, briefing.date) : '', task.priority?.name]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </span>
-                  </button>
-                </li>
+                <TaskRow key={task.id} task={task} day={briefing.date} onComplete={complete} />
               ))}
             </ul>
           </div>
@@ -495,7 +329,8 @@ function BriefMe(): JSX.Element | null {
 // ---- the screen ---------------------------------------------------------------
 
 export function TodayScreen(): JSX.Element {
-  const { data, failed, refreshing, refresh, setPhrase } = useBriefing()
+  const { data, failed, refreshing, refresh, update } = useLive(readBriefing, 'the briefing')
+  const setPhrase = useCallback((phrase: BriefingPhrase | null) => update((current) => ({ ...current, phrase })), [update])
   const now = useNow()
 
   if (!data) {

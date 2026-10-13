@@ -36,6 +36,7 @@ export function registerBriefingIpc({ handle, repo, ai, onTaskCompleted, onTaskU
   const briefing = async (): Promise<BriefingBridge> => (bridge ??= new (await import('./index')).BriefingBridge(repo))
 
   handle('briefing:get', async ([force]) => (await briefing()).service.get(force === true))
+  handle('briefing:agenda', async ([from, to, force]) => (await briefing()).service.agenda(from, to, force === true))
   handle('briefing:anotherPhrase', async () => (await briefing()).service.anotherPhrase())
   handle('briefing:completeTask', async ([id], event) => {
     const result = (await briefing()).service.completeTask(id)

@@ -1,0 +1,286 @@
+/*
+ * The calendar screen. A month grid in the manner of a database's calendar view (hairlines, a
+ * filled circle for today), wider than the page measure, with the chosen day beside it when
+ * there is room and under it when there is not. The day's lists are the Today screen's own
+ * (today.css); only what the grid needs is here. Every colour, size and duration is a token.
+ */
+
+.cal {
+  container-type: inline-size;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(1080px + var(--page-padding-x) * 2);
+  margin: 0 auto;
+  padding: 56px var(--page-padding-x) 96px;
+  color: var(--text);
+  animation: ui-fade var(--duration) var(--ease);
+}
+
+/* ---- month and navigation ---- */
+
+.cal-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.cal-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+  text-transform: capitalize;
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-height);
+  height: var(--control-height);
+  border-radius: var(--radius-pill);
+  background: var(--fill-4);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.cal-nav-button.is-text {
+  padding: 0 14px;
+}
+
+.cal-nav-button:hover,
+.cal-nav-button:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* ---- legend ---- */
+
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 14px 0 28px;
+  padding: 0;
+  list-style: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.cal-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cal-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+}
+
+/* A task's mark: the round checkbox of the lists, small. */
+.cal-ring {
+  flex: none;
+  box-sizing: border-box;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+}
+
+/* ---- the month and the day, side by side when there is room ---- */
+
+.cal-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 40px;
+}
+
+@container (min-width: 900px) {
+  .cal-body {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+  }
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  overflow: hidden;
+  border-radius: var(--radius-m);
+  background: var(--fill-4);
+}
+
+.cal-grid.is-weekdays {
+  border-radius: 0;
+  background: none;
+}
+
+.cal-weekday {
+  padding: 6px 10px;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-align: right;
+  text-transform: capitalize;
+}
+
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  min-height: 108px;
+  padding: 5px;
+  border-right: var(--hairline) solid var(--border);
+  border-bottom: var(--hairline) solid var(--border);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.cal-day:nth-child(7n) {
+  border-right: 0;
+}
+
+.cal-day:nth-last-child(-n + 7) {
+  border-bottom: 0;
+}
+
+.cal-day:hover {
+  background: var(--bg-hover);
+}
+
+.cal-day.is-selected {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.cal-day.is-outside > * {
+  opacity: 0.5;
+}
+
+.cal-day-number {
+  align-self: flex-end;
+  min-width: 24px;
+  height: 24px;
+  margin-bottom: 2px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  line-height: 24px;
+  text-align: center;
+}
+
+.cal-day.is-today .cal-day-number {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: var(--weight-semibold);
+}
+
+/* ---- what a day holds: one line each ---- */
+
+.cal-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
+  line-height: 20px;
+}
+
+.cal-item.is-band {
+  padding: 0 6px;
+}
+
+.cal-item-time {
+  flex: none;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-item-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-item.is-task {
+  color: var(--text-secondary);
+}
+
+/* Still open after its day: the ring says so, quietly. */
+.cal-item.is-overdue .cal-ring {
+  border-color: var(--c-red);
+}
+
+.cal-more {
+  padding: 0 4px;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: 20px;
+}
+
+/* ---- the chosen day ---- */
+
+.cal-detail {
+  min-width: 0;
+}
+
+.cal-detail-near {
+  margin: 0 0 4px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.cal-detail-date {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+}
+
+.cal-section {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.cal-section .today-label {
+  margin-bottom: 10px;
+}
+
+/* A narrow column: the hours sit over the title rather than beside it when they are long. */
+.cal-detail .today-event-notes {
+  grid-column: 3;
+  justify-self: start;
+  margin-left: -8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal {
+    animation: none;
+  }
+}

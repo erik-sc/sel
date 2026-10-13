@@ -15,7 +15,7 @@ import {
 import { setHistoryPage, setQuickFindOpen, setSettingsOpen, toggleSidebar, toggleTheme, useUi } from '@/store/ui'
 import { createPage, reportError } from './actions'
 import { toggleAssistant } from '@/ai/gate'
-import { openToday } from '@/briefing/route'
+import { openCalendar, openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
 
 function isEditable(target: EventTarget | null): boolean {
@@ -80,6 +80,9 @@ export function useShellCommands(): void {
           break
         case 'open-today':
           openToday()
+          break
+        case 'open-calendar':
+          openCalendar()
           break
         case 'new-meeting':
           void newMeeting()

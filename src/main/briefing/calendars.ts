@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { BriefingCalendar, BriefingEvent, CalendarErrorCode, CalendarTestResult } from '../../shared/briefing'
-import { expandCalendar, looksLikeCalendar, parseCalendar, type CalendarOccurrence } from './ical'
+import { expandCalendar, looksLikeCalendar, parseCalendar, type CalendarOccurrence, type ParsedCalendar } from './ical'
 import { CalendarError, fetchCalendar, type FetchOptions, type FetchResult, type NetPolicy } from './net'
 import type { CalendarEntry, CalendarStore } from './secrets'
 
@@ -12,6 +12,10 @@ import type { CalendarEntry, CalendarStore } from './secrets'
  * validators of the previous answer so that an unchanged file is not sent again. What was read
  * is expanded for the two weeks ahead and kept in a small JSON file, so the briefing opens at
  * once and still has its agenda offline. The cache holds event titles, never an address.
+ *
+ * The calendar screen looks further than those two weeks. For that the calendar as it was last
+ * parsed is kept in memory (never on disk) and expanded for whatever span is asked; a calendar
+ * with no such copy yet is read once in full.
  *
  * With no calendar connected nothing here touches the network at all.
  */
@@ -81,7 +85,7 @@ function startOfLocalDay(ms: number): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
 }
 
-function localMidnight(day: string): number | null {
+export function localMidnight(day: string): number | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day)
   if (!match) return null
   const d = new Date(0)
@@ -132,11 +136,25 @@ function readCachedEvent(value: unknown): CachedEvent | null {
   return event
 }
 
+/** Whether an event belongs to [from, to): a moment to the span it starts in, anything longer to those it overlaps. */
+function within(event: BriefingEvent, from: number, to: number): boolean {
+  return event.end > event.start ? event.start < to && event.end > from : event.start >= from && event.start < to
+}
+
+/** All-day first, then by start. */
+function byTime(a: BriefingEvent, b: BriefingEvent): number {
+  return a.allDay !== b.allDay ? (a.allDay ? -1 : 1) : a.start - b.start || a.end - b.end || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0)
+}
+
 const ERROR_CODES: ReadonlySet<string> = new Set(['offline', 'not-found', 'forbidden', 'not-calendar', 'too-large', 'timeout', 'blocked-address', 'failed'])
 
 export class CalendarService {
   private cache: CacheFile | null = null
   private readonly inflight = new Map<string, Promise<void>>()
+  /** The calendars as last parsed, for spans the cache does not cover. In memory only. */
+  private readonly parsed = new Map<string, ParsedCalendar>()
+  /** When each calendar was last read in full for such a span. */
+  private readonly coveredAt = new Map<string, number>()
   private readonly now: () => number
 
   constructor(private readonly options: CalendarServiceOptions) {
@@ -197,6 +215,8 @@ export class CalendarService {
 
   /** Forgets what was read from a calendar (it was removed). */
   forget(id: string): void {
+    this.parsed.delete(id)
+    this.coveredAt.delete(id)
     const cache = this.load()
     if (!(id in cache.calendars)) return
     delete cache.calendars[id]
@@ -230,16 +250,68 @@ export class CalendarService {
     const cache = this.load()
     const out: BriefingEvent[] = []
     for (const entry of this.options.store.list()) {
+      if (entry.enabled) this.cachedIn(entry.id, cache.calendars[entry.id], from, to, out)
+    }
+    return out.sort(byTime)
+  }
+
+  private cachedIn(id: string, cached: CachedCalendar | undefined, from: number, to: number, out: BriefingEvent[]): void {
+    for (const item of cached?.events ?? []) {
+      const event = fromCached(id, item)
+      if (event && within(event, from, to)) out.push(event)
+    }
+  }
+
+  /** Whether the cache alone answers for [from, to). */
+  private static covers(cached: CachedCalendar | undefined, from: number, to: number): boolean {
+    return cached?.from !== undefined && cached.to !== undefined && cached.from <= from && cached.to >= to
+  }
+
+  /**
+   * The events of the enabled calendars that overlap [from, to), for any span of time: from the
+   * cache where it reaches that far, otherwise expanded from the calendar as it was last parsed.
+   * `complete` is false when a calendar has neither; `cover` then reads it.
+   */
+  span(from: number, to: number): { events: BriefingEvent[]; complete: boolean } {
+    const cache = this.load()
+    const events: BriefingEvent[] = []
+    let complete = true
+    for (const entry of this.options.store.list()) {
       if (!entry.enabled) continue
-      for (const cached of cache.calendars[entry.id]?.events ?? []) {
-        const event = fromCached(entry.id, cached)
-        if (!event) continue
-        const inside = event.end > event.start ? event.start < to && event.end > from : event.start >= from && event.start < to
-        if (inside) out.push(event)
+      const cached = cache.calendars[entry.id]
+      const parsed = this.parsed.get(entry.id)
+      if (CalendarService.covers(cached, from, to) || !parsed) {
+        if (!CalendarService.covers(cached, from, to)) complete = false
+        this.cachedIn(entry.id, cached, from, to, events)
+        continue
+      }
+      for (const occurrence of expandCalendar(parsed, { from, to }, { calendarId: entry.id })) {
+        const event = fromCached(entry.id, toCached(occurrence))
+        if (event) events.push(event)
       }
     }
-    out.sort((a, b) => (a.allDay !== b.allDay ? (a.allDay ? -1 : 1) : a.start - b.start || a.end - b.end || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0)))
-    return out
+    return { events: events.sort(byTime), complete }
+  }
+
+  /**
+   * Reads in full the enabled calendars that cannot answer for [from, to) from what is held, at
+   * most once a minute each. Resolves when they have answered (or failed); never rejects.
+   */
+  async cover(from: number, to: number): Promise<void> {
+    const cache = this.load()
+    const wanting = this.options.store.list().filter((entry) => entry.enabled && !this.parsed.has(entry.id) && !CalendarService.covers(cache.calendars[entry.id], from, to))
+    await Promise.all(
+      wanting.map(async (entry) => {
+        // A read already under way may be a conditional one, which brings no file: wait it out first.
+        await this.inflight.get(entry.id)
+        if (this.parsed.has(entry.id)) return
+        const asked = this.coveredAt.get(entry.id)
+        const age = asked === undefined ? Infinity : this.now() - asked
+        if (age >= 0 && age < CALENDAR_TIMING.manualMs) return
+        this.coveredAt.set(entry.id, this.now())
+        await this.read(entry.id, true)
+      })
+    )
   }
 
   /** True when a calendar is due for a read. */
@@ -323,7 +395,9 @@ export class CalendarService {
       if (result.status === 'ok') {
         // Parsed as a calendar and nothing else; a web page or an error document is refused here.
         if (!looksLikeCalendar(result.text)) throw new CalendarError('not-calendar')
-        const occurrences = expandCalendar(parseCalendar(result.text), { from, to }, { calendarId: id })
+        const calendar = parseCalendar(result.text)
+        const occurrences = expandCalendar(calendar, { from, to }, { calendarId: id })
+        if (this.options.store.get(id)) this.parsed.set(id, calendar)
         next.events = occurrences.map(toCached)
         next.from = from
         next.to = to

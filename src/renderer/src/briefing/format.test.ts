@@ -1,8 +1,8 @@
 process.env.TZ = 'America/Sao_Paulo'
 
 import { describe, expect, it } from 'vitest'
-import type { BriefingTask, BriefingTasks } from '../../../shared/briefing'
-import { calendarNotes, clock, dayStart, dueLabel, eventMoments, eventTime, longDate, phraseSource, phraseText, taskGroups, untilMidnight, updatedLabel } from './format'
+import type { BriefingEvent, BriefingTask, BriefingTasks } from '../../../shared/briefing'
+import { agendaByDay, calendarNotes, clock, dayStart, dueLabel, eventMoments, eventTime, longDate, phraseSource, phraseText, shortClock, taskGroups, untilMidnight, updatedLabel } from './format'
 
 const at = (hour: number, minute = 0, day = 13): number => new Date(2026, 9, day, hour, minute).getTime()
 const event = (start: number, end: number, allDay = false): { start: number; end: number; allDay: boolean } => ({ start, end, allDay })
@@ -143,5 +143,30 @@ describe('folding the task list', () => {
     expect(taskGroups({ overdue: [], today: [task('a')], more: 0 }, false)).toEqual({ groups: [{ key: 'today', label: 'Today', tasks: [task('a')] }], hidden: 0 })
     expect(taskGroups({ overdue: [], today: [], more: 0 }, false)).toEqual({ groups: [], hidden: 0 })
     expect(taskGroups({ overdue: [], today: [task('a')], more: 99 }, false)).toEqual({ groups: [], hidden: 1 })
+  })
+})
+
+describe('the days of the calendar', () => {
+  it('writes the hour as shortly as the locale allows', () => {
+    expect(shortClock(at(9), 'en-US')).toBe('9am')
+    expect(shortClock(at(18, 30), 'en-US')).toBe('6:30pm')
+    expect(shortClock(at(0), 'en-US')).toBe('12am')
+    expect(shortClock(at(9), 'pt-BR')).toBe('09:00')
+    expect(shortClock(at(18, 30), 'de-DE')).toBe('18:30')
+  })
+
+  it('puts an event on every day it overlaps, and a task on the day it is due', () => {
+    const occurrence = (id: string, start: number, end: number, allDay = false): BriefingEvent => ({ id, calendarId: 'c', title: id, start, end, allDay, recurring: false })
+    const due = (id: string, day?: string): BriefingTask => ({ id, kind: 'row', title: id, pageId: id, source: 'Tasks', ...(day ? { due: day } : {}) })
+    const byDay = agendaByDay(
+      ['2026-10-13', '2026-10-14', '2026-10-15', 'not a day'],
+      [occurrence('conference', at(0), at(0, 0, 15), true), occurrence('overnight', at(23), at(1, 0, 14)), occurrence('moment', at(0, 0, 14), at(0, 0, 14))],
+      [due('a', '2026-10-14'), due('b', '2026-10-20'), due('c')]
+    )
+    const ids = (day: string): string[][] => [byDay.get(day)!.events.map((item) => item.id), byDay.get(day)!.tasks.map((item) => item.id)]
+    expect([...byDay.keys()]).toEqual(['2026-10-13', '2026-10-14', '2026-10-15'])
+    expect(ids('2026-10-13')).toEqual([['conference', 'overnight'], []])
+    expect(ids('2026-10-14')).toEqual([['conference', 'overnight', 'moment'], ['a']])
+    expect(ids('2026-10-15')).toEqual([[], []])
   })
 })

@@ -4,10 +4,10 @@ import { useUi } from '@/store/ui'
 import { Toaster } from '@/ui/Toaster'
 import { VersionHistory } from '@/versions/VersionHistory'
 import { AiSetup, AssistantDock } from '@/ai/Host'
-import { TodayHost } from '@/briefing/Host'
+import { CalendarHost, TodayHost } from '@/briefing/Host'
 import { HermanHost } from '@/herman/Host'
 import { MeetingSetup } from '@/meetings/slot'
-import { isTodayRoute } from '@/briefing/route'
+import { isCalendarRoute, isTodayRoute } from '@/briefing/route'
 import { EmptyState, PageHost } from './PageHost'
 import { QuickFind } from './QuickFind'
 import { SettingsModal } from './SettingsModal'
@@ -41,6 +41,8 @@ export function Shell() {
           <main className="content">
             {!ready ? null : isTodayRoute(pageId) ? (
               <TodayHost />
+            ) : isCalendarRoute(pageId) ? (
+              <CalendarHost />
             ) : pageId && tab ? (
               <PageHost key={`${tab.id}:${pageId}`} pageId={pageId} />
             ) : (

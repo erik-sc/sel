@@ -11,8 +11,8 @@ import {
   useUi
 } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
-import { ChevronLeft, Clock, Mic, Plus, Search, Settings, Trash } from '@/ui/icons'
-import { openToday } from '@/briefing/route'
+import { Calendar, ChevronLeft, Clock, Mic, Plus, Search, Settings, Trash } from '@/ui/icons'
+import { openCalendar, openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
 import { MOD_KEY } from '@/ui/platform'
 import { createPage, reportError } from './actions'
@@ -122,6 +122,10 @@ export const Sidebar = memo(function Sidebar() {
           <button type="button" className="sidebar-action" onClick={openToday}>
             <Clock />
             <span>Today</span>
+          </button>
+          <button type="button" className="sidebar-action" onClick={openCalendar}>
+            <Calendar />
+            <span>Calendar</span>
           </button>
           <button type="button" className="sidebar-action" onClick={newRootPage}>
             <Plus />

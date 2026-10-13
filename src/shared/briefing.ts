@@ -50,6 +50,8 @@ export const BRIEFING_LIMITS = {
   url: 2048,
   name: 40,
   maxItems: { min: 3, max: 50, default: 12 },
+  /** Days one request for the calendar screen may span (a month grid is six weeks at most). */
+  agendaDays: 62,
   databases: 200
 } as const
 
@@ -137,6 +139,22 @@ export interface Briefing {
   updatedAt: number
 }
 
+/** A span of days as the calendar screen shows it: the events and the dated open tasks that fall in it. */
+export interface BriefingAgenda {
+  /** The first and the last day of the span, `YYYY-MM-DD`, both included. */
+  from: string
+  to: string
+  /** The local day it is. */
+  today: string
+  events: BriefingEvent[]
+  /** Open tasks due on one of these days, earliest first. */
+  tasks: BriefingTask[]
+  calendars: BriefingCalendar[]
+  /** False while a calendar is still being read for days beyond what was stored; `briefing:changed` follows. */
+  complete: boolean
+  updatedAt: number
+}
+
 export interface CalendarInput {
   label: string
   /** The secret address. It crosses to the main process once and never comes back. */
@@ -164,6 +182,8 @@ export interface BriefingDatabase {
 export interface BriefingApi {
   /** The briefing from what is on disk, at once. `force` reads the calendars again first. */
   get(force?: boolean): Promise<Briefing>
+  /** The events and dated tasks of the days `from` to `to` (`YYYY-MM-DD`, both included). `force` reads the calendars again first. */
+  agenda(from: string, to: string, force?: boolean): Promise<BriefingAgenda>
   /** Picks a different phrase for today and returns it. */
   anotherPhrase(): Promise<BriefingPhrase | null>
   calendars: {

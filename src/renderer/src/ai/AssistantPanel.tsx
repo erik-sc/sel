@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { JSX, KeyboardEvent } from 'react'
 import { create } from 'zustand'
 import { AI_LIMITS, type AiTurn } from '@shared/ai'
-import { isTodayRoute } from '@/briefing/route'
+import { isTodayRoute, routeTitle } from '@/briefing/route'
 import { Figure } from '@/herman/Figure'
 import { useHerman } from '@/herman/gate'
 import { poseFor } from '@/herman/mood'
@@ -67,7 +67,7 @@ export function AssistantPanel(): JSX.Element {
   const route = tabPage(useActiveTab())
   /** On the Today screen the conversation is about the day: its agenda and its open tasks. */
   const today = isTodayRoute(route)
-  const pageId = today ? null : route
+  const pageId = routeTitle(route) ? null : route
   const key = route ?? ''
   const herman = useHerman((state) => state.on)
   const mood = useHerman((state) => state.mood)
