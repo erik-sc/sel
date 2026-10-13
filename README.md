@@ -16,6 +16,8 @@ Selida is a notes app for your desktop. Pages are made of blocks, databases are 
 
 **Go back.** Every page keeps a version history. Compare, restore, or restore as a copy.
 
+**Start the day.** Today shows your calendar, the tasks that are open and a phrase worth reading: Marcus Aurelius, the Dhammapada, Thoreau, or one of your own.
+
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
 
 **Make it yours.** Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance.
@@ -28,7 +30,7 @@ Selida is a notes app for your desktop. Pages are made of blocks, databases are 
 ## Principles
 
 - **Yours.** Your notes are a SQLite file on your disk. No account, no server.
-- **Still.** The app makes no network requests of its own, apart from loading images you link to.
+- **Still.** The app makes no network requests of its own, apart from loading images you link to and, if you connect one, reading your calendar.
 - **Light.** One small window, a short list of dependencies.
 - **Careful.** The interface runs sandboxed, and nothing you paste or import is trusted.
 
@@ -56,7 +58,7 @@ npm run typecheck
 
 The code is in `src/`:
 
-- `main/` — the Electron main process: storage, files, version history, AI.
+- `main/` — the Electron main process: storage, files, version history, AI, the briefing.
 - `preload/` — the narrow bridge the interface is allowed to use.
 - `renderer/` — the interface: editor, databases, shell, appearance.
 - `shared/` — types both sides agree on.
@@ -72,6 +74,7 @@ All style values live in one file, `src/renderer/src/styles/tokens.css`. Compone
 | `Ctrl+T` / `Ctrl+W` | New tab / close tab |
 | `Ctrl+\` | Hide the sidebar |
 | `Ctrl+J` | Assistant |
+| `Ctrl+Alt+T` | Today |
 | `Ctrl+Shift+L` | Light / dark |
 | `/` | Insert a block |
 

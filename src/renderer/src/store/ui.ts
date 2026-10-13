@@ -20,7 +20,7 @@ interface UiState {
   historyPageId: string | null
 }
 
-export type SettingsSection = 'general' | 'appearance' | 'history' | 'ai' | 'sync'
+export type SettingsSection = 'general' | 'appearance' | 'history' | 'ai' | 'sync' | 'today'
 
 export const SIDEBAR_MIN = 200
 export const SIDEBAR_MAX = 480

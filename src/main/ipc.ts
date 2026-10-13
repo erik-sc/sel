@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, nativeTheme, shell, type IpcMainEvent, typ
 import { IPC } from '../shared/api'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
+import { registerBriefingIpc } from './briefing/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
 import { ChangeFeed } from './changes'
@@ -209,6 +210,9 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   handle('sync:setEncryption', async ([a]) => (await sync()).setEncryption(a))
   // Goes through a native dialog: the renderer never names a path to run.
   handle('sync:pickGit', async (_args, event) => (await sync()).pickGit(windowOf(event)))
+
+  // ---- briefing (the Today screen: calendars, open tasks, the day's phrase; see ./briefing)
+  registerBriefingIpc({ handle, repo, ai })
 
   // ---- window controls (the renderer draws them on frameless windows)
   handle('window:isMaximized', (_args, event) => windowOf(event)?.isMaximized() ?? false)

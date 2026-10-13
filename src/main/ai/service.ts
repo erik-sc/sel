@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
-import { AI_DEFAULTS, AI_MODEL_RE, AI_TIMEOUT_LIMITS, isAiLanguage, type AiRequest, type AiStatus } from '../../shared/ai'
+import { AI_DEFAULTS, AI_MODEL_RE, AI_TIMEOUT_LIMITS, isAiLanguage, type AiLanguage, type AiRequest, type AiStatus } from '../../shared/ai'
 import { buildArgs, buildEnv, buildSpawn, type SpawnSpec } from './command'
 import { classifyFailure, failure, type Failure } from './errors'
 import { envValue, locateCli, type CliLocation, type LocateResult } from './locate'
@@ -75,10 +75,15 @@ export interface AiServiceOptions {
   timeoutMs?: number
 }
 
+/** Builds a whole prompt in the main process; it is told the language answers default to. */
+export type PromptBuilder = (language: AiLanguage | 'auto') => string | Promise<string>
+
 interface Job {
   id: string
   owner: number | null
   request: AiRequest
+  /** A prompt the main process builds itself (the briefing): used instead of `request`. */
+  build?: PromptBuilder
   sink: AiSink
   state: 'queued' | 'starting' | 'running' | 'settled'
   child: ChildProcess | null
@@ -278,8 +283,9 @@ export class AiService {
    * including not finding the program, arrives through `sink`, after this call has returned.
    * `owner` identifies who may cancel it (a window); null for requests the app itself makes.
    */
-  run(request: AiRequest, sink: AiSink, owner: number | null = null): string {
+  run(request: AiRequest, sink: AiSink, owner: number | null = null, build?: PromptBuilder): string {
     const job: Job = { id: randomUUID(), owner, request, sink, state: 'queued', child: null, timer: null, cancelled: false, timedOut: false, startedAt: Date.now() }
+    if (build) job.build = build
     this.jobs.set(job.id, job)
     setImmediate(() => {
       if (job.state !== 'queued') return
@@ -289,6 +295,14 @@ export class AiService {
       else this.fail(job, failure('failed', 'Too many requests are waiting. Wait for one to finish.'))
     })
     return job.id
+  }
+
+  /**
+   * Runs a prompt that this process wrote itself, with the same queue, limits and lifecycle as
+   * `run`. Nothing a renderer sent goes into it: the caller builds it from what is stored.
+   */
+  runPrompt(build: PromptBuilder, sink: AiSink, owner: number | null = null): string {
+    return this.run({ action: 'custom' }, sink, owner, build)
   }
 
   /** The same as `run`, as a promise of the whole answer. Rejects with the `Failure`. */
@@ -395,10 +409,16 @@ export class AiService {
       if (!status.available || !cli) {
         return this.fail(job, status.reason === 'disabled' ? failure('failed', 'AI is turned off in Settings.') : failure('not-installed'))
       }
-      const context = await this.options.loadContext(job.request)
+      const stored = this.setting('ai.language')
+      const language = isAiLanguage(stored) ? stored : 'auto'
+      if (job.build) {
+        prompt = await job.build(language)
+      } else {
+        const context = await this.options.loadContext(job.request)
+        if (job.state !== 'starting') return
+        prompt = buildPrompt(job.request, context, { defaultLanguage: language })
+      }
       if (job.state !== 'starting') return
-      const language = this.setting('ai.language')
-      prompt = buildPrompt(job.request, context, { defaultLanguage: isAiLanguage(language) ? language : 'auto' })
       spec = this.spawnSpec(cli, buildArgs({ model: this.model() }))
       await mkdir(this.options.sandboxDir, { recursive: true })
       if (job.state !== 'starting') return

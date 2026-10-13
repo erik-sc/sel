@@ -1,10 +1,10 @@
 import { join } from 'node:path'
 import { app, dialog, type BrowserWindow, type WebContents } from 'electron'
-import { AI_CHANNELS, type AiDone, type AiError, type AiStatus } from '../../shared/ai'
+import { AI_CHANNELS, type AiDone, type AiError, type AiRequest, type AiStatus } from '../../shared/ai'
 import type { Repository } from '../db/repository'
 import { inspectCli } from './locate'
 import { aiRequest, loadContext } from './request'
-import { AiService } from './service'
+import { AiService, type PromptBuilder } from './service'
 
 /**
  * The AI service as the app uses it: wired to the repository, the profile directory and the
@@ -56,7 +56,15 @@ export class AiBridge {
 
   /** Validates a request and starts it for `sender`; the outcome is sent to that window only. */
   run(rawRequest: unknown, sender: WebContents): { id: string } {
-    const request = aiRequest(rawRequest)
+    return this.start(aiRequest(rawRequest), sender)
+  }
+
+  /** Starts a prompt built in this process (the briefing) for `sender`, streamed like any request. */
+  runPrompt(build: PromptBuilder, sender: WebContents): { id: string } {
+    return this.start({ action: 'custom' }, sender, build)
+  }
+
+  private start(request: AiRequest, sender: WebContents, build?: PromptBuilder): { id: string } {
     if (!this.watched.has(sender)) {
       this.watched.add(sender)
       const owner = sender.id
@@ -96,7 +104,8 @@ export class AiBridge {
           send(AI_CHANNELS.error, { id, ...failure } satisfies AiError)
         }
       },
-      sender.id
+      sender.id,
+      build
     )
     return { id }
   }

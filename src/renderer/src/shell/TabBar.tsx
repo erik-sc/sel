@@ -17,6 +17,7 @@ import { Menu, type MenuItem } from '@/ui/Menu'
 import { Popover } from '@/ui/Popover'
 import { Close, Plus, Sidebar as SidebarIcon } from '@/ui/icons'
 import { reportError } from './actions'
+import { isTodayRoute, TODAY_TITLE } from '@/briefing/route'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { WindowControls } from './WindowControls'
@@ -36,10 +37,11 @@ interface TabItemProps {
 // page re-renders the tabs concerned, not the whole strip.
 const TabItem = memo(function TabItem({ tab, active, dragging, onDragStart, onDragOver, onDragEnd }: TabItemProps) {
   const pageId = tabPage(tab)
-  const block = useBlock(pageId)
+  const today = isTodayRoute(pageId)
+  const block = useBlock(today ? null : pageId)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const pageName = usePageTitle(block)
-  const title = pageId ? pageName : 'New tab'
+  const title = today ? TODAY_TITLE : pageId ? pageName : 'New tab'
 
   const menuItems = (): MenuItem[] => [
     { id: 'close', label: 'Close tab', onSelect: () => closeTab(tab.id) },
@@ -99,7 +101,7 @@ const TabItem = memo(function TabItem({ tab, active, dragging, onDragStart, onDr
         onDragEnd={onDragEnd}
         onDrop={(event) => event.preventDefault()}
       >
-        {pageId && <PageIcon block={block} size={14} />}
+        {pageId && !today && <PageIcon block={block} size={14} />}
         <span className="tab-title">{title}</span>
         <button
           type="button"

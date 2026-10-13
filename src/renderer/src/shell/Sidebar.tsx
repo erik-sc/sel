@@ -11,7 +11,8 @@ import {
   useUi
 } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
-import { ChevronLeft, Plus, Search, Settings, Trash } from '@/ui/icons'
+import { ChevronLeft, Clock, Plus, Search, Settings, Trash } from '@/ui/icons'
+import { openToday } from '@/briefing/route'
 import { MOD_KEY } from '@/ui/platform'
 import { createPage, reportError } from './actions'
 import { PageRow, PageTree } from './PageTree'
@@ -116,6 +117,10 @@ export const Sidebar = memo(function Sidebar() {
             <Search />
             <span>Search</span>
             <kbd>{MOD_KEY}P</kbd>
+          </button>
+          <button type="button" className="sidebar-action" onClick={openToday}>
+            <Clock />
+            <span>Today</span>
           </button>
           <button type="button" className="sidebar-action" onClick={newRootPage}>
             <Plus />

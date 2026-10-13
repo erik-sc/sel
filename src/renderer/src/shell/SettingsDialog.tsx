@@ -10,6 +10,8 @@ import { Modal } from '@/ui/Modal'
 import { Close } from '@/ui/icons'
 import { HistorySection } from '@/versions/HistorySettings'
 import { AiSection } from '@/ai/AiSettings'
+import { takeSettingsSection } from '@/briefing/route'
+import { TodaySection } from '@/briefing/TodaySettings'
 import { importMarkdown } from './actions'
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -25,7 +27,8 @@ const SECTIONS: { value: Section; label: string }[] = [
   { value: 'appearance', label: 'Appearance' },
   { value: 'history', label: 'History' },
   { value: 'ai', label: 'AI' },
-  { value: 'sync', label: 'Sync' }
+  { value: 'sync', label: 'Sync' },
+  { value: 'today', label: 'Today' }
 ]
 
 // Sync settings are a chunk of their own: most people open Settings for something else.
@@ -42,7 +45,7 @@ export function SettingsDialog() {
 
 function SettingsBody() {
   const requested = useUi((state) => state.settingsSection)
-  const [section, setSection] = useState<Section>(requested ?? 'general')
+  const [section, setSection] = useState<Section>(() => requested ?? takeSettingsSection() ?? 'general')
   const title = SECTIONS.find((entry) => entry.value === section)?.label
 
   // Something outside asked for a section (the sync indicator): show it, once.
