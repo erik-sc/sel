@@ -1,0 +1,134 @@
+import type { Block } from '@shared/types'
+import type { MenuItem } from '@/ui/Menu'
+import { ArrowUpRight, Check, Clock, Copy, Page, Plus, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { IS_MAC } from '@/ui/platform'
+import { openPage } from '@/store/tabs'
+import { setHistoryPage, setRenaming } from '@/store/ui'
+import { preloadVersionHistory } from '@/versions/VersionHistory'
+import { sourceIdOf } from './linked'
+import {
+  createPage,
+  duplicatePage,
+  exportMarkdown,
+  reportError,
+  toggleFavorite,
+  toggleFullWidth,
+  trashPage
+} from './actions'
+
+/**
+ * The last item of both menus. A linked view is not moved to the Trash: it holds no
+ * data, so it is simply removed (its source database and rows stay where they are).
+ */
+function removeItem(block: Block): MenuItem {
+  const linked = sourceIdOf(block) !== null
+  return {
+    id: 'trash',
+    label: linked ? 'Remove linked view' : 'Move to Trash',
+    icon: <Trash />,
+    danger: true,
+    disabled: !!block.trashedAt,
+    onSelect: () => void trashPage(block.id).catch(reportError(linked ? 'remove the linked view' : 'move the page to the Trash'))
+  }
+}
+
+function openSourceItems(block: Block): MenuItem[] {
+  const sourceId = sourceIdOf(block)
+  if (sourceId === null) return []
+  return [{ id: 'open-source', label: 'Open source database', icon: <ArrowUpRight />, onSelect: () => openPage(sourceId) }]
+}
+
+/** Menu shown for a page in the sidebar ("⋯" and right-click). */
+export function sidebarPageMenu(block: Block): MenuItem[] {
+  const id = block.id
+  const items: MenuItem[] = [
+    ...openSourceItems(block),
+    { id: 'open-tab', label: 'Open in new tab', icon: <Plus />, onSelect: () => openPage(id, { newTab: true }) },
+    {
+      id: 'open-window',
+      label: 'Open in new window',
+      icon: <ArrowUpRight />,
+      onSelect: () => void window.api.app.newWindow(id).catch(reportError('open a new window'))
+    },
+    { separator: true },
+    { id: 'rename', label: 'Rename', icon: <Type />, onSelect: () => setRenaming(id) },
+    {
+      id: 'duplicate',
+      label: 'Duplicate',
+      icon: <Copy />,
+      onSelect: () => void duplicatePage(id).catch(reportError('duplicate the page'))
+    },
+    {
+      id: 'favorite',
+      label: block.props.favorite ? 'Remove from Favorites' : 'Add to Favorites',
+      icon: block.props.favorite ? <StarFilled /> : <Star />,
+      onSelect: () => void toggleFavorite(id).catch(reportError('update Favorites'))
+    }
+  ]
+  if (block.type === 'page') {
+    items.push({
+      id: 'add-subpage',
+      label: 'Add a page inside',
+      icon: <Page />,
+      onSelect: () => void createPage(id).catch(reportError('create the page'))
+    })
+  }
+  items.push({ separator: true }, removeItem(block))
+  return items
+}
+
+/** Menu behind the "⋯" button in the top bar. */
+export function topBarPageMenu(block: Block): MenuItem[] {
+  const id = block.id
+  const items: MenuItem[] = [...openSourceItems(block)]
+  if (block.type === 'page') {
+    items.push(
+      {
+        id: 'full-width',
+        label: 'Full width',
+        icon: block.props.fullWidth ? <Check /> : <span />,
+        onSelect: () => void toggleFullWidth(id).catch(reportError('change the page width'))
+      },
+      { separator: true }
+    )
+  }
+  items.push(
+    {
+      id: 'favorite',
+      label: block.props.favorite ? 'Remove from Favorites' : 'Add to Favorites',
+      icon: block.props.favorite ? <StarFilled /> : <Star />,
+      onSelect: () => void toggleFavorite(id).catch(reportError('update Favorites'))
+    },
+    {
+      id: 'duplicate',
+      label: 'Duplicate',
+      icon: <Copy />,
+      onSelect: () => void duplicatePage(id, { open: true }).catch(reportError('duplicate the page'))
+    },
+    {
+      id: 'history',
+      label: 'Version history',
+      icon: <Clock />,
+      hint: IS_MAC ? '⌥⇧⌘H' : 'Ctrl+Alt+Shift+H',
+      onSelect: () => {
+        preloadVersionHistory()
+        setHistoryPage(id)
+      }
+    },
+    {
+      id: 'export',
+      label: 'Export as Markdown…',
+      icon: <Text />,
+      onSelect: () => void exportMarkdown(id).catch(reportError('export the page'))
+    },
+    {
+      id: 'open-window',
+      label: 'Open in new window',
+      icon: <ArrowUpRight />,
+      onSelect: () => void window.api.app.newWindow(id).catch(reportError('open a new window'))
+    },
+    { separator: true },
+    removeItem(block)
+  )
+  return items
+}

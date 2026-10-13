@@ -1,0 +1,262 @@
+@import './tokens.css';
+
+/* ---- reset ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+  /* Flat base of the wallpaper; the mesh and the optional image are layered above it. */
+  background-color: var(--wall-base);
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+body {
+  overflow: hidden;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-body);
+  letter-spacing: var(--tracking-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  cursor: default;
+}
+
+/* ---- wallpaper: colour mesh, covered by --wall-image when one is set ---- */
+/*
+ * The wallpaper is what the shell panels frost. Nothing else is ever between a panel and the
+ * wallpaper, so the frosting is applied here, once, as an ordinary filter that is rasterised
+ * with the wallpaper and then reused, instead of as a live backdrop-filter under each panel
+ * that the GPU has to redo whenever anything inside the panel changes.
+ */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+body::before {
+  opacity: var(--wall-intensity);
+  /* The mesh is made of gradients hundreds of pixels wide: blurring it changes nothing. */
+  filter: saturate(var(--glass-saturate));
+  background-image:
+    radial-gradient(circle at 0% 0%, var(--wall-1), transparent 58%),
+    radial-gradient(circle at 100% 0%, var(--wall-2), transparent 55%),
+    radial-gradient(circle at 100% 100%, var(--wall-3), transparent 60%),
+    radial-gradient(circle at 0% 100%, var(--wall-4), transparent 55%);
+}
+
+body::after {
+  /* Bleeds past the window so that the blur has pixels to read at the edges. */
+  inset: calc(var(--glass-blur) * -3);
+  filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  background-image: var(--wall-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+ul,
+ol,
+figure,
+blockquote {
+  margin: 0;
+  padding: 0;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-ui);
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+svg {
+  flex-shrink: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  margin: 0;
+}
+
+button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+input,
+textarea {
+  border: 0;
+  background: none;
+  outline: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--font-mono);
+}
+
+hr {
+  border: 0;
+  border-top: var(--hairline) solid var(--border);
+  margin: 0;
+}
+
+/* ---- glass surfaces ---- */
+/*
+ * The shell panels. Translucent fills over the wallpaper, which is already frosted (above):
+ * no backdrop-filter here. Repeated items (rows, tabs, cards) use the --fill-* tokens.
+ */
+.glass {
+  background: var(--glass-bg);
+  border: var(--hairline) solid var(--glass-border);
+  box-shadow: var(--shadow-panel), inset 0 1px 0 var(--glass-highlight);
+}
+
+/* Floating surfaces: popovers, menus, modals, quick find, tooltips. These sit above content
+   that scrolls and changes, so they blur it live. */
+.glass-thick {
+  background: var(--glass-thick-bg);
+  backdrop-filter: blur(var(--glass-thick-blur)) saturate(var(--glass-saturate));
+  border: var(--hairline) solid var(--glass-border);
+  box-shadow: var(--shadow-popover), inset 0 1px 0 var(--glass-highlight);
+}
+
+/* The user asked the system for less transparency: opaque surfaces, no blur anywhere. */
+@media (prefers-reduced-transparency: reduce) {
+  body::before,
+  body::after {
+    filter: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    backdrop-filter: none !important;
+  }
+
+  .glass,
+  .glass-thick,
+  .shell .sidebar,
+  .shell .main {
+    background: var(--bg-solid);
+  }
+}
+
+/* ---- selection, focus ---- */
+::selection {
+  background: var(--bg-selection);
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 0;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+[contenteditable]:focus-visible {
+  outline: none;
+}
+
+/* ---- scrollbars: thin, overlay-like ---- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--fill-1);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: var(--radius-pill);
+  min-height: 36px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+  background-clip: padding-box;
+  border-width: 2px;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

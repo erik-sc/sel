@@ -1,0 +1,167 @@
+import type {
+  Block,
+  ChangeEvent,
+  CreateBlockInput,
+  DatabaseLocation,
+  Op,
+  SearchResult,
+  Theme,
+  UpdateBlockInput
+} from './types'
+import type { RestoreMode, RestoreResult, VersionInfo, VersionSnapshot, VersionStats } from './versions'
+
+/**
+ * The contract exposed on `window.api` by the preload script.
+ * Every method maps to the ipc channel `<namespace>:<method>` (see IPC below).
+ * All mutations are applied in one SQLite transaction and broadcast a ChangeEvent.
+ */
+export interface Api {
+  /** Unique per window; ChangeEvent.origin equals this for self-made changes. */
+  clientId: string
+
+  blocks: {
+    get(id: string): Promise<Block | null>
+    getMany(ids: string[]): Promise<Block[]>
+    /**
+     * The block `rootId` plus all its descendants, without descending into
+     * nested pages or databases (those are included themselves, their content is not).
+     */
+    getTree(rootId: string): Promise<Block[]>
+    /** Direct children, in order. */
+    children(id: string): Promise<Block[]>
+    create(input: CreateBlockInput): Promise<Block>
+    update(id: string, patch: UpdateBlockInput): Promise<Block>
+    move(id: string, parentId: string | null, afterId?: string | null): Promise<Block>
+    /**
+     * Pages and databases go to the trash; other blocks (linked database views included)
+     * are removed with their descendants.
+     */
+    delete(id: string): Promise<void>
+    /** Atomic batch. Returns the affected blocks (deleted ones omitted). */
+    apply(ops: Op[]): Promise<Block[]>
+  }
+
+  pages: {
+    /** Non-trashed pages/databases with parentId null, in workspace order. */
+    listRoot(): Promise<Block[]>
+    /** Non-trashed pages/databases that are direct children of a page (for the sidebar tree). */
+    listChildren(pageId: string): Promise<Block[]>
+    listFavorites(): Promise<Block[]>
+    listRecent(limit?: number): Promise<Block[]>
+    listTrash(): Promise<Block[]>
+    restore(id: string): Promise<void>
+    deleteForever(id: string): Promise<void>
+    /** Ancestor pages of a block, root first, excluding the block itself. */
+    ancestors(id: string): Promise<Block[]>
+    duplicate(id: string): Promise<Block>
+    exportMarkdown(id: string): Promise<{ saved: boolean; path?: string }>
+    importMarkdown(parentId: string | null): Promise<Block | null>
+  }
+
+  databases: {
+    /**
+     * Every database that can be the source of a linked view: not in the trash, not itself
+     * a linked view, most recently edited first.
+     */
+    list(): Promise<Block[]>
+    /**
+     * Every linked view of a source database that is not in the trash, with the page that
+     * contains it. Given a linked view, answers for its source.
+     */
+    locations(sourceId: string): Promise<DatabaseLocation[]>
+  }
+
+  search: {
+    query(text: string, limit?: number): Promise<SearchResult[]>
+  }
+
+  /**
+   * Version history. Every page (and database) keeps snapshots of its own content, taken
+   * automatically while it is edited; see shared/versions.ts for what a snapshot holds.
+   */
+  versions: {
+    /** Versions of a page, newest first, without their content. Unreadable rows are left out. */
+    list(pageId: string): Promise<VersionInfo[]>
+    /** One version, decoded and checked. Rejects when it is missing or damaged. */
+    get(id: string): Promise<VersionSnapshot>
+    /** The page as it is now, in the shape of a version (`info` is null). */
+    current(pageId: string): Promise<VersionSnapshot>
+    /** Stores the current state as a saved version that is never pruned. */
+    save(pageId: string, label?: string | null): Promise<VersionInfo>
+    rename(id: string, label: string | null): Promise<VersionInfo>
+    delete(id: string): Promise<void>
+    /**
+     * `replace` saves the current state first (`backupId`) and makes the page equal to the
+     * version; `copy` creates a sibling page from it. Sub-pages are never destroyed.
+     */
+    restore(id: string, mode: RestoreMode): Promise<RestoreResult>
+    /** Stored versions and their compressed size: of one page, or of everything. */
+    stats(pageId?: string): Promise<VersionStats>
+    /** Deletes the history of one page, or all history. */
+    clear(pageId?: string): Promise<void>
+  }
+
+  files: {
+    /** Opens a file picker, copies the image into the app data dir and returns a `selida-file://` url. */
+    pickImage(): Promise<string | null>
+    /** Stores pasted/dropped image bytes and returns a `selida-file://` url. */
+    saveImage(data: ArrayBuffer, extension: string): Promise<string>
+    /**
+     * Asks where to save a PNG the renderer generated (a chart) and writes it there.
+     * The bytes must be a PNG within the size cap; the path comes from the save dialog only.
+     */
+    saveGeneratedImage(pngBytes: ArrayBuffer | Uint8Array): Promise<{ saved: boolean; path?: string }>
+  }
+
+  app: {
+    getTheme(): Promise<Theme>
+    setTheme(theme: Theme): Promise<void>
+    getSetting<T = unknown>(key: string): Promise<T | null>
+    setSetting(key: string, value: unknown): Promise<void>
+    openExternal(url: string): Promise<void>
+    newWindow(pageId?: string): Promise<void>
+    /** Node's `process.platform`, e.g. 'win32' | 'darwin' | 'linux'. */
+    platform: string
+    window: {
+      minimize(): void
+      toggleMaximize(): void
+      close(): void
+      isMaximized(): Promise<boolean>
+    }
+  }
+
+  /** Subscribe to data changes from any window. Returns an unsubscribe function. */
+  onChange(listener: (event: ChangeEvent) => void): () => void
+  /** Menu/accelerator commands forwarded from the main process (see MenuCommand). */
+  onCommand(listener: (command: MenuCommand, arg?: unknown) => void): () => void
+}
+
+export type MenuCommand =
+  | 'new-page'
+  | 'new-tab'
+  | 'close-tab'
+  | 'next-tab'
+  | 'prev-tab'
+  | 'quick-find'
+  | 'toggle-sidebar'
+  | 'toggle-theme'
+  | 'go-back'
+  | 'go-forward'
+  | 'open-settings'
+  | 'open-page'
+  /** arg: 1-based tab position; 9 means the last tab */
+  | 'select-tab'
+  | 'reopen-tab'
+  | 'new-window'
+  | 'version-history'
+
+/** ipc channel names. invoke channels are `<namespace>:<method>`. */
+export const IPC = {
+  change: 'event:change',
+  command: 'event:command',
+  windowMinimize: 'window:minimize',
+  windowToggleMaximize: 'window:toggleMaximize',
+  windowClose: 'window:close'
+} as const
+
+export const FILE_PROTOCOL = 'selida-file'

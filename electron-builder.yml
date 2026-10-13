@@ -1,0 +1,60 @@
+# Packaging (electron-builder). `npm run pack` = unpacked app in release/, `npm run dist` = installer.
+# No auto-update, no code signing, no publishing.
+appId: app.selida
+productName: Selida
+
+directories:
+  output: release
+
+# Package the Electron that is installed (the one the app is developed and tested with)
+# instead of downloading a second copy.
+electronDist: node_modules/electron/dist
+
+# Chromium ships ~55 locale .pak files; keep the two the app is used in.
+electronLanguages:
+  - en-US
+  - pt-BR
+
+# better-sqlite3 13 is an N-API addon that ships prebuilt binaries: nothing to compile.
+npmRebuild: false
+nodeGypRebuild: false
+
+asar: true
+# A native module cannot be loaded from inside the archive. Only the binary is unpacked.
+asarUnpack:
+  - node_modules/better-sqlite3/prebuilds/*.node
+
+compression: maximum
+publish: null
+
+# main, preload and renderer are bundled into out/. The only package needed at run time is
+# better-sqlite3 (see `dependencies` in package.json), and of it only its JavaScript and the
+# binary for the platform being packaged: no SQLite sources, no build files, no other
+# platforms' binaries, and not node-addon-api (C++ headers used to compile it).
+files:
+  - out/**
+  - package.json
+  - "!**/*.map"
+  - "!**/*.{md,markdown,ts,tsbuildinfo}"
+  - "!node_modules/node-addon-api/**"
+  - "!node_modules/better-sqlite3/{deps,src,build}/**"
+  - "!node_modules/better-sqlite3/binding.gyp"
+  - "!node_modules/better-sqlite3/prebuilds/**"
+  - node_modules/better-sqlite3/prebuilds/${platform}-${arch}.node
+  # Per-platform entry points of better-sqlite3 that are never required (lib/index.js picks the binary).
+  - "!node_modules/better-sqlite3/lib/{darwin,linux,linuxmusl,win32}-*.js"
+
+win:
+  target:
+    - target: nsis
+      arch: x64
+
+nsis:
+  # Installs for the current user (under %LOCALAPPDATA%\Programs), without a UAC prompt.
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  # The user's notes live in %APPDATA%\selida and are never removed by the uninstaller.
+  deleteAppDataOnUninstall: false
+  # Block maps only serve differential auto-updates, which this app does not have.
+  differentialPackage: false

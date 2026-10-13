@@ -1,0 +1,603 @@
+/*
+ * Chart view and its settings panel: the same frosted, iOS-like language as the other
+ * views. Every colour, font size and weight, radius, shadow and duration is a token
+ * of styles/tokens.css; series colours are the named colours (--c-*) and --accent,
+ * handed to each mark as --db-chart-mark. Text always wears a text token, never a
+ * series colour. Marks are repeated items: no backdrop-filter on any of them (the
+ * one tooltip is a single thick-glass overlay).
+ */
+
+.db-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px 16px 12px;
+  border-radius: var(--radius-l);
+  background: var(--fill-4);
+  box-shadow: inset 0 0 0 var(--hairline) var(--border);
+}
+
+.db-chart-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.db-chart-caption {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-chart-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.db-chart:hover .db-chart-actions,
+.db-chart:focus-within .db-chart-actions {
+  opacity: 1;
+}
+
+/* ---- chart type buttons (first choice on a new chart; the picker of the panel) ---- */
+.db-chart-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.db-chart-kinds.is-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0 4px 4px;
+}
+
+/* Scoped: the page editor resets every button inside it with more weight than one class. */
+.db-chart .db-chart-kind,
+.db-chart-panel .db-chart-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-height);
+  padding: 0 11px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-3);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.db-chart-panel .db-chart-kinds.is-grid .db-chart-kind {
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  height: auto;
+  padding: 8px 2px 6px;
+  border-radius: var(--radius-s);
+  font-size: var(--text-xs);
+}
+
+.db-chart .db-chart-kind:hover,
+.db-chart-panel .db-chart-kind:hover {
+  background: var(--fill-2);
+  color: var(--text);
+}
+
+.db-chart .db-chart-kind.is-active,
+.db-chart-panel .db-chart-kind.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.db-chart-kind:focus-visible,
+.db-chart-legend-item:focus-visible,
+.db-chart-drill-row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* ---- plot ---- */
+.db-chart-plot {
+  position: relative;
+  min-width: 0;
+  height: var(--chart-height);
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* What the labels of the plot are drawn (and measured) with. */
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+.db-chart-plot.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  min-height: 140px;
+}
+
+.db-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  text-align: center;
+}
+
+.db-chart-empty p {
+  margin: 0;
+}
+
+.db-chart .db-chart-action {
+  height: var(--control-height);
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.db-chart .db-chart-action:hover {
+  background: var(--fill-2);
+}
+
+.db-chart .db-chart-action:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.db-chart-canvas {
+  position: relative;
+}
+
+.db-chart-svg {
+  display: block;
+  overflow: visible;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  user-select: none;
+}
+
+.db-chart-svg text {
+  fill: var(--text-secondary);
+}
+
+.db-chart-grid {
+  stroke: var(--border);
+  stroke-width: 1px;
+  stroke-opacity: var(--chart-grid-opacity);
+  shape-rendering: crispEdges;
+}
+
+.db-chart-grid.is-zero {
+  stroke: var(--border-strong);
+  stroke-opacity: 1;
+}
+
+.db-chart-svg .db-chart-category.is-current {
+  fill: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+.db-chart-svg .db-chart-value {
+  fill: var(--text);
+  font-weight: var(--weight-medium);
+  pointer-events: none;
+}
+
+/* Hit areas have no paint of their own, which also keeps them out of an exported image. */
+.db-chart-band,
+.db-chart-point-hit,
+.db-chart-number-hit {
+  fill: none;
+  stroke: none;
+  pointer-events: all;
+}
+
+.db-chart-band {
+  cursor: pointer;
+}
+
+.db-chart-band.is-active {
+  fill: var(--bg-hover);
+}
+
+.db-chart-crosshair {
+  stroke: var(--border-strong);
+  stroke-width: 1px;
+  pointer-events: none;
+}
+
+/* ---- marks ---- */
+.db-chart-marks {
+  animation: db-chart-enter var(--duration) var(--ease);
+}
+
+@keyframes db-chart-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+.db-chart-mark {
+  cursor: pointer;
+  outline: none;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.db-chart-bar {
+  fill: var(--db-chart-mark);
+  rx: var(--chart-bar-radius);
+  transition:
+    opacity var(--duration-fast) var(--ease),
+    x var(--duration) var(--ease),
+    y var(--duration) var(--ease),
+    width var(--duration) var(--ease),
+    height var(--duration) var(--ease);
+}
+
+.db-chart-bar.is-stacked {
+  rx: min(var(--chart-bar-radius), 2px);
+}
+
+.db-chart-slice {
+  fill: var(--db-chart-mark);
+}
+
+.db-chart-line {
+  fill: none;
+  stroke: var(--db-chart-mark);
+  stroke-width: var(--chart-stroke-width);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.db-chart-area {
+  fill: var(--db-chart-mark);
+  fill-opacity: var(--chart-area-opacity);
+  stroke: none;
+  pointer-events: none;
+}
+
+.db-chart-point-dot {
+  r: 0;
+  fill: var(--db-chart-mark);
+  stroke: var(--bg-solid);
+  stroke-width: 0;
+  pointer-events: none;
+  transition: r var(--duration-fast) var(--ease);
+}
+
+.db-chart-point.is-shown .db-chart-point-dot {
+  r: var(--chart-point-size);
+}
+
+.db-chart-point.is-active .db-chart-point-dot {
+  r: calc(var(--chart-point-size) + 2px);
+  stroke-width: 2px;
+}
+
+.db-chart-svg.has-hover .db-chart-bar:not(.is-active),
+.db-chart-svg.has-hover .db-chart-slice:not(.is-active) {
+  opacity: 0.45;
+}
+
+.db-chart-bar:focus-visible,
+.db-chart-slice:focus-visible {
+  stroke: var(--text);
+  stroke-width: 2px;
+}
+
+.db-chart-point:focus-visible .db-chart-point-dot {
+  r: calc(var(--chart-point-size) + 3px);
+  stroke: var(--text);
+  stroke-width: 2px;
+}
+
+/* ---- donut centre and the single figure ---- */
+.db-chart-svg .db-chart-centre-value {
+  fill: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-semibold);
+}
+
+.db-chart-svg .db-chart-centre-label,
+.db-chart-svg .db-chart-number-note {
+  fill: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.db-chart-number {
+  cursor: pointer;
+  outline: none;
+}
+
+.db-chart-svg .db-chart-number-value {
+  fill: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-title);
+}
+
+.db-chart-svg .db-chart-number-label {
+  fill: var(--text-secondary);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+}
+
+.db-chart-number:focus-visible .db-chart-number-value {
+  fill: var(--accent);
+}
+
+/* ---- tooltip ---- */
+.db-chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: max-content;
+  max-width: 240px;
+  padding: 7px 10px;
+  border-radius: var(--radius-s);
+  color: var(--text);
+  font-size: var(--text-sm);
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+.db-chart-tooltip.is-below {
+  transform: translate(-50%, 14px);
+}
+
+.db-chart-tooltip-title {
+  overflow: hidden;
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.db-chart-tooltip-row.is-total {
+  margin-top: 2px;
+  padding-top: 3px;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.db-chart-tooltip-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-chart-tooltip-value {
+  margin-left: 8px;
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.db-chart-tooltip-share {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.db-chart-swatch {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-pill);
+  background: var(--db-chart-mark);
+}
+
+/* ---- legend ---- */
+.db-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 10px;
+}
+
+.db-chart .db-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: var(--text-sm);
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    opacity var(--duration-fast) var(--ease);
+}
+
+.db-chart .db-chart-legend-item:hover {
+  background: var(--bg-hover);
+}
+
+.db-chart .db-chart-legend-item.is-off {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.db-chart-legend-item.is-off .db-chart-swatch {
+  background: var(--fill-1);
+}
+
+.db-chart-legend-label {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-chart-legend-value {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- the numbers as a table, for assistive technology only ---- */
+.db-chart-table {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- rows behind a mark ---- */
+.db-chart-drill {
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+}
+
+.db-chart-drill .db-panel-title {
+  gap: 8px;
+}
+
+.db-chart-drill-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-chart-drill-count {
+  flex-shrink: 0;
+  font-weight: var(--weight-regular);
+}
+
+.db-chart-drill-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.db-chart-drill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--row-height);
+  padding: 0 8px;
+  border-radius: var(--radius-s);
+  font-size: var(--text-ui);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.db-chart-drill-row:hover {
+  background: var(--bg-hover);
+}
+
+.db-chart-drill-row .db-text {
+  flex: 1;
+}
+
+.db-chart-drill-row > svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+/* ---- settings panel ---- */
+.db-chart-panel {
+  width: 320px;
+  max-height: min(640px, calc(100vh - 96px));
+  overflow-y: auto;
+}
+
+.db-chart-setting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--row-height);
+  padding: 2px 8px;
+}
+
+.db-chart-setting-label {
+  flex: 0 0 116px;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+}
+
+.db-chart-setting-control {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.db-chart-setting-control .db-select {
+  min-width: 0;
+}
+
+input.db-chart-number-input {
+  width: 96px;
+  height: var(--control-height);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: var(--fill-3);
+  box-shadow: none;
+  color: var(--text);
+  font-size: var(--text-md);
+  text-align: right;
+  transition: box-shadow var(--duration-fast) var(--ease);
+}
+
+input.db-chart-number-input:focus {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .db-chart-marks {
+    animation: none;
+  }
+
+  .db-chart-bar,
+  .db-chart-mark,
+  .db-chart-point-dot {
+    transition: none;
+  }
+}
