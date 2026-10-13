@@ -102,6 +102,7 @@ const api: Api = {
   briefing: {
     ...ns<Omit<BriefingApi, 'calendars' | 'onChanged'>>('briefing', [
       'get',
+      'agenda',
       'anotherPhrase',
       'completeTask',
       'undoCompleteTask',

@@ -28,6 +28,8 @@ const PERSIST_DELAY = 250
  * block can have (block ids are uuids). See briefing/route.ts.
  */
 export const TODAY_ROUTE = '_today'
+/** The calendar screen, likewise. */
+export const CALENDAR_ROUTE = '_calendar'
 /** The shape of every block id (the backend enforces the same). */
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 
@@ -258,6 +260,7 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
       const blocks = pageIds.length ? await fetchBlocks(() => window.api.blocks.getMany([...new Set(pageIds)])) : []
       const alive = new Set(blocks.filter((b) => !b.trashedAt).map((b) => b.id))
       alive.add(TODAY_ROUTE)
+      alive.add(CALENDAR_ROUTE)
       restored.tabs = restored.tabs.filter((t) => {
         const page = tabPage(t)
         return page !== null && alive.has(page)

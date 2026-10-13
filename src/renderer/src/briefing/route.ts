@@ -1,24 +1,43 @@
-// The small part of the briefing that is always loaded: its route, the ways to reach it and
-// the rule for opening it at start-up. The screen itself is a chunk of its own (see Host.tsx).
+// The small part of the briefing that is always loaded: the routes of its two screens (Today
+// and the calendar), the ways to reach them and the rule for opening Today at start-up. The
+// screens themselves are chunks of their own (see Host.tsx).
 import { localDay, type OpenOnLaunch } from '@shared/briefing'
-import { activateTab, activeTab, newTab, openPage, tabPage, TODAY_ROUTE, useTabs } from '@/store/tabs'
+import { activateTab, activeTab, CALENDAR_ROUTE, newTab, openPage, tabPage, TODAY_ROUTE, useTabs } from '@/store/tabs'
 
-export { TODAY_ROUTE }
+export { CALENDAR_ROUTE, TODAY_ROUTE }
 
 export const TODAY_TITLE = 'Today'
+export const CALENDAR_TITLE = 'Calendar'
 
 /** True when a tab shows the Today screen rather than a stored page. */
 export function isTodayRoute(pageId: string | null | undefined): boolean {
   return pageId === TODAY_ROUTE
 }
 
-/** Shows Today: the tab that already has it, the blank tab in front, or a new tab. */
-export function openToday(): void {
+export function isCalendarRoute(pageId: string | null | undefined): boolean {
+  return pageId === CALENDAR_ROUTE
+}
+
+/** The name of the built-in screen a tab shows, or null when it shows a stored page (or nothing). */
+export function routeTitle(pageId: string | null | undefined): string | null {
+  return pageId === TODAY_ROUTE ? TODAY_TITLE : pageId === CALENDAR_ROUTE ? CALENDAR_TITLE : null
+}
+
+/** Shows a built-in screen: the tab that already has it, the blank tab in front, or a new tab. */
+function openRoute(route: string): void {
   const state = useTabs.getState()
-  const existing = state.tabs.find((tab) => tabPage(tab) === TODAY_ROUTE)
+  const existing = state.tabs.find((tab) => tabPage(tab) === route)
   if (existing) activateTab(existing.id)
-  else if (activeTab(state) && !tabPage(activeTab(state))) openPage(TODAY_ROUTE)
-  else newTab(TODAY_ROUTE)
+  else if (activeTab(state) && !tabPage(activeTab(state))) openPage(route)
+  else newTab(route)
+}
+
+export function openToday(): void {
+  openRoute(TODAY_ROUTE)
+}
+
+export function openCalendar(): void {
+  openRoute(CALENDAR_ROUTE)
 }
 
 /** Which section the settings window opens on next time (the screen links to its own settings). */

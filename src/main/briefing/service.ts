@@ -7,6 +7,7 @@ import {
   TRADITION_LABELS,
   TRADITIONS,
   type Briefing,
+  type BriefingAgenda,
   type BriefingCalendar,
   type BriefingDatabase,
   type BriefingEvent,
@@ -22,7 +23,7 @@ import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyValue } f
 import type { BriefingPromptData } from '../ai/prompts'
 import type { Repository } from '../db/repository'
 import * as arg from '../validate'
-import type { CalendarService } from './calendars'
+import { localMidnight, type CalendarService } from './calendars'
 import { CalendarError } from './net'
 import { fromQuote, ownPhrases, phraseColumns, pickPhrase, readHistory, recordPhrase, type PhraseCandidate } from './phrases'
 import { QUOTES, quoteById } from './quotes'
@@ -46,6 +47,8 @@ const TODO_DAYS = 7
 /** Recently edited pages whose to-dos are looked at. */
 const TODO_PAGES = 40
 const GROUP_CAP = 200
+/** Dated tasks one span of the calendar screen may hold. */
+const AGENDA_CAP = 500
 const PHRASES_TITLE = 'Phrases'
 
 interface Undo {
@@ -138,11 +141,40 @@ export class BriefingService {
     return briefing
   }
 
-  private tasks(date: string, nowMs: number, databases: Block[], phrasesDb: Block | null): Briefing['tasks'] {
+  /**
+   * The days `from` to `to` for the calendar screen: the events that overlap them and the open
+   * tasks due on them. Calendars that are due are read in the background, as for the briefing;
+   * one that holds nothing for days this far away is read once in full, and the windows hear
+   * about it through `briefing:changed`.
+   */
+  async agenda(rawFrom: unknown, rawTo: unknown, force = false): Promise<BriefingAgenda> {
+    const from = typeof rawFrom === 'string' ? localMidnight(rawFrom) : null
+    const last = typeof rawTo === 'string' ? localMidnight(rawTo) : null
+    if (from === null || last === null || last < from || last - from > BRIEFING_LIMITS.agendaDays * DAY_MS) throw new Error('Invalid days')
+    // Local days are 23 to 25 hours long: the next midnight is found, not added.
+    const to = startOfLocalDay(last + 26 * 3_600_000)
+    const { calendars } = this.deps
+    if (force) await calendars.refresh(true)
+    else if (calendars.stale()) void calendars.refresh(false)
+    let span = calendars.span(from, to)
+    if (!span.complete) {
+      if (force) {
+        await calendars.cover(from, to)
+        span = calendars.span(from, to)
+      } else void calendars.cover(from, to)
+    }
+    const nowMs = this.now()
+    const today = localDay(nowMs)
+    const range = { from: localDay(from), to: localDay(last) }
+    const databases = this.repo.listDatabases()
+    const phrasesDb = this.phrasesDatabase(databases)
     const chosen = this.setting<string[] | null>('briefing.databases', null)
-    const includeNoDate = this.setting('briefing.includeNoDate', false)
-    const includeTodos = this.setting('briefing.includeTodos', false)
-    const maxItems = this.setting<number>('briefing.maxItems', BRIEFING_LIMITS.maxItems.default)
+    const selected = selectTasks(this.taskBlocks(databases, phrasesDb, chosen), { today, databases: chosen, exclude: phrasesDb ? [phrasesDb.id] : [], range, cap: AGENDA_CAP })
+    return { ...range, today, events: span.events, tasks: selected.dated ?? [], calendars: calendars.status(), complete: span.complete, updatedAt: nowMs }
+  }
+
+  /** The task databases the settings allow, each followed by its rows. */
+  private taskBlocks(databases: Block[], phrasesDb: Block | null, chosen: readonly string[] | null): TaskBlock[] {
     const wanted = chosen ? new Set(chosen) : null
     const blocks: TaskBlock[] = []
     for (const database of databases) {
@@ -152,6 +184,15 @@ export class BriefingService {
       blocks.push(database)
       for (const row of this.repo.children(database.id)) blocks.push(row)
     }
+    return blocks
+  }
+
+  private tasks(date: string, nowMs: number, databases: Block[], phrasesDb: Block | null): Briefing['tasks'] {
+    const chosen = this.setting<string[] | null>('briefing.databases', null)
+    const includeNoDate = this.setting('briefing.includeNoDate', false)
+    const includeTodos = this.setting('briefing.includeTodos', false)
+    const maxItems = this.setting<number>('briefing.maxItems', BRIEFING_LIMITS.maxItems.default)
+    const blocks = this.taskBlocks(databases, phrasesDb, chosen)
     const todoSince = nowMs - TODO_DAYS * DAY_MS
     if (includeTodos) {
       const seen = new Set(blocks.map((block) => block.id))

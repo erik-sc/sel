@@ -233,6 +233,7 @@ export type MenuCommand =
   | 'version-history'
   | 'toggle-assistant'
   | 'open-today'
+  | 'open-calendar'
   | 'new-meeting'
 
 /** ipc channel names. invoke channels are `<namespace>:<method>`. */

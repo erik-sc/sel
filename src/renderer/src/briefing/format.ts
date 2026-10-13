@@ -27,6 +27,18 @@ export function clock(ms: number, locale?: string): string {
 }
 
 /**
+ * The time in as few characters as the locale allows, for the cells of a month: "9am" and
+ * "6:30pm" where the clock has twelve hours, "09:00" where it has twenty-four.
+ */
+export function shortClock(ms: number, locale?: string): string {
+  const parts = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).formatToParts(ms)
+  const part = (type: string): string => parts.find((item) => item.type === type)?.value ?? ''
+  const period = part('dayPeriod')
+  if (!period) return clock(ms, locale)
+  return `${part('hour')}${part('minute') === '00' ? '' : `:${part('minute')}`}${period.replace(/[\s.]/g, '').toLowerCase()}`
+}
+
+/**
  * When an event happens, within the day `[from, to)` it is listed under: "All day",
  * "09:00 – 09:30", just "09:00" for a moment, and "until 10:00" / "from 22:00" for one that
  * began before the day or ends after it.
@@ -40,6 +52,35 @@ export function eventTime(event: Pick<BriefingEvent, 'start' | 'end' | 'allDay'>
   if (endsAfter) return `from ${clock(event.start, locale)}`
   if (event.end <= event.start) return clock(event.start, locale)
   return `${clock(event.start, locale)} – ${clock(event.end, locale)}`
+}
+
+/** Local midnight of the day after the one that begins at `start` (a local day is 23 to 25 hours long). */
+export function nextDayStart(start: number): number {
+  const date = new Date(start)
+  date.setDate(date.getDate() + 1)
+  date.setHours(0, 0, 0, 0)
+  return date.getTime()
+}
+
+export interface DayAgenda {
+  events: BriefingEvent[]
+  tasks: BriefingTask[]
+}
+
+/**
+ * What falls on each of `days` (`YYYY-MM-DD`): the events that overlap it, in the order they
+ * came in, and the tasks due on it. An event of several days is on each of them.
+ */
+export function agendaByDay(days: readonly string[], events: readonly BriefingEvent[], tasks: readonly BriefingTask[]): Map<string, DayAgenda> {
+  const out = new Map<string, DayAgenda>()
+  for (const day of days) {
+    const from = dayStart(day)
+    if (from === null) continue
+    const to = nextDayStart(from)
+    out.set(day, { events: events.filter((event) => (event.end > event.start ? event.start < to && event.end > from : event.start >= from && event.start < to)), tasks: [] })
+  }
+  for (const task of tasks) if (task.due) out.get(task.due)?.tasks.push(task)
+  return out
 }
 
 export type EventMoment = 'past' | 'now' | 'next' | 'later' | 'day'

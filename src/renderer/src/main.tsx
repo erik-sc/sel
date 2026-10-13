@@ -18,7 +18,7 @@ import { initHerman } from './herman/gate'
 import { preloadHerman } from './herman/Host'
 import { initSync } from './sync/store'
 import { initMeetings } from './meetings/gate'
-import { isTodayRoute, openTodayOnLaunch } from './briefing/route'
+import { openTodayOnLaunch, routeTitle } from './briefing/route'
 
 bootMark('start')
 
@@ -50,7 +50,7 @@ initMeetings()
 void initTabs(initialPageId()).then(() => {
   // The page about to be shown: fetch its blocks while the editor's code loads.
   const pageId = tabPage(activeTab())
-  if (pageId && !isTodayRoute(pageId) && getBlock(pageId)?.type !== 'database') prefetchTree(pageId)
+  if (pageId && !routeTitle(pageId) && getBlock(pageId)?.type !== 'database') prefetchTree(pageId)
   // Today opens by itself on the first launch of the day (`briefing.openOnLaunch`).
   void openTodayOnLaunch()
 })

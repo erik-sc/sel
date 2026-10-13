@@ -31,12 +31,16 @@ export interface TaskOptions {
   todoSince?: number
   /** Stops collecting after this many tasks per group. */
   cap?: number
+  /** Also collect, as `dated`, the open rows due from `from` to `to` (`YYYY-MM-DD`, both included). */
+  range?: { from: string; to: string }
 }
 
 export interface TaskSelection {
   overdue: BriefingTask[]
   today: BriefingTask[]
   noDate: BriefingTask[]
+  /** Present only when a range was asked for: its open rows, earliest due first. */
+  dated?: BriefingTask[]
 }
 
 /** Lower-case, without diacritics or punctuation: "Situação" and "situacao" are the same name. */
@@ -292,6 +296,8 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
   const overdue: Ranked[] = []
   const now: Ranked[] = []
   const noDate: Ranked[] = []
+  const range = options.range ? { from: dayOf(options.range.from) ?? '', to: dayOf(options.range.to) ?? '' } : null
+  const dated: Ranked[] = []
 
   for (const { block, seen: order } of rows) {
     const database = databases.get(block.parentId as string)
@@ -324,6 +330,7 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
     const active = typeof status === 'string' && !!signal.status?.active.has(status)
     if (start) task.due = end && end > start ? end : start
     const item: Ranked = { task, rank, seen: order }
+    if (range && task.due && task.due >= range.from && task.due <= range.to && dated.length < cap) dated.push(item)
     if (start && (end && end >= start ? end : start) < today) {
       if (overdue.length < cap) overdue.push(item)
     } else if ((start && start <= today) || active) {
@@ -358,10 +365,13 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
     now.push({ task: { id: block.id, kind: 'todo', title, pageId, source: page.title || 'Untitled' }, rank: 4, seen: order })
   }
 
-  overdue.sort((a, b) => ((a.task.due ?? '') !== (b.task.due ?? '') ? ((a.task.due ?? '') < (b.task.due ?? '') ? -1 : 1) : a.rank - b.rank || a.seen - b.seen))
+  const byDue = (a: Ranked, b: Ranked): number => ((a.task.due ?? '') !== (b.task.due ?? '') ? ((a.task.due ?? '') < (b.task.due ?? '') ? -1 : 1) : a.rank - b.rank || a.seen - b.seen)
+  overdue.sort(byDue)
   now.sort(compare)
   noDate.sort(compare)
-  return { overdue: overdue.map((item) => item.task), today: now.map((item) => item.task), noDate: noDate.map((item) => item.task) }
+  const selection: TaskSelection = { overdue: overdue.map((item) => item.task), today: now.map((item) => item.task), noDate: noDate.map((item) => item.task) }
+  if (range) selection.dated = dated.sort(byDue).map((item) => item.task)
+  return selection
 }
 
 /** A change to a row's values, and what they were before: completing a task and undoing it. */

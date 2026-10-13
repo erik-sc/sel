@@ -315,6 +315,61 @@ describe('the calendar service', () => {
     expect(existsSync(join(dir, 'briefing', 'calendar-cache.json'))).toBe(false)
   })
 
+  describe('days beyond the cached fortnight', () => {
+    const WEEKLY = ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:w', 'SUMMARY:Weekly', 'DTSTART:20261013T120000Z', 'DTEND:20261013T130000Z', 'RRULE:FREQ=WEEKLY', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
+    const december = new Date(2026, 11, 1).getTime()
+    const january = new Date(2027, 0, 1).getTime()
+
+    it('are answered from the calendar as it was last parsed, which is read once', async () => {
+      const t = setup(() => ({ status: 'ok', text: WEEKLY, etag: '"v1"' }))
+      t.store.add({ label: 'Work', url: SECRET, color: 'blue' })
+      const service = t.make()
+      // Nothing read yet: nothing to show, and it says so.
+      expect(service.span(december, january)).toEqual({ events: [], complete: false })
+      await service.cover(december, january)
+      expect(t.calls()).toBe(1)
+      const month = service.span(december, january)
+      expect(month.complete).toBe(true)
+      expect(month.events.map((event) => new Date(event.start).getDate())).toEqual([1, 8, 15, 22, 29])
+      // Any other month comes from the same copy; days the cache holds come from the cache.
+      expect(service.span(new Date(2027, 2, 1).getTime(), new Date(2027, 3, 1).getTime())).toMatchObject({ complete: true, events: { length: 5 } })
+      expect(service.span(day(0), day(1)).events.map((event) => event.title)).toEqual(['Weekly'])
+      await service.cover(december, january)
+      expect(t.calls()).toBe(1)
+      expect(everything()).not.toContain('SECRETTOKEN')
+
+      // A new session holds the fortnight only. It asks for the whole file, once, however often it is asked.
+      const again = t.make()
+      expect(again.span(december, january)).toEqual({ events: [], complete: false })
+      await Promise.all([again.cover(december, january), again.cover(december, january)])
+      await again.cover(december, january)
+      expect(t.calls()).toBe(2)
+      expect(t.seen[1].options.etag).toBeUndefined()
+      expect(again.span(december, january).events).toHaveLength(5)
+    })
+
+    it('ask a calendar that cannot be read once a minute at most', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const t = setup(() => {
+        throw new CalendarError('offline')
+      })
+      const added = t.store.add({ label: 'Work', url: SECRET, color: 'blue' })
+      const service = t.make()
+      await service.cover(december, january)
+      await service.cover(december, january)
+      expect(t.calls()).toBe(1)
+      expect(service.span(december, january)).toEqual({ events: [], complete: false })
+      expect(service.status()[0]).toMatchObject({ ok: false, error: 'offline' })
+      t.advance(CALENDAR_TIMING.manualMs)
+      await service.cover(december, january)
+      expect(t.calls()).toBe(2)
+      // A removed calendar is forgotten here too.
+      t.store.remove(added.id)
+      service.forget(added.id)
+      expect(service.span(december, january)).toEqual({ events: [], complete: true })
+    })
+  })
+
   it('reads a damaged cache as empty', () => {
     const t = setup(() => ({ status: 'ok', text: ICS('x') }))
     const added = t.store.add({ label: 'A', url: SECRET, color: 'blue' })

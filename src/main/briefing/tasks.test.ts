@@ -323,3 +323,27 @@ describe('completing and undoing', () => {
     expect(planUndo(null, { __proto__: 1 } as never)).toEqual({})
   })
 })
+
+describe('the tasks of a span of days', () => {
+  it('are the open rows due within it, earliest first, wherever today falls', () => {
+    const blocks = [
+      database('db'),
+      row('a', 'db', 'Late', { due: { start: '2026-10-20' } }),
+      row('b', 'db', 'Early', { due: { start: '2026-10-02' }, prio: 'lo' }),
+      row('c', 'db', 'Early and urgent', { due: { start: '2026-10-02' }, prio: 'hi' }),
+      row('d', 'db', 'Done', { status: 'done', due: { start: '2026-10-05' } }),
+      row('e', 'db', 'Next month', { due: { start: '2026-11-01' } }),
+      row('f', 'db', 'No date'),
+      row('g', 'db', 'Ends inside', { due: { start: '2026-09-28', end: '2026-10-03' } })
+    ]
+    const selected = selectTasks(blocks, { today: TODAY, range: { from: '2026-10-01', to: '2026-10-31' } })
+    expect(selected.dated?.map((task) => [task.title, task.due])).toEqual([
+      ['Early and urgent', '2026-10-02'],
+      ['Early', '2026-10-02'],
+      ['Ends inside', '2026-10-03'],
+      ['Late', '2026-10-20']
+    ])
+    // Asked for no span, it answers as before.
+    expect(Object.keys(selectTasks(blocks, { today: TODAY })).sort()).toEqual(['noDate', 'overdue', 'today'])
+  })
+})
