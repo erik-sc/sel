@@ -9,6 +9,7 @@ import { ArrowUpRight, Database, Page, Search } from '@/ui/icons'
 import * as L from './logic'
 import { markFreshChart } from './chartFresh'
 import './linked.css'
+import { IconGlyph } from '@/ui/IconGlyph'
 
 const storeLookup: L.BlockLookup = { get: (id) => getBlock(id) }
 
@@ -57,7 +58,9 @@ async function loadPaths(ids: readonly string[]): Promise<Map<string, string>> {
 }
 
 function ItemGlyph({ item }: { item: PickItem }): JSX.Element {
-  if (item.icon) return <span className="db-pick-icon is-emoji">{item.icon}</span>
+  if (item.icon) return <span className="db-pick-icon is-emoji">
+        <IconGlyph icon={item.icon} />
+      </span>
   return (
     <span className="db-pick-icon">
       {item.kind === 'page' ? <Page size={14} /> : item.kind === 'linked' ? <ArrowUpRight size={14} /> : <Database size={14} />}

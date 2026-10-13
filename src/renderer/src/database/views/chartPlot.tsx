@@ -16,10 +16,14 @@ export interface PickPoint {
   y: number
 }
 
-/** The CSS colour of a palette name: a tag colour token, or the accent. */
+/**
+ * The CSS colour of a palette name: a tag colour token, or the accent, softened towards the
+ * sheet by --chart-series-strength (the tag colours are text colours, heavy as large fills).
+ */
 export function colourVar(name: string | undefined): string {
-  if (name && name !== L.CHART_ACCENT_COLOUR && (L.OPTION_COLORS as readonly string[]).includes(name)) return `var(--c-${name})`
-  return 'var(--accent)'
+  const named = name && name !== L.CHART_ACCENT_COLOUR && (L.OPTION_COLORS as readonly string[]).includes(name)
+  const token = named ? `var(--c-${name})` : 'var(--accent)'
+  return `color-mix(in oklab, ${token} var(--chart-series-strength), var(--bg-solid))`
 }
 
 function markStyle(colour: string): CSSProperties {

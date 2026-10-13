@@ -2,9 +2,9 @@
  * Chart view and its settings panel: the same frosted, iOS-like language as the other
  * views. Every colour, font size and weight, radius, shadow and duration is a token
  * of styles/tokens.css; series colours are the named colours (--c-*) and --accent,
- * handed to each mark as --db-chart-mark. Text always wears a text token, never a
- * series colour. Marks are repeated items: no backdrop-filter on any of them (the
- * one tooltip is a single thick-glass overlay).
+ * softened by --chart-series-strength and handed to each mark as --db-chart-mark.
+ * Text always wears a text token, never a series colour. Marks are repeated items:
+ * no backdrop-filter on any of them (the one tooltip is a single thick-glass overlay).
  */
 
 .db-chart {

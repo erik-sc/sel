@@ -21,6 +21,12 @@
   line-height: var(--leading-body);
 }
 
+/* The page editor proper (not the read-only copies of it): a size container, so a top-level
+   database can measure the room the window leaves beside the text (100cqi below). */
+.pe-page {
+  container-type: inline-size;
+}
+
 .pe-root button,
 .pe-toolbar button,
 .pe-cover-menu button {
@@ -254,8 +260,8 @@
 }
 
 .pe-cover-menu .pe-cover-menu-item:hover {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--bg-menu-active);
+  color: var(--text-menu-active);
 }
 
 /* ---- rich text ---- */
@@ -419,15 +425,15 @@ span[class*='rt-bg-'] {
 
 .blk-heading_1 > .blk-row > .rt {
   font-size: var(--text-h1);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-heading);
 }
 .blk-heading_2 > .blk-row > .rt {
   font-size: var(--text-h2);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-subheading);
 }
 .blk-heading_3 > .blk-row > .rt {
   font-size: var(--text-h3);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-subheading);
 }
 
 .blk-heading_1 > .blk-row > .blk-gutter {
@@ -633,6 +639,17 @@ span[class*='rt-bg-'] {
 .blk-bookmark > .blk-row,
 .blk-database > .blk-row {
   margin: 6px 0;
+}
+
+/*
+ * A database at the top level of a page may be wider than the text: up to --database-width,
+ * centred on the column, and never past the page's side padding. Nested ones keep to their indent.
+ */
+.pe-page .pe-body > .blk-database > .blk-row {
+  --pe-database-width: max(100%, min(var(--database-width), 100cqi - var(--page-padding-x) * 2));
+
+  width: var(--pe-database-width);
+  margin-inline: calc((100% - var(--pe-database-width)) / 2);
 }
 
 .blk-code-box {
@@ -1092,16 +1109,16 @@ span[class*='rt-bg-'] {
 }
 
 .pe-slash-item.is-active {
-  background: var(--accent);
+  background: var(--bg-menu-active);
 }
 
 .pe-slash-item.is-active .pe-slash-label,
 .pe-slash-item.is-active .pe-slash-glyph {
-  color: var(--accent-text);
+  color: var(--text-menu-active);
 }
 
 .pe-slash-item.is-active .pe-slash-hint {
-  color: var(--accent-text);
+  color: var(--text-menu-active);
   opacity: 0.78;
 }
 
@@ -1323,12 +1340,12 @@ span.pe-swatch[class*='rt-bg-'] {
 }
 
 .pe-toolbar .pe-tb-turn-item:hover {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--bg-menu-active);
+  color: var(--text-menu-active);
 }
 
 .pe-toolbar .pe-tb-turn-item:hover .pe-menu-glyph {
-  color: var(--accent-text);
+  color: var(--text-menu-active);
 }
 
 /* ---- AI entry points (the preview itself is styled in ai/ai.css, loaded with it) ---- */

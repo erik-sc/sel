@@ -135,6 +135,12 @@
   gap: calc(var(--ap-gap) * 1.5);
 }
 
+.ts-check-icon {
+  display: inline-flex;
+  margin-right: calc(var(--ap-gap) * 0.75);
+  vertical-align: -0.15em;
+}
+
 .ts-check input {
   flex: none;
   width: 15px;

@@ -170,13 +170,13 @@
 }
 
 .ui-menu-item.is-active {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--bg-menu-active);
+  color: var(--text-menu-active);
 }
 
 .ui-menu-item.is-danger.is-active {
-  background: var(--danger);
-  color: var(--accent-text);
+  background: var(--bg-menu-danger);
+  color: var(--text-menu-danger);
 }
 
 .ui-menu-item.is-disabled {
@@ -363,6 +363,98 @@
   padding: 32px 0;
   text-align: center;
   color: var(--text-secondary);
+}
+
+/* ---- page and database icons: generated shapes, sel's line icons, emoji ---- */
+.ui-glyph {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* One unbroken line: stroked in the colour of the text around it, never filled. */
+.ui-glyph.is-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ui-icon-picker {
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+}
+
+.ui-icon-picker-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 8px 0;
+}
+
+.ui-icon-picker-kinds {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+}
+
+.ui-icon-picker-kind {
+  height: calc(var(--control-height) - 4px);
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  transition:
+    background var(--duration-fast) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.ui-icon-picker-kind:hover {
+  background: var(--bg-hover);
+}
+
+.ui-icon-picker-kind.is-selected {
+  background: var(--bg-active);
+  color: var(--text);
+}
+
+.ui-icon-picker-kind:focus-visible,
+.ui-icon-picker-cell:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.ui-icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  padding: 8px 10px 10px;
+}
+
+.ui-icon-picker-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-radius: var(--radius-s);
+  color: var(--text);
+  font-size: var(--text-h1);
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.ui-icon-picker-cell:hover {
+  background: var(--bg-hover);
+}
+
+.ui-icon-picker-cell.is-current {
+  background: var(--bg-active);
+}
+
+/* Inside the icon picker the emoji picker is one of three panes, not a popover of its own. */
+.ui-icon-picker .ui-emoji-picker {
+  width: auto;
+  height: 320px;
 }
 
 /* ---- loading skeletons (shared: the shell shows them while the editor or database code loads) ---- */

@@ -1,11 +1,12 @@
 import type { Block } from '@shared/types'
 import { ArrowUpRight, Database, DatabaseLinked, Page } from '@/ui/icons'
+import { IconGlyph } from '@/ui/IconGlyph'
 import { sourceIdOf, useSource } from './linked'
 
 /**
- * A page's emoji, or a generic page/database glyph when it has none. A linked view
- * shows its source's emoji unless it has its own, and is always marked as a link
- * (its own glyph, or a small arrow on the emoji) so that it reads as a view of a
+ * A page's icon, or a generic page/database glyph when it has none. A linked view
+ * shows its source's icon unless it has its own, and is always marked as a link
+ * (its own glyph, or a small arrow on the icon) so that it reads as a view of a
  * database rather than as the database.
  */
 export function PageIcon({ block, size = 16 }: { block: Block | undefined | null; size?: number }) {
@@ -18,7 +19,7 @@ export function PageIcon({ block, size = 16 }: { block: Block | undefined | null
         className={linked ? 'page-icon is-emoji is-linked' : 'page-icon is-emoji'}
         style={{ fontSize: size, width: size + 2, height: size + 2 }}
       >
-        {icon}
+        <IconGlyph icon={icon} />
         {linked && <ArrowUpRight className="page-icon-link" size={Math.round(size / 2)} />}
       </span>
     )

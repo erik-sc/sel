@@ -423,7 +423,7 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
           rootRef.current = el
           ctrl.root = el
         }}
-        className={fullWidth ? 'pe-root is-full' : 'pe-root'}
+        className={fullWidth ? 'pe-root pe-page is-full' : 'pe-root pe-page'}
         tabIndex={-1}
         onKeyDown={onKeyDown}
         onMouseDown={onMouseDown}

@@ -6,6 +6,8 @@ const EMOJI_TITLE_WORDS = 2
 
 export interface EmojiPickerProps {
   onPick: (emoji: string | null) => void
+  /** False where something around the picker already offers to remove the icon. */
+  removable?: boolean
 }
 
 function EmojiGrid({ emojis, onPick }: { emojis: EmojiEntry[]; onPick: (emoji: string) => void }) {
@@ -26,7 +28,7 @@ function EmojiGrid({ emojis, onPick }: { emojis: EmojiEntry[]; onPick: (emoji: s
   )
 }
 
-export function EmojiPicker({ onPick }: EmojiPickerProps) {
+export function EmojiPicker({ onPick, removable = true }: EmojiPickerProps) {
   const [query, setQuery] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -65,9 +67,11 @@ export function EmojiPicker({ onPick }: EmojiPickerProps) {
         <button type="button" className="ui-button is-ghost" onClick={pickRandom}>
           Random
         </button>
-        <button type="button" className="ui-button is-ghost" onClick={() => onPick(null)}>
-          Remove
-        </button>
+        {removable && (
+          <button type="button" className="ui-button is-ghost" onClick={() => onPick(null)}>
+            Remove
+          </button>
+        )}
       </div>
       <div className="ui-emoji-scroll">
         {results ? (

@@ -2,7 +2,8 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import type { JSX, MouseEvent as ReactMouseEvent } from 'react'
 import type { Block, DatabaseView as DatabaseViewModel, ViewType } from '@shared/types'
 import { useBlocks } from '@/store/blocks'
-import { LazyEmojiPicker, preloadEmojiPicker } from '@/ui/LazyEmojiPicker'
+import { IconGlyph } from '@/ui/IconGlyph'
+import { IconPicker } from '@/ui/IconPicker'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import { Tooltip } from '@/ui/Tooltip'
 import { notifyError, toast } from '@/ui/toast'
@@ -444,11 +445,9 @@ export function DatabaseView(props: {
           ref={iconRef}
           className="db-icon"
           aria-label="Change icon"
-          onPointerEnter={preloadEmojiPicker}
-          onFocus={preloadEmojiPicker}
           onClick={() => setEmojiOpen((open) => !open)}
         >
-          {icon ?? <Table size={inline ? ICON_SIZE_INLINE : ICON_SIZE_PAGE} />}
+          {icon ? <IconGlyph icon={icon} /> : <Table size={inline ? ICON_SIZE_INLINE : ICON_SIZE_PAGE} />}
         </button>
         {linked && (
           <Tooltip label={`Linked view of ${sourceTitle}`}>
@@ -651,9 +650,10 @@ export function DatabaseView(props: {
       </div>
 
       <Floating open={emojiOpen} anchor={iconRef.current} onClose={() => setEmojiOpen(false)}>
-        <LazyEmojiPicker
-          onPick={(emoji) => {
-            actions.updateDatabase(databaseId, { icon: emoji })
+        <IconPicker
+          current={icon}
+          onPick={(shape) => {
+            actions.updateDatabase(databaseId, { icon: shape })
             setEmojiOpen(false)
           }}
         />

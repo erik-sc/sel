@@ -827,8 +827,8 @@ body.is-resizing .sidebar {
 }
 
 .crumb-menu .crumb:hover {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--bg-menu-active);
+  color: var(--text-menu-active);
 }
 
 .crumb-menu .crumb:hover .page-icon {
@@ -1068,8 +1068,8 @@ body.is-resizing .sidebar {
 }
 
 .quickfind-item.is-active {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--bg-menu-active);
+  color: var(--text-menu-active);
 }
 
 .quickfind-icon {

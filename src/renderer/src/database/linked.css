@@ -62,8 +62,8 @@
 }
 
 .db-pick-item.is-active {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--bg-menu-active);
+  color: var(--text-menu-active);
 }
 
 .db-pick-icon {

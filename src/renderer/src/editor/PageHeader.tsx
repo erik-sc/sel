@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import type { JSX, KeyboardEvent } from 'react'
 import type { Block } from '@shared/types'
 import { Popover } from '@/ui/Popover'
-import { LazyEmojiPicker, preloadEmojiPicker } from '@/ui/LazyEmojiPicker'
+import { IconGlyph } from '@/ui/IconGlyph'
+import { IconPicker } from '@/ui/IconPicker'
+import { newShapeIcon } from '@/ui/shape'
 import { Image as ImageIcon, Trash } from '@/ui/icons'
 import { useEditor } from './context'
 import { getBlock } from '@/store/blocks'
@@ -11,8 +13,6 @@ import { EditableText } from './EditableText'
 import { getSelectionOffsets } from './richtext-dom'
 import { coverStyle } from './sanitize'
 import { caretLine } from './keyboard'
-
-const DEFAULT_ICON = '\u{1F4C4}'
 
 export function PageHeader({ page }: { page: Block }): JSX.Element {
   const { ctrl } = useEditor()
@@ -66,18 +66,16 @@ export function PageHeader({ page }: { page: Block }): JSX.Element {
       )}
       <div className={`pe-content pe-head${style ? ' has-cover' : ''}${icon ? ' has-icon' : ''}`}>
         {icon && (
-          <button ref={setIconEl} type="button" className="pe-icon" title="Change icon" onPointerEnter={preloadEmojiPicker} onFocus={preloadEmojiPicker} onClick={() => setIconOpen((v) => !v)}>
-            {icon}
+          <button ref={setIconEl} type="button" className="pe-icon" title="Change icon" onClick={() => setIconOpen((v) => !v)}>
+            <IconGlyph icon={icon} />
           </button>
         )}
         <div className="pe-head-actions">
           {!icon && (
             <button
               type="button"
-              onPointerEnter={preloadEmojiPicker}
-              onFocus={preloadEmojiPicker}
               onClick={() => {
-                ctrl.update(id, { icon: DEFAULT_ICON }, { silent: true })
+                ctrl.update(id, { icon: newShapeIcon() }, { silent: true })
                 setIconOpen(true)
               }}
             >
@@ -103,10 +101,11 @@ export function PageHeader({ page }: { page: Block }): JSX.Element {
         />
       </div>
       <Popover open={iconOpen && !!icon} anchor={iconEl} onClose={() => setIconOpen(false)}>
-        <LazyEmojiPicker
-          onPick={(emoji) => {
+        <IconPicker
+          current={icon}
+          onPick={(shape) => {
             setIconOpen(false)
-            ctrl.update(id, { icon: emoji }, { silent: true })
+            ctrl.update(id, { icon: shape }, { silent: true })
           }}
         />
       </Popover>

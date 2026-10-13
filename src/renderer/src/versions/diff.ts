@@ -338,6 +338,14 @@ const short = (value: unknown, max = 60): string => {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
+/** An icon in words: an emoji shows as itself, a drawn icon by its kind. */
+const iconName = (icon: unknown): string => {
+  if (typeof icon !== 'string' || !icon) return 'None'
+  if (icon.startsWith('shape:')) return 'Shape'
+  if (icon.startsWith('icon:')) return `Icon (${icon.slice(5)})`
+  return short(icon)
+}
+
 /** The word diff of two texts, or the fact that it is not available. */
 function textChange(from: string, to: string): Pick<BlockChange, 'text' | 'textTooLarge'> {
   if (from === to) return {}
@@ -359,7 +367,9 @@ function propChanges(from: SnapshotBlock, to: SnapshotBlock, isRoot: boolean): P
   }
   if ((a.color ?? '') !== (b.color ?? '')) out.push({ label: 'Colour', from: colorName(a.color), to: colorName(b.color) })
   if ((a.language ?? '') !== (b.language ?? '')) out.push({ label: 'Language', from: short(a.language) === 'None' ? 'Plain text' : short(a.language), to: short(b.language) === 'None' ? 'Plain text' : short(b.language) })
-  if ((a.icon ?? '') !== (b.icon ?? '')) out.push({ label: 'Icon', from: short(a.icon), to: short(b.icon) })
+  if ((a.icon ?? '') !== (b.icon ?? '')) {
+    out.push({ label: 'Icon', from: iconName(a.icon), to: iconName(b.icon) })
+  }
   if ((a.url ?? '') !== (b.url ?? '')) out.push({ label: to.type === 'image' ? 'Image' : 'Link', from: short(a.url), to: short(b.url) })
   if ((a.cover ?? '') !== (b.cover ?? '')) out.push({ label: 'Cover', from: a.cover ? 'Set' : 'None', to: b.cover ? (a.cover ? 'Changed' : 'Set') : 'None' })
   if (isRoot && !!a.fullWidth !== !!b.fullWidth) out.push({ label: 'Width', from: a.fullWidth ? 'Full width' : 'Default', to: b.fullWidth ? 'Full width' : 'Default' })

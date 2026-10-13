@@ -12,6 +12,7 @@ import { EditableText } from './EditableText'
 import { textOf } from './richtext-dom'
 import { isSafeImageUrl, sanitizeHref } from './sanitize'
 import { TEXT_DEBOUNCE_MS, type Sel } from './types'
+import { IconGlyph } from '@/ui/IconGlyph'
 
 /** How long the "Copied" confirmation stays on the copy button. */
 const COPIED_FEEDBACK_MS = 1200
@@ -360,7 +361,7 @@ export function PageLinkBlock({ block }: { block: Block }): JSX.Element {
         if (e.button === 1) onOpenPage(block.id, { newTab: true })
       }}
     >
-      <span className="blk-pagelink-icon">{block.props.icon ? block.props.icon : <PageIcon size={16} />}</span>
+      <span className="blk-pagelink-icon">{block.props.icon ? <IconGlyph icon={block.props.icon} /> : <PageIcon size={16} />}</span>
       <span className={title ? 'blk-pagelink-title' : 'blk-pagelink-title is-empty'}>{title || 'Untitled'}</span>
     </div>
   )

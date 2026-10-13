@@ -12,6 +12,7 @@ import { isSafeImageUrl, sanitizeHref } from '@/editor/sanitize'
 import { formatValue, orderedProperties, sanitizeValue, VIEW_LABELS } from '@/database/logic/values'
 import { ArrowUpRight, Check, ChevronRight, Database as DatabaseIcon, DatabaseLinked, Image as ImageIcon, Link as LinkIcon, Page as PageIcon } from '@/ui/icons'
 import type { BlockChange, PropChange, RowChange, TreeDiff, WordOp } from './diff'
+import { IconGlyph } from '@/ui/IconGlyph'
 
 interface Lookup {
   blocks: Map<string, SnapshotBlock>
@@ -134,7 +135,7 @@ function RefBlock({ entry, change, fromVersion }: { entry: SnapshotRef; change: 
       <div className="blk-row">
         {mark && <Mark mark={mark} />}
         <div className="blk-pagelink vh-ref">
-          <span className="blk-pagelink-icon">{entry.icon ? entry.icon : entry.type === 'database' ? <DatabaseIcon size={16} /> : <PageIcon size={16} />}</span>
+          <span className="blk-pagelink-icon">{entry.icon ? <IconGlyph icon={entry.icon} /> : entry.type === 'database' ? <DatabaseIcon size={16} /> : <PageIcon size={16} />}</span>
           <span className={entry.title ? 'blk-pagelink-title' : 'blk-pagelink-title is-empty'}>{entry.title || 'Untitled'}</span>
           <span className="vh-ref-note">{entry.type === 'database' ? 'Database with its own history' : 'Page with its own history'}</span>
         </div>
@@ -304,7 +305,9 @@ function RowLine({ row, change, properties, inVersion }: { row: SnapshotRow; cha
             <th key={prop.id} scope="row">
               <span className="vh-cell-title">
                 {mark && <Mark mark={mark} />}
-                {row.icon && <span className="vh-cell-icon">{row.icon}</span>}
+                {row.icon && <span className="vh-cell-icon">
+                    <IconGlyph icon={row.icon} />
+                  </span>}
                 <Rich value={row.title} ops={change?.title} placeholder="Untitled" />
               </span>
               {!inVersion && <span className="vh-ref-note">Added since. A restore keeps it.</span>}
@@ -410,7 +413,9 @@ export function SnapshotView({ version, current, diff }: SnapshotViewProps): JSX
   return (
     <div className={`pe-root vh-doc${diff ? ' is-diff' : ''}`} tabIndex={-1}>
       <div className={`pe-content pe-head${root.props.icon ? ' has-icon' : ''}`}>
-        {root.props.icon && <div className="pe-icon">{root.props.icon}</div>}
+        {root.props.icon && <div className="pe-icon">
+            <IconGlyph icon={root.props.icon} />
+          </div>}
         <div className={`vh-title${mark ? ` ${mark.className}` : ''}`}>
           <Rich value={root.props.title} ops={change?.text} className="pe-title" placeholder="Untitled" />
         </div>
