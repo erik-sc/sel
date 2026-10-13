@@ -47,8 +47,8 @@ export interface SlashItem {
   hint: string
   glyph: string
   keywords: string
-  /** `turn` converts the current block; `insert` adds a new block; `ai` starts an AI action. */
-  kind: 'turn' | 'insert' | 'ai'
+  /** `turn` converts the current block; `insert` adds a new block; `ai` starts an AI action; `meeting` opens a new meeting page. */
+  kind: 'turn' | 'insert' | 'ai' | 'meeting'
   /** `ai` only: which action. `ask` opens the prompt bar. */
   ai?: 'continue' | 'summarize' | 'ask' | 'actions' | 'outline'
   type: BlockType
@@ -73,6 +73,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'image', label: 'Image', hint: 'Upload an image', glyph: '▣', keywords: 'image picture photo img', kind: 'insert', type: 'image' },
   { id: 'bookmark', label: 'Bookmark', hint: 'Save a link as a card', glyph: '↗', keywords: 'bookmark link url web', kind: 'insert', type: 'bookmark' },
   { id: 'page', label: 'Page', hint: 'Embed a sub-page', glyph: '□', keywords: 'page subpage document', kind: 'insert', type: 'page' },
+  { id: 'meeting', label: 'Meeting notes', hint: 'Record a meeting and take notes', glyph: '●', keywords: 'meeting notes record recording transcript call', kind: 'meeting', type: 'page' },
   { id: 'db-table', label: 'Database – table', hint: 'Inline table database', glyph: '▦', keywords: 'database table grid', kind: 'insert', type: 'database', view: 'table' },
   { id: 'db-board', label: 'Database – board', hint: 'Inline kanban board', glyph: '▥', keywords: 'database board kanban', kind: 'insert', type: 'database', view: 'board' },
   { id: 'db-list', label: 'Database – list', hint: 'Inline list database', glyph: '☰', keywords: 'database list', kind: 'insert', type: 'database', view: 'list' },

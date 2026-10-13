@@ -31,6 +31,8 @@ export interface AiSession {
   restore: Sel
   /** Placeholder of the prompt bar. */
   prompt?: string
+  /** Markdown added after the answer when it is accepted (the heading over the notes that were there). */
+  suffix?: string
 }
 
 /** How much text before the caret is sent along for "Continue writing". */
@@ -162,6 +164,34 @@ export function aiOnPage(ctrl: EditorController, action: AiAction | null, blockI
   })
 }
 
+/** The heading that goes between the written-up notes and what the user typed during the meeting. */
+export const MY_NOTES = 'My notes'
+
+/**
+ * "Write up notes" on a meeting page: the answer goes first in the page, and the notes the
+ * user took stay below it, under a heading of their own. The transcript is read by the main
+ * process from the page's "Transcript" sub-page; nothing of it is sent from here.
+ */
+export function aiConsolidate(ctrl: EditorController): void {
+  start(ctrl, () => {
+    ctrl.flushAll()
+    const own = liveChildren(ctrl.tree, getBlock(ctrl.pageId))
+      .map((id) => getBlock(id))
+      .filter((block) => block && block.type !== 'page' && block.type !== 'database')
+    const hasNotes = own.some((block) => textOf(block?.props.title).trim().length > 0)
+    const hasHeading = own.some((block) => block?.type.startsWith('heading') && textOf(block.props.title).trim() === MY_NOTES)
+    return {
+      action: 'consolidate',
+      target: { kind: 'after', blockId: null },
+      replace: true,
+      anchorId: null,
+      base: { pageId: ctrl.pageId },
+      restore: ctrl.currentSel(),
+      ...(hasNotes && !hasHeading ? { suffix: `\n\n## ${MY_NOTES}` } : {})
+    }
+  })
+}
+
 /** Space on an empty paragraph: the prompt bar, right there. */
 export function aiPromptAt(ctrl: EditorController, blockId: string): void {
   aiOnPage(ctrl, null, blockId)
@@ -188,7 +218,7 @@ export function acceptAi(ctrl: EditorController, markdown: string): boolean {
   const session = ctrl.ui.getState().ai
   if (!session) return false
   ctrl.flushAll()
-  const plan = planAccept(ctrl.tree, session.target, markdown, newId, session.replace)
+  const plan = planAccept(ctrl.tree, session.target, `${markdown}${session.suffix ?? ''}`, newId, session.replace)
   ctrl.ui.setState({ ai: null })
   if (!plan) {
     if (session.restore) ctrl.restoreSel(session.restore)

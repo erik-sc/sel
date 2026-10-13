@@ -35,7 +35,8 @@ const SHORTCUTS: Shortcut[] = [
   { command: 'new-window', accelerator: 'CmdOrCtrl+Shift+N', key: 'n', ctrl: true, shift: true },
   { command: 'version-history', accelerator: 'CmdOrCtrl+Alt+Shift+H', key: 'h', ctrl: true, shift: true, alt: true },
   { command: 'toggle-assistant', accelerator: 'CmdOrCtrl+J', key: 'j', ctrl: true },
-  { command: 'open-today', accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true }
+  { command: 'open-today', accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true },
+  { command: 'new-meeting', accelerator: 'CmdOrCtrl+Alt+M', key: 'm', ctrl: true, alt: true }
 ]
 
 export function sendCommand(command: MenuCommand, arg?: unknown, target?: BrowserWindow | null): void {
@@ -83,6 +84,7 @@ export function buildMenu(): void {
       submenu: [
         item('New Page', 'new-page'),
         item('New Tab', 'new-tab'),
+        item('New Meeting', 'new-meeting'),
         { type: 'separator' },
         item('Quick Find…', 'quick-find'),
         item('Version History…', 'version-history'),

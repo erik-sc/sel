@@ -18,6 +18,8 @@ Selida is a notes app for your desktop. Pages are made of blocks, databases are 
 
 **Start the day.** Today shows your calendar, the tasks that are open and a phrase worth reading: Marcus Aurelius, the Dhammapada, Thoreau, or one of your own.
 
+**Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. The audio never leaves the computer.
+
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
 
 **Make it yours.** Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance.
@@ -30,7 +32,7 @@ Selida is a notes app for your desktop. Pages are made of blocks, databases are 
 ## Principles
 
 - **Yours.** Your notes are a SQLite file on your disk. No account, no server.
-- **Still.** The app makes no network requests of its own, apart from loading images you link to and, if you connect one, reading your calendar.
+- **Still.** The app makes no network requests of its own, apart from loading images you link to, reading your calendar if you connect one, and downloading the transcription program and a speech model, once, when you ask for it.
 - **Light.** One small window, a short list of dependencies.
 - **Careful.** The interface runs sandboxed, and nothing you paste or import is trusted.
 
@@ -58,7 +60,7 @@ npm run typecheck
 
 The code is in `src/`:
 
-- `main/` — the Electron main process: storage, files, version history, AI, the briefing.
+- `main/` — the Electron main process: storage, files, version history, AI, the briefing, meetings.
 - `preload/` — the narrow bridge the interface is allowed to use.
 - `renderer/` — the interface: editor, databases, shell, appearance.
 - `shared/` — types both sides agree on.
@@ -75,6 +77,7 @@ All style values live in one file, `src/renderer/src/styles/tokens.css`. Compone
 | `Ctrl+\` | Hide the sidebar |
 | `Ctrl+J` | Assistant |
 | `Ctrl+Alt+T` | Today |
+| `Ctrl+Alt+M` | New meeting |
 | `Ctrl+Shift+L` | Light / dark |
 | `/` | Insert a block |
 

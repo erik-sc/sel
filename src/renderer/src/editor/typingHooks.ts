@@ -10,6 +10,7 @@ import { applyPendingMarks, blockShortcutOps, inlineShortcut, toggleMarkIn, type
 import { textSel, type Sel } from './types'
 import { aiEnabled } from '../ai/gate'
 import { aiFromSlash } from '../ai/session'
+import { newMeeting } from '../meetings/gate'
 
 /** The slash menu closes once the query is this long... */
 const SLASH_MAX_QUERY = 24
@@ -148,6 +149,12 @@ export class TypingHooks {
       // The slash text goes (its own undo step); what the action writes waits for the user's Accept.
       if (rtLength(cleaned) !== rtLength(b.props.title)) ctrl.update(id, { title: cleaned }, { after: textSel(id, s.from) })
       if (item.ai) aiFromSlash(ctrl, item.ai, id, s.from)
+      return
+    }
+    if (item.kind === 'meeting') {
+      // The slash text goes; the meeting is a page of its own in the Meetings database.
+      if (rtLength(cleaned) !== rtLength(b.props.title)) ctrl.update(id, { title: cleaned }, { after: textSel(id, s.from) })
+      void newMeeting()
       return
     }
     if (item.kind === 'turn') {

@@ -5,6 +5,7 @@ import { Toaster } from '@/ui/Toaster'
 import { VersionHistory } from '@/versions/VersionHistory'
 import { AiSetup, AssistantDock } from '@/ai/Host'
 import { TodayHost } from '@/briefing/Host'
+import { MeetingSetup } from '@/meetings/slot'
 import { isTodayRoute } from '@/briefing/route'
 import { EmptyState, PageHost } from './PageHost'
 import { QuickFind } from './QuickFind'
@@ -52,6 +53,7 @@ export function Shell() {
       <SettingsModal />
       <VersionHistory />
       <AiSetup />
+      <MeetingSetup />
       <Toaster />
     </div>
   )

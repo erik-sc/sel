@@ -199,6 +199,29 @@ const systemResolver: Resolver = (hostname) =>
     dnsLookup(hostname, { all: true, verbatim: true }, (err, addresses) => (err ? reject(err) : resolve(addresses)))
   })
 
+/**
+ * The one address a connection to `hostname` will be made to. Every address the name has must
+ * be public (one private answer taints the name). Rejects with a `CalendarError`: `offline`
+ * when the name has no address, `blocked-address` when one of them is not public.
+ */
+export async function resolvePinned(hostname: string, resolve: Resolver = systemResolver): Promise<ResolvedAddress> {
+  const addresses = await resolve(hostname)
+  if (!Array.isArray(addresses) || addresses.length === 0) throw new CalendarError('offline')
+  if (!addresses.every((entry) => entry && isPublicAddress(entry.address))) throw new CalendarError('blocked-address')
+  const first = addresses[0]
+  return { address: first.address, family: first.family === 6 || isIP(first.address) === 6 ? 6 : 4 }
+}
+
+/** A `lookup` for Node's http(s) clients that answers with `pinned` whatever name is asked. */
+export function pinnedLookup(pinned: ResolvedAddress): https.RequestOptions['lookup'] {
+  return ((_hostname: string, lookupOptions: unknown, callback?: unknown): void => {
+    const done = (typeof lookupOptions === 'function' ? lookupOptions : callback) as (err: Error | null, address: string | ResolvedAddress[], family?: number) => void
+    const wantsAll = typeof lookupOptions === 'object' && lookupOptions !== null && (lookupOptions as { all?: boolean }).all === true
+    if (wantsAll) done(null, [pinned])
+    else done(null, pinned.address, pinned.family)
+  }) as unknown as https.RequestOptions['lookup']
+}
+
 export interface FetchOptions {
   etag?: string
   lastModified?: string
@@ -284,20 +307,7 @@ function attempt(url: URL, options: FetchOptions, deadline: number, conditional:
         // A connection of its own, closed afterwards: nothing is shared between requests.
         agent: false,
         // The connection goes to the address that was checked, whatever the name answers by then.
-        ...(pinned
-          ? {
-              lookup: ((_hostname: string, lookupOptions: unknown, callback?: unknown): void => {
-                const done = (typeof lookupOptions === 'function' ? lookupOptions : callback) as (
-                  err: Error | null,
-                  address: string | ResolvedAddress[],
-                  family?: number
-                ) => void
-                const wantsAll = typeof lookupOptions === 'object' && lookupOptions !== null && (lookupOptions as { all?: boolean }).all === true
-                if (wantsAll) done(null, [pinned])
-                else done(null, pinned.address, pinned.family)
-              }) as unknown as https.RequestOptions['lookup']
-            }
-          : {})
+        ...(pinned ? { lookup: pinnedLookup(pinned) } : {})
       }
       try {
         options.onConnect?.(pinned ? pinned.address : url.hostname)
@@ -355,16 +365,7 @@ function attempt(url: URL, options: FetchOptions, deadline: number, conditional:
     }
 
     if (loopback) return start(null)
-    ;(options.resolve ?? systemResolver)(url.hostname).then(
-      (addresses) => {
-        if (!Array.isArray(addresses) || addresses.length === 0) return fail('offline')
-        // Every address the name has must be public: one private answer taints the name.
-        if (!addresses.every((entry) => entry && isPublicAddress(entry.address))) return fail('blocked-address')
-        const first = addresses[0]
-        start({ address: first.address, family: first.family === 6 || isIP(first.address) === 6 ? 6 : 4 })
-      },
-      (err: unknown) => fail(reasonOf(err))
-    )
+    resolvePinned(url.hostname, options.resolve).then(start, (err: unknown) => fail(reasonOf(err)))
   })
 }
 

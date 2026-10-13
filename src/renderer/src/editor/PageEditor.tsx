@@ -15,9 +15,10 @@ import { SelectionToolbar } from './SelectionToolbar'
 import { SkeletonLines as Skeleton } from '@/ui/Skeleton'
 import { bootMark } from '@/boot'
 import { useAiGate } from '@/ai/gate'
-import { aiOnPage, insertFromAssistant, scopeOf } from '@/ai/session'
+import { aiConsolidate, aiOnPage, insertFromAssistant, scopeOf } from '@/ai/session'
 import type { AiTarget } from '@/ai/plan'
 import { AiSlot, preloadInlineAi } from '@/ai/slot'
+import { MeetingSlot } from '@/meetings/slot'
 import './editor.css'
 
 export interface PageEditorProps {
@@ -31,7 +32,7 @@ export function PageEditor(props: PageEditorProps): JSX.Element {
 }
 
 /** Areas inside the editor that manage their own input (embedded database, row properties). */
-const FOREIGN = '.blk-database-box, .pe-rowprops, .ai-slot'
+const FOREIGN = '.blk-database-box, .pe-rowprops, .ai-slot, .mt-slot'
 const INTERACTIVE = '.rt, textarea, input, select, button, a, .blk-bookmark, .blk-pagelink'
 /** Vertical mouse travel (px) before a press on empty space becomes a block-selection drag. */
 const DRAG_SELECT_THRESHOLD = 6
@@ -128,7 +129,8 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
   useEffect(() => {
     if (!aiCommand || !loaded) return
     useAiGate.setState({ command: null })
-    aiOnPage(ctrl, aiCommand.action, null)
+    if (aiCommand.action === 'consolidate') aiConsolidate(ctrl)
+    else aiOnPage(ctrl, aiCommand.action, null)
   }, [aiCommand, loaded, ctrl])
 
   // While the assistant panel is open it can see what is selected here and put answers into
@@ -438,6 +440,7 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
           <>
             <PageHeader page={page} />
             <RowPropertiesGate page={page} />
+            <MeetingSlot page={page} />
             <div className="pe-content pe-body">
               {loaded && <AiSlot anchorId={null} />}
               {loaded ? <BlockList ids={page.content} /> : <Skeleton />}

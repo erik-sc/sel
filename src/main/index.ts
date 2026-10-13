@@ -6,6 +6,8 @@ import { openDatabase, type Repository } from './db'
 import { isValidId } from './db/blocks'
 import { handleFileProtocol, registerFileScheme } from './files'
 import { readTheme, registerIpc, type SyncHooks } from './ipc'
+import { recordingGrants } from './meetings/grant'
+import { handleDisplayMedia } from './meetings/register'
 import { attachShortcuts, buildMenu } from './menu'
 import { DEV_URL, isAllowedRequest, isAppUrl, isDevServerUrl, RENDERER_FILE, toExternalUrl } from './security'
 import { flushTrace, mark } from './trace'
@@ -125,6 +127,13 @@ function createWindow(pageId?: string): BrowserWindow {
   attachShortcuts(win)
   recoverFromCrashes(win)
   trackBounds(win)
+  // Closing the window that records a meeting would cut the recording short: ask first.
+  win.on('close', (event) => {
+    const meetings = syncHooks?.meetings
+    if (!meetings?.holdsRecording(win)) return
+    event.preventDefault()
+    meetings.askToStop(win, 'close')
+  })
 
   // The startup trace ends with the first window: loaded and painted, in whichever order.
   let milestones = others === 0 ? 2 : 0
@@ -194,15 +203,27 @@ function hardenWebContents(): void {
 /** Session-wide rules: permissions and the network policy. Must run after `app` is ready. */
 function hardenSession(ses: Session): void {
   // No camera, geolocation, notifications, etc. — and only for the app's own top frame.
+  // The one exception is made for recording a meeting, and it is narrow: audio only (never
+  // camera video; `getDisplayMedia` arrives as a `media` request that names no type and is
+  // answered by the display-media handler with loopback audio), only for the window that just asked the main process to begin a recording
+  // through a validated ipc call, only for a few seconds after that, and gone the moment the
+  // recording stops. The rules are in ./meetings/grant.ts.
   ses.setPermissionRequestHandler((contents, permission, callback, details) => {
     const trusted = details.isMainFrame && isAppUrl(details.requestingUrl) && isAppUrl(contents.getURL())
+    if (permission === 'media' || permission === 'display-capture') {
+      const mediaTypes = (details as { mediaTypes?: readonly string[] }).mediaTypes
+      return callback(recordingGrants.allowRequest({ permission, owner: contents.id, trusted, mediaTypes }))
+    }
     callback(trusted && ALLOWED_PERMISSIONS.has(permission))
   })
-  ses.setPermissionCheckHandler((_contents, permission, requestingOrigin, details) => {
-    if (!ALLOWED_PERMISSIONS.has(permission) || details.isMainFrame === false) return false
-    return isAppUrl(details.requestingUrl ?? requestingOrigin)
+  ses.setPermissionCheckHandler((contents, permission, requestingOrigin, details) => {
+    if (details.isMainFrame === false) return false
+    const trusted = isAppUrl(details.requestingUrl ?? requestingOrigin)
+    if (permission === 'media') return recordingGrants.allowCheck({ permission, owner: contents?.id ?? null, trusted, mediaType: details.mediaType })
+    return ALLOWED_PERMISSIONS.has(permission) && trusted
   })
   ses.setDevicePermissionHandler(() => false)
+  handleDisplayMedia(ses)
 
   // Network policy on top of the page's CSP (see isAllowedRequest).
   ses.webRequest.onBeforeRequest((details, callback) => {
@@ -335,6 +356,7 @@ function start(store: Repository): void {
       first.once('show', () => setTimeout(() => hooks.start(), SYNC_START_DELAY_MS).unref())
       mark('window created')
       scheduleHistoryMaintenance(store)
+      hooks.meetings.prune()
       // On macOS the menu is the menu bar and owns the app shortcuts. Elsewhere it is never
       // shown (frameless window) and only carries role accelerators (reload, zoom, full
       // screen), so it is built once the window is already loading.
@@ -360,6 +382,13 @@ function start(store: Repository): void {
   let leaving = false
   app.on('before-quit', (event) => {
     if (leaving) return
+    // A recording in progress is not ended by quitting without a word.
+    const recording = syncHooks?.meetings.recordingWindow()
+    if (recording) {
+      event.preventDefault()
+      syncHooks?.meetings.askToStop(recording, 'quit')
+      return
+    }
     const upload = syncHooks?.beforeQuit()
     if (!upload) return
     leaving = true

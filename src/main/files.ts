@@ -4,6 +4,8 @@ import { join, resolve, sep } from 'node:path'
 import { app, dialog, protocol, type BrowserWindow } from 'electron'
 import { FILE_PROTOCOL } from '../shared/api'
 import { readFileCapped } from './fsutil'
+import { RECORDINGS_HOST } from '../shared/meetings'
+import { serveRecording } from './meetings/serve'
 
 export const MAX_IMAGE_BYTES = 25 * 1024 * 1024
 /**
@@ -176,12 +178,22 @@ export async function serveFile(request: { method: string; url: string }, dir: s
 
 /** Must run before `app` is ready. */
 export function registerFileScheme(): void {
-  // `standard` + `secure` is all an <img>/background needs. No fetch, no CORS, no
-  // service workers: the scheme serves images and nothing else.
-  protocol.registerSchemesAsPrivileged([{ scheme: FILE_PROTOCOL, privileges: { standard: true, secure: true } }])
+  // `standard` + `secure` is all an <img>/background needs; `stream` lets an <audio> element
+  // play (and seek in) a recording. No fetch, no CORS, no service workers: the scheme serves
+  // stored images and the audio of meetings, and nothing else.
+  protocol.registerSchemesAsPrivileged([{ scheme: FILE_PROTOCOL, privileges: { standard: true, secure: true, stream: true } }])
 }
 
 /** Must run after `app` is ready. */
 export function handleFileProtocol(): void {
-  protocol.handle(FILE_PROTOCOL, (request) => serveFile(request))
+  protocol.handle(FILE_PROTOCOL, (request) => {
+    // Two routes, told apart by the host: `files` (images) and `recordings` (the audio of meetings).
+    let host = ''
+    try {
+      host = new URL(request.url).hostname
+    } catch {
+      /* not an address: the image route answers 404 */
+    }
+    return host === RECORDINGS_HOST ? serveRecording(request, join(app.getPath('userData'), 'recordings')) : serveFile(request)
+  })
 }

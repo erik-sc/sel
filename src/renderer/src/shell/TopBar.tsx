@@ -16,6 +16,7 @@ import { ChevronLeft, ChevronRight, MoreHorizontal, Sparkle, Star, StarFilled } 
 import { MOD_KEY } from '@/ui/platform'
 import { toggleAssistant, useAiGate } from '@/ai/gate'
 import { preloadAssistant } from '@/ai/Host'
+import { RecordingIndicator } from '@/meetings/slot'
 import { logError, reportError, toggleFavorite } from './actions'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
@@ -135,6 +136,7 @@ export const TopBar = memo(function TopBar() {
         </IconButton>
       </div>
       {pageId && isPage ? <Breadcrumb pageId={pageId} /> : <div className="breadcrumb" />}
+      <RecordingIndicator />
       {pageId && isPage && block && (
         <div className="topbar-actions">
           <IconButton

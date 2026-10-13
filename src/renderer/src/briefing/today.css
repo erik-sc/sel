@@ -214,6 +214,30 @@
   overflow-wrap: anywhere;
 }
 
+/* "Take notes": there when the row is pointed at or reached with the keyboard, out of the way otherwise. */
+.today-event-notes {
+  flex: none;
+  align-self: baseline;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.today-event:hover .today-event-notes,
+.today-event-notes:focus-visible,
+.today-event.is-now .today-event-notes,
+.today-event.is-next .today-event-notes {
+  opacity: 1;
+}
+
+.today-event-notes:hover {
+  background: var(--accent-soft);
+}
+
 .today-event-meta {
   color: var(--text-tertiary);
   font-size: var(--text-sm);

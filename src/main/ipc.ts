@@ -3,6 +3,7 @@ import { IPC } from '../shared/api'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
+import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
 import { ChangeFeed } from './changes'
@@ -45,6 +46,8 @@ export interface SyncHooks {
   start(): void
   /** A last upload on the way out, bounded to a few seconds; null when there is nothing to wait for. */
   beforeQuit(): Promise<void> | null
+  /** What the windows and the quit sequence need to know about a recording in progress. */
+  meetings: MeetingsHooks
 }
 
 const SYNC_URL_KEY = 'sync.remoteUrl'
@@ -214,6 +217,18 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // ---- briefing (the Today screen: calendars, open tasks, the day's phrase; see ./briefing)
   registerBriefingIpc({ handle, repo, ai })
 
+  // ---- meetings (recording, local transcription; see ./meetings). What a transcription writes
+  // reaches the windows like any other change, from the origin `meetings` that no window has.
+  const meetings = registerMeetingsIpc({
+    handle,
+    repo,
+    flushChanges: () => {
+      const ids = repo.drainChanges()
+      changes.add('meetings', ids, repo.drainResets())
+      if (ids.length) syncBridge?.noteLocalChange()
+    }
+  })
+
   // ---- window controls (the renderer draws them on frameless windows)
   handle('window:isMaximized', (_args, event) => windowOf(event)?.isMaximized() ?? false)
   on(IPC.windowMinimize, (win) => win.minimize())
@@ -225,6 +240,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   on(IPC.windowClose, (win) => win.close())
 
   return {
+    meetings,
     start() {
       if (typeof repo.getSetting(SYNC_URL_KEY) !== 'string') return
       sync().then(

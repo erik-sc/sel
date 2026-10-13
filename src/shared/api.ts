@@ -1,6 +1,7 @@
 import type { AiEvent, AiRequest, AiStatus } from './ai'
 import type { SyncSetup, SyncStatus } from './sync'
 import type { BriefingApi } from './briefing'
+import type { MeetingsApi } from './meetings'
 import type {
   Block,
   ChangeEvent,
@@ -175,6 +176,12 @@ export interface Api {
    */
   briefing: BriefingApi
 
+  /**
+   * Meeting recording: microphone and computer audio into local files, a transcript made on this
+   * computer by whisper.cpp, and notes written up by the AI service. See shared/meetings.ts.
+   */
+  meetings: MeetingsApi
+
   app: {
     getTheme(): Promise<Theme>
     setTheme(theme: Theme): Promise<void>
@@ -218,6 +225,7 @@ export type MenuCommand =
   | 'version-history'
   | 'toggle-assistant'
   | 'open-today'
+  | 'new-meeting'
 
 /** ipc channel names. invoke channels are `<namespace>:<method>`. */
 export const IPC = {

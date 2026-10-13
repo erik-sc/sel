@@ -11,7 +11,8 @@ export type AiSetupReason = 'not-installed' | 'not-logged-in'
 /** A page-level action asked for from outside the editor (the page menu). */
 export interface AiPageCommand {
   pageId: string
-  action: 'summarize' | 'title'
+  /** `consolidate`: the notes of a recorded meeting, from its transcript (see meetings/). */
+  action: 'summarize' | 'title' | 'consolidate'
   /** Distinguishes two identical commands in a row. */
   nonce: number
 }

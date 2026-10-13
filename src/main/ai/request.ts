@@ -1,7 +1,7 @@
 import { AI_LIMITS, isAiAction, isAiLanguage, isAiTone, type AiAction, type AiRequest, type AiTurn } from '../../shared/ai'
 import type { Block } from '../../shared/types'
 import * as arg from '../validate'
-import type { PromptContext } from './prompts'
+import type { MeetingPromptData, PromptContext } from './prompts'
 
 /**
  * Checking an AI request that arrived from a renderer, and loading what it points at.
@@ -89,7 +89,8 @@ export function aiRequest(value: unknown): AiRequest {
   if ((action === 'custom' || action === 'ask') && !request.instruction) throw new Error('The request is empty')
   if (action === 'tone' && !request.tone) throw new Error('Unknown tone')
   if (action === 'translate' && !request.language) throw new Error('Unknown language')
-  if (action === 'consolidate' && !request.transcript?.trim()) throw new Error('There is no transcript')
+  // A transcript sent along, or a meeting page whose transcript the main process reads itself.
+  if (action === 'consolidate' && !request.transcript?.trim() && !request.pageId) throw new Error('There is no transcript')
   if (action === 'title' && !request.pageId) throw new Error('Invalid AI request')
   if (NEEDS_CONTENT.has(action) && !request.pageId && !request.selectionText?.trim()) throw new Error('There is nothing to work on')
   return request
@@ -102,6 +103,8 @@ export interface ContentSource {
   get(id: string): Block | null
   pageToMarkdown(id: string): { title: string; markdown: string }
   blocksToMarkdown(blocks: Block[]): string
+  /** What is stored of the meeting a page is: its transcript and notes. Null when it has no transcript. */
+  meeting?(pageId: string): MeetingPromptData | null
 }
 
 const MAX_DEPTH = 64
@@ -130,6 +133,11 @@ export function loadContext(source: ContentSource, request: AiRequest): PromptCo
   const page = source.get(request.pageId)
   if (!page || (page.type !== 'page' && page.type !== 'database')) throw new Error('The page no longer exists')
   // A transcript brings its own content; the page it will be written to is not part of the prompt.
+  if (request.action === 'consolidate' && !request.transcript?.trim()) {
+    const meeting = source.meeting?.(page.id) ?? null
+    if (!meeting) throw new Error('This meeting has no transcript yet.')
+    context.meeting = meeting
+  }
   if (request.action !== 'consolidate') {
     const { title, markdown } = source.pageToMarkdown(page.id)
     context.pageTitle = title

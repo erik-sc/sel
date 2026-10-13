@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { AI_CHANNELS, type AiEvent } from '@shared/ai'
 import { BRIEFING_CHANGED, type BriefingApi } from '@shared/briefing'
 import { IPC, type Api, type MenuCommand } from '@shared/api'
+import { MEETINGS_CHANNELS, type MeetingsApi } from '@shared/meetings'
 import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
 import type { ChangeEvent } from '@shared/types'
 
@@ -24,6 +25,38 @@ const call =
 
 const ns = <T extends object>(namespace: string, methods: readonly string[], separator = ':'): T =>
   Object.fromEntries(methods.map((m) => [m, call(`${namespace}${separator}${m}`)])) as T
+
+/** Subscribes to a channel that carries one payload. Returns the unsubscribe function. */
+const subscribe =
+  <T>(channel: string) =>
+  (listener: (payload: T) => void): (() => void) => {
+    const handler = (_: unknown, payload: T): void => listener(payload)
+    ipcRenderer.on(channel, handler)
+    return () => ipcRenderer.removeListener(channel, handler)
+  }
+
+const meetings: MeetingsApi = {
+  ...ns<Pick<MeetingsApi, 'status' | 'create' | 'transcribe' | 'cancelTranscribe' | 'setSpeakers' | 'storage' | 'openFolder'>>('meetings', [
+    'status',
+    'create',
+    'transcribe',
+    'cancelTranscribe',
+    'setSpeakers',
+    'storage',
+    'openFolder'
+  ]),
+  engine: ns('meetings:engine', ['status', 'download', 'cancelDownload', 'pickProgram', 'pickModel', 'remove'], '.'),
+  recording: {
+    ...ns<Omit<MeetingsApi['recording'], 'frames' | 'encoded'>>('meetings:recording', ['probe', 'begin', 'pause', 'resume', 'stop', 'recover', 'discard'], '.'),
+    // Fire-and-forget, binary: a hundred milliseconds of audio at a time must not wait for a reply.
+    frames: (token, seq, mic, system) => ipcRenderer.send(MEETINGS_CHANNELS.frames, token, seq, mic, system),
+    encoded: (token, stream, seq, bytes) => ipcRenderer.send(MEETINGS_CHANNELS.encoded, token, stream, seq, bytes)
+  },
+  audio: ns('meetings:audio', ['info', 'delete'], '.'),
+  onStatus: subscribe(MEETINGS_CHANNELS.status),
+  onProgress: subscribe(MEETINGS_CHANNELS.progress),
+  onStop: subscribe(MEETINGS_CHANNELS.stop)
+}
 
 const api: Api = {
   clientId,
@@ -83,6 +116,7 @@ const api: Api = {
       return () => ipcRenderer.removeListener(BRIEFING_CHANGED, handler)
     }
   },
+  meetings,
   app: {
     ...ns<Omit<Api['app'], 'platform' | 'window'>>('app', [
       'getTheme',

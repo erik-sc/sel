@@ -15,6 +15,7 @@ import { bootUi, initUi, resolveTheme } from './store/ui'
 import { notifyError } from './ui/toast'
 import { initAi } from './ai/gate'
 import { initSync } from './sync/store'
+import { initMeetings } from './meetings/gate'
 import { isTodayRoute, openTodayOnLaunch } from './briefing/route'
 
 bootMark('start')
@@ -41,6 +42,7 @@ void initTree()
 void initAi()
 // The state of sync, for the indicator in the sidebar (nothing is loaded for it unless this device syncs).
 void initSync()
+initMeetings()
 void initTabs(initialPageId()).then(() => {
   // The page about to be shown: fetch its blocks while the editor's code loads.
   const pageId = tabPage(activeTab())

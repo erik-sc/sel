@@ -3,6 +3,8 @@ import { app, dialog, type BrowserWindow, type WebContents } from 'electron'
 import { AI_CHANNELS, type AiDone, type AiError, type AiRequest, type AiStatus } from '../../shared/ai'
 import type { Repository } from '../db/repository'
 import { inspectCli } from './locate'
+import { loadMeeting, prepareMeeting, type MeetingSource } from './meeting'
+import { buildPrompt } from './prompts'
 import { aiRequest, loadContext } from './request'
 import { AiService, type PromptBuilder } from './service'
 
@@ -56,7 +58,50 @@ export class AiBridge {
 
   /** Validates a request and starts it for `sender`; the outcome is sent to that window only. */
   run(rawRequest: unknown, sender: WebContents): { id: string } {
-    return this.start(aiRequest(rawRequest), sender)
+    const request = aiRequest(rawRequest)
+    // "Write up notes" on a meeting page: the transcript is read here, not sent by the window.
+    if (request.action === 'consolidate' && !request.transcript?.trim() && request.pageId) return this.startMeeting(request, request.pageId, sender)
+    return this.start(request, sender)
+  }
+
+  /**
+   * Meeting notes from what is stored of a meeting. A transcript too long for one prompt is
+   * first condensed part by part, by requests of their own that run one after the other
+   * through the same service; stopping the request (or closing its window) stops those too.
+   */
+  private startMeeting(request: AiRequest, pageId: string, sender: WebContents): { id: string } {
+    const abort = new AbortController()
+    const inner = new Set<string>()
+    const condense = (prompt: string): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const id = this.service.runPrompt(
+          () => prompt,
+          {
+            delta: () => undefined,
+            done: (result) => {
+              inner.delete(id)
+              resolve(result.text)
+            },
+            error: (failure) => {
+              inner.delete(id)
+              reject(new Error(failure.message))
+            }
+          },
+          sender.id
+        )
+        inner.add(id)
+      })
+    const build: PromptBuilder = async (language) => {
+      const markdown = await import('../markdown')
+      const source: MeetingSource = { get: (id) => this.repo.get(id), children: (id) => this.repo.children(id), blocksToMarkdown: (blocks) => markdown.blocksToMarkdown(this.repo, blocks) }
+      const meeting = loadMeeting(source, pageId)
+      if (!meeting) throw new Error('This meeting has no transcript yet.')
+      return buildPrompt(request, { meeting: await prepareMeeting(meeting, language, condense, abort.signal) }, { defaultLanguage: language })
+    }
+    return this.start(request, sender, build, () => {
+      abort.abort()
+      for (const id of [...inner]) this.service.cancel(id)
+    })
   }
 
   /** Starts a prompt built in this process (the briefing) for `sender`, streamed like any request. */
@@ -64,7 +109,7 @@ export class AiBridge {
     return this.start({ action: 'custom' }, sender, build)
   }
 
-  private start(request: AiRequest, sender: WebContents, build?: PromptBuilder): { id: string } {
+  private start(request: AiRequest, sender: WebContents, build?: PromptBuilder, onEnd?: () => void): { id: string } {
     if (!this.watched.has(sender)) {
       this.watched.add(sender)
       const owner = sender.id
@@ -96,10 +141,12 @@ export class AiBridge {
           if (!timer) timer = setTimeout(flush, DELTA_FLUSH_MS)
         },
         done: (result) => {
+          onEnd?.()
           flush()
           send(AI_CHANNELS.done, { id, ...result } satisfies AiDone)
         },
         error: (failure) => {
+          onEnd?.()
           flush()
           send(AI_CHANNELS.error, { id, ...failure } satisfies AiError)
         }

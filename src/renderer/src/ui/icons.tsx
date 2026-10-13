@@ -207,6 +207,13 @@ export const Clock = make(
   </>
 )
 
+export const Mic = make(
+  <>
+    <rect x="6" y="2" width="4" height="7.5" rx="2" />
+    <path d="M3.8 7.6a4.2 4.2 0 0 0 8.4 0M8 11.8v2.2" />
+  </>
+)
+
 /** The mark of the AI features: a four-pointed star with a small one beside it. */
 export const Sparkle = make(<path d="M7 2.2l1.3 3.5 3.5 1.3-3.5 1.3L7 11.8 5.7 8.3 2.2 7l3.5-1.3zM12.3 10.6v3M10.8 12.1h3" />)
 

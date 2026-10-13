@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { localDay, type Briefing, type BriefingEvent, type BriefingPhrase, type BriefingTask } from '@shared/briefing'
 import { aiReady, useAiGate } from '@/ai/gate'
+import { newMeeting } from '@/meetings/gate'
 import { refreshTree } from '@/store/tree'
 import { openPage } from '@/store/tabs'
 import { setSettingsOpen, useUi } from '@/store/ui'
@@ -271,6 +272,15 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
           </span>
           {event.location && <span className="today-event-meta">{event.location}</span>}
         </span>
+        {!event.allDay && moment !== 'past' && (
+          <button
+            type="button"
+            className="today-event-notes"
+            onClick={() => void newMeeting({ event: { title: event.title, start: event.start, end: event.end, ...(event.location ? { location: event.location } : {}), ...(event.description ? { description: event.description } : {}) } })}
+          >
+            Take notes
+          </button>
+        )}
       </li>
     )
   }
