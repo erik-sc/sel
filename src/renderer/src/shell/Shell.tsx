@@ -50,9 +50,9 @@ export function Shell() {
             )}
             <HermanHost />
           </main>
-          <AssistantDock />
         </div>
       </div>
+      <AssistantDock />
       <QuickFind />
       <SettingsModal />
       <VersionHistory />

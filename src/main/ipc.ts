@@ -196,6 +196,9 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   handle('ai:cancel', async ([a], event) => (await ai()).cancel(a, event.sender))
   // Goes through a native dialog: the renderer never names a path to run.
   handle('ai:pickCli', async (_args, event) => (await ai()).pickCli(windowOf(event)))
+  handle('ai:agents.list', async () => (await ai()).agents())
+  handle('ai:agents.connect', async ([a, b], event) => (await ai()).connectAgent(a, b, windowOf(event)))
+  handle('ai:agents.remove', async ([a]) => (await ai()).removeAgent(a))
 
   // ---- sync (drives the git installed on this computer; see ./sync)
   // Loaded when this device is connected to a repository, or when a window first asks. What a

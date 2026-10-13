@@ -33,10 +33,10 @@ export interface AiRunLimits {
 }
 
 export const AI_RUN_LIMITS: AiRunLimits = {
-  /** Requests running at once; further ones wait. */
-  running: 2,
+  /** Requests running at once; further ones wait. Room for Herman and three members of his council. */
+  running: 4,
   /** Requests waiting; one more is refused. */
-  queued: 4,
+  queued: 8,
   /** Characters of answer after which a run is stopped and marked truncated. */
   outputChars: 200_000,
   stderrChars: 16_000,
@@ -80,12 +80,31 @@ export interface AiServiceOptions {
 /** Builds a whole prompt in the main process; it is told the language answers default to, and the voice that is on. */
 export type PromptBuilder = (language: AiLanguage | 'auto', voice: PersonaVoice | null) => string | Promise<string>
 
+/**
+ * Who answers a request, when it is not simply the Claude Code program with the model of the
+ * settings: a seat of the council has a model of its own, or another program altogether.
+ */
+export interface RunTarget {
+  /** Claude Code with this model instead of `ai.model`. Ignored unless it matches AI_MODEL_RE. */
+  model?: string | null
+  /**
+   * Another program (see agents.ts): its file, checked by the caller, and its fixed arguments.
+   * The prompt goes to it on stdin like any other, and what it prints is the answer.
+   */
+  program?: { cli: CliLocation; args: readonly string[]; envAllow?: readonly string[] }
+}
+
+/** Colour and cursor sequences a program may print even when nobody is looking. */
+// eslint-disable-next-line no-control-regex
+const ANSI_RE = /\u001b\[[0-9;?]*[ -/]*[@-~]|\r(?!\n)/g
+
 interface Job {
   id: string
   owner: number | null
   request: AiRequest
   /** A prompt the main process builds itself (the briefing): used instead of `request`. */
   build?: PromptBuilder
+  target?: RunTarget
   sink: AiSink
   state: 'queued' | 'starting' | 'running' | 'settled'
   child: ChildProcess | null
@@ -189,10 +208,10 @@ export class AiService {
     return buildSpawn(cli, args, this.env)
   }
 
-  private start(spec: SpawnSpec): ChildProcess {
+  private start(spec: SpawnSpec, envAllow: readonly string[] = []): ChildProcess {
     return spawn(spec.file, spec.args, {
       cwd: this.options.sandboxDir,
-      env: buildEnv(this.env, spec.env),
+      env: buildEnv(this.env, spec.env, envAllow),
       shell: false,
       windowsHide: true,
       windowsVerbatimArguments: spec.verbatim,
@@ -285,9 +304,10 @@ export class AiService {
    * including not finding the program, arrives through `sink`, after this call has returned.
    * `owner` identifies who may cancel it (a window); null for requests the app itself makes.
    */
-  run(request: AiRequest, sink: AiSink, owner: number | null = null, build?: PromptBuilder): string {
+  run(request: AiRequest, sink: AiSink, owner: number | null = null, build?: PromptBuilder, target?: RunTarget): string {
     const job: Job = { id: randomUUID(), owner, request, sink, state: 'queued', child: null, timer: null, cancelled: false, timedOut: false, startedAt: Date.now() }
     if (build) job.build = build
+    if (target) job.target = target
     this.jobs.set(job.id, job)
     setImmediate(() => {
       if (job.state !== 'queued') return
@@ -303,8 +323,8 @@ export class AiService {
    * Runs a prompt that this process wrote itself, with the same queue, limits and lifecycle as
    * `run`. Nothing a renderer sent goes into it: the caller builds it from what is stored.
    */
-  runPrompt(build: PromptBuilder, sink: AiSink, owner: number | null = null): string {
-    return this.run({ action: 'custom' }, sink, owner, build)
+  runPrompt(build: PromptBuilder, sink: AiSink, owner: number | null = null, target?: RunTarget): string {
+    return this.run({ action: 'custom' }, sink, owner, build, target)
   }
 
   /** The same as `run`, as a promise of the whole answer. Rejects with the `Failure`. */
@@ -405,11 +425,19 @@ export class AiService {
     job.startedAt = Date.now()
     let prompt: string
     let spec: SpawnSpec
+    const program = job.target?.program
     try {
-      const { status, cli } = await this.resolve()
-      if (job.state !== 'starting') return
-      if (!status.available || !cli) {
-        return this.fail(job, status.reason === 'disabled' ? failure('failed', 'AI is turned off in Settings.') : failure('not-installed'))
+      let cli: CliLocation | null = null
+      if (program) {
+        // Another program answers: Claude Code need not be there, but AI has to be on.
+        if (!this.enabled()) return this.fail(job, failure('failed', 'AI is turned off in Settings.'))
+      } else {
+        const found = await this.resolve()
+        if (job.state !== 'starting') return
+        if (!found.status.available || !found.cli) {
+          return this.fail(job, found.status.reason === 'disabled' ? failure('failed', 'AI is turned off in Settings.') : failure('not-installed'))
+        }
+        cli = found.cli
       }
       const stored = this.setting('ai.language')
       const language = isAiLanguage(stored) ? stored : 'auto'
@@ -426,7 +454,10 @@ export class AiService {
         prompt = buildPrompt(job.request, context, { defaultLanguage: language, ...(speaks ? { voice, passageIds } : {}) })
       }
       if (job.state !== 'starting') return
-      spec = this.spawnSpec(cli, buildArgs({ model: this.model() }))
+      const model = job.target?.model
+      spec = program
+        ? buildSpawn(program.cli, program.args, this.env)
+        : this.spawnSpec(cli as CliLocation, buildArgs({ model: typeof model === 'string' && AI_MODEL_RE.test(model) ? model : this.model() }))
       await mkdir(this.options.sandboxDir, { recursive: true })
       if (job.state !== 'starting') return
     } catch (err) {
@@ -435,15 +466,16 @@ export class AiService {
       if (!safe) console.error('[ai] could not prepare the request', err)
       return this.fail(job, failure('failed', safe))
     }
-    this.execute(job, spec, prompt)
+    this.execute(job, spec, prompt, program ? { plain: true, envAllow: program.envAllow ?? [] } : undefined)
   }
 
-  private execute(job: Job, spec: SpawnSpec, prompt: string): void {
+  /** `other`: the program is not Claude Code; what it prints is the answer as it is, not a stream of events. */
+  private execute(job: Job, spec: SpawnSpec, prompt: string, other?: { plain: boolean; envAllow: readonly string[] }): void {
     let child: ChildProcess
     try {
-      child = this.start(spec)
+      child = this.start(spec, other?.envAllow)
     } catch (err) {
-      this.invalidate()
+      if (!other) this.invalidate()
       return this.fail(job, classifyFailure({ spawnErrorCode: (err as NodeJS.ErrnoException).code ?? 'ENOENT' }))
     }
     job.child = child
@@ -502,21 +534,25 @@ export class AiService {
       }
     }
 
-    child.stdout?.on('data', (chunk: Buffer) => take(parser.push(decoder.write(chunk))))
+    if (other?.plain) child.stdout?.on('data', (chunk: Buffer) => emit(decoder.write(chunk).replace(ANSI_RE, '')))
+    else child.stdout?.on('data', (chunk: Buffer) => take(parser.push(decoder.write(chunk))))
     child.stderr?.setEncoding('utf8').on('data', (chunk: string) => {
       if (stderr.length < this.limits.stderrChars) stderr += chunk.slice(0, this.limits.stderrChars - stderr.length)
     })
     child.on('error', (err: NodeJS.ErrnoException) => {
-      this.invalidate()
+      if (!other) this.invalidate()
       this.fail(job, classifyFailure({ spawnErrorCode: err.code ?? 'ENOENT' }))
     })
     child.on('close', (code) => {
-      take(parser.push(decoder.end()))
-      take(parser.end())
+      if (other?.plain) emit(decoder.end().replace(ANSI_RE, ''))
+      else {
+        take(parser.push(decoder.end()))
+        take(parser.end())
+      }
       if (job.state !== 'running') return
       if (job.timedOut) return this.fail(job, failure('timeout'))
       if (job.cancelled) return this.fail(job, failure('cancelled'))
-      if (!result && code === 0 && text.trim()) return this.finish(job, text, false)
+      if (!result && code === 0 && text.trim()) return this.finish(job, other?.plain ? text.trim() : text, false)
       this.fail(job, classifyFailure({ stderr, exitCode: code }))
     })
 

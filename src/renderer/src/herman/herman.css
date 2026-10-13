@@ -449,3 +449,22 @@
     transform: none;
   }
 }
+
+/* ---- settings: the council ---- */
+
+.council-row .ap-row-control {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ap-field.council-agent,
+.ap-field.council-model {
+  width: calc(var(--control-height) * 4.5);
+}
+
+.council-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

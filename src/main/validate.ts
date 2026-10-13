@@ -29,8 +29,8 @@ const CLIENT_ID_RE = /^[A-Za-z0-9_-]+$/
 const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
 /**
  * Exact keys the renderer may write. The `history.*` ones are the four the History settings show,
- * the `ai.*` ones the five the AI settings show, the `herman.*` ones the seven the Herman settings
- * show (what he remembers, `herman.memory`, is not among them); nothing else in those namespaces.
+ * the `ai.*` ones the five the AI settings show, the `herman.*` ones those the Herman settings show,
+ * the seats of his council among them (what he remembers, `herman.memory`, is not); nothing else in those namespaces.
  */
 const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */

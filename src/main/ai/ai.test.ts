@@ -870,7 +870,7 @@ describe('running requests against the stand-in program', () => {
   })
 
   it('leaves no child behind when it is disposed', async () => {
-    const target = service()
+    const target = service({ limits: { running: 2 } })
     const jobs = [run(target, custom('[[fake:hang-tree]]')), run(target, custom('[[fake:hang]]')), run(target, custom('[[fake:hang]]'))]
     expect(await until(() => jobs[0].outcome.deltas.length > 0 && jobs[1].outcome.deltas.length > 0)).toBe(true)
     const pids = jobs.flatMap((job) => (/pids:([\d,]+)/.exec(job.outcome.deltas.join(''))?.[1] ?? '').split(',').filter(Boolean).map(Number))

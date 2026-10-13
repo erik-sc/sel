@@ -213,6 +213,7 @@ hr {
   .glass,
   .glass-thick,
   .shell .sidebar,
+  .shell .assistant,
   .shell .main {
     background: var(--bg-solid);
   }

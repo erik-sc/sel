@@ -346,7 +346,7 @@ describe('quick timings for checks of the UI', () => {
 
 describe('his settings', () => {
   it('are a fixed set of keys a window may write; what he remembers is not one of them', () => {
-    expect([...HERMAN_KEYS].sort()).toEqual(['herman.corner', 'herman.enabled', 'herman.frequency', 'herman.nudges', 'herman.quietHours', 'herman.size', 'herman.voice'])
+    expect([...HERMAN_KEYS].sort()).toEqual(['herman.corner', 'herman.council', 'herman.enabled', 'herman.frequency', 'herman.nudges', 'herman.quietHours', 'herman.size', 'herman.voice'])
     for (const key of HERMAN_KEYS) expect(arg.writableSettingKey(key)).toBe(key)
     for (const key of [MEMORY_KEY, 'herman.persona', 'herman.prompt', 'herman.lines', 'herman.weights', 'herman']) expect(() => arg.writableSettingKey(key), key).toThrow('read-only')
     // It can still be read like any setting: there is nothing secret in it.

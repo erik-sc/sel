@@ -19,7 +19,8 @@ const KEYS: ReadonlySet<string> = new Set([
   'history',
   'transcript',
   'notes',
-  'today'
+  'today',
+  'council'
 ])
 
 /** Actions that are about existing content: they need a page, blocks or a selection. */
@@ -91,6 +92,12 @@ export function aiRequest(value: unknown): AiRequest {
     // About the day or about a page, not both; and only a question can be about the day.
     if (raw['today'] && (request.action !== 'ask' || pageId)) throw new Error('Invalid AI request')
     if (raw['today']) request.today = true
+  }
+
+  if (raw['council'] !== undefined && raw['council'] !== null) {
+    // Only a question can be put to the council.
+    if (typeof raw['council'] !== 'boolean' || (raw['council'] && request.action !== 'ask')) throw new Error('Invalid AI request')
+    if (raw['council']) request.council = true
   }
 
   const { action } = request

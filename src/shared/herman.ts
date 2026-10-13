@@ -5,10 +5,13 @@
  * already knows and decides when he may speak) and the renderer (which draws him).
  *
  * He wraps the AI service and changes none of its rules: the same program, no tools, the
- * prompt built in the main process, nothing in a page without the user's say-so. What he says
- * unasked ("nudges") is written here in advance and chosen locally: no model is ever called
- * for it.
+ * prompt built in the main process, nothing in a page without the user's say-so. What he
+ * proposes to build (shared/actions.ts) waits for a press of Apply, and the council he may ask
+ * first (shared/council.ts) is made of personas this app holds. What he says unasked
+ * ("nudges") is written here in advance and chosen locally: no model is ever called for it.
  */
+
+import { cleanCouncil, COUNCIL_KEY } from './council'
 
 /** How the assistant speaks. `plain` is the assistant without Herman's voice. */
 export const HERMAN_VOICES = ['plain', 'herman', 'brief'] as const
@@ -137,7 +140,7 @@ export const HERMAN_NUDGE_CHANNEL = 'herman:nudge'
 // ---- settings -----------------------------------------------------------------
 
 /** Preferences: how he behaves. */
-export const HERMAN_PREFERENCE_KEYS = ['herman.enabled', 'herman.voice', 'herman.nudges', 'herman.frequency', 'herman.quietHours', 'herman.size'] as const
+export const HERMAN_PREFERENCE_KEYS = ['herman.enabled', 'herman.voice', 'herman.nudges', 'herman.frequency', 'herman.quietHours', 'herman.size', COUNCIL_KEY] as const
 /** Device-local state: where he sits in this window. */
 export const HERMAN_DEVICE_KEYS = ['herman.corner'] as const
 /**
@@ -167,6 +170,8 @@ export function cleanHermanSetting(key: string, value: unknown): unknown {
       return oneOf(HERMAN_SIZES, value)
     case 'herman.corner':
       return oneOf(HERMAN_CORNERS, value)
+    case COUNCIL_KEY:
+      return cleanCouncil(value)
     case 'herman.quietHours': {
       if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined
       const raw = value as Record<string, unknown>

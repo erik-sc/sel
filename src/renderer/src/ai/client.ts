@@ -2,6 +2,7 @@
 // whoever started it, and exposes that as a React hook driving the request state machine.
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 import type { AiEvent, AiRequest } from '@shared/ai'
+import type { CouncilEvent } from '@shared/council'
 import { noteAiEvent } from '@/herman/gate'
 import { IDLE, reduceRun, type RunEvent, type RunState } from './machine'
 
@@ -39,7 +40,7 @@ export interface RunHandle {
  * Starts a request. `emit` receives the machine events for it, in order: `start`, then
  * `started` (or `rejected`), then deltas and one of `done` / `error`.
  */
-export function startRun(request: AiRequest, report: (event: RunEvent) => void): RunHandle {
+export function startRun(request: AiRequest, report: (event: RunEvent) => void, onCouncil?: (event: CouncilEvent) => void): RunHandle {
   // Herman, when he is on, shows what the request is doing: a small sign of life, nothing more.
   const emit = (event: RunEvent): void => {
     noteAiEvent(event.type, event.type === 'error' && event.code === 'cancelled')
@@ -55,6 +56,8 @@ export function startRun(request: AiRequest, report: (event: RunEvent) => void):
   }
   const onEvent: Listener = (event) => {
     if (over) return
+    // How a member of the council fares: beside the request, not a step of it.
+    if (event.type === 'council') return onCouncil?.(event)
     if (event.type !== 'delta') finish()
     emit(event)
   }

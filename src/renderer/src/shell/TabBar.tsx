@@ -20,6 +20,7 @@ import { reportError } from './actions'
 import { routeTitle } from '@/briefing/route'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
+import { useAiGate } from '@/ai/gate'
 import { WindowControls } from './WindowControls'
 
 const DRAG_TYPE = 'application/x-sel-tab'
@@ -127,6 +128,7 @@ const TabItem = memo(function TabItem({ tab, active, dragging, onDragStart, onDr
 
 // Memoised: the shell re-renders on every frame of a sidebar resize; its panels need not.
 export const TabBar = memo(function TabBar() {
+  const assistantOpen = useAiGate((state) => state.enabled && state.panelOpen)
   const tabs = useTabs((state) => state.tabs)
   const activeId = useTabs((state) => state.activeId)
   const sidebarCollapsed = useUi((state) => state.sidebarCollapsed)
@@ -183,7 +185,8 @@ export const TabBar = memo(function TabBar() {
         <Plus />
       </IconButton>
       <div className="tabbar-drag" aria-hidden="true" onDoubleClick={() => window.api.app.window.toggleMaximize()} />
-      <WindowControls />
+      {/* With the assistant open, its panel holds the corner of the window and the buttons with it. */}
+      {!assistantOpen && <WindowControls />}
     </div>
   )
 })
