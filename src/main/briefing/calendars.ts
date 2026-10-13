@@ -314,7 +314,9 @@ export class CalendarService {
     const conditional = !full && covered
     const next: CachedCalendar = { ...previous, checkedAt: now }
     try {
-      const fetchOptions: FetchOptions = { policy: this.options.policy?.() ?? {} }
+      // Outlook builds a published calendar on request and can take ten seconds or more before
+      // the first byte; this runs in the background, so being patient costs nothing.
+      const fetchOptions: FetchOptions = { policy: this.options.policy?.() ?? {}, timeoutMs: 60_000 }
       if (conditional && previous.etag) fetchOptions.etag = previous.etag
       if (conditional && previous.lastModified) fetchOptions.lastModified = previous.lastModified
       const result = await (this.options.fetch ?? fetchCalendar)(url, fetchOptions)
