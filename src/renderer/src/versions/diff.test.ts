@@ -233,7 +233,7 @@ describe('diffSnapshots', () => {
     expect(root.status).toBe('changed')
     expect(compact(root.text!)).toBe('[-New-]{+Old+} title')
     expect(root.props).toEqual([
-      { label: 'Icon', from: 'Set', to: 'None' },
+      { label: 'Icon', from: '🔥', to: 'None' },
       { label: 'Cover', from: 'Set', to: 'None' }
     ])
   })

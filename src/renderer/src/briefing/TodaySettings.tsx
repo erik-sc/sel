@@ -24,7 +24,7 @@ import { Button } from '@/ui/Button'
 import { notifyError } from '@/ui/toast'
 import { updatedLabel } from './format'
 import './settings.css'
-import { ShapeIcon } from '@/ui/ShapeIcon'
+import { IconGlyph } from '@/ui/IconGlyph'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'On' },
@@ -451,7 +451,7 @@ export function TodaySection(): JSX.Element {
                 <span className="ap-row-label">
                   {database.icon && (
                     <span className="ts-check-icon">
-                      <ShapeIcon icon={database.icon} />
+                      <IconGlyph icon={database.icon} />
                     </span>
                   )}
                   {database.name}

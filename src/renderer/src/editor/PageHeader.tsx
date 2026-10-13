@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import type { JSX, KeyboardEvent } from 'react'
 import type { Block } from '@shared/types'
 import { Popover } from '@/ui/Popover'
-import { ShapeIcon } from '@/ui/ShapeIcon'
-import { ShapePicker } from '@/ui/ShapePicker'
+import { IconGlyph } from '@/ui/IconGlyph'
+import { IconPicker } from '@/ui/IconPicker'
 import { newShapeIcon } from '@/ui/shape'
 import { Image as ImageIcon, Trash } from '@/ui/icons'
 import { useEditor } from './context'
@@ -67,7 +67,7 @@ export function PageHeader({ page }: { page: Block }): JSX.Element {
       <div className={`pe-content pe-head${style ? ' has-cover' : ''}${icon ? ' has-icon' : ''}`}>
         {icon && (
           <button ref={setIconEl} type="button" className="pe-icon" title="Change icon" onClick={() => setIconOpen((v) => !v)}>
-            <ShapeIcon icon={icon} />
+            <IconGlyph icon={icon} />
           </button>
         )}
         <div className="pe-head-actions">
@@ -101,7 +101,8 @@ export function PageHeader({ page }: { page: Block }): JSX.Element {
         />
       </div>
       <Popover open={iconOpen && !!icon} anchor={iconEl} onClose={() => setIconOpen(false)}>
-        <ShapePicker
+        <IconPicker
+          current={icon}
           onPick={(shape) => {
             setIconOpen(false)
             ctrl.update(id, { icon: shape }, { silent: true })

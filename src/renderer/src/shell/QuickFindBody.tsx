@@ -8,7 +8,7 @@ import { Page, Search } from '@/ui/icons'
 import { MOD_KEY } from '@/ui/platform'
 import { logError, pageTitle, reportError } from './actions'
 import { isLinkedView } from './linked'
-import { ShapeIcon } from '@/ui/ShapeIcon'
+import { IconGlyph } from '@/ui/IconGlyph'
 
 const DEBOUNCE_MS = 120
 const RECENT_LIMIT = 10
@@ -136,7 +136,7 @@ export function QuickFindBody() {
               if (event.button === 1) choose(item, true)
             }}
           >
-            <span className="quickfind-icon">{item.icon ? <ShapeIcon icon={item.icon} /> : <Page />}</span>
+            <span className="quickfind-icon">{item.icon ? <IconGlyph icon={item.icon} /> : <Page />}</span>
             <span className="quickfind-text">
               <span className="quickfind-title">
                 {item.title || 'Untitled'}

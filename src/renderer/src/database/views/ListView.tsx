@@ -4,7 +4,7 @@ import { Page, Plus } from '@/ui/icons'
 import * as L from '../logic'
 import { RowProps } from '../cells'
 import { RowTitleInput, rowTitle, type ViewProps } from '../common'
-import { ShapeIcon } from '@/ui/ShapeIcon'
+import { IconGlyph } from '@/ui/IconGlyph'
 
 export function ListView(p: ViewProps): JSX.Element {
   const { schema, view, rows, editingRowId, setEditingRowId } = p
@@ -28,7 +28,7 @@ export function ListView(p: ViewProps): JSX.Element {
             }}
             onContextMenu={(event) => p.onRowMenu(event, row.id)}
           >
-            <span className="db-list-icon">{icon ? <ShapeIcon icon={icon} /> : <Page size={16} />}</span>
+            <span className="db-list-icon">{icon ? <IconGlyph icon={icon} /> : <Page size={16} />}</span>
             {editing ? (
               <RowTitleInput row={row} onDone={() => setEditingRowId(null)} />
             ) : (

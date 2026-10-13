@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { SHAPE_BOX, SHAPE_PREFIX, newShapeIcon, shapeOf, shapeSeed } from './shape'
+import { LINE_ICONS, LINE_ICON_NAMES, lineIconPath, lineIconValue } from './lineIcons'
+import { SHAPE_BOX, isShapeIcon, newShapeIcon, shapeOf } from './shape'
 
 describe('shape icons', () => {
   it('makes a new icon value that is short enough for every place an icon is stored', () => {
@@ -15,11 +16,10 @@ describe('shape icons', () => {
     expect(JSON.stringify(shapeOf('shape:abc12345'))).not.toBe(JSON.stringify(shapeOf('shape:abc12346')))
   })
 
-  it('gives an icon saved as an emoji a shape of its own', () => {
-    expect(shapeSeed('📄')).toBe('📄')
-    expect(shapeSeed(SHAPE_PREFIX + 'x')).toBe('x')
-    expect(shapeOf('📄').layers.length).toBeGreaterThanOrEqual(2)
-    expect(JSON.stringify(shapeOf('📄'))).not.toBe(JSON.stringify(shapeOf('✅')))
+  it('tells a shape from the other kinds of icon', () => {
+    expect(isShapeIcon(newShapeIcon())).toBe(true)
+    expect(isShapeIcon('📄')).toBe(false)
+    expect(isShapeIcon('icon:leaf')).toBe(false)
   })
 
   it('only draws finite paths in known colours, near the box', () => {
@@ -35,5 +35,27 @@ describe('shape icons', () => {
         }
       }
     }
+  })
+})
+
+describe('line icons', () => {
+  it('draws every icon as one unbroken line inside the box', () => {
+    expect(LINE_ICON_NAMES.length).toBeGreaterThan(24)
+    for (const name of LINE_ICON_NAMES) {
+      const d: string = LINE_ICONS[name]
+      // One pen-down: a single M, at the start.
+      expect(d.match(/[Mm]/g), name).toEqual(['M'])
+      expect(d, name).toMatch(/^M[-\d. a-zA-Z]+$/)
+      // The briefing keeps 16 characters of a database icon.
+      expect(lineIconValue(name).length, name).toBeLessThanOrEqual(16)
+      expect(lineIconPath(lineIconValue(name))).toBe(d)
+    }
+  })
+
+  it('names no icon for other values', () => {
+    expect(lineIconPath('icon:nothing')).toBeUndefined()
+    expect(lineIconPath('icon:constructor')).toBeUndefined()
+    expect(lineIconPath('📄')).toBeUndefined()
+    expect(lineIconPath('shape:abc12345')).toBeUndefined()
   })
 })

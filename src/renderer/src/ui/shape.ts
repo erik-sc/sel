@@ -2,9 +2,7 @@
  * Page and database icons: small abstract shapes, each drawn from a seed.
  *
  * An icon is stored as `shape:<seed>`. The same seed always draws the same shape, so nothing
- * but the seed is kept. Icons saved before shapes existed are emoji: such a value is used as
- * its own seed, which gives every old icon a shape of its own without rewriting anything.
- * Pure: no DOM, so it runs in node tests.
+ * but the seed is kept. Pure: no DOM, so it runs in node tests.
  */
 
 export const SHAPE_PREFIX = 'shape:'
@@ -36,9 +34,9 @@ export function newShapeIcon(random: () => number = Math.random): string {
   return SHAPE_PREFIX + seed
 }
 
-/** The seed an icon value draws from. */
-export function shapeSeed(icon: string): string {
-  return icon.startsWith(SHAPE_PREFIX) ? icon.slice(SHAPE_PREFIX.length) : icon
+/** Whether an icon value is a generated shape (and not a line icon or an emoji). */
+export function isShapeIcon(icon: string): boolean {
+  return icon.startsWith(SHAPE_PREFIX)
 }
 
 // ---- seeded numbers ----
@@ -177,9 +175,9 @@ function draw(seed: string): Shape {
 const CACHE_LIMIT = 2000
 const cache = new Map<string, Shape>()
 
-/** The shape an icon value stands for. */
+/** The shape a `shape:<seed>` icon value stands for. */
 export function shapeOf(icon: string): Shape {
-  const seed = shapeSeed(icon)
+  const seed = icon.slice(SHAPE_PREFIX.length)
   let shape = cache.get(seed)
   if (!shape) {
     if (cache.size >= CACHE_LIMIT) cache.clear()

@@ -258,7 +258,8 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
     }
     case 'page': {
       const title = inlineToMarkdown(p.title) || 'Untitled'
-      return [`[${title}](sel://page/${b.id})`]
+      // A page's icon is text only when it is an emoji; shapes and line icons are drawn.
+      return [`[${p.icon && !/^(shape|icon):/.test(p.icon) ? `${p.icon} ` : ''}${title}](sel://page/${b.id})`]
     }
     case 'database':
       return databaseToMarkdown(repo, b)

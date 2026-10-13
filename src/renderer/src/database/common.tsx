@@ -21,7 +21,7 @@ import { Popover, type PopoverProps } from '@/ui/Popover'
 import * as L from './logic'
 import * as actions from './actions'
 import { useCommitOnUnmount } from './hooks'
-import { ShapeIcon } from '@/ui/ShapeIcon'
+import { IconGlyph } from '@/ui/IconGlyph'
 
 export function TypeIcon({ type, size = 14 }: { type: PropertyType; size?: number }): JSX.Element {
   switch (type) {
@@ -239,7 +239,7 @@ export function RowIcon({ row, size = 14 }: { row: Block; size?: number }): JSX.
   if (!icon) return null
   return (
     <span className="db-row-icon" style={{ fontSize: size }}>
-      <ShapeIcon icon={icon} />
+      <IconGlyph icon={icon} />
     </span>
   )
 }

@@ -6,7 +6,7 @@ import { Plus } from '@/ui/icons'
 import * as L from '../logic'
 import { RowProps } from '../cells'
 import { RowIcon, RowTitleInput, rowTitle, type ViewProps } from '../common'
-import { ShapeIcon } from '@/ui/ShapeIcon'
+import { IconGlyph } from '@/ui/IconGlyph'
 
 /** Body blocks read for the text preview of a card without a cover. */
 const PREVIEW_BLOCKS = 6
@@ -30,7 +30,7 @@ function BodyPreview({ row }: { row: Block }): JSX.Element {
     if (text) lines.push(text)
   }
   const icon = L.iconOf(row)
-  if (!lines.length) return <div className="db-gallery-preview is-empty">{icon ? <ShapeIcon icon={icon} /> : ''}</div>
+  if (!lines.length) return <div className="db-gallery-preview is-empty">{icon ? <IconGlyph icon={icon} /> : ''}</div>
   return (
     <div className="db-gallery-preview">
       {lines.map((line, index) => (
