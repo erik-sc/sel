@@ -72,6 +72,8 @@ export function onBlockKeyDown(ctrl: EditorController, id: string, e: KeyboardEv
         ctrl.toggleMark(['c'])
         return
       case 'k':
+        // A link needs selected text; without any, Ctrl+K is left to the shell (the command palette).
+        if (collapsed) return
         stop()
         ctrl.requestLink()
         return
