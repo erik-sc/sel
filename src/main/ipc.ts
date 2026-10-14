@@ -3,6 +3,7 @@ import { IPC } from '../shared/api'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
+import { registerFeedbackIpc } from './feedback/register'
 import { registerHermanIpc, type HermanHooks } from './herman/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
 import type { Repository } from './db/repository'
@@ -252,6 +253,9 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     },
     recording: () => meetings.recordingWindow() !== null
   })
+
+  // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
+  registerFeedbackIpc(handle)
 
   // ---- window controls (the renderer draws them on frameless windows)
   handle('window:isMaximized', (_args, event) => windowOf(event)?.isMaximized() ?? false)

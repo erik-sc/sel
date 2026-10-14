@@ -125,6 +125,7 @@ const api: Api = {
     nudge: ns('herman:nudge', ['next', 'dismiss'], '.'),
     onNudge: subscribe(HERMAN_NUDGE_CHANNEL)
   },
+  feedback: ns('feedback', ['list', 'create', 'withdraw', 'openFolder']),
   app: {
     ...ns<Omit<Api['app'], 'platform' | 'window'>>('app', [
       'getTheme',
