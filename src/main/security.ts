@@ -100,10 +100,6 @@ export function toExternalUrl(url: unknown): string | null {
   return parsed.href
 }
 
-export function isExternalUrl(url: unknown): url is string {
-  return toExternalUrl(url) !== null
-}
-
 /**
  * The network policy, enforced in the main process on top of the page's CSP:
  * the renderer may talk to the dev server (unpackaged builds only) and load

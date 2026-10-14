@@ -424,7 +424,7 @@ const MAX_URL_LENGTH = 2048
 /**
  * The only urls a cell may open: http(s) and mailto, with bare domains promoted
  * to https. Anything else (javascript:, file:, data:, control characters...) is null.
- * Mirrors `sanitizeHref` of the editor and the main-process `isExternalUrl` policy.
+ * Mirrors `sanitizeHref` of the editor and the main-process `toExternalUrl` policy.
  */
 export function safeExternalUrl(raw: unknown): string | null {
   if (typeof raw !== 'string') return null
