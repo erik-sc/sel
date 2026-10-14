@@ -36,7 +36,7 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 
 | Fact | Status |
 |---|---|
-| Node.js 22 or newer is required | verified in README.md:51 |
+| Node.js 24 or newer is required (a chart test fails on Node 22) | verified in README.md:53 |
 | `npm run dev` runs `electron-vite dev` | verified in package.json:9 |
 | `npm run build` runs `electron-vite build`; output entry is `./out/main/index.js` | verified in package.json:10, package.json:5 |
 | `npm run typecheck` runs `tsc --noEmit` twice, for `tsconfig.node.json` and `tsconfig.web.json` | verified in package.json:12 |
@@ -48,7 +48,7 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 | The build fails on purpose if the installed Electron major is not 44 | verified in electron.vite.config.ts:15-26 |
 | Path aliases: `@shared` everywhere, `@` (renderer source) in the renderer only | verified in electron.vite.config.ts:60, electron.vite.config.ts:67, electron.vite.config.ts:73 |
 | The node tsconfig also compiles `src/renderer/src/database/logic/*.ts` | verified in tsconfig.node.json:15 |
-| No CI workflow exists | verified: `.github` does not exist (ls, this session) |
+| CI (GitHub Actions) runs `npm run typecheck` (Ubuntu) and `npx vitest run --dir src` (Windows) on Node 24, on every pull request and push to `main`; install is `npm ci --ignore-scripts` | verified in .github/workflows/ci.yml |
 
 ## Entry points
 
