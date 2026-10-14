@@ -13,6 +13,7 @@ import { PageHeader } from './PageHeader'
 import { BlockMenu, SlashMenu, SourcePickerPopover } from './menus'
 import { SelectionToolbar } from './SelectionToolbar'
 import { SkeletonLines as Skeleton } from '@/ui/Skeleton'
+import { flushOnUnload } from '@/ui/unload'
 import { bootMark } from '@/boot'
 import { useAiGate } from '@/ai/gate'
 import { aiConsolidate, aiOnPage, insertFromAssistant, scopeOf } from '@/ai/session'
@@ -103,12 +104,13 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
         if (alive) setLoaded(true)
         bootMark('first-page')
       })
+    // Typing still inside the debounce is written when the window loses focus or closes.
     const flush = (): void => ctrl.flushAll()
-    window.addEventListener('beforeunload', flush)
+    const offUnload = flushOnUnload(flush)
     window.addEventListener('blur', flush)
     return () => {
       alive = false
-      window.removeEventListener('beforeunload', flush)
+      offUnload()
       window.removeEventListener('blur', flush)
       ctrl.flushAll()
       ctrl.dispose()
