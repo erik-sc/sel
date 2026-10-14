@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -17,6 +18,16 @@ import { callTool, ToolError, toolActivity, type ToolSource } from './tools'
  * Protocol: one JSON object per line. The script sends {token, id, name, args}; this side
  * answers {id, text} or {id, error}.
  */
+
+/**
+ * Where the bundled server script of the workspace tools is: next to the main bundle, which is
+ * the folder of the code that asks or, when that code was split into a chunk of its own, the
+ * folder above.
+ */
+export function toolScript(dir: string, exists: (path: string) => boolean = existsSync): string {
+  const candidates = [join(dir, 'mcp.js'), join(dir, '..', 'mcp.js')]
+  return candidates.find((path) => exists(path)) ?? candidates[0]
+}
 
 export interface ToolHostOptions {
   source(): ToolSource
