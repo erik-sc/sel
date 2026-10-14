@@ -256,6 +256,7 @@ export type MenuCommand =
   | 'new-meeting'
   | 'send-feedback'
   | 'command-palette'
+  | 'keyboard-shortcuts'
 
 /** ipc channel names. invoke channels are `<namespace>:<method>`. */
 export const IPC = {

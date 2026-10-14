@@ -10,6 +10,7 @@ import { FeedbackHost } from '@/feedback/Host'
 import { MeetingSetup } from '@/meetings/slot'
 import { isCalendarRoute, isTodayRoute } from '@/briefing/route'
 import { CommandPalette } from '@/commands/Palette'
+import { ShortcutsHost } from '@/shortcuts/Host'
 import { EmptyState, PageHost } from './PageHost'
 import { FindBar } from './FindBar'
 import { QuickFind } from './QuickFind'
@@ -59,6 +60,7 @@ export function Shell() {
       <AssistantDock />
       <QuickFind />
       <CommandPalette />
+      <ShortcutsHost />
       <SettingsModal />
       <VersionHistory />
       <AiSetup />

@@ -166,6 +166,7 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
     keywords: ['preferences', 'options', ...keywords],
     run: () => openSettings(section)
   })),
+  menu('keyboard-shortcuts', 'Keyboard shortcuts', ['keys', 'hotkeys', 'keybindings', 'help']),
   menu('send-feedback', 'Report a bug or suggest a feature…', ['feedback', 'issue', 'help'])
 ]
 
