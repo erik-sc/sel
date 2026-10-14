@@ -6,8 +6,10 @@ import { getBlock } from '@/store/blocks'
 import { SourcePicker, preloadSourcePicker } from '@/database/lazy'
 import { Popover } from '@/ui/Popover'
 import { Menu, type MenuItem } from '@/ui/Menu'
-import { Copy, Link as LinkIcon, Trash } from '@/ui/icons'
+import type { Block } from '@shared/types'
+import { Columns, Copy, Link as LinkIcon, Trash } from '@/ui/icons'
 import { useEditor } from './context'
+import { besideChoice } from './layout'
 import { TURN_INTO, filterSlashItems, isTextType } from './blockTypes'
 import { COLOR_NAMES } from './richtext-dom'
 import { AI_LANGUAGES, AI_LANGUAGE_LABELS, AI_TONES, AI_TONE_LABELS } from '@shared/ai'
@@ -179,10 +181,24 @@ export function BlockMenu(): JSX.Element | null {
     const b = getBlock(id)
     return !!b && (isTextType(b.type) || b.type === 'code')
   })
+  // A single database block can join the row of the one before it, or leave its row.
+  const only = ids.length === 1 ? getBlock(ids[0]) : undefined
+  const siblings = only?.parentId ? (getBlock(only.parentId)?.content ?? []).map(getBlock).filter((b): b is Block => !!b && !b.trashedAt) : []
+  const beside = only ? besideChoice(siblings, only.id) : null
 
   const items: MenuItem[] = [
     { id: 'delete', label: 'Delete', icon: <Trash size={14} />, hint: 'Del', danger: true, onSelect: () => ctrl.deleteBlocks(ids) },
     { id: 'duplicate', label: 'Duplicate', icon: <Copy size={14} />, hint: 'Ctrl+D', onSelect: () => ctrl.duplicate(ids) },
+    ...(only && beside
+      ? [
+          {
+            id: 'beside',
+            label: beside === 'beside' ? 'Place beside the previous block' : 'Place below the previous block',
+            icon: <Columns size={14} />,
+            onSelect: () => ctrl.setBeside(only.id, beside === 'beside')
+          }
+        ]
+      : []),
     {
       id: 'turn',
       label: 'Turn into',

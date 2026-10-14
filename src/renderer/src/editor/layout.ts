@@ -29,3 +29,18 @@ export function rowsOf<T extends Placed>(blocks: readonly T[]): T[][] {
   }
   return rows
 }
+
+/**
+ * What the block menu offers the block `id` among its siblings `blocks`: to leave the row it
+ * sits in ('below'), to join the row of the block before it ('beside'), or nothing when it
+ * cannot share a row there (not a database, nothing to sit beside, or that row is full).
+ */
+export function besideChoice<T extends Placed & { id: string }>(blocks: readonly T[], id: string): 'beside' | 'below' | null {
+  const joined = (list: readonly T[]): boolean => {
+    const row = rowsOf(list).find((candidate) => candidate.some((block) => block.id === id))
+    return !!row && row[0].id !== id
+  }
+  if (joined(blocks)) return 'below'
+  const asked = blocks.map((block) => (block.id === id ? { ...block, props: { ...block.props, beside: true } } : block))
+  return joined(asked) ? 'beside' : null
+}
