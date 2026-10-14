@@ -398,7 +398,9 @@ const PROPERTY_TYPE_NAMES: Record<string, string> = {
   checkbox: 'Checkbox',
   url: 'Link',
   created_time: 'Created time',
-  last_edited_time: 'Last edited time'
+  last_edited_time: 'Last edited time',
+  relation: 'Relation',
+  rollup: 'Rollup'
 }
 
 /** Properties added, removed, renamed or retyped, and whether the views differ. */

@@ -98,6 +98,7 @@ export function buildMenu(): void {
         item('Toggle Sidebar', 'toggle-sidebar'),
         item('Toggle Assistant', 'toggle-assistant'),
         item('Toggle Light/Dark Theme', 'toggle-theme'),
+        item('Toggle Focus Mode', 'toggle-focus-mode'),
         { type: 'separator' },
         item('Back', 'go-back'),
         item('Forward', 'go-forward'),
@@ -127,7 +128,7 @@ export function buildMenu(): void {
     {
       label: 'Help',
       role: 'help',
-      submenu: [item('Report a Bug or Suggest a Feature…', 'send-feedback')]
+      submenu: [item('Keyboard Shortcuts', 'keyboard-shortcuts'), item('Report a Bug or Suggest a Feature…', 'send-feedback')]
     }
   )
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))

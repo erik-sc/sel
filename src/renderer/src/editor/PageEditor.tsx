@@ -43,12 +43,12 @@ const DROP_INSIDE_OFFSET = 56
 /** Fallback probe (px from the body's left edge) for finding the block on a row when the pointer is in the margin. */
 const ROW_PROBE_OFFSET = 120
 
-function RowPropertiesGate({ page }: { page: Block }): JSX.Element | null {
+function RowPropertiesGate({ page, onOpenPage }: { page: Block; onOpenPage: PageEditorProps['onOpenPage'] }): JSX.Element | null {
   const parent = useBlock(page.parentId)
   if (parent?.type !== 'database') return null
   return (
     <div className="pe-content pe-rowprops">
-      <RowProperties pageId={page.id} />
+      <RowProperties pageId={page.id} onOpenPage={onOpenPage} />
     </div>
   )
 }
@@ -454,7 +454,7 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
         {page ? (
           <>
             <PageHeader page={page} />
-            <RowPropertiesGate page={page} />
+            <RowPropertiesGate page={page} onOpenPage={onOpenPage} />
             <MeetingSlot page={page} />
             <div className="pe-content pe-body">
               {loaded && <AiSlot anchorId={null} />}

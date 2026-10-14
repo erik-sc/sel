@@ -33,6 +33,7 @@ import {
   preloadView
 } from './lazyParts'
 import { useResolvedDatabase } from './resolved'
+import { RelatedContext, useRelatedCells } from './related'
 import { TableView } from './views/TableView'
 import { ListView } from './views/ListView'
 import './database.css'
@@ -200,7 +201,10 @@ export function DatabaseView(props: {
     setLinkPanel(null)
   }, [databaseId])
 
-  const rows = useMemo(() => L.queryRows(allRows, schema, view, search), [allRows, schema, view, search])
+  // Relations and rollups read the databases this one relates to; a change there re-runs the query.
+  const cells = useRelatedCells(schema)
+  const related = useMemo(() => ({ cells, openPage: onOpenPage }), [cells, onOpenPage])
+  const rows = useMemo(() => L.queryRows(allRows, schema, view, search, cells), [allRows, schema, view, search, cells])
 
   const onOpen = useCallback(
     (rowId: string, event?: OpenModifiers) => {
@@ -443,7 +447,7 @@ export function DatabaseView(props: {
       body = <TableView {...viewProps} />
   }
 
-  return (
+  const content = (
     <div className={inline ? 'db-root is-inline' : 'db-root'} data-view-type={view.type}>
       <div className="db-header">
         <button
@@ -726,4 +730,6 @@ export function DatabaseView(props: {
       )}
     </div>
   )
+  // Cells, cards and panels below read the related databases (and open linked rows) through this.
+  return <RelatedContext.Provider value={related}>{content}</RelatedContext.Provider>
 }

@@ -10,9 +10,11 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go. The top bar keeps a quiet count of the page's words and reading time, or of what you have selected; Settings → General turns it off.
 
-**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters. A Calculations view keeps the figures you work out from a database, such as `sum(Amount) / 12`. Charts and other database blocks can sit side by side: choose "Place beside the previous block" from a block's menu.
+**Focus.** `Ctrl+Shift+F` leaves only the page: no sidebar, no tabs, no Herman. Move the mouse to the top edge for the bars; press the keys again, or Esc when nothing is selected, to come back. From `Ctrl+K` you can also have it fade every block but the one you are writing in.
 
-**Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not. `Ctrl+K` lists everything the app can do: type a few letters and press Enter. With text selected in a page, `Ctrl+K` adds a link instead.
+**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters. A relation links rows to pages of another database (or of the same one), one way or both; a rollup sums up the linked pages: counts, totals, averages, the latest date. A Calculations view keeps the figures you work out from a database, such as `sum(Amount) / 12`. Charts and other database blocks can sit side by side: choose "Place beside the previous block" from a block's menu.
+
+**Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not. `Ctrl+K` lists everything the app can do: type a few letters and press Enter. With text selected in a page, `Ctrl+K` adds a link instead. `Ctrl+/` shows every shortcut.
 
 **Go back.** Every page keeps a version history. Compare, restore, or restore as a copy.
 
@@ -82,11 +84,13 @@ All style values live in one file, `src/renderer/src/styles/tokens.css`. Compone
 | | |
 |---|---|
 | `Ctrl+K` | Commands (a link, with text selected) |
+| `Ctrl+/` | Every shortcut |
 | `Ctrl+P` | Find |
 | `Ctrl+F` | Find in this page |
 | `Ctrl+N` | New page |
 | `Ctrl+T` / `Ctrl+W` | New tab / close tab |
 | `Ctrl+\` | Hide the sidebar |
+| `Ctrl+Shift+F` | Focus mode |
 | `Ctrl+J` | Herman, the assistant |
 | `Ctrl+Alt+T` | Today |
 | `Ctrl+Alt+C` | Calendar |

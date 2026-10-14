@@ -5,7 +5,7 @@ import type { MenuCommand } from '@shared/api'
 import { acceleratorOf } from '@shared/shortcuts'
 import { getBlock } from '@/store/blocks'
 import { activeTab, tabPage } from '@/store/tabs'
-import { setHistoryPage, setSettingsOpen, setTheme, useUi, type SettingsSection } from '@/store/ui'
+import { setFocusDim, setFocusMode, setHistoryPage, setSettingsOpen, setTheme, useUi, type SettingsSection } from '@/store/ui'
 import { aiEnabled, requestPageAi } from '@/ai/gate'
 import { routeTitle } from '@/briefing/route'
 import { IS_MAC } from '@/ui/platform'
@@ -59,6 +59,8 @@ const SETTINGS: [SettingsSection, string, string[]][] = [
   ['meetings', 'Meetings', ['recording', 'transcription', 'whisper']]
 ]
 
+const FOCUS_WORDS = ['zen', 'distraction free', 'writing', 'hide']
+
 const THEMES: [Theme, string][] = [
   ['light', 'Use the light theme'],
   ['dark', 'Use the dark theme'],
@@ -82,6 +84,29 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('go-forward', 'Forward', ['history', 'navigate']),
   menu('new-window', 'New window'),
   menu('toggle-sidebar', 'Show or hide the sidebar', ['collapse', 'expand', 'panel']),
+  menu('toggle-focus-mode', 'Focus mode: only the page', FOCUS_WORDS, () => !useUi.getState().focusMode),
+  {
+    id: 'leave-focus-mode',
+    title: 'Leave focus mode',
+    keywords: FOCUS_WORDS,
+    shortcut: acceleratorOf('toggle-focus-mode', IS_MAC),
+    when: () => useUi.getState().focusMode,
+    run: () => setFocusMode(false)
+  },
+  {
+    id: 'focus-dim',
+    title: 'Focus mode, fading all but the block you write in',
+    keywords: [...FOCUS_WORDS, 'dim', 'fade', 'paragraph', 'typewriter'],
+    when: () => !useUi.getState().focusDim,
+    run: () => setFocusDim(true)
+  },
+  {
+    id: 'focus-no-dim',
+    title: 'Stop fading the other blocks in focus mode',
+    keywords: [...FOCUS_WORDS, 'dim', 'fade', 'paragraph', 'typewriter'],
+    when: () => useUi.getState().focusDim,
+    run: () => setFocusDim(false)
+  },
   menu('toggle-theme', 'Switch between light and dark', ['theme', 'dark mode', 'night']),
   ...THEMES.map(([theme, title]): Command => ({
     id: `theme-${theme}`,
@@ -166,6 +191,7 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
     keywords: ['preferences', 'options', ...keywords],
     run: () => openSettings(section)
   })),
+  menu('keyboard-shortcuts', 'Keyboard shortcuts', ['keys', 'hotkeys', 'keybindings', 'help']),
   menu('send-feedback', 'Report a bug or suggest a feature…', ['feedback', 'issue', 'help'])
 ]
 

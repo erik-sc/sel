@@ -139,7 +139,7 @@ export function ChartPanel({ databaseId, schema, view }: { databaseId: string; s
     })
   }
 
-  const properties = L.orderedProperties(schema)
+  const properties = L.chartAxisProperties(schema)
   const x = L.propOf(schema, config.x)
   const isNumber = config.kind === 'number'
   const isPie = config.kind === 'pie' || config.kind === 'donut'

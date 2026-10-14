@@ -11,7 +11,7 @@ import {
   useTabs,
   type Tab
 } from '@/store/tabs'
-import { toggleSidebar, useUi } from '@/store/ui'
+import { useUi } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import { Popover } from '@/ui/Popover'
@@ -22,6 +22,7 @@ import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { useAiGate } from '@/ai/gate'
 import { WindowControls } from './WindowControls'
+import { showOrHideSidebar } from './menuCommands'
 
 const DRAG_TYPE = 'application/x-sel-tab'
 
@@ -132,6 +133,7 @@ export const TabBar = memo(function TabBar() {
   const tabs = useTabs((state) => state.tabs)
   const activeId = useTabs((state) => state.activeId)
   const sidebarCollapsed = useUi((state) => state.sidebarCollapsed)
+  const focus = useUi((state) => state.focusMode)
   const [dragId, setDragId] = useState<string | null>(null)
 
   const onDragStart = useCallback((event: DragEvent<HTMLDivElement>, tabId: string): void => {
@@ -164,7 +166,7 @@ export const TabBar = memo(function TabBar() {
   return (
     <div className="tabbar">
       {sidebarCollapsed && (
-        <IconButton label="Open sidebar" className="tabbar-button" onClick={toggleSidebar}>
+        <IconButton label="Open sidebar" className="tabbar-button" onClick={showOrHideSidebar}>
           <SidebarIcon />
         </IconButton>
       )}
@@ -185,8 +187,9 @@ export const TabBar = memo(function TabBar() {
         <Plus />
       </IconButton>
       <div className="tabbar-drag" aria-hidden="true" onDoubleClick={() => window.api.app.window.toggleMaximize()} />
-      {/* With the assistant open, its panel holds the corner of the window and the buttons with it. */}
-      {!assistantOpen && <WindowControls />}
+      {/* With the assistant open, its panel holds the corner of the window and the buttons with it
+          (except in focus mode, which hides the panel). */}
+      {(!assistantOpen || focus) && <WindowControls />}
     </div>
   )
 })

@@ -36,6 +36,8 @@ export const APP_SHORTCUTS: readonly AppShortcut[] = [
   { command: 'command-palette', accelerator: 'CmdOrCtrl+K', key: 'k', ctrl: true, page: true },
   { command: 'toggle-sidebar', accelerator: 'CmdOrCtrl+\\', key: '\\', ctrl: true },
   { command: 'toggle-theme', accelerator: 'CmdOrCtrl+Shift+L', key: 'l', ctrl: true, shift: true },
+  // F for focus. F11 stays the window's full screen (View menu), a separate choice.
+  { command: 'toggle-focus-mode', accelerator: 'CmdOrCtrl+Shift+F', key: 'f', ctrl: true, shift: true },
   { command: 'go-back', accelerator: 'Alt+Left', mac: 'Cmd+[', key: 'arrowleft', alt: true },
   { command: 'go-forward', accelerator: 'Alt+Right', mac: 'Cmd+]', key: 'arrowright', alt: true },
   { command: 'open-settings', accelerator: 'CmdOrCtrl+,', key: ',', ctrl: true },
@@ -45,7 +47,8 @@ export const APP_SHORTCUTS: readonly AppShortcut[] = [
   { command: 'toggle-assistant', accelerator: 'CmdOrCtrl+J', key: 'j', ctrl: true },
   { command: 'open-today', accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true },
   { command: 'open-calendar', accelerator: 'CmdOrCtrl+Alt+C', key: 'c', ctrl: true, alt: true },
-  { command: 'new-meeting', accelerator: 'CmdOrCtrl+Alt+M', key: 'm', ctrl: true, alt: true }
+  { command: 'new-meeting', accelerator: 'CmdOrCtrl+Alt+M', key: 'm', ctrl: true, alt: true },
+  { command: 'keyboard-shortcuts', accelerator: 'CmdOrCtrl+/', key: '/', ctrl: true }
 ]
 
 /** The accelerator a menu command uses on this platform (the first one, if it has several). */
@@ -59,7 +62,7 @@ const MAC_MODIFIERS: Record<string, string> = { control: '⌃', ctrl: '⌃', alt
 const MAC_ORDER = ['⌃', '⌥', '⇧', '⌘']
 const OTHER_MODIFIERS: Record<string, string> = { control: 'Ctrl', ctrl: 'Ctrl', alt: 'Alt', option: 'Alt', shift: 'Shift', cmd: 'Win', command: 'Win', super: 'Win', meta: 'Win' }
 const OTHER_ORDER = ['Ctrl', 'Alt', 'Shift', 'Win']
-const KEY_NAMES: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓', plus: '+', space: 'Space', escape: 'Esc', return: 'Enter', enter: 'Enter' }
+const KEY_NAMES: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓', plus: '+', space: 'Space', escape: 'Esc', return: 'Enter', enter: 'Enter', pageup: 'Page Up', pagedown: 'Page Down' }
 
 /**
  * An Electron accelerator as people read it: `CmdOrCtrl+Shift+L` is `Ctrl+Shift+L` on Windows

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { CSSProperties, DragEvent, JSX, MouseEvent as ReactMouseEvent, SyntheticEvent } from 'react'
 import type { Block, DatabaseView, PropertyType, SelectOption, ViewType } from '@shared/types'
 import {
+  ArrowUpRight,
   Board,
   Calendar,
   ChartColumn,
@@ -43,6 +44,10 @@ export function TypeIcon({ type, size = 14 }: { type: PropertyType; size?: numbe
     case 'created_time':
     case 'last_edited_time':
       return <Clock size={size} />
+    case 'relation':
+      return <ArrowUpRight size={size} />
+    case 'rollup':
+      return <Sigma size={size} />
     default:
       return <Text size={size} />
   }

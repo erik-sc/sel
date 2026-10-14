@@ -5,7 +5,9 @@
 // actions) only ever sees the output of `normalizeDatabase`, which guarantees:
 //   - schema: own, prototype-safe keys; `prop.id === key`; a known type; a bounded
 //     string name; exactly one title; `options` an array of well-formed, uniquely
-//     identified options on select types (absent elsewhere); a valid numberFormat.
+//     identified options on select types (absent elsewhere); a valid numberFormat;
+//     a well-formed `relation` on relations that point somewhere and a `rollup` on
+//     every rollup (absent elsewhere). Where those point is checked when they are read.
 //   - views: at least one; unique string ids; a known type; only references to
 //     existing properties; operators valid for the property type; filter values of
 //     the right shape that never point at a deleted option; unique sorts with a
@@ -16,8 +18,10 @@
 import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyType, SelectOption, ViewFilter, ViewSort, ViewType } from '../../../../shared/types'
 import { sanitizeChartConfig } from '../../../../shared/chart'
 import { defaultCalcs, sanitizeCalcs } from './calcConfig'
+import { sanitizeRelationConfig } from '../../../../shared/relation'
 import { normalizeChartConfig } from './chartConfig'
-import { filterValueFor, operatorNeedsValue, operatorsFor } from './query'
+import { filterValueFor, operatorNeedsValue, operatorsOf } from './query'
+import { sanitizeRollupConfig } from './rollup'
 import {
   DEFAULT_TITLE_ID,
   DEFAULT_VIEW_ID,
@@ -80,13 +84,27 @@ function normalizeProperty(id: string, raw: unknown): PropertySchema | undefined
   const name = boundedName(raw.name, TYPE_LABELS[type])
   const options = isSelectType(type) ? normalizeOptions(raw.options) : undefined
   const validFormat = raw.numberFormat === undefined || NUMBER_FORMATS.includes(raw.numberFormat)
-  if (raw.id === id && raw.name === name && raw.options === options && validFormat) {
+  // A relation that points nowhere yet has no `relation`; a rollup always has a (repaired) `rollup`.
+  const relation = type === 'relation' ? sanitizeRelationConfig(raw.relation) : undefined
+  const rollup = type === 'rollup' ? sanitizeRollupConfig(raw.rollup) : undefined
+  if (
+    raw.id === id &&
+    raw.name === name &&
+    raw.options === options &&
+    validFormat &&
+    raw.relation === relation &&
+    raw.rollup === rollup
+  ) {
     return raw as unknown as PropertySchema
   }
   const fixed = { ...raw, id, name, type } as PropertySchema
   if (options) fixed.options = options
   else delete fixed.options
   if (!validFormat) delete fixed.numberFormat
+  if (relation) fixed.relation = relation
+  else delete fixed.relation
+  if (rollup) fixed.rollup = rollup
+  else delete fixed.rollup
   return fixed
 }
 
@@ -124,7 +142,7 @@ function normalizeFilters(raw: unknown, schema: Schema): ViewFilter[] {
     if (!isPlainObject(f)) continue
     const prop = propOf(schema, f.propertyId)
     const operator = f.operator as ViewFilter['operator']
-    if (!prop || !operatorsFor(prop.type).includes(operator)) continue
+    if (!prop || !operatorsOf(prop).includes(operator)) continue
     const filter: ViewFilter = { propertyId: prop.id, operator }
     if (operatorNeedsValue(operator)) {
       const value = filterValueFor(prop, f.value)

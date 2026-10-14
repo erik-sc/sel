@@ -10,11 +10,13 @@ import type {
   ViewFilter,
   ViewSort
 } from '../../../../shared/types'
+import { relationIds } from '../../../../shared/relation'
+import { cellText, filterTypeOf, readCell } from './cell'
 import { MAX_RANGE_DAYS, addDays, dayKey, formatDay, isDateValue } from './dates'
+import type { CellContext } from './relation'
 import {
   findOption,
   formatValue,
-  getCellValue,
   isDateLikeType,
   isEmptyValue,
   optionsOf,
@@ -39,11 +41,19 @@ const OPERATORS: Record<PropertyType, FilterOperator[]> = {
   date: ['equals', 'lt', 'gt', 'is_empty', 'is_not_empty'],
   checkbox: ['checked', 'unchecked'],
   created_time: ['equals', 'lt', 'gt'],
-  last_edited_time: ['equals', 'lt', 'gt']
+  last_edited_time: ['equals', 'lt', 'gt'],
+  relation: ['contains', 'not_contains', 'is_empty', 'is_not_empty'],
+  // A rollup filters as what it gives (`filterTypeOf`); these are the operators of a count.
+  rollup: ['equals', 'not_equals', 'gt', 'lt', 'is_empty', 'is_not_empty']
 }
 
+/** Operators of a property type. For a property, use `operatorsOf`: a rollup filters as what it gives. */
 export function operatorsFor(type: PropertyType): FilterOperator[] {
   return Object.hasOwn(OPERATORS, type) ? OPERATORS[type] : TEXT_OPS
+}
+
+export function operatorsOf(prop: PropertySchema): FilterOperator[] {
+  return operatorsFor(filterTypeOf(prop))
 }
 
 export function operatorNeedsValue(op: FilterOperator): boolean {
@@ -77,7 +87,7 @@ export function operatorLabel(op: FilterOperator, type: PropertyType): string {
 }
 
 export function defaultFilter(prop: PropertySchema): ViewFilter {
-  return { propertyId: prop.id, operator: operatorsFor(prop.type)[0] }
+  return { propertyId: prop.id, operator: operatorsOf(prop)[0] }
 }
 
 /**
@@ -87,7 +97,7 @@ export function defaultFilter(prop: PropertySchema): ViewFilter {
  */
 export function filterValueFor(prop: PropertySchema, value: unknown): PropertyValue | undefined {
   if (value === null || value === undefined) return undefined
-  switch (prop.type) {
+  switch (filterTypeOf(prop)) {
     case 'title':
     case 'text':
     case 'url': {
@@ -110,15 +120,22 @@ export function filterValueFor(prop: PropertySchema, value: unknown): PropertyVa
     case 'created_time':
     case 'last_edited_time':
       return dayKey(value) ?? undefined
+    case 'relation': {
+      // Ids of linked rows; whether they still exist does not matter to the rule.
+      const ids = relationIds(Array.isArray(value) ? value : [value])
+      return ids.length ? ids : undefined
+    }
     default:
       return undefined
   }
 }
 
-export function matchesFilter(row: Block, prop: PropertySchema, filter: ViewFilter): boolean {
+/** Whether a row passes one rule. `ctx` lets relations and rollups see the related rows. */
+export function matchesFilter(row: Block, prop: PropertySchema, filter: ViewFilter, ctx?: CellContext): boolean {
   const op = filter?.operator
-  if (!operatorsFor(prop.type).includes(op)) return true
-  const v = getCellValue(row, prop)
+  const type = filterTypeOf(prop)
+  if (!operatorsFor(type).includes(op)) return true
+  const v = readCell(row, prop, ctx)
   switch (op) {
     case 'is_empty':
       return isEmptyValue(v)
@@ -133,7 +150,7 @@ export function matchesFilter(row: Block, prop: PropertySchema, filter: ViewFilt
   // An incomplete rule (no value typed yet) does not filter anything out.
   if (fv === undefined) return true
 
-  switch (prop.type) {
+  switch (type) {
     case 'title':
     case 'text':
     case 'url': {
@@ -180,6 +197,13 @@ export function matchesFilter(row: Block, prop: PropertySchema, filter: ViewFilt
       if (op === 'lt') return start < q
       return true
     }
+    case 'relation': {
+      const have = Array.isArray(v) ? v : []
+      const want = fv as string[]
+      if (op === 'contains') return want.every((id) => have.includes(id))
+      if (op === 'not_contains') return !want.some((id) => have.includes(id))
+      return true
+    }
   }
   return true
 }
@@ -194,10 +218,10 @@ function activeFilters(schema: Schema, filters: unknown): { filter: ViewFilter; 
 }
 
 /** AND of all rules. Rules pointing at a missing property are ignored. */
-export function applyFilters(rows: Block[], schema: Schema, filters: ViewFilter[] | undefined): Block[] {
+export function applyFilters(rows: Block[], schema: Schema, filters: ViewFilter[] | undefined, ctx?: CellContext): Block[] {
   const active = activeFilters(schema, filters)
   if (!active.length) return rows
-  return rows.filter((row) => active.every(({ filter, prop }) => matchesFilter(row, prop, filter)))
+  return rows.filter((row) => active.every(({ filter, prop }) => matchesFilter(row, prop, filter, ctx)))
 }
 
 /** Client-side quick search on the row title. */
@@ -214,7 +238,7 @@ export function applySearch(rows: Block[], query: string): Block[] {
 export function defaultsFromFilters(schema: Schema, filters: ViewFilter[] | undefined): { title?: string; values: Values } {
   const out: { title?: string; values: Values } = { values: {} }
   for (const { filter: f, prop } of activeFilters(schema, filters)) {
-    if (!operatorsFor(prop.type).includes(f.operator)) continue
+    if (!operatorsOf(prop).includes(f.operator)) continue
     if (prop.type === 'checkbox') {
       if (f.operator === 'checked') out.values[prop.id] = true
       else if (f.operator === 'unchecked') delete out.values[prop.id]
@@ -247,6 +271,15 @@ export function defaultsFromFilters(schema: Schema, filters: ViewFilter[] | unde
       case 'date':
         if (f.operator === 'equals') out.values[prop.id] = { start: fv as string }
         break
+      case 'relation': {
+        // A row added under "Project contains X" links to X.
+        if (f.operator !== 'contains') break
+        const prev = out.values[prop.id]
+        const merged = Array.isArray(prev) ? prev.slice() : []
+        for (const id of fv as string[]) if (!merged.includes(id)) merged.push(id)
+        out.values[prop.id] = merged
+        break
+      }
     }
   }
   return out
@@ -258,9 +291,12 @@ export function defaultsFromFilters(schema: Schema, filters: ViewFilter[] | unde
 
 type SortKey = string | number | number[] | null
 
-function sortKey(row: Block, prop: PropertySchema): SortKey {
-  const v = getCellValue(row, prop)
-  switch (prop.type) {
+function sortKey(row: Block, prop: PropertySchema, ctx?: CellContext): SortKey {
+  const type = filterTypeOf(prop)
+  // Relations sort by the titles of the rows they link to.
+  if (type === 'relation') return ctx ? cellText(row, prop, ctx) || null : null
+  const v = readCell(row, prop, ctx)
+  switch (type) {
     case 'checkbox':
       return v === true ? 1 : 0
     case 'select': {
@@ -306,14 +342,14 @@ function compareKeys(a: Exclude<SortKey, null>, b: Exclude<SortKey, null>): numb
  * Stable multi-key sort: ties keep the incoming (manual) order. Empty values
  * always go last, whatever the direction.
  */
-export function applySorts(rows: Block[], schema: Schema, sorts: ViewSort[] | undefined): Block[] {
+export function applySorts(rows: Block[], schema: Schema, sorts: ViewSort[] | undefined, ctx?: CellContext): Block[] {
   const active: { prop: PropertySchema; desc: boolean }[] = []
   for (const sort of Array.isArray(sorts) ? sorts : []) {
     const prop = propOf(schema, sort?.propertyId)
     if (prop) active.push({ prop, desc: sort.direction === 'desc' })
   }
   if (!active.length) return rows
-  const decorated = rows.map((row, index) => ({ row, index, keys: active.map((s) => sortKey(row, s.prop)) }))
+  const decorated = rows.map((row, index) => ({ row, index, keys: active.map((s) => sortKey(row, s.prop, ctx)) }))
   decorated.sort((x, y) => {
     for (let i = 0; i < active.length; i++) {
       const a = x.keys[i]
@@ -329,10 +365,13 @@ export function applySorts(rows: Block[], schema: Schema, sorts: ViewSort[] | un
   return decorated.map((d) => d.row)
 }
 
-/** Filters, quick search and sorts of a view, in that order. */
-export function queryRows(rows: Block[], schema: Schema, view: DatabaseView | undefined, search = ''): Block[] {
-  const filtered = applySearch(applyFilters(rows, schema, view?.filters), search)
-  return applySorts(filtered, schema, view?.sorts)
+/**
+ * Filters, quick search and sorts of a view, in that order. `ctx` gives relations and
+ * rollups the related rows; without it they filter and sort as if those were not loaded.
+ */
+export function queryRows(rows: Block[], schema: Schema, view: DatabaseView | undefined, search = '', ctx?: CellContext): Block[] {
+  const filtered = applySearch(applyFilters(rows, schema, view?.filters, ctx), search)
+  return applySorts(filtered, schema, view?.sorts, ctx)
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +390,7 @@ export interface RowGroup {
  * Groups rows by a property. For select/multi_select there is one group per
  * option (in option order, empty groups included); the "no value" group comes first.
  */
-export function groupRows(rows: Block[], property: PropertySchema | undefined): RowGroup[] {
+export function groupRows(rows: Block[], property: PropertySchema | undefined, ctx?: CellContext): RowGroup[] {
   const none: RowGroup = { key: null, label: property ? `No ${property.name}` : 'No group', rows: [] }
   if (!property) {
     none.rows = rows.slice()
@@ -361,7 +400,7 @@ export function groupRows(rows: Block[], property: PropertySchema | undefined): 
     const groups = optionsOf(property).map<RowGroup>((o) => ({ key: o.id, label: o.name, option: o, rows: [] }))
     const byId = new Map(groups.map((g) => [g.key as string, g]))
     for (const row of rows) {
-      const v = getCellValue(row, property)
+      const v = readCell(row, property, ctx)
       const ids = Array.isArray(v) ? v : typeof v === 'string' ? [v] : []
       let placed = false
       for (const id of ids) {
@@ -379,7 +418,7 @@ export function groupRows(rows: Block[], property: PropertySchema | undefined): 
   const byKey = new Map<string, RowGroup>()
   const isDateLike = isDateLikeType(property.type)
   for (const row of rows) {
-    const v = getCellValue(row, property)
+    const v = readCell(row, property, ctx)
     const key = property.type === 'checkbox' ? String(v === true) : isDateLike ? dayKey(v) : isEmptyValue(v) ? null : String(v)
     if (key === null) {
       none.rows.push(row)
@@ -403,7 +442,7 @@ export function rowsByDay(rows: Block[], property: PropertySchema | undefined): 
   const out = new Map<string, Block[]>()
   if (!property) return out
   for (const row of rows) {
-    const v = getCellValue(row, property)
+    const v = readCell(row, property)
     const start = dayKey(v)
     if (!start) continue
     let end = isDateValue(v) && v.end ? (dayKey(v.end) ?? start) : start

@@ -88,6 +88,8 @@ export type PropertyType =
   | 'url'
   | 'created_time'
   | 'last_edited_time'
+  | 'relation'
+  | 'rollup'
 
 export interface SelectOption {
   id: string
@@ -101,13 +103,54 @@ export interface PropertySchema {
   type: PropertyType
   options?: SelectOption[]
   numberFormat?: 'number' | 'percent' | 'currency'
+  /** relation: the database whose rows it links to. */
+  relation?: RelationConfig
+  /** rollup: what it computes from the rows one of the relations links to. */
+  rollup?: RollupConfig
+}
+
+/**
+ * A relation links a row to rows (pages) of a database, possibly its own. With
+ * `syncedPropertyId` it is two-way: that relation property of the target database
+ * holds the same links seen from the other side, and edits keep the two in step
+ * (see shared/relation.ts).
+ */
+export interface RelationConfig {
+  databaseId: string
+  syncedPropertyId?: string
+  /** `one`: at most one linked row. Absent: any number. */
+  limit?: 'one'
+}
+
+export type RollupFunction =
+  | 'show_original'
+  | 'count'
+  | 'count_values'
+  | 'count_unique'
+  | 'sum'
+  | 'average'
+  | 'min'
+  | 'max'
+  | 'range'
+  | 'earliest'
+  | 'latest'
+  | 'percent_checked'
+
+/** A rollup reads `propertyId` of the rows that the relation `relationId` links to, and sums them up with `function`. */
+export interface RollupConfig {
+  /** A relation property of the same database; absent until one is chosen. */
+  relationId?: string
+  /** A property of the related database; `count` needs none. */
+  propertyId?: string
+  function: RollupFunction
 }
 
 /**
  * title -> stored in block.props.title, not in values.
  * text/url -> string, number -> number, checkbox -> boolean,
  * select -> option id, multi_select -> option ids,
- * date -> { start: ISO date, end?: ISO date }.
+ * date -> { start: ISO date, end?: ISO date }, relation -> ids of the linked rows.
+ * A rollup stores nothing: its value is computed from the related rows.
  */
 export type PropertyValue = string | number | boolean | string[] | { start: string; end?: string } | null
 

@@ -21,6 +21,7 @@ export const SortPanel = lazy(() => loadPanels().then((module) => ({ default: mo
 export const PropertiesPanel = lazy(() => loadPanels().then((module) => ({ default: module.PropertiesPanel })))
 export const LocationsPanel = lazy(() => loadLinkedPanels().then((module) => ({ default: module.LocationsPanel })))
 export const PagePicker = lazy(() => loadLinkedPanels().then((module) => ({ default: module.PagePicker })))
+export const RelationTargetPicker = lazy(() => loadLinkedPanels().then((module) => ({ default: module.RelationTargetPicker })))
 export const DatePicker = lazy(() => loadDatePicker().then((module) => ({ default: module.DatePicker })))
 export const BoardView = lazy(() => loadBoard().then((module) => ({ default: module.BoardView })))
 export const GalleryView = lazy(() => loadGallery().then((module) => ({ default: module.GalleryView })))
