@@ -43,7 +43,7 @@ Electron major differs from the pinned targets (electron.vite.config.ts:15-26).
 
 ## Top open questions
 
-1. Are debounced text edits flushed when a window closes (src/renderer/src/editor/EditableText.tsx:172)?
+1. Should a failed editor write tell the user? On the editor path the store rolls back, undo
+   is cleared and the rejection is caught, so no toast appears
+   (src/renderer/src/store/blocks.ts:334-337, src/renderer/src/editor/controller.ts:206-218).
 2. Is a malformed `sel-actions` proposal dropped silently (src/shared/actions.ts:218-221)?
-3. Could a failed editor write keep the undo history instead of clearing it? Today it is
-   cleared, with a toast (src/renderer/src/editor/controller.ts:216-227).

@@ -62,5 +62,5 @@ There is no timer. All captures go through `VersionStore.capture` (src/main/db/v
 
 ## Open questions
 
-- Are pending 300 ms debounced edits flushed before a window closes? An unmount flush exists (src/renderer/src/editor/EditableText.tsx:172) but no `beforeunload` path was traced.
+- Resolved: pending 300 ms debounced edits are flushed before a window closes. `PageEditor` flushes on `beforeunload` (through `flushOnUnload`) and on window blur (src/renderer/src/editor/PageEditor.tsx:109-110); the write reaches main and is committed before `will-quit` closes the database (checked by running the app; see question 22 in [90-questions](../90-questions.md)).
 - If the process is killed, dirty pages get no final version until the next gap-crossing edit (inferred from src/main/db/versions.ts:575-589).
