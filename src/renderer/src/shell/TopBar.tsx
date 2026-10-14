@@ -14,7 +14,7 @@ import { Menu } from '@/ui/Menu'
 import { Popover } from '@/ui/Popover'
 import { ChevronLeft, ChevronRight, MoreHorizontal, Sparkle, Star, StarFilled } from '@/ui/icons'
 import { MOD_KEY } from '@/ui/platform'
-import { toggleAssistant, useAiGate } from '@/ai/gate'
+import { useAiGate } from '@/ai/gate'
 import { preloadAssistant } from '@/ai/Host'
 import { useHerman } from '@/herman/gate'
 import { RecordingIndicator } from '@/meetings/slot'
@@ -22,6 +22,7 @@ import { logError, reportError, toggleFavorite } from './actions'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { topBarPageMenu } from './pageMenu'
+import { showOrHideAssistant } from './menuCommands'
 import { WordCount } from './WordCount'
 
 function Crumb({ id, current }: { id: string; current?: boolean }) {
@@ -179,7 +180,7 @@ export const TopBar = memo(function TopBar() {
             aria-pressed={assistantOpen}
             onPointerEnter={preloadAssistant}
             onFocus={preloadAssistant}
-            onClick={toggleAssistant}
+            onClick={showOrHideAssistant}
           >
             <Sparkle />
           </IconButton>

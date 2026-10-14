@@ -18,6 +18,14 @@ interface UiState {
   renamingId: string | null
   /** Page whose version history is open, if any. */
   historyPageId: string | null
+  /**
+   * Only the page on screen: no sidebar, bars, assistant or Herman. Per window and not kept
+   * across launches: it is a moment of writing, not a layout, and a window that opened with
+   * no way around it would look broken.
+   */
+  focusMode: boolean
+  /** In focus mode, the blocks other than the one being written fade (`shell.focusDim`, kept). */
+  focusDim: boolean
   /** The page's word count and reading time in the top bar. */
   wordCount: boolean
 }
@@ -28,6 +36,7 @@ export const SIDEBAR_MIN = 200
 export const SIDEBAR_MAX = 480
 const SIDEBAR_KEY = 'shell.sidebar'
 const EXPANDED_KEY = 'shell.expanded'
+const FOCUS_DIM_KEY = 'shell.focusDim'
 const WORD_COUNT_KEY = 'shell.wordCount'
 /** Synchronous copy of what decides the first frame (see boot.ts). */
 const MIRROR_KEY = 'ui'
@@ -42,6 +51,8 @@ export const useUi = create<UiState>(() => ({
   theme: 'system',
   renamingId: null,
   historyPageId: null,
+  focusMode: false,
+  focusDim: false,
   wordCount: true
 }))
 
@@ -109,6 +120,22 @@ export function setHistoryPage(id: string | null): void {
   useUi.setState({ historyPageId: id })
 }
 
+// ---- focus mode ----
+
+export function setFocusMode(on: boolean): void {
+  if (useUi.getState().focusMode !== on) useUi.setState({ focusMode: on })
+}
+
+export function toggleFocusMode(): void {
+  setFocusMode(!useUi.getState().focusMode)
+}
+
+/** Fading the other blocks is a preference, so it is kept; turning it on also enters focus mode, to show it. */
+export function setFocusDim(on: boolean): void {
+  useUi.setState(on ? { focusDim: true, focusMode: true } : { focusDim: false })
+  save(FOCUS_DIM_KEY, on)
+}
+
 // ---- theme ----
 
 const darkQuery =
@@ -168,12 +195,13 @@ export function bootUi(): boolean {
 }
 
 export async function initUi(): Promise<void> {
-  const [theme, sidebar, expanded, wordCount] = await Promise.all([
+  const [theme, sidebar, expanded, focusDim, wordCount] = await Promise.all([
     window.api.app.getTheme().catch(() => 'system' as Theme),
     window.api.app
       .getSetting<{ width?: unknown; collapsed?: unknown }>(SIDEBAR_KEY)
       .catch(() => null),
     window.api.app.getSetting<string[]>(EXPANDED_KEY).catch(() => null),
+    window.api.app.getSetting<unknown>(FOCUS_DIM_KEY).catch(() => null),
     window.api.app.getSetting<boolean>(WORD_COUNT_KEY).catch(() => null)
   ])
   const map: Record<string, true> = {}
@@ -185,6 +213,7 @@ export async function initUi(): Promise<void> {
     sidebarWidth: readWidth(sidebar?.width),
     sidebarCollapsed: !!sidebar?.collapsed,
     expanded: map,
+    focusDim: focusDim === true,
     wordCount: wordCount !== false
   })
   paintTheme()

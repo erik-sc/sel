@@ -14,9 +14,9 @@ import {
   selectTabAt,
   tabPage
 } from '@/store/tabs'
-import { setHistoryPage, setQuickFindOpen, setSettingsOpen, toggleSidebar, toggleTheme, useUi } from '@/store/ui'
+import { setFocusMode, setHistoryPage, setQuickFindOpen, setSettingsOpen, toggleFocusMode, toggleSidebar, toggleTheme, useUi } from '@/store/ui'
 import { createPage, reportError } from './actions'
-import { toggleAssistant } from '@/ai/gate'
+import { toggleAssistant, useAiGate } from '@/ai/gate'
 import { openCalendar, openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
 import { openFind } from './findStore'
@@ -54,10 +54,13 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       openShortcuts()
       break
     case 'toggle-sidebar':
-      toggleSidebar()
+      showOrHideSidebar()
       break
     case 'toggle-theme':
       toggleTheme()
+      break
+    case 'toggle-focus-mode':
+      toggleFocusMode()
       break
     case 'go-back':
       goBack()
@@ -81,7 +84,7 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       if (isBlockId(arg)) openPage(arg)
       break
     case 'toggle-assistant':
-      toggleAssistant()
+      showOrHideAssistant()
       break
     case 'open-today':
       openToday()
@@ -102,4 +105,22 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       break
     }
   }
+}
+
+/**
+ * Focus mode hides the sidebar and the assistant panel without closing them, so asking for one
+ * there means "show it": focus mode ends and the panel is open, rather than a hidden one closing.
+ */
+function showOrToggle(open: boolean, toggle: () => void): void {
+  if (!useUi.getState().focusMode) return toggle()
+  setFocusMode(false)
+  if (!open) toggle()
+}
+
+export function showOrHideAssistant(): void {
+  showOrToggle(useAiGate.getState().panelOpen, toggleAssistant)
+}
+
+export function showOrHideSidebar(): void {
+  showOrToggle(!useUi.getState().sidebarCollapsed, toggleSidebar)
 }

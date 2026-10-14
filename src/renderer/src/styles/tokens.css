@@ -141,6 +141,8 @@
   --text-secondary: #615d54;
   --text-tertiary: #7c766a;
   --text-code: #8a4530;
+  /* focus mode, when it fades the blocks other than the one being written */
+  --text-faded-opacity: 0.32;
 
   /* ---- lines (light) ---- */
   --border: rgba(70, 58, 36, 0.11);
