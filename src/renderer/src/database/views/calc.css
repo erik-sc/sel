@@ -1,0 +1,155 @@
+/*
+ * The "Calculations" view (CalcView.tsx): a row of figures, each a name over a number.
+ * Values come from styles/tokens.css only.
+ */
+
+.db-calcs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 2px 2px 4px;
+}
+
+.db-root .db-calc {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 320px;
+  padding: 12px 16px 14px;
+  border-radius: var(--radius-m);
+  background: var(--fill-4);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.db-root .db-calc:hover,
+.db-root .db-calc.is-active {
+  background: var(--bg-hover);
+}
+
+.db-root .db-calc:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.db-calc-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-calc-value {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  font-weight: var(--weight-title);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-title);
+  line-height: var(--leading-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-calc-value.is-empty {
+  color: var(--text-tertiary);
+}
+
+.db-calc-error {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+/* "+ Calculation": a quiet figure-shaped button after the others. */
+.db-root .db-calc.is-add {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  align-self: stretch;
+  gap: 6px;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-md);
+}
+
+.db-root .db-calc.is-add:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+/* In a page it waits for the pointer, like the rest of the database's controls. */
+@media (hover: hover) {
+  .db-root.is-inline .db-calc.is-add:not(.is-only) {
+    opacity: 0;
+    transition:
+      opacity var(--duration-fast) var(--ease),
+      background-color var(--duration-fast) var(--ease);
+  }
+
+  .db-root.is-inline:is(:hover, :focus-within, .is-engaged) .db-calc.is-add {
+    opacity: 1;
+  }
+}
+
+/* ---- the editor of one calculation ---- */
+
+.db-calc-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 320px;
+}
+
+.db-calc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 4px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.db-calc-field input {
+  height: var(--control-height);
+  padding: 0 8px;
+  border-radius: var(--radius-s);
+  background: var(--fill-3);
+  color: var(--text);
+  font-size: var(--text-md);
+  cursor: text;
+  transition: box-shadow var(--duration-fast) var(--ease);
+}
+
+.db-calc-field input.is-formula {
+  font-family: var(--font-mono);
+}
+
+.db-calc-field input:focus {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.db-calc-preview {
+  margin: 0;
+  padding: 0 4px;
+  color: var(--text);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.db-calc-preview.is-error {
+  color: var(--text-tertiary);
+}
+
+.db-calc-insert {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+}

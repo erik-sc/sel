@@ -1,0 +1,53 @@
+# Glossary
+
+| Concept | Meaning here | Where (path:line) | Aliases in code | Notes |
+|---|---|---|---|---|
+| Block | The single unit of data; everything, including pages and databases, is one | src/shared/types.ts:62-74 | `Block`, row of table `blocks` | Table columns at src/main/db/schema.ts:9-20 |
+| Block type | One of 16 kinds, from `page` to `database` | src/shared/types.ts:3-19 | `BlockType`, `BLOCK_TYPES` | Checked in main at src/main/db/blocks.ts:9-26 |
+| Page | A block of type `page`; may sit at the workspace root | src/shared/types.ts:4 | "page-like" also covers databases | `isPageLike` at src/main/db/blocks.ts:44-46 |
+| Database | A block of type `database` whose `content` is its row pages and whose `props` hold `schema` and `views` | src/shared/types.ts:49-51, src/shared/types.ts:67 | | Not a SQL table; see Naming hazards |
+| Row | A `page` block whose parent is a database; cell values live in `props.values` | src/shared/types.ts:58-59 | "row page" | Read on the client at src/renderer/src/database/actions.ts:74-84 |
+| Property | A column of a database, keyed by id in `props.schema` | src/shared/types.ts:96-102 | `PropertySchema`, `PropertyType` | The title value is stored in `props.title`, not in `values` (src/shared/types.ts:104-110) |
+| View | One presentation of a database: table, board, list, gallery, calendar or chart | src/shared/types.ts:112 | `DatabaseView`, `ViewType` | |
+| Linked view | A `database` block whose `props.sourceId` names another database; it owns only its views | src/shared/linked.ts:3-8, src/shared/types.ts:52-57 | `sourceIdOf`, `isLinkedView` | Not trashable (src/shared/linked.ts:34-36) |
+| Rich text | An array of spans, each `[text, marks?]` | src/shared/types.ts:21-26 | `RichText`, `Span`, `Mark` | DOM bridge at src/renderer/src/editor/richtext-dom.ts:358 |
+| Op | One of create, update, move, delete; the only way block data changes | src/shared/types.ts:208 | `Op`, "ops" | Applied in main at src/main/db/repository.ts:829, mirrored on the client at src/renderer/src/store/ops.ts:31 |
+| Change event | The broadcast telling windows which block ids changed and who caused it | src/shared/types.ts:225 | `ChangeEvent`, `IPC.change` | Channel name at src/shared/api.ts:252 |
+| Client id | A random id per window, prepended to every invoke, used as the change origin | src/preload/index.ts:19, src/preload/index.ts:25 | `clientId`, `origin` | Lets a window ignore its own echoes (src/renderer/src/store/blocks.ts:598-611) |
+| `window.api` | The only bridge from renderer to main | src/preload/index.ts:157 | `Api` (src/shared/api.ts:24) | |
+| Repository | The single-writer block store over SQLite | src/main/db/repository.ts:105 | `repo`, `store` in src/main/index.ts:335 | |
+| Trash | `trashed_at` set on a page-like block; other blocks are purged | src/main/db/repository.ts:708-715 | `trashedAt` | |
+| Version | A stored snapshot of one page in `page_versions` | src/main/db/schema.ts:50, src/main/db/versions.ts:664 | `VersionStore`, "history" | Kinds listed at src/main/db/schema.ts:54 |
+| Setting | A key and JSON value in table `settings` | src/main/db/schema.ts:25, src/main/db/repository.ts:1538-1545 | | Renderer writes are allow-listed (src/main/validate.ts:35-37) |
+| Mirror | A synchronous localStorage copy of a few settings, used to paint the first frame | src/renderer/src/boot.ts:42, src/renderer/src/boot.ts:51 | `readMirror`, `writeMirror`, `bootUi`, `bootAppearance` | A hint only; the real settings load and win (src/renderer/src/boot.ts:25-63) |
+| Gate | The small always-loaded part of a feature: a zustand store and triggers; the rest is a lazy chunk | src/renderer/src/ai/gate.ts:1-3 | `gate.ts` in `ai`, `herman`, `meetings` | Other gates at src/renderer/src/herman/gate.ts:20, src/renderer/src/meetings/gate.ts:29 |
+| Bridge | The Electron-aware wrapper around an Electron-free service in main | src/main/ai/index.ts:59, src/main/sync/index.ts:97 | `AiBridge`, `SyncBridge`, `BriefingBridge`, `MeetingsBridge`, `HermanBridge` | |
+| Route | A tab target that is not a block id: Today or Calendar | src/renderer/src/store/tabs.ts:30-32 | `TODAY_ROUTE`, `CALENDAR_ROUTE` | Predicates at src/renderer/src/briefing/route.ts:13-17 |
+| Briefing | The Today and Calendar screens: calendar events, open tasks, phrase of the day | src/main/briefing/service.ts:81 | "Today", `BriefingService` | Contract at src/shared/briefing.ts:215 |
+| Tradition | A source family for the phrase of the day | src/shared/briefing.ts:8 | `TRADITIONS` | |
+| Herman | The assistant persona; also a source of pre-written nudges chosen without AI | src/main/ai/herman.ts:22, src/main/herman/service.ts:120 | | Two different code areas; see Naming hazards |
+| Nudge | A short pre-written line Herman says, chosen locally | src/shared/herman.ts:67, src/main/herman/lines.ts:240 | `HermanNudgeKind`, "counsel" (src/main/herman/counsel.ts:214) | |
+| Council | Up to five fixed personas consulted before Herman answers | src/shared/council.ts:11 | `COUNCIL_MEMBERS`, "seat" | Orchestrated at src/main/ai/index.ts:199-204 |
+| Agent | Another CLI connected to fill a council seat: codex, gemini, ollama or any stdin program | src/main/ai/agents.ts:29-55 | `AiAgent`, `AgentKind` (src/shared/council.ts:29) | |
+| Action | Something Herman proposes to build: create a page, append, create a database, add rows | src/shared/actions.ts:44-48 | `HermanAction`, `sel-actions` block | Parsed in the renderer only (src/renderer/src/ai/AssistantPanel.tsx:410) |
+| Nonce fencing | Untrusted text is wrapped in markers carrying a random nonce per prompt | src/main/ai/prompts.ts:286-293 | `newNonce` (src/main/ai/prompts.ts:108) | |
+| Sync | One person's devices exchanging a per-page file tree through a private git repository | src/main/sync/engine.ts:239 | `SyncEngine`, `SyncStep` (src/main/sync/engine.ts:77) | |
+| Fingerprint | The hash a page had when last uploaded, kept in `sync_state` | src/main/db/schema.ts:66-70, src/main/sync/engine.ts:834-850 | `hash` | There is no change log; uploads recompute and compare |
+| Grant | A time-boxed, audio-only permission for one window to record | src/main/meetings/grant.ts:40 | `GrantStore`, `recordingGrants` | Consulted at src/main/index.ts:216 |
+| `sel-file:` | The custom protocol that serves stored images and recordings | src/main/files.ts:109, src/main/files.ts:150 | `registerFileScheme`, `handleFileProtocol` | Recordings are routed at src/main/files.ts:197 |
+| Appearance | User overrides of design tokens plus custom CSS | src/renderer/src/appearance/sanitize.ts:9-18 | `AppearanceData`, "preset" | Tokens schema at src/renderer/src/appearance/schema.ts:106 |
+| Zen | The default look; as a preset it overrides nothing | src/renderer/src/appearance/presets.ts:4-5 | | |
+| Suite | A shared test body run once per time zone; not a test file itself | src/main/briefing/ical.suite.ts:44 | `defineIcalSuite` | Callers set `TZ` first (src/main/briefing/ical.utc.test.ts:1-4) |
+
+## Naming hazards
+
+- **"database" means two things.** The user-facing `database` block (src/shared/types.ts:19) and the SQLite file opened by `openDatabase` (src/main/db/index.ts:12). Folder `src/main/db` is SQLite; folder `src/renderer/src/database` is the block feature (src/renderer/src/database/actions.ts:1-14).
+- **"Herman" lives in two main-process folders.** The AI persona is in src/main/ai/herman.ts:22; the non-AI nudges are in src/main/herman/service.ts:120. In the renderer the chat is the AI panel (src/renderer/src/ai/AssistantPanel.tsx:159) while his drawn figure is under src/renderer/src/herman/poses.ts:14.
+- **"sync" is also a verb for other things.** `syncRows` flushes buffered child orders before reading rows for sync (src/main/db/repository.ts:1418-1419), and `PendingOrder` is not sync-specific (src/main/db/repository.ts:93-98).
+- **"actions" has three meanings.** Herman's proposals (src/shared/actions.ts:44), store-backed database mutations (src/renderer/src/database/actions.ts:1-14) and page commands of the shell (src/renderer/src/shell/actions.ts:3-7).
+- **"ops" has two files with the same name.** Pure application at src/renderer/src/store/ops.ts:31 and inversion for undo at src/renderer/src/editor/ops.ts:126.
+- **"logic" is a barrel and a folder.** src/renderer/src/database/logic.ts:1-12 re-exports most of the folder but leaves the chart engine out on purpose.
+- **`weekdayLabels` exists twice.** A cached wrapper at src/renderer/src/database/common.tsx:69-70 over the real one at src/renderer/src/database/logic/dates.ts:281.
+- **Two names, one app.** Old data may still say "selida"; `LEGACY_NAME` handling is in src/main/legacy.ts:5-6 and src/shared/legacy.ts:12.
+- **One key, five constants.** The settings key `appearance` is declared at src/main/background.ts:9, src/main/ipc.ts:55, src/main/sync/engine.ts:123, src/renderer/src/appearance/store.ts:28 and src/renderer/src/sync/store.ts:20, and appears again as a literal in the write allow-list at src/main/validate.ts:35.
+- **`meetings:status` is both an invoke channel and a push channel** (src/main/meetings/register.ts:49, src/shared/meetings.ts:160).
