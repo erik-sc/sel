@@ -41,7 +41,7 @@ export const TYPE_LABELS: Record<PropertyType, string> = {
   last_edited_time: 'Last edited time'
 }
 
-export const VIEW_TYPES: ViewType[] = ['table', 'board', 'list', 'gallery', 'calendar', 'chart']
+export const VIEW_TYPES: ViewType[] = ['table', 'board', 'list', 'gallery', 'calendar', 'chart', 'calc']
 
 export const VIEW_LABELS: Record<ViewType, string> = {
   table: 'Table',
@@ -49,7 +49,8 @@ export const VIEW_LABELS: Record<ViewType, string> = {
   list: 'List',
   gallery: 'Gallery',
   calendar: 'Calendar',
-  chart: 'Chart'
+  chart: 'Chart',
+  calc: 'Calculations'
 }
 
 export const DEFAULT_TITLE_ID = 'title'

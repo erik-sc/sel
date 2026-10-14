@@ -15,6 +15,7 @@ import { RenameInput, TitleInput } from './inputs'
 import { bootMark, whenIdle } from '@/boot'
 import {
   BoardView,
+  CalcView,
   CalendarView,
   ChartPanel,
   ChartView,
@@ -402,8 +403,10 @@ export function DatabaseView(props: {
     : []
 
   const isChart = view.type === 'chart'
-  // A panel only stays open on a view that has it (the chart panel on charts, sorts and properties elsewhere).
-  const openPanel: Panel | null = panel === 'filter' || (panel === 'chart') === isChart ? panel : null
+  // Figures are computed from all the rows the filters let through: their order and columns do not matter.
+  const ordersRows = !isChart && view.type !== 'calc'
+  // A panel only stays open on a view that has it (the chart panel on charts, sorts and properties on the views that order rows).
+  const openPanel: Panel | null = panel === 'filter' || (panel === 'chart' ? isChart : ordersRows) ? panel : null
   const panelAnchor =
     openPanel === 'filter'
       ? filterRef.current
@@ -432,6 +435,9 @@ export function DatabaseView(props: {
       break
     case 'chart':
       body = <ChartView {...viewProps} />
+      break
+    case 'calc':
+      body = <CalcView {...viewProps} />
       break
     default:
       body = <TableView {...viewProps} />
@@ -555,7 +561,7 @@ export function DatabaseView(props: {
             {view.filters.length > 0 && <span className="db-tool-count">{view.filters.length}</span>}
           </button>
           {/* A chart orders its categories itself (chart settings), so row sorts are not offered on one. */}
-          {!isChart && (
+          {ordersRows && (
             <button
               type="button"
               ref={sortRef}
@@ -625,7 +631,7 @@ export function DatabaseView(props: {
               <Search size={14} />
             </button>
           )}
-          {!isChart && (
+          {ordersRows && (
             <button
               type="button"
               ref={propsRef}

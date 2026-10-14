@@ -10,7 +10,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go. The top bar keeps a quiet count of the page's words and reading time, or of what you have selected; Settings → General turns it off.
 
-**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters.
+**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters. A Calculations view keeps the figures you work out from a database, such as `sum(Amount) / 12`. Charts and other database blocks can sit side by side: choose "Place beside the previous block" from a block's menu.
 
 **Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not. `Ctrl+K` lists everything the app can do: type a few letters and press Enter. With text selected in a page, `Ctrl+K` adds a link instead.
 

@@ -13,6 +13,7 @@ const loadBoard = (): Promise<typeof import('./views/BoardView')> => import('./v
 const loadGallery = (): Promise<typeof import('./views/GalleryView')> => import('./views/GalleryView')
 const loadCalendar = (): Promise<typeof import('./views/CalendarView')> => import('./views/CalendarView')
 const loadChart = (): Promise<typeof import('./views/ChartView')> => import('./views/ChartView')
+const loadCalc = (): Promise<typeof import('./views/CalcView')> => import('./views/CalcView')
 const loadChartPanel = (): Promise<typeof import('./views/ChartPanel')> => import('./views/ChartPanel')
 
 export const FilterPanel = lazy(() => loadPanels().then((module) => ({ default: module.FilterPanel })))
@@ -25,6 +26,7 @@ export const BoardView = lazy(() => loadBoard().then((module) => ({ default: mod
 export const GalleryView = lazy(() => loadGallery().then((module) => ({ default: module.GalleryView })))
 export const CalendarView = lazy(() => loadCalendar().then((module) => ({ default: module.CalendarView })))
 export const ChartView = lazy(() => loadChart().then((module) => ({ default: module.ChartView })))
+export const CalcView = lazy(() => loadCalc().then((module) => ({ default: module.CalcView })))
 export const ChartPanel = lazy(() => loadChartPanel().then((module) => ({ default: module.ChartPanel })))
 
 function quiet(load: () => Promise<unknown>): void {
@@ -53,6 +55,7 @@ export function preloadView(type: ViewType): void {
   else if (type === 'gallery') quiet(loadGallery)
   else if (type === 'calendar') quiet(loadCalendar)
   else if (type === 'chart') quiet(loadChart)
+  else if (type === 'calc') quiet(loadCalc)
 }
 
 /** Holds the place of a view, panel or picker while its code loads. */

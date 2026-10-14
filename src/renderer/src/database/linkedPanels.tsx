@@ -239,7 +239,7 @@ export function SourcePicker({ onPick, onCreateNew, view = 'table' }: SourcePick
       label="Search databases"
       placeholder="Search databases…"
       loading={loading}
-      heading={view === 'chart' ? 'Chart a database' : 'Link to a database'}
+      heading={view === 'chart' ? 'Chart a database' : view === 'calc' ? 'Calculate from a database' : 'Link to a database'}
       onPick={pick}
       empty={(query) => (
         <>

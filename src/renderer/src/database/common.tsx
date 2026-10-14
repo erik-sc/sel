@@ -12,6 +12,7 @@ import {
   Hash,
   Link,
   List,
+  Sigma,
   Table,
   Tag,
   Text,
@@ -59,6 +60,8 @@ export function ViewIcon({ type, size = 14 }: { type: ViewType; size?: number })
       return <Calendar size={size} />
     case 'chart':
       return <ChartColumn size={size} />
+    case 'calc':
+      return <Sigma size={size} />
     default:
       return <Table size={size} />
   }

@@ -760,6 +760,25 @@ describe('mergeWorkspace: databases', () => {
     expect(out.conflicts).toEqual([])
   })
 
+  it('merges the figures of a calculations view per id', () => {
+    const { base } = db()
+    const v = base.blocks.get('db')?.props['views'] as Props[]
+    const calcView = (calcs: Props[]): Props => ({ ...v[1], type: 'calc', calcs })
+    const total = { id: 'c1', name: 'Total', formula: 'count()' }
+    const first = new Device(base)
+    first.edit('db', { views: [v[0], calcView([total])] })
+    const start = first.ws
+    const a = new Device(start, 2000)
+    const b = new Device(start, 3000)
+    a.edit('db', { views: [v[0], calcView([{ ...total, name: 'Rows' }, { id: 'ca', name: 'A', formula: '1' }])] })
+    b.edit('db', { views: [v[0], calcView([{ ...total, formula: 'count(Status)' }, { id: 'cb', name: 'B', formula: '2' }])] })
+    const out = merge(start, a.ws, b.ws)
+    const calcs = views(out.result)[1]['calcs'] as Props[]
+    expect(calcs.map((c) => c['id']).sort()).toEqual(['c1', 'ca', 'cb'])
+    expect(calcs.find((c) => c['id'] === 'c1')).toEqual({ id: 'c1', name: 'Rows', formula: 'count(Status)' })
+    expect(out.conflicts).toEqual([])
+  })
+
   it('reports a chart key both changed, and merges visible columns and widths', () => {
     const { base, a, b } = db()
     const v = base.blocks.get('db')?.props['views'] as Props[]

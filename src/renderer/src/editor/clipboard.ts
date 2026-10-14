@@ -4,6 +4,7 @@
 import type { BlockProps, BlockType, DatabaseView, Op, PropertyValue, RichText, ViewFilter, ViewSort } from '@shared/types'
 import { sourceIdOf } from '../../../shared/linked'
 import { sanitizeChartConfig } from '../../../shared/chart'
+import { sanitizeCalcs } from '../database/logic/calcConfig'
 import type { GetBlock } from './ops'
 import { ALL_TYPES, isTextType } from './blockTypes'
 import { isColorValue, parseRichText, textOf } from './richtext-dom'
@@ -24,7 +25,7 @@ const MAX_VIEW_ITEMS = 200
 const MAX_VIEW_NAME_LENGTH = 100
 const MAX_FILTER_TEXT_LENGTH = 1000
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/
-const VIEW_TYPES: readonly string[] = ['table', 'board', 'list', 'gallery', 'calendar', 'chart']
+const VIEW_TYPES: readonly string[] = ['table', 'board', 'list', 'gallery', 'calendar', 'chart', 'calc']
 const FILTER_OPERATORS: readonly string[] = [
   'contains',
   'not_contains',
@@ -126,6 +127,8 @@ export function cleanViews(value: unknown): DatabaseView[] {
     // Shape only, like everything else here; a chart view without one gets its default when shown.
     const chart = sanitizeChartConfig(raw.chart)
     if (chart) view.chart = chart
+    const calcs = sanitizeCalcs(raw.calcs)
+    if (calcs) view.calcs = calcs
     out.push(view)
   }
   return out
@@ -171,6 +174,7 @@ export function cleanProps(type: BlockType, src: UntrustedProps): BlockProps {
     const title = textOf(parseRichText(src.title)).replace(/\n/g, ' ')
     if (title) props.title = [[title]]
     if (typeof src.icon === 'string' && src.icon && src.icon.length <= MAX_ICON_LENGTH) props.icon = src.icon
+    if (src.beside === true) props.beside = true
     return props
   }
   if (isColorValue(src.color)) props.color = src.color

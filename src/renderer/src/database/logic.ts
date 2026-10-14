@@ -10,3 +10,6 @@ export * from './logic/resolve'
 // Chart views: only their configuration. The aggregation engine (logic/chart.ts) and the
 // chart geometry (logic/chartScale.ts) are loaded with the chart view (views/chartLogic.ts).
 export * from './logic/chartConfig'
+// Calculations views: only the stored shape of their figures. The formula engine
+// (logic/calc.ts) is loaded with the view (views/CalcView.tsx).
+export * from './logic/calcConfig'
