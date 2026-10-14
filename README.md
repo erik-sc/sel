@@ -50,7 +50,7 @@ Download the installer for Windows from [Releases](https://github.com/erik-sc/se
 
 ## Run it
 
-You need [Node.js](https://nodejs.org) 22 or newer.
+You need [Node.js](https://nodejs.org) 24 or newer.
 
 ```bash
 npm install

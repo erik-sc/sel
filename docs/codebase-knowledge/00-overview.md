@@ -36,7 +36,7 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 
 | Fact | Status |
 |---|---|
-| Node.js 22 or newer is required | verified in README.md:51 |
+| Node.js 24 or newer is required (a chart test fails on Node 22) | verified in README.md:53 |
 | `npm run dev` runs `electron-vite dev` | verified in package.json:9 |
 | `npm run build` runs `electron-vite build`; output entry is `./out/main/index.js` | verified in package.json:10, package.json:5 |
 | `npm run typecheck` runs `tsc --noEmit` twice, for `tsconfig.node.json` and `tsconfig.web.json` | verified in package.json:12 |
