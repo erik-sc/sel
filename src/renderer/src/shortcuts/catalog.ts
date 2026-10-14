@@ -47,6 +47,8 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { id: 'open-settings', label: 'Settings', command: 'open-settings', keywords: ['preferences'] },
       { id: 'toggle-theme', label: 'Light or dark theme', command: 'toggle-theme', keywords: ['dark mode'] },
       { id: 'toggle-sidebar', label: 'Show or hide the sidebar', command: 'toggle-sidebar' },
+      { id: 'toggle-focus-mode', label: 'Focus mode: only the page', command: 'toggle-focus-mode', keywords: ['zen', 'distraction', 'writing', 'hide'] },
+      { id: 'focus-leave', label: 'Leave focus mode, when nothing else takes the key', keys: ['Escape'], keywords: ['zen'] },
       { id: 'new-window', label: 'New window', command: 'new-window' }
     ]
   },

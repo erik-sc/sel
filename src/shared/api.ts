@@ -241,6 +241,7 @@ export type MenuCommand =
   | 'find-in-page'
   | 'toggle-sidebar'
   | 'toggle-theme'
+  | 'toggle-focus-mode'
   | 'go-back'
   | 'go-forward'
   | 'open-settings'

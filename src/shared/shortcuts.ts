@@ -36,6 +36,8 @@ export const APP_SHORTCUTS: readonly AppShortcut[] = [
   { command: 'command-palette', accelerator: 'CmdOrCtrl+K', key: 'k', ctrl: true, page: true },
   { command: 'toggle-sidebar', accelerator: 'CmdOrCtrl+\\', key: '\\', ctrl: true },
   { command: 'toggle-theme', accelerator: 'CmdOrCtrl+Shift+L', key: 'l', ctrl: true, shift: true },
+  // F for focus. F11 stays the window's full screen (View menu), a separate choice.
+  { command: 'toggle-focus-mode', accelerator: 'CmdOrCtrl+Shift+F', key: 'f', ctrl: true, shift: true },
   { command: 'go-back', accelerator: 'Alt+Left', mac: 'Cmd+[', key: 'arrowleft', alt: true },
   { command: 'go-forward', accelerator: 'Alt+Right', mac: 'Cmd+]', key: 'arrowright', alt: true },
   { command: 'open-settings', accelerator: 'CmdOrCtrl+,', key: ',', ctrl: true },

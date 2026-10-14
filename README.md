@@ -10,6 +10,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go.
 
+**Focus.** `Ctrl+Shift+F` leaves only the page: no sidebar, no tabs, no Herman. Move the mouse to the top edge for the bars; press the keys again, or Esc when nothing is selected, to come back. From `Ctrl+K` you can also have it fade every block but the one you are writing in.
+
 **Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters.
 
 **Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not. `Ctrl+K` lists everything the app can do: type a few letters and press Enter. With text selected in a page, `Ctrl+K` adds a link instead. `Ctrl+/` shows every shortcut.
@@ -88,6 +90,7 @@ All style values live in one file, `src/renderer/src/styles/tokens.css`. Compone
 | `Ctrl+N` | New page |
 | `Ctrl+T` / `Ctrl+W` | New tab / close tab |
 | `Ctrl+\` | Hide the sidebar |
+| `Ctrl+Shift+F` | Focus mode |
 | `Ctrl+J` | Herman, the assistant |
 | `Ctrl+Alt+T` | Today |
 | `Ctrl+Alt+C` | Calendar |
