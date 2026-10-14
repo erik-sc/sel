@@ -226,6 +226,15 @@ export const Sparkle = make(<path d="M7 2.2l1.3 3.5 3.5 1.3-3.5 1.3L7 11.8 5.7 8
 
 export const Type = make(<path d="M3 4.4V3h10v1.4M8 3v10M6.2 13h3.6" />)
 
+
+/** Blocks side by side in one row. */
+export const Columns = make(
+  <>
+    <rect x="2.2" y="3" width="4.9" height="10" rx="1.3" />
+    <rect x="8.9" y="3" width="4.9" height="10" rx="1.3" />
+  </>
+)
+
 // ---- charts (the view type and its kinds) ----
 export const ChartColumn = make(<path d="M2.5 13.5h11M4.5 13.5V8.5M8 13.5V3.5M11.5 13.5V6.5" />)
 export const ChartBar = make(<path d="M2.5 2.5v11M2.5 4.5h6M2.5 8h10.5M2.5 11.5h8" />)

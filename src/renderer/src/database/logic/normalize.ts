@@ -14,10 +14,12 @@
 //     anything it may give); filter values of the right shape that never point at a
 //     deleted option; unique sorts with a valid direction; finite clamped widths; a
 //     groupBy of the type the layout needs; on a chart view, a chart configuration
-//     whose every reference fits the schema.
+//     whose every reference fits the schema; on a calculations view, a list of
+//     well-formed calculations.
 // Valid data comes back by reference (`changed: false`), so memoisation holds.
 import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyType, SelectOption, ViewFilter, ViewSort, ViewType } from '../../../../shared/types'
 import { sanitizeChartConfig } from '../../../../shared/chart'
+import { defaultCalcs, sanitizeCalcs } from './calcConfig'
 import { sanitizeRelationConfig } from '../../../../shared/relation'
 import { normalizeChartConfig } from './chartConfig'
 import { sanitizeFormulaConfig } from './formula'
@@ -238,6 +240,15 @@ export function sanitizeViews(views: DatabaseView[], schema: Schema): DatabaseVi
       if (kept) v.chart = sameValue(kept, rawChart) ? (rawChart as DatabaseView['chart']) : kept
       else delete v.chart
     }
+
+    // A calculations view always has its list of figures; one it has (even an empty one) is
+    // the user's own and is only cleaned. A view of another type keeps a well-formed list, for
+    // when it is shown as calculations again, and drops anything else.
+    const rawCalcs: unknown = (raw as { calcs?: unknown }).calcs
+    const calcs = sanitizeCalcs(rawCalcs)
+    if (calcs) v.calcs = sameValue(calcs, rawCalcs) ? (rawCalcs as DatabaseView['calcs']) : calcs
+    else if (type === 'calc') v.calcs = defaultCalcs(schema)
+    else delete v.calcs
     out.push(sameValue(v, raw) ? (raw as DatabaseView) : v)
   })
   return out

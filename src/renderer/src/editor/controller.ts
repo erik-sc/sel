@@ -386,6 +386,11 @@ export class EditorController {
     this.commit(ids.filter((id) => getBlock(id)).map((id): Op => ({ op: 'update', id, patch: { props: { color } } })))
   }
 
+  /** Draws a database block in one row with the one before it, or below it again (layout.ts). */
+  setBeside(id: string, beside: boolean): void {
+    if (getBlock(id)) this.commit([{ op: 'update', id, patch: { props: { beside: beside ? true : null } } }])
+  }
+
   indent(ids: string[]): void {
     this.flushAll()
     this.commit(indentOps(this.tree, ids))

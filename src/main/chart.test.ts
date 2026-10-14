@@ -295,6 +295,21 @@ describe('markdown export of a chart view', () => {
   })
 })
 
+describe('markdown export of a calculations view', () => {
+  it('writes each figure over the rows the filters let through', () => {
+    const page = repo.create({ type: 'page', parentId: null, props: { title: [['Report']] } })
+    const calcs = [
+      { id: 'a', name: 'Points', formula: 'sum(Points)' },
+      { id: 'b', name: 'Rows | all', formula: 'count()' },
+      { id: 'c', name: '', formula: 'sum(Nope)' }
+    ]
+    database([{ id: 'v', name: 'Figures', type: 'calc', visibleProperties: ['title'], filters: [{ propertyId: 'pts', operator: 'gt', value: 1 }], sorts: [], calcs }], page.id)
+    const markdown = pageToMarkdown(repo, page.id).markdown
+    expect(markdown).toContain(['**Tasks**', '', '*Figures*', '', '| Calculation | Value |', '| --- | ---: |', '| Points | 10 |', '| Rows \\| all | 3 |', '| Untitled | — |'].join('\n'))
+    expect(markdown).not.toContain('Call Ada')
+  })
+})
+
 describe('ipc: bytes of a generated image', () => {
   const png = (extra = 64): Uint8Array => {
     const bytes = new Uint8Array(24 + extra)

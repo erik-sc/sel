@@ -57,6 +57,8 @@ export interface BlockProps {
   sourceId?: string
   /** page that is a database row: propertyId -> value */
   values?: Record<string, PropertyValue>
+  /** database: drawn in one row with the database block before it (see editor/layout.ts) */
+  beside?: boolean
 }
 
 export interface Block {
@@ -165,7 +167,7 @@ export interface FormulaConfig {
  */
 export type PropertyValue = string | number | boolean | string[] | { start: string; end?: string } | null
 
-export type ViewType = 'table' | 'board' | 'list' | 'gallery' | 'calendar' | 'chart'
+export type ViewType = 'table' | 'board' | 'list' | 'gallery' | 'calendar' | 'chart' | 'calc'
 
 export type ChartKind = 'bar' | 'column' | 'line' | 'area' | 'pie' | 'donut' | 'number'
 export type ChartDateBucket = 'day' | 'week' | 'month' | 'quarter' | 'year'
@@ -205,6 +207,15 @@ export interface ChartConfig {
   height?: number
 }
 
+/** One figure of a `calc` view: a name and a formula over the view's rows (see database/logic/calc.ts). */
+export interface ViewCalc {
+  id: string
+  name: string
+  formula: string
+  /** How the result is written; when absent, like the number property it is computed from. */
+  format?: 'number' | 'currency' | 'percent'
+}
+
 export type FilterOperator =
   | 'contains'
   | 'not_contains'
@@ -241,6 +252,8 @@ export interface DatabaseView {
   groupBy?: string
   /** chart: what is drawn. Kept (but unused) when the view has another type. */
   chart?: ChartConfig
+  /** calc: the figures shown. Kept (but unused) when the view has another type. */
+  calcs?: ViewCalc[]
 }
 
 // ---- Operations ----

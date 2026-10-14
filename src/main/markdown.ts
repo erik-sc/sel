@@ -19,6 +19,9 @@ import { readFileCapped } from './fsutil'
 // The chart engine is the renderer's own (pure, no DOM): an exported chart shows the numbers that are on screen.
 import { buildChartData, chartCaption, chartTable } from '../renderer/src/database/logic/chart'
 import { CHART_KIND_LABELS, chartConfigOf } from '../renderer/src/database/logic/chartConfig'
+// So is the formula engine: an exported calculation is the figure on screen.
+import { evaluateCalc } from '../renderer/src/database/logic/calc'
+import { formatNumber } from '../renderer/src/database/logic/values'
 import { normalizeDatabase, sanitizeViews } from '../renderer/src/database/logic/normalize'
 import { queryRows } from '../renderer/src/database/logic/query'
 import { cellText as cellPlainText } from '../renderer/src/database/logic/cell'
@@ -185,6 +188,33 @@ function chartToMarkdown(repo: Repository, db: Block, source: Block, title: stri
 }
 
 /**
+ * A calculations view as its figures, each computed over the rows the view shows (its
+ * filters apply, exactly as on screen); the rows themselves are not listed.
+ */
+function calcToMarkdown(repo: Repository, db: Block, source: Block, title: string): string[] {
+  const schema = normalizeDatabase(source).schema
+  const view = sanitizeViews(db.props.views ?? [], schema)[0]
+  const rows = queryRows(
+    repo.children(source.id).filter((row) => row.type === 'page' && row.trashedAt === null),
+    schema,
+    view
+  )
+  const cell = (text: string): string => cellText(escapeText(text))
+  const lines: string[] = []
+  if (title) lines.push(`**${title}**`, '')
+  const name = escapeText(view?.name ?? '')
+  if (name) lines.push(`*${name}*`, '')
+  lines.push('| Calculation | Value |', '| --- | ---: |')
+  for (const calc of view?.calcs ?? []) {
+    const result = evaluateCalc(calc, rows, schema)
+    // Like the figure on screen: two decimals for a plain number, a dash when there is none.
+    const value = !result.ok || result.value === null ? '—' : formatNumber(result.format === 'number' ? Math.round(result.value * 100) / 100 : result.value, result.format)
+    lines.push(`| ${cell(calc.name || 'Untitled')} | ${cell(value)} |`)
+  }
+  return lines
+}
+
+/**
  * A database as a table. A linked view exports its source's rows with the columns
  * of its own first view, under its own title when it has one.
  */
@@ -195,6 +225,7 @@ function databaseToMarkdown(repo: Repository, db: Block, withTitle = true): stri
   const schema = source.props.schema ?? {}
   const view = db.props.views?.[0]
   if (view?.type === 'chart') return chartToMarkdown(repo, db, source, withTitle ? ownTitle || inlineToMarkdown(source.props.title) : '')
+  if (view?.type === 'calc') return calcToMarkdown(repo, db, source, withTitle ? ownTitle || inlineToMarkdown(source.props.title) : '')
   let columns = (view?.visibleProperties ?? Object.keys(schema)).filter((id) => schema[id])
   if (!columns.length) columns = Object.keys(schema)
   const titleId = Object.keys(schema).find((id) => schema[id].type === 'title')
