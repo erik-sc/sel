@@ -68,6 +68,8 @@ npm test
 npm run typecheck
 ```
 
+CI runs both on every pull request.
+
 The code is in `src/`:
 
 - `main/` — the Electron main process: storage, files, version history, AI, the briefing, meetings, Herman.
