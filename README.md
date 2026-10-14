@@ -87,12 +87,14 @@ To try the update flow in development, serve a folder with a `latest.yml` on `ht
 
 ## Releasing
 
-The update check reads the project's GitHub Releases. For a version to reach installed apps:
+A tag publishes a release. For version `0.3.0`:
 
-1. Raise `version` in `package.json` (say `0.3.0`) and commit it.
-2. Run `npm run dist`. It builds into `release/` and uploads nothing. Three files matter: `sel-0.3.0-setup.exe`, `sel-0.3.0-setup.exe.blockmap` and `latest.yml`.
-3. On GitHub, create a release with the tag `v0.3.0` (a `v`, then the version exactly) and attach those three files.
-4. Publish it as a full release, not a draft or a pre-release: the app only sees the latest published release.
+1. Raise `version` in `package.json` to `0.3.0`, commit and merge it.
+2. Tag that commit `v0.3.0` (a `v`, then the version exactly) and push the tag: `git tag v0.3.0 && git push origin v0.3.0`.
+
+The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.3.0-setup.exe`, `sel-0.3.0-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
+
+To build by hand, `npm run dist` writes the same three files into `release/` and uploads nothing.
 
 sel 0.2.0 and earlier have no update check: install the first version that has one by hand.
 
