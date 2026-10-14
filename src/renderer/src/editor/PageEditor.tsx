@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent, JSX, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react'
 import type { Block } from '@shared/types'
 import { getBlock, isTreeCached, loadTree, takePrefetchedTree, useBlock, useTreePin } from '@/store/blocks'
+import { clearBlockSelection, setBlockSelection } from '@/store/selection'
 import { RowProperties } from '@/database/lazy'
 import { EditorContext, type EditorContextValue } from './context'
 import { MIME_BLOCKS } from './clipboard'
@@ -178,6 +179,18 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
       if (useAiGate.getState().editor === bridge) useAiGate.setState({ editor: null, scope: null })
     }
   }, [assistantOpen, ctrl, pageId])
+
+  // The blocks selected here, for the word count in the top bar.
+  useEffect(() => {
+    setBlockSelection(pageId, ctrl.ui.getState().selected)
+    const off = ctrl.ui.subscribe((state, previous) => {
+      if (state.selected !== previous.selected) setBlockSelection(pageId, state.selected)
+    })
+    return () => {
+      off()
+      clearBlockSelection(pageId)
+    }
+  }, [ctrl, pageId])
 
   /** True when the event really happened inside the editor surface (not in a portal or embed). */
   const own = (target: EventTarget | null): target is HTMLElement =>

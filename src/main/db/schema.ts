@@ -79,6 +79,7 @@ const MIGRATIONS: string[] = [
   `
 ]
 
+/** The `user_version` of a database this build has fully migrated. */
 export const SCHEMA_VERSION = MIGRATIONS.length
 
 /**
@@ -108,10 +109,10 @@ export function configure(db: SqlDriver): void {
 export function migrate(db: SqlDriver): void {
   const row = db.prepare('PRAGMA user_version').get() as { user_version: number } | undefined
   let version = Number(row?.user_version ?? 0)
-  if (version > MIGRATIONS.length) {
-    throw new Error(`Database schema version ${version} is newer than this app supports (${MIGRATIONS.length})`)
+  if (version > SCHEMA_VERSION) {
+    throw new Error(`Database schema version ${version} is newer than this app supports (${SCHEMA_VERSION})`)
   }
-  while (version < MIGRATIONS.length) {
+  while (version < SCHEMA_VERSION) {
     db.exec('BEGIN IMMEDIATE')
     try {
       db.exec(MIGRATIONS[version])
