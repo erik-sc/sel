@@ -2,7 +2,7 @@
 
 | # | Question | Conjecture | Status | Evidence |
 |---|---|---|---|---|
-| 1 | Which types represent the core domain? | `Block`, `Op`, `PropertySchema`, `DatabaseView` in one shared file | verified (code) | src/shared/types.ts:62-74, src/shared/types.ts:208 |
+| 1 | Which types represent the core domain? | `Block`, `Op`, `PropertySchema`, `DatabaseView` in one shared file | verified (code) | src/shared/types.ts:62-74, src/shared/types.ts:251 |
 | 2 | Where is the entry point of the app? | Module body of the main script | verified (code) | src/main/index.ts:422-429 |
 | 3 | Where is data persisted? | One SQLite file, five tables | verified (code) | src/main/legacy.ts:5, src/main/db/schema.ts:9, src/main/db/schema.ts:66 |
 | 4 | How does the renderer talk to main? | Only through `window.api`; every invoke carries a client id | verified (code) | src/preload/index.ts:25, src/preload/index.ts:157 |

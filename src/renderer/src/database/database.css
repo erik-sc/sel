@@ -699,6 +699,50 @@
   opacity: 1;
 }
 
+/* a linked row of a relation: page glyph and title, opens the row */
+.db-relation {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-s);
+  background: var(--fill-3);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.db-relation.is-link {
+  cursor: pointer;
+}
+
+.db-relation.is-link:hover {
+  background: var(--fill-2);
+}
+
+.db-relation-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.db-relation-label,
+.db-relation-option {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-relation-editor {
+  width: 320px;
+}
+
 /* circular iOS check */
 .db-checkbox {
   display: inline-flex;

@@ -9,7 +9,8 @@ import { canonicalJson } from '../../shared/versions'
  *  - unchanged on one side: the other side's block;
  *  - changed on both: field by field. `props` keys changed by one side only are both kept;
  *    `values`, `schema` (and each property's options) and `views` (and each view's chart)
- *    merge per id the same way. Where both sides changed the same thing differently, the
+ *    merge per id the same way, and a cell holding a list of ids (relation links, options of
+ *    a multi-select) merges as a set. Where both sides changed the same thing differently, the
  *    side whose block has the later `updatedAt` wins and the loss is reported in `conflicts`;
  *  - deleted on one side: gone, unless the other side changed it since `base`, then it stays;
  *  - child lists: three-way, keeping the order of the side that reordered and inserting the
@@ -321,8 +322,11 @@ type Spec =
   | { kind: 'record'; of: (key: string) => Spec; ordered?: boolean; editWins?: boolean }
   /** An array of objects with an `id`, merged per id. */
   | { kind: 'keyed'; item: Spec }
-  /** An ordered list of ids. */
-  | { kind: 'ids' }
+  /**
+   * An ordered list of ids. With `optional`, a missing value counts as an empty list (a cell
+   * that was cleared), and a list that ends up empty is removed again.
+   */
+  | { kind: 'ids'; optional?: boolean }
 
 const ATOM: Spec = { kind: 'atom' }
 const atom = (): Spec => ATOM
@@ -333,11 +337,18 @@ const VIEW: Spec = {
   kind: 'record',
   of: (key) => (key === 'chart' ? CHART : key === 'propertyWidths' ? { kind: 'record', of: atom } : key === 'visibleProperties' ? { kind: 'ids' } : ATOM)
 }
+/**
+ * A row's cell. Lists of ids (relation links, multi-select options) merge as sets: links one
+ * side added and the other removed both count, so the two halves of a two-way relation that
+ * were edited on different devices still agree afterwards. Anything else is an atom (the
+ * `ids` merge falls back to that when a side is not a list of strings).
+ */
+const CELL: Spec = { kind: 'ids', optional: true }
 const PROPS: Spec = {
   kind: 'record',
   of: (key) =>
     key === 'values'
-      ? { kind: 'record', of: atom }
+      ? { kind: 'record', of: () => CELL }
       : key === 'schema'
         ? { kind: 'record', of: () => PROPERTY, ordered: true, editWins: true }
         : key === 'views'
@@ -439,14 +450,16 @@ function merge3(spec: Spec, b: unknown, l: unknown, r: unknown, path: string, ct
   }
 
   if (spec.kind === 'ids') {
-    const ll = idList(l)
-    const rl = idList(r)
+    const absent = (value: unknown): unknown => (spec.optional && value === undefined ? [] : value)
+    const ll = idList(absent(l))
+    const rl = idList(absent(r))
     if (ll && rl) {
-      const bl = idList(b) ?? []
+      const bl = idList(absent(b)) ?? []
       const inB = new Set(bl)
       const inL = new Set(ll)
       const inR = new Set(rl)
-      return mergeLists(bl, ll, rl, ctx.localLater, (id) => (inL.has(id) && inR.has(id)) || (!inB.has(id) && (inL.has(id) || inR.has(id))), tie)
+      const merged = mergeLists(bl, ll, rl, ctx.localLater, (id) => (inL.has(id) && inR.has(id)) || (!inB.has(id) && (inL.has(id) || inR.has(id))), tie)
+      return spec.optional && merged.length === 0 ? undefined : merged
     }
   }
 

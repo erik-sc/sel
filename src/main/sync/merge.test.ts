@@ -697,6 +697,30 @@ describe('mergeWorkspace: databases', () => {
     expect(out.result.blocks.get('row1')?.props['values']).toEqual({ due: { start: '2026-01-01' } })
   })
 
+  it('merges relation links as a set, so both halves of a two-way relation keep every link', () => {
+    const { a } = db()
+    a.edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: ['p1'] } })
+    const both = clone(a.ws)
+    const left = new Device(both, 4000)
+    const right = new Device(both, 5000)
+    // One device links row1 to p2 and unlinks p1; the other links it to p3.
+    left.edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: ['p2'] } })
+    right.edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: ['p1', 'p3'] } })
+    const out = merge(both, left.ws, right.ws)
+    expect([...((out.result.blocks.get('row1')?.props['values'] as Props)['project'] as string[])].sort()).toEqual(['p2', 'p3'])
+    expect(out.conflicts).toEqual([])
+    // Swapping the sides gives the same links.
+    expect([...((merge(both, right.ws, left.ws).result.blocks.get('row1')?.props['values'] as Props)['project'] as string[])].sort()).toEqual(['p2', 'p3'])
+    // Cleared on one side while the other added a link: the added link stays.
+    const cleared = new Device(both, 6000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' } } })
+    const added = new Device(both, 7000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: ['p1', 'p4'] } })
+    expect((merge(both, cleared.ws, added.ws).result.blocks.get('row1')?.props['values'] as Props)['project']).toEqual(['p4'])
+    // Both removed every link: the cell is gone rather than an empty list.
+    const none1 = new Device(both, 8000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: [] } })
+    const none2 = new Device(both, 9000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' } } })
+    expect(merge(both, none1.ws, none2.ws).result.blocks.get('row1')?.props['values']).toEqual({ status: 'o1', due: { start: '2026-01-01' } })
+  })
+
   it('merges the schema per property, keeping the order of the properties', () => {
     const { base, a, b } = db()
     const s = base.blocks.get('db')?.props['schema'] as Record<string, Props>
