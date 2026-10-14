@@ -10,6 +10,7 @@ import { FeedbackHost } from '@/feedback/Host'
 import { MeetingSetup } from '@/meetings/slot'
 import { isCalendarRoute, isTodayRoute } from '@/briefing/route'
 import { EmptyState, PageHost } from './PageHost'
+import { FindBar } from './FindBar'
 import { QuickFind } from './QuickFind'
 import { SettingsModal } from './SettingsModal'
 import { Sidebar } from './Sidebar'
@@ -50,6 +51,7 @@ export function Shell() {
               <EmptyState />
             )}
             <HermanHost />
+            <FindBar />
           </main>
         </div>
       </div>

@@ -26,6 +26,7 @@ const SHORTCUTS: Shortcut[] = [
   { command: 'next-tab', accelerator: 'Control+Tab', key: 'tab', ctrl: true },
   { command: 'prev-tab', accelerator: 'Control+Shift+Tab', key: 'tab', ctrl: true, shift: true },
   { command: 'quick-find', accelerator: 'CmdOrCtrl+P', key: 'p', ctrl: true },
+  { command: 'find-in-page', accelerator: 'CmdOrCtrl+F', key: 'f', ctrl: true },
   { command: 'toggle-sidebar', accelerator: 'CmdOrCtrl+\\', key: '\\', ctrl: true },
   { command: 'toggle-theme', accelerator: 'CmdOrCtrl+Shift+L', key: 'l', ctrl: true, shift: true },
   { command: 'go-back', accelerator: isMac ? 'Cmd+[' : 'Alt+Left', key: 'arrowleft', alt: true },
@@ -115,7 +116,9 @@ export function buildMenu(): void {
         { role: 'pasteAndMatchStyle' },
         { role: 'delete' },
         { type: 'separator' },
-        { role: 'selectAll' }
+        { role: 'selectAll' },
+        { type: 'separator' },
+        item('Find in Page…', 'find-in-page')
       ]
     },
     {

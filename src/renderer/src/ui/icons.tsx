@@ -49,6 +49,7 @@ export const Settings = make(
 
 export const ChevronRight = make(<path d="M6 3.5 10.5 8 6 12.5" />)
 export const ChevronDown = make(<path d="M3.5 6 8 10.5 12.5 6" />)
+export const ChevronUp = make(<path d="M3.5 10 8 5.5l4.5 4.5" />)
 export const ChevronLeft = make(<path d="M10 3.5 5.5 8l4.5 4.5" />)
 
 export const MoreHorizontal = make(

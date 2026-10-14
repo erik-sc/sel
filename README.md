@@ -12,7 +12,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters.
 
-**Find.** `Ctrl+P` searches everything.
+**Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not.
 
 **Go back.** Every page keeps a version history. Compare, restore, or restore as a copy.
 
@@ -82,6 +82,7 @@ All style values live in one file, `src/renderer/src/styles/tokens.css`. Compone
 | | |
 |---|---|
 | `Ctrl+P` | Find |
+| `Ctrl+F` | Find in this page |
 | `Ctrl+N` | New page |
 | `Ctrl+T` / `Ctrl+W` | New tab / close tab |
 | `Ctrl+\` | Hide the sidebar |
