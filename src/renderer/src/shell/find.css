@@ -1,0 +1,77 @@
+/* Find in page: the bar over the top right of the content, and the marks on the matches. */
+
+.find-bar {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  width: min(360px, calc(100% - 32px));
+  height: calc(var(--control-height) + 8px);
+  padding: 0 4px 0 10px;
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+  color: var(--text-secondary);
+  animation: find-bar-in var(--duration-fast) var(--ease);
+}
+
+@keyframes find-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .find-bar {
+    animation: none;
+  }
+}
+
+.find-bar-icon {
+  flex: none;
+  margin-right: 6px;
+  color: var(--text-tertiary);
+}
+
+.find-bar-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font-size: var(--text-ui);
+  color: var(--text);
+  cursor: text;
+}
+
+.find-bar-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.find-bar-count {
+  flex: none;
+  padding: 0 6px;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.find-bar-count.is-empty {
+  color: var(--danger);
+}
+
+::highlight(sel-find) {
+  background-color: var(--c-yellow-bg);
+  color: inherit;
+}
+
+::highlight(sel-find-current) {
+  background-color: color-mix(in srgb, var(--c-orange) 38%, transparent);
+  color: var(--text);
+}

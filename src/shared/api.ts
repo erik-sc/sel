@@ -231,6 +231,7 @@ export type MenuCommand =
   | 'next-tab'
   | 'prev-tab'
   | 'quick-find'
+  | 'find-in-page'
   | 'toggle-sidebar'
   | 'toggle-theme'
   | 'go-back'
