@@ -7,6 +7,7 @@ import type { JSX, ReactNode } from 'react'
 import type { DatabaseView, PropertySchema, PropertyValue, RichText } from '@shared/types'
 import type { SnapshotBlock, SnapshotContent, SnapshotRef, SnapshotRow } from '@shared/versions'
 import { DEFAULT_CALLOUT_ICON, isTextType } from '@/editor/blockTypes'
+import { rowsOf } from '@/editor/layout'
 import { blockColorClass, classesForMarks, parseRichText, slice } from '@/editor/richtext-dom'
 import { isSafeImageUrl, sanitizeHref } from '@/editor/sanitize'
 import { formatValue, orderedProperties, sanitizeValue, VIEW_LABELS } from '@/database/logic/values'
@@ -242,20 +243,36 @@ function BlockBody({ block, change, number }: { block: SnapshotBlock; change: Bl
 
 const BlockList = memo(function BlockList({ ids, lookup }: { ids: string[]; lookup: Lookup }): JSX.Element {
   let number = 0
+  const item = (id: string): JSX.Element | null => {
+    const change = lookup.diff?.blocks.get(id)
+    const entry = lookup.refs.get(id)
+    if (entry) {
+      number = 0
+      return <RefBlock key={id} entry={entry} change={change} fromVersion={lookup.versionRefs.has(id)} />
+    }
+    const block = lookup.blocks.get(id)
+    if (!block) return null
+    number = block.type === 'numbered_list' ? number + 1 : 0
+    return <BlockItem key={id} block={block} change={change} number={number} lookup={lookup} />
+  }
+  // Rows as the editor draws them (editor/layout.ts); a reference records no place of its own.
+  const placed = ids.flatMap((id) => {
+    const entry = lookup.refs.get(id)
+    if (entry) return [{ id, type: entry.type, props: {} }]
+    const block = lookup.blocks.get(id)
+    return block ? [{ id, type: block.type, props: block.props }] : []
+  })
   return (
     <>
-      {ids.map((id) => {
-        const change = lookup.diff?.blocks.get(id)
-        const entry = lookup.refs.get(id)
-        if (entry) {
-          number = 0
-          return <RefBlock key={id} entry={entry} change={change} fromVersion={lookup.versionRefs.has(id)} />
-        }
-        const block = lookup.blocks.get(id)
-        if (!block) return null
-        number = block.type === 'numbered_list' ? number + 1 : 0
-        return <BlockItem key={id} block={block} change={change} number={number} lookup={lookup} />
-      })}
+      {rowsOf(placed).map((row) =>
+        row.length > 1 ? (
+          <div key={`row:${row[0].id}`} className="blk-beside">
+            {row.map((entry) => item(entry.id))}
+          </div>
+        ) : (
+          item(row[0].id)
+        )
+      )}
     </>
   )
 })

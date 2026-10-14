@@ -1,0 +1,57 @@
+# Typecheck and tests on every pull request and on every push to main.
+#
+# Install: `npm ci --ignore-scripts`. Neither check needs a package's install script:
+# better-sqlite3 13 ships prebuilt binaries and the tests use Node's built-in SQLite anyway
+# (src/main/db/testing.ts), esbuild's binary comes from its platform package, and skipping
+# Electron's script saves downloading its ~100 MB binary, which only running the app needs.
+#
+# Node 24: what the project is developed and tested with. On Node 22 Intl formats compact
+# currency differently ("$12.0K", not "$12K") and a chart test fails.
+#
+# Tests run on Windows, the only platform the app ships for. Several tests exercise the
+# Windows code paths with the host's `path` module and do not pass on Linux. Typecheck does
+# not depend on the OS, so it runs once, on the quicker Ubuntu runner.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels the run it replaces.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      # --dir src: only the project's own tests, never copies under .claude/worktrees.
+      - run: npx vitest run --dir src
