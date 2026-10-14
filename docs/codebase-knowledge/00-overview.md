@@ -41,8 +41,8 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 | `npm run build` runs `electron-vite build`; output entry is `./out/main/index.js` | verified in package.json:10, package.json:5 |
 | `npm run typecheck` runs `tsc --noEmit` twice, for `tsconfig.node.json` and `tsconfig.web.json` | verified in package.json:12 |
 | `npm test` runs `vitest run` | verified in package.json:13 |
-| There is no vitest config file at the root; vitest runs on defaults | verified: no `vitest.config.*` exists at the repo root (ls, this session) |
-| A bare `vitest run` can also collect stale copies under `.claude/worktrees/*`; `npx vitest run --dir src` avoids it | (unverified) carried over from an earlier session's notes |
+| vitest.config.ts restricts tests to `src/`, excludes `.claude/`, `out/`, `release/` and `node_modules/`, and resolves the `@shared` and `@` aliases; environment stays Node | verified in vitest.config.ts:15-26 |
+| `npm test` and `npx vitest run --dir src` collect the same 77 test files; worktree copies under `.claude/` are not collected | verified: both runs, and `vitest list --filesOnly` with a probe file under `.claude/worktrees` (this session) |
 | `npm run pack` builds an unpacked app into `release/`; `npm run dist` builds the installer | verified in package.json:15-16, electron-builder.yml:7 |
 | Packaging target is Windows NSIS x64, per-user, no signing; the build writes the GitHub update feed files (`latest.yml`, block map) but uploads nothing; updates are opt-in in the app | verified in electron-builder.yml:33, electron-builder.yml:72, package.json `dist`, src/main/updates/schedule.ts:46 |
 | The build fails on purpose if the installed Electron major is not 44 | verified in electron.vite.config.ts:15-26 |

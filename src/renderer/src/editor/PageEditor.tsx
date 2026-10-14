@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent, JSX, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react'
 import type { Block } from '@shared/types'
 import { getBlock, isTreeCached, loadTree, takePrefetchedTree, useBlock, useTreePin } from '@/store/blocks'
+import { clearBlockSelection, setBlockSelection } from '@/store/selection'
 import { RowProperties } from '@/database/lazy'
 import { EditorContext, type EditorContextValue } from './context'
 import { MIME_BLOCKS } from './clipboard'
@@ -13,6 +14,7 @@ import { PageHeader } from './PageHeader'
 import { BlockMenu, SlashMenu, SourcePickerPopover } from './menus'
 import { SelectionToolbar } from './SelectionToolbar'
 import { SkeletonLines as Skeleton } from '@/ui/Skeleton'
+import { flushOnUnload } from '@/ui/unload'
 import { bootMark } from '@/boot'
 import { useAiGate } from '@/ai/gate'
 import { aiConsolidate, aiOnPage, insertFromAssistant, scopeOf } from '@/ai/session'
@@ -41,12 +43,12 @@ const DROP_INSIDE_OFFSET = 56
 /** Fallback probe (px from the body's left edge) for finding the block on a row when the pointer is in the margin. */
 const ROW_PROBE_OFFSET = 120
 
-function RowPropertiesGate({ page }: { page: Block }): JSX.Element | null {
+function RowPropertiesGate({ page, onOpenPage }: { page: Block; onOpenPage: PageEditorProps['onOpenPage'] }): JSX.Element | null {
   const parent = useBlock(page.parentId)
   if (parent?.type !== 'database') return null
   return (
     <div className="pe-content pe-rowprops">
-      <RowProperties pageId={page.id} />
+      <RowProperties pageId={page.id} onOpenPage={onOpenPage} />
     </div>
   )
 }
@@ -103,12 +105,13 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
         if (alive) setLoaded(true)
         bootMark('first-page')
       })
+    // Typing still inside the debounce is written when the window loses focus or closes.
     const flush = (): void => ctrl.flushAll()
-    window.addEventListener('beforeunload', flush)
+    const offUnload = flushOnUnload(flush)
     window.addEventListener('blur', flush)
     return () => {
       alive = false
-      window.removeEventListener('beforeunload', flush)
+      offUnload()
       window.removeEventListener('blur', flush)
       ctrl.flushAll()
       ctrl.dispose()
@@ -176,6 +179,18 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
       if (useAiGate.getState().editor === bridge) useAiGate.setState({ editor: null, scope: null })
     }
   }, [assistantOpen, ctrl, pageId])
+
+  // The blocks selected here, for the word count in the top bar.
+  useEffect(() => {
+    setBlockSelection(pageId, ctrl.ui.getState().selected)
+    const off = ctrl.ui.subscribe((state, previous) => {
+      if (state.selected !== previous.selected) setBlockSelection(pageId, state.selected)
+    })
+    return () => {
+      off()
+      clearBlockSelection(pageId)
+    }
+  }, [ctrl, pageId])
 
   /** True when the event really happened inside the editor surface (not in a portal or embed). */
   const own = (target: EventTarget | null): target is HTMLElement =>
@@ -439,7 +454,7 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
         {page ? (
           <>
             <PageHeader page={page} />
-            <RowPropertiesGate page={page} />
+            <RowPropertiesGate page={page} onOpenPage={onOpenPage} />
             <MeetingSlot page={page} />
             <div className="pe-content pe-body">
               {loaded && <AiSlot anchorId={null} />}

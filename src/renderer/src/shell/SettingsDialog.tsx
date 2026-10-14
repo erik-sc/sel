@@ -4,7 +4,7 @@ import type { Theme } from '@shared/types'
 import { AppearancePanel } from '@/appearance/AppearancePanel'
 import '@/appearance/appearance.css'
 import { Segmented } from '@/appearance/controls'
-import { setSettingsOpen, setTheme, useUi, type SettingsSection } from '@/store/ui'
+import { setSettingsOpen, setTheme, setWordCount, useUi, type SettingsSection } from '@/store/ui'
 import { Button, IconButton } from '@/ui/Button'
 import { Modal } from '@/ui/Modal'
 import { Close } from '@/ui/icons'
@@ -19,6 +19,11 @@ const THEMES: { value: Theme; label: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
   { value: 'system', label: 'System' }
+]
+
+const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
+  { value: 'on', label: 'On' },
+  { value: 'off', label: 'Off' }
 ]
 
 type Section = SettingsSection
@@ -118,6 +123,7 @@ function SettingsBody() {
 
 function GeneralSection() {
   const theme = useUi((state) => state.theme)
+  const wordCount = useUi((state) => state.wordCount)
   const [importState, setImportState] = useState<'idle' | 'busy' | 'failed'>('idle')
 
   const runImport = (): void => {
@@ -151,6 +157,28 @@ function GeneralSection() {
           </div>
         </div>
         <p className="ap-note">Colours, glass, fonts and spacing are under Appearance.</p>
+      </section>
+
+      <section className="ap-group">
+        <div className="ap-group-head">
+          <h3 className="ap-group-title">Pages</h3>
+        </div>
+        <div className="ap-list">
+          <div className="ap-row">
+            <div className="ap-row-text">
+              <span className="ap-row-label">Word count</span>
+              <span className="ap-row-help">Words and reading time of the page, in the top bar.</span>
+            </div>
+            <div className="ap-row-control">
+              <Segmented
+                label="Word count"
+                value={wordCount ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => setWordCount(value === 'on')}
+              />
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="ap-group">

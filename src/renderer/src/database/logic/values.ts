@@ -1,6 +1,7 @@
 // Reading, writing and formatting cell values. Everything that touches persisted
 // row data goes through here and tolerates missing / wrong-typed / dangling data.
 import type { Block, PropertySchema, PropertyType, PropertyValue, SelectOption, ViewType } from '../../../../shared/types'
+import { relationIds } from '../../../../shared/relation'
 import {
   formatDate,
   formatDay,
@@ -25,7 +26,9 @@ export const PROPERTY_TYPES: PropertyType[] = [
   'checkbox',
   'url',
   'created_time',
-  'last_edited_time'
+  'last_edited_time',
+  'relation',
+  'rollup'
 ]
 
 export const TYPE_LABELS: Record<PropertyType, string> = {
@@ -38,7 +41,9 @@ export const TYPE_LABELS: Record<PropertyType, string> = {
   checkbox: 'Checkbox',
   url: 'URL',
   created_time: 'Created time',
-  last_edited_time: 'Last edited time'
+  last_edited_time: 'Last edited time',
+  relation: 'Relation',
+  rollup: 'Rollup'
 }
 
 export const VIEW_TYPES: ViewType[] = ['table', 'board', 'list', 'gallery', 'calendar', 'chart']
@@ -94,13 +99,17 @@ export function isSelectType(type: PropertyType): type is 'select' | 'multi_sele
   return type === 'select' || type === 'multi_select'
 }
 
-/** Properties whose value is derived from the block, never stored or edited. */
+/**
+ * Properties whose value is derived (from the block itself, or from related rows for a
+ * rollup), never stored or edited.
+ */
 export function isComputedType(type: PropertyType): boolean {
-  return type === 'created_time' || type === 'last_edited_time'
+  return type === 'created_time' || type === 'last_edited_time' || type === 'rollup'
 }
 
+/** Properties whose value is a day or a moment: dates, and the created / last edited times. */
 export function isDateLikeType(type: PropertyType): boolean {
-  return type === 'date' || isComputedType(type)
+  return type === 'date' || type === 'created_time' || type === 'last_edited_time'
 }
 
 // ---------------------------------------------------------------------------
@@ -170,6 +179,10 @@ export function findOption(prop: PropertySchema | undefined, id: unknown): Selec
 /**
  * The value of a cell, normalised to the property type: wrong-typed or dangling
  * data (e.g. a deleted select option) reads as empty instead of crashing.
+ *
+ * Only what the row itself holds: a relation gives every linked id it stores (whether
+ * those rows still exist or not) and a rollup gives null. What other rows add to a cell
+ * is read through `readCell` (./cell.ts).
  */
 export function getCellValue(row: Block, prop: PropertySchema): PropertyValue {
   switch (prop.type) {
@@ -179,6 +192,8 @@ export function getCellValue(row: Block, prop: PropertySchema): PropertyValue {
       return typeof row.createdAt === 'number' && isFinite(row.createdAt) ? row.createdAt : null
     case 'last_edited_time':
       return typeof row.updatedAt === 'number' && isFinite(row.updatedAt) ? row.updatedAt : null
+    case 'rollup':
+      return null
   }
   const raw = storedValue(row, prop.id)
   if (raw === undefined || raw === null) return prop.type === 'checkbox' ? false : null
@@ -206,6 +221,8 @@ export function getCellValue(row: Block, prop: PropertySchema): PropertyValue {
     }
     case 'date':
       return normalizeDateValue(raw)
+    case 'relation':
+      return relationIds(raw, prop.relation?.limit)
   }
   return null
 }
@@ -264,8 +281,12 @@ export function sanitizeValue(prop: PropertySchema, value: unknown): PropertyVal
     }
     case 'date':
       return normalizeDateValue(value)
+    case 'relation': {
+      const ids = relationIds(Array.isArray(value) ? value : [value], prop.relation?.limit)
+      return ids.length ? ids : null
+    }
     default:
-      // title lives in props.title; created/last edited time are computed.
+      // title lives in props.title; created/last edited time and rollups are computed.
       return null
   }
 }
@@ -400,7 +421,7 @@ const MAX_URL_LENGTH = 2048
 /**
  * The only urls a cell may open: http(s) and mailto, with bare domains promoted
  * to https. Anything else (javascript:, file:, data:, control characters...) is null.
- * Mirrors `sanitizeHref` of the editor and the main-process `isExternalUrl` policy.
+ * Mirrors `sanitizeHref` of the editor and the main-process `toExternalUrl` policy.
  */
 export function safeExternalUrl(raw: unknown): string | null {
   if (typeof raw !== 'string') return null
@@ -478,6 +499,16 @@ export function formatValue(value: unknown, prop: PropertySchema, opts: FormatOp
     case 'created_time':
     case 'last_edited_time':
       return typeof value === 'number' ? formatTimestamp(value, opts) : ''
+    case 'relation': {
+      // Without the related rows at hand only their number is known (`cellText` gives titles).
+      const count = relationIds(value).length
+      return count === 0 ? '' : count === 1 ? '1 page' : `${count} pages`
+    }
+    case 'rollup':
+      // A computed rollup value, by its shape (`cellText` knows the format of the related property).
+      if (typeof value === 'number') return formatNumber(value, prop.numberFormat, opts)
+      if (isDateValue(value)) return formatDate(value, opts)
+      return typeof value === 'string' ? value : ''
   }
   return ''
 }

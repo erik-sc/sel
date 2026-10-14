@@ -126,7 +126,8 @@ function rowOps(schema: L.Schema, databaseId: string, rows: readonly ActionRow[]
         if (titleNames.has(wanted) && typeof cell !== 'object') name = String(cell ?? '').slice(0, 2000)
         continue
       }
-      if (L.isComputedType(prop.type)) continue
+      // Computed cells take no value; a relation's are row ids, which a proposal cannot name.
+      if (L.isComputedType(prop.type) || prop.type === 'relation') continue
       const converted = toValue(next, prop, cell)
       next = converted.schema
       if (converted.value !== null && converted.value !== false) values[prop.id] = converted.value

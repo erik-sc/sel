@@ -75,7 +75,7 @@ in main. A `MenuCommand` (src/shared/api.ts) is not an IPC call: it travels on `
 - External programs are replaced by scripted fakes selected with markers in the prompt (src/main/ai/fixtures/fake-claude.mjs:6-8).
 - Sync tests need a real git binary and skip themselves without one (src/main/sync/harness.ts:18-24).
 - Some suites are opt-in through environment flags (src/main/db/bench.test.ts:14, src/main/briefing/net.test.ts:405).
-- Suggested command, not run this session: `npx vitest run --dir src` and `npm run typecheck` (package.json:12-13).
+- Run `npm test` and `npm run typecheck` (package.json:12-13).
 
 ## Configuration and feature flags
 

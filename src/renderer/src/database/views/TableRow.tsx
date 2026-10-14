@@ -2,6 +2,7 @@ import { memo } from 'react'
 import type { DragEvent, JSX, MouseEvent as ReactMouseEvent } from 'react'
 import type { Block, PropertySchema } from '@shared/types'
 import { DragHandle } from '@/ui/icons'
+import * as L from '../logic'
 import { PropertyCell, type EditMove } from '../cells'
 import { RowIcon, beginDrag, type OpenModifiers } from '../common'
 
@@ -82,7 +83,8 @@ export const TableRow = memo(function TableRow(p: TableRowProps): JSX.Element {
         const editing = p.editingProp === prop.id
         const tdClasses = ['db-td']
         if (prop.type === 'title') tdClasses.push('is-title')
-        if (prop.type === 'number') tdClasses.push('is-number')
+        // Numbers line up on the right, rollups that give one included.
+        if (L.filterTypeOf(prop) === 'number') tdClasses.push('is-number')
         if (focused) tdClasses.push('is-focused')
         return (
           <div

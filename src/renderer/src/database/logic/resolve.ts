@@ -8,6 +8,7 @@
 import type { Block, BlockProps, DatabaseView, ViewType } from '../../../../shared/types'
 import { sourceIdOf } from '../../../../shared/linked'
 import { ensureDatabaseProps, normalizeDatabase, sanitizeViews, type NormalizedDatabase } from './normalize'
+import type { CellContext } from './relation'
 import { DEFAULT_VIEW_ID, iconOf, makeId, titleOf, type Schema } from './values'
 import { createDefaultView } from './views'
 
@@ -68,6 +69,21 @@ export function resolveDatabase(view: Block, lookup: BlockLookup): ResolvedDatab
   const trashedId = trashedAbove(source, lookup)
   if (trashedId !== null) return { ...base, status: 'trashed', trashedId }
   return { ...base, source, status: 'ok' }
+}
+
+/**
+ * The `CellContext` relations and rollups read through: the blocks of `lookup`, and the
+ * normalised schema of any database in it (a linked view has none of its own).
+ */
+export function cellContext(lookup: BlockLookup): CellContext {
+  return {
+    get: (id) => lookup.get(id),
+    isMissing: (id) => lookup.isMissing?.(id) === true,
+    schemaOf: (id) => {
+      const block = lookup.get(id)
+      return block?.type === 'database' && sourceIdOf(block) === null ? normalizeDatabase(block).schema : undefined
+    }
+  }
 }
 
 /** Last result per raw `views` array of a linked view, for one schema object (both are immutable in the store). */

@@ -250,6 +250,7 @@ export type MenuCommand =
   | 'find-in-page'
   | 'toggle-sidebar'
   | 'toggle-theme'
+  | 'toggle-focus-mode'
   | 'go-back'
   | 'go-forward'
   | 'open-settings'
@@ -264,6 +265,8 @@ export type MenuCommand =
   | 'open-calendar'
   | 'new-meeting'
   | 'send-feedback'
+  | 'command-palette'
+  | 'keyboard-shortcuts'
 
 /** Event and fire-and-forget channel names. Invoke channels are declared in `INVOKE` below. */
 export const IPC = {
