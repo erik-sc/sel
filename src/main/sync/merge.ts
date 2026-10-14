@@ -130,15 +130,6 @@ export function sameBlock(a: SyncBlock, b: SyncBlock): boolean {
   )
 }
 
-export function sameWorkspace(a: Workspace, b: Workspace): boolean {
-  if (a.blocks.size !== b.blocks.size || !sameList(a.root, b.root) || (a.rootAt ?? 0) !== (b.rootAt ?? 0)) return false
-  for (const [id, block] of a.blocks) {
-    const other = b.blocks.get(id)
-    if (!other || !sameBlock(block, other)) return false
-  }
-  return true
-}
-
 export interface WorkspaceDiff {
   /** Blocks of `to` that are new or different. */
   put: SyncBlock[]

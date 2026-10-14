@@ -28,7 +28,7 @@ Trigger: `onInput` on the contentEditable element (src/renderer/src/editor/Edita
 ## Back in the renderers
 
 18. The originating window reconciles the reply, skipping blocks superseded by a newer local write — src/renderer/src/store/blocks.ts:325-332
-19. Other windows receive the change through the preload listener — src/preload/index.ts:145-148; the store filters ids with pending writes and its own echoes, then refetches — src/renderer/src/store/blocks.ts:598-611
+19. Other windows receive the change through the preload listener — src/preload/index.ts:145-148; the store filters ids with pending writes and its own echoes, then refetches — src/renderer/src/store/blocks.ts:584-597
 20. The editable re-renders from the model unless it is composing or has a pending edit — src/renderer/src/editor/EditableText.tsx:109-117
 
 ## When a `page_versions` row is written
