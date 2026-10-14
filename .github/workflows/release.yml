@@ -1,0 +1,70 @@
+# Builds the Windows installer and publishes it as a GitHub release when a version tag is pushed.
+#
+#   npm version 0.3.0 --no-git-tag-version   (or edit package.json), commit, then
+#   git tag v0.3.0 && git push origin v0.3.0
+#
+# The tag must be `v` plus package.json's version exactly: the in-app update check
+# (src/main/updates) compares it with `latest.yml`, which this run attaches next to the
+# installer and its `.blockmap`.
+#
+# Install: `npm ci --ignore-scripts`, then Electron's own install script only. electron-builder
+# packages that Electron (`electronDist` in electron-builder.yml), and better-sqlite3 ships
+# prebuilt binaries, so nothing else needs an install script.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Check the tag matches package.json
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node node_modules/electron/install.js
+
+      - run: npm run typecheck
+      - run: npx vitest run --dir src
+
+      - run: npm run dist
+
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd release
+          gh release create "$GITHUB_REF_NAME" \
+            "sel-$VERSION-setup.exe" \
+            "sel-$VERSION-setup.exe.blockmap" \
+            latest.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "sel $VERSION" \
+            --generate-notes \
+            --verify-tag
