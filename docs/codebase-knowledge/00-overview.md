@@ -48,7 +48,7 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 | The build fails on purpose if the installed Electron major is not 44 | verified in electron.vite.config.ts:15-26 |
 | Path aliases: `@shared` everywhere, `@` (renderer source) in the renderer only | verified in electron.vite.config.ts:60, electron.vite.config.ts:67, electron.vite.config.ts:73 |
 | The node tsconfig also compiles `src/renderer/src/database/logic/*.ts` | verified in tsconfig.node.json:15 |
-| CI (GitHub Actions) runs `npm run typecheck` once and `npx vitest run --dir src` on Ubuntu and Windows, on every pull request and push to `main`; install is `npm ci --ignore-scripts` | verified in .github/workflows/ci.yml |
+| CI (GitHub Actions) runs `npm run typecheck` (Ubuntu) and `npx vitest run --dir src` (Windows) on Node 24, on every pull request and push to `main`; install is `npm ci --ignore-scripts` | verified in .github/workflows/ci.yml |
 
 ## Entry points
 
