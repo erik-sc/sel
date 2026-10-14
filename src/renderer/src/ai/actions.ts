@@ -27,6 +27,8 @@ export interface ActionPlan {
   open: string | null
   /** Pages whose list of sub-pages changed (null: the top level). */
   parents: (string | null)[]
+  /** Blocks to read again once the ops are in: where pages were moved from or trashed out of. */
+  refresh: string[]
 }
 
 const quoted = (title: string): string => `“${title}”`
@@ -34,12 +36,16 @@ const titleOf = (block: Block | undefined): string => plainText(block?.props.tit
 const count = (n: number, one: string): string => `${n} ${one}${n === 1 ? '' : 's'}`
 
 /** One line saying what an action would do, for the proposal card. */
-export function describeAction(action: HermanAction, env: Pick<ActionEnv, 'currentPageId' | 'get'>): string {
+export function describeAction(action: HermanAction, env: Pick<ActionEnv, 'currentPageId' | 'get'>, created?: ReadonlyMap<string, string>): string {
+  const isDatabase = action.do === 'add-rows' || action.do === 'update-rows' || action.do === 'add-properties'
   const named = (target: string | undefined): string => {
     if (!target) return ''
-    if (target.startsWith('@')) return 'the page created above'
+    if (target.startsWith('@')) {
+      const title = created?.get(target.slice(1))
+      return title ? quoted(title) : 'the page created above'
+    }
     const block = env.get(target === 'current' ? (env.currentPageId ?? '') : target)
-    return block ? quoted(titleOf(block)) : target === 'current' ? 'this page' : 'a page'
+    return block ? quoted(titleOf(block)) : target === 'current' ? 'this page' : isDatabase ? 'a database' : 'a page'
   }
   switch (action.do) {
     case 'create-page':
@@ -50,7 +56,44 @@ export function describeAction(action: HermanAction, env: Pick<ActionEnv, 'curre
       return `Create the database ${quoted(action.title)}${action.rows.length ? ` with ${count(action.rows.length, 'row')}` : ''}${action.parent ? ` in ${named(action.parent)}` : ''}`
     case 'add-rows':
       return `Add ${count(action.rows.length, 'row')} to ${named(action.database)}`
+    case 'move':
+      return `Move ${named(action.page)} ${action.parent ? `into ${named(action.parent)}` : 'to the top level'}`
+    case 'update-page':
+      return action.title ? `Rename ${named(action.page)} to ${quoted(action.title)}${action.icon ? ` ${action.icon}` : ''}` : `Give ${named(action.page)} the icon ${action.icon ?? ''}`
+    case 'update-rows':
+      return `Change ${count(action.rows.length, 'row')} of ${named(action.database)}`
+    case 'add-properties':
+      return `Add ${action.properties.map((property) => quoted(property.name)).join(', ')} to ${named(action.database)}`
+    case 'trash':
+      return `Move ${named(action.page)} to the Trash`
   }
+}
+
+/** What each `ref` of a proposal names: the title of what that action creates. */
+export function createdTitles(actions: readonly HermanAction[]): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const action of actions) if ((action.do === 'create-page' || action.do === 'create-database') && action.ref) out.set(action.ref, action.title)
+  return out
+}
+
+/** How many things a proposal would do, by kind: "3 pages created, 5 moved, 2 to the Trash". */
+export function summarizeActions(actions: readonly HermanAction[]): string {
+  const tally = new Map<string, number>()
+  const add = (key: string, n = 1): void => {
+    tally.set(key, (tally.get(key) ?? 0) + n)
+  }
+  for (const action of actions) {
+    if (action.do === 'create-page') add('pages created')
+    else if (action.do === 'create-database') add('databases created')
+    else if (action.do === 'append') add('pages added to')
+    else if (action.do === 'add-rows') add('rows added', action.rows.length)
+    else if (action.do === 'move') add('moved')
+    else if (action.do === 'update-page') add('renamed')
+    else if (action.do === 'update-rows') add('rows changed', action.rows.length)
+    else if (action.do === 'add-properties') add('properties added', action.properties.length)
+    else add('to the Trash')
+  }
+  return [...tally.entries()].map(([key, n]) => `${n} ${n === 1 ? key.replace(/^(page|database|row|propert)(s|ies)\b/, (_, stem: string) => (stem === 'propert' ? 'property' : stem)) : key}`).join(', ')
 }
 
 /** The ids a proposal names: what has to be in the store before it is planned. */
@@ -62,9 +105,15 @@ export function actionTargets(actions: readonly HermanAction[], currentPageId: s
     if (id) ids.add(id)
   }
   for (const action of actions) {
-    if (action.do === 'append') add(action.page)
-    else if (action.do === 'add-rows') add(action.database)
-    else add(action.parent)
+    if (action.do === 'append' || action.do === 'update-page' || action.do === 'trash') add(action.page)
+    else if (action.do === 'add-rows' || action.do === 'add-properties') add(action.database)
+    else if (action.do === 'update-rows') {
+      add(action.database)
+      for (const row of action.rows) add(row.id)
+    } else if (action.do === 'move') {
+      add(action.page)
+      add(action.parent ?? undefined)
+    } else add(action.parent)
   }
   return [...ids]
 }
@@ -145,7 +194,43 @@ function rowOps(schema: L.Schema, databaseId: string, rows: readonly ActionRow[]
  * or of the wrong kind is skipped and said so; the others still go through.
  */
 export function planActions(actions: readonly HermanAction[], env: ActionEnv): ActionPlan {
-  const plan: ActionPlan = { ops: [], done: [], skipped: [], open: null, parents: [] }
+  const plan: ActionPlan = { ops: [], done: [], skipped: [], open: null, parents: [], refresh: [] }
+  /** Where things are after the ops so far: pages created here and pages moved. */
+  const parentOf = new Map<string, string | null>()
+  const parentNow = (id: string): string | null => (parentOf.has(id) ? (parentOf.get(id) ?? null) : (env.get(id)?.parentId ?? null))
+  /** True when `id` is `ancestor` or sits somewhere inside it. */
+  const within = (id: string | null, ancestor: string): boolean => {
+    const seen = new Set<string>()
+    for (let cursor = id; cursor && !seen.has(cursor); cursor = parentNow(cursor)) {
+      if (cursor === ancestor) return true
+      seen.add(cursor)
+    }
+    return false
+  }
+  /** A live page or database of the store, by target; null when there is none. */
+  const existing = (target: string): Block | null => {
+    if (target.startsWith('@')) return null
+    const block = env.get(target === 'current' ? (env.currentPageId ?? '') : target)
+    return block && (block.type === 'page' || block.type === 'database') && !block.trashedAt ? block : null
+  }
+  /** The database a target names, through a linked view to its source; null when there is none. */
+  const databaseOf = (target: string): { block: Block; source: Block } | null => {
+    const block = target.startsWith('@') ? undefined : env.get(target === 'current' ? (env.currentPageId ?? '') : target)
+    const resolved = block?.type === 'database' && !block.trashedAt ? L.resolveDatabase(block, lookup) : undefined
+    return block && resolved?.status === 'ok' && resolved.source ? { block, source: resolved.source } : null
+  }
+  const trashed = new Set<string>()
+  /** Schemas as earlier actions of this proposal left them: each op writes the whole schema, so the next must start from it. */
+  const schemas = new Map<string, L.Schema>()
+  const schemaOf = (source: Block): L.Schema => schemas.get(source.id) ?? L.normalizeDatabase(source).schema
+  /** A page's title as this proposal leaves it: renamed or created here, or as stored. */
+  const nameOf = (block: Block): string => made.get(block.id) ?? titleOf(block)
+  const touch = (id: string | null | undefined): void => {
+    if (id && !plan.refresh.includes(id)) plan.refresh.push(id)
+  }
+  const parentChanged = (id: string | null): void => {
+    if (!plan.parents.includes(id)) plan.parents.push(id)
+  }
   /** What earlier actions of this proposal created, by their `ref`. */
   const refs = new Map<string, { id: string; type: 'page' | 'database' }>()
   /** Titles of the pages created here: the store does not have them yet. */
@@ -201,6 +286,7 @@ export function planActions(actions: readonly HermanAction[], env: ActionEnv): A
         }
         if (action.ref) refs.set(action.ref, { id, type: action.do === 'create-page' ? 'page' : 'database' })
         made.set(id, action.title)
+        parentOf.set(id, parentId)
         plan.open ??= parentId && action.do === 'create-database' ? parentId : id
         if (!plan.parents.includes(parentId)) plan.parents.push(parentId)
         break
@@ -227,16 +313,145 @@ export function planActions(actions: readonly HermanAction[], env: ActionEnv): A
           plan.skipped.push('No rows were added: the database was not found.')
           break
         }
-        const schema = L.normalizeDatabase(source).schema
+        const schema = schemaOf(source)
         const rows = rowOps(schema, source.id, action.rows, env.newId)
         if (!rows.ops.length) {
           plan.skipped.push(`No rows were added to ${quoted(titleOf(source))}: none of them had a name or a known property.`)
           break
         }
-        if (rows.schema !== schema) plan.ops.push({ op: 'update', id: source.id, patch: { props: { schema: rows.schema } } })
+        if (rows.schema !== schema) {
+          plan.ops.push({ op: 'update', id: source.id, patch: { props: { schema: rows.schema } } })
+          schemas.set(source.id, rows.schema)
+        }
         plan.ops.push(...rows.ops)
         plan.done.push(`Added ${count(rows.ops.length, 'row')} to ${quoted(titleOf(source))}.`)
         plan.open ??= block?.id ?? source.id
+        break
+      }
+      case 'move': {
+        const block = existing(action.page)
+        const parentId = action.parent === null ? null : page(action.parent)
+        if (!block || trashed.has(block.id)) {
+          plan.skipped.push('Nothing was moved: the page was not found.')
+          break
+        }
+        if (action.parent !== null && !parentId) {
+          plan.skipped.push(`${quoted(nameOf(block))} was not moved: the page it should go in was not found.`)
+          break
+        }
+        if (parentId && within(parentId, block.id)) {
+          plan.skipped.push(`${quoted(nameOf(block))} was not moved: it cannot go inside itself.`)
+          break
+        }
+        const from = parentNow(block.id)
+        if (from === parentId) {
+          plan.skipped.push(`${quoted(nameOf(block))} is already there.`)
+          break
+        }
+        touch(from)
+        plan.ops.push({ op: 'move', id: block.id, parentId })
+        parentOf.set(block.id, parentId)
+        parentChanged(parentId)
+        parentChanged(from)
+        plan.done.push(`Moved ${quoted(nameOf(block))} ${parentId ? `into ${quoted(made.get(parentId) ?? titleOf(env.get(parentId)))}` : 'to the top level'}.`)
+        break
+      }
+      case 'update-page': {
+        const block = existing(action.page)
+        if (!block || trashed.has(block.id)) {
+          plan.skipped.push('Nothing was renamed: the page was not found.')
+          break
+        }
+        const props: BlockProps = {}
+        if (action.title) props.title = toRichText(action.title)
+        if (action.icon) props.icon = action.icon
+        plan.ops.push({ op: 'update', id: block.id, patch: { props } })
+        plan.done.push(action.title ? `Renamed ${quoted(nameOf(block))} to ${quoted(action.title)}.` : `Gave ${quoted(nameOf(block))} a new icon.`)
+        if (action.title) made.set(block.id, action.title)
+        parentChanged(parentNow(block.id))
+        break
+      }
+      case 'update-rows': {
+        const found = databaseOf(action.database)
+        if (!found) {
+          plan.skipped.push('No rows were changed: the database was not found.')
+          break
+        }
+        const { block, source } = found
+        let schema = schemaOf(source)
+        const start = schema
+        let changed = 0
+        let missing = 0
+        const updates: Op[] = []
+        for (const { id, ...cells } of action.rows) {
+          const row = env.get(id)
+          if (!row || row.parentId !== source.id || row.trashedAt) {
+            missing++
+            continue
+          }
+          // The same conversion new rows get; the row keeps its other values.
+          const built = rowOps(schema, source.id, [cells], () => row.id)
+          schema = built.schema
+          const first = built.ops[0]
+          const input = first?.op === 'create' ? first.input : null
+          if (!input) continue
+          const props: BlockProps = {}
+          const titleName = fold(L.getTitleProperty(schema)?.name ?? 'name')
+          if (Object.keys(cells).some((key) => fold(key) === 'name' || fold(key) === 'title' || fold(key) === titleName) && input.props?.title) props.title = input.props.title
+          const values = input.props?.values
+          if (values && Object.keys(values).length) props.values = { ...(row.props.values ?? {}), ...values }
+          if (!Object.keys(props).length) continue
+          updates.push({ op: 'update', id: row.id, patch: { props } })
+          changed++
+        }
+        if (schema !== start) {
+          plan.ops.push({ op: 'update', id: source.id, patch: { props: { schema } } })
+          schemas.set(source.id, schema)
+        }
+        plan.ops.push(...updates)
+        if (changed) plan.done.push(`Changed ${count(changed, 'row')} of ${quoted(titleOf(source))}.`)
+        if (missing) plan.skipped.push(`${count(missing, 'row')} of ${quoted(titleOf(source))} ${missing === 1 ? 'was' : 'were'} not found.`)
+        if (!changed && !missing) plan.skipped.push(`No rows of ${quoted(titleOf(source))} were changed: nothing new was said about them.`)
+        if (changed) plan.open ??= block.id
+        break
+      }
+      case 'add-properties': {
+        const found = databaseOf(action.database)
+        if (!found) {
+          plan.skipped.push('No properties were added: the database was not found.')
+          break
+        }
+        const { source } = found
+        let schema = schemaOf(source)
+        const added: string[] = []
+        for (const property of action.properties) {
+          if (Object.values(schema).some((known) => fold(known.name) === fold(property.name))) continue
+          const next = L.addProperty(schema, { name: property.name, type: property.type })
+          schema = next.schema
+          for (const option of property.options ?? []) schema = L.addOption(schema, next.property.id, option).schema
+          added.push(quoted(property.name))
+        }
+        if (!added.length) {
+          plan.skipped.push(`${quoted(titleOf(source))} already has those properties.`)
+          break
+        }
+        plan.ops.push({ op: 'update', id: source.id, patch: { props: { schema } } })
+        schemas.set(source.id, schema)
+        plan.done.push(`Added ${added.join(', ')} to ${quoted(titleOf(source))}.`)
+        break
+      }
+      case 'trash': {
+        const block = existing(action.page)
+        if (!block || trashed.has(block.id)) {
+          plan.skipped.push('Nothing was put in the Trash: the page was not found.')
+          break
+        }
+        trashed.add(block.id)
+        const from = parentNow(block.id)
+        touch(from)
+        plan.ops.push({ op: 'delete', id: block.id })
+        parentChanged(from)
+        plan.done.push(`Moved ${quoted(nameOf(block))} to the Trash.`)
         break
       }
     }

@@ -567,7 +567,7 @@
 
 .council-seat > summary {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
   padding: 3px 8px;
   border-radius: var(--radius-s);
@@ -585,7 +585,13 @@
 }
 
 .council-name {
+  color: var(--member-color, var(--text));
   font-weight: var(--weight-semibold);
+}
+
+.council-drafted {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
 }
 
 .council-role,
@@ -863,4 +869,19 @@
     background: var(--accent);
     opacity: 0.5;
   }
+}
+
+/* A long proposal: what it does in a line, the steps on request. */
+.ai-proposal-steps > summary {
+  color: var(--text);
+  cursor: pointer;
+}
+
+.ai-proposal-steps[open] > summary {
+  margin-bottom: 4px;
+}
+
+.ai-proposal-steps ul {
+  max-height: 260px;
+  overflow-y: auto;
 }

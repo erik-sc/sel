@@ -22,6 +22,7 @@ import {
 import { Segmented } from '@/appearance/controls'
 import { Button } from '@/ui/Button'
 import { notifyError, toast } from '@/ui/toast'
+import { CouncilFace } from './CouncilFace'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'On' },
@@ -144,6 +145,7 @@ export function CouncilSettings({ enabled }: { enabled: boolean }): JSX.Element 
             const known = seat.agent === CLAUDE_AGENT || agents.some((agent) => agent.id === seat.agent)
             return (
               <div className="ap-row council-row" key={member}>
+                <CouncilFace member={member} state={seat.enabled && enabled ? 'done' : 'failed'} />
                 <div className="ap-row-text">
                   <span className="ap-row-label">
                     {name}, {role}
@@ -175,8 +177,10 @@ export function CouncilSettings({ enabled }: { enabled: boolean }): JSX.Element 
           })}
         </div>
         <p className="ap-note">
-          Press Council in the conversation and Herman asks the seats that are on before he answers; each replies from one point of view, and their answers show above his. Each
-          seat is one more request, to the program and model chosen for it. An empty model leaves the choice to the program; for Claude, a name such as opus, sonnet or haiku.
+          Press Council in the conversation and Herman asks the seats that are on before he answers. Each member looks at the question from one point of view; a seat answered by
+          Claude can also read your workspace (search, open pages and databases, look for what is stale or duplicated, never change anything) and draft changes. Herman weighs
+          what they said and proposes one plan, which you apply or dismiss. Each seat is one more request, to the program and model chosen for it. An empty model leaves the
+          choice to the program; for Claude, a name such as opus, sonnet or haiku.
         </p>
       </section>
 

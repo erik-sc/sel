@@ -54,7 +54,9 @@ describe('the voice in the prompt', () => {
   it('holds the persona as written: brief, plain, honest about what he is', () => {
     const rules = personaRules('herman').join('\n')
     expect(rules).toContain(`under about ${PERSONA_WORDS.herman} words`)
-    expect(PERSONA_WORDS.herman).toBe(120)
+    expect(PERSONA_WORDS.herman).toBe(60)
+    expect(rules).toMatch(/Never explain yourself/)
+    expect(rules).toMatch(/the first sentence is the answer/)
     expect(rules).toMatch(/one good question/i)
     expect(rules).toMatch(/Practical first/)
     expect(rules).toMatch(/Never invent a quotation/)

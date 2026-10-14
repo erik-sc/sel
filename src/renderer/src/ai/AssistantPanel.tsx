@@ -6,12 +6,14 @@
 // ask his council first (their answers show above his), and what he proposes to build shows as
 // a card: nothing is created until Apply is pressed.
 import { useEffect, useRef, useState } from 'react'
-import type { JSX, KeyboardEvent } from 'react'
+import type { CSSProperties, JSX, KeyboardEvent } from 'react'
 import { create } from 'zustand'
 import { splitActions, type HermanAction } from '@shared/actions'
 import { AI_LIMITS, type AiTurn } from '@shared/ai'
-import { COUNCIL_PEOPLE, type CouncilEvent, type CouncilMemberId } from '@shared/council'
+import { COUNCIL_KEY, COUNCIL_MEMBERS, COUNCIL_PEOPLE, councilSeats, type CouncilEvent, type CouncilMemberId } from '@shared/council'
 import { isTodayRoute, routeTitle } from '@/briefing/route'
+import { CouncilFace } from '@/herman/CouncilFace'
+import { MEMBER_COLORS } from '@/herman/faces'
 import { Figure } from '@/herman/Figure'
 import { useHerman } from '@/herman/gate'
 import { poseFor } from '@/herman/mood'
@@ -24,7 +26,7 @@ import { Button, IconButton } from '@/ui/Button'
 import { Close, Plus } from '@/ui/icons'
 import { MOD_KEY } from '@/ui/platform'
 import { notifyError, toast } from '@/ui/toast'
-import { describeAction } from './actions'
+import { createdTitles, describeAction, summarizeActions } from './actions'
 import { applyActions } from './applyActions'
 import { startRun, type RunHandle } from './client'
 import { aiReady, openAiSetup, toggleAssistant, useAiGate } from './gate'
@@ -70,6 +72,9 @@ const SUGGESTIONS = ['Summarize this page', 'What are the action items?', 'What 
 /** What one might ask Herman: of a page, and of the day. */
 const HERMAN_OPENERS = ['What is this page really about?', 'What am I avoiding here?', 'Make this shorter', 'What should I do first today?']
 const HERMAN_DAY_OPENERS = ['What should I do first today?', 'What can wait until tomorrow?', 'What am I avoiding today?']
+/** What one might put to the whole council: the work of putting a workspace in order. */
+const COUNCIL_OPENERS = ['Organize this space', 'Find what is duplicated, stale or misplaced', 'Turn these notes into a database', 'Plan the next week from what is here']
+const COUNCIL_DAY_OPENERS = ['Plan my day from what is here', 'Sort out what is overdue', 'Organize my workspace']
 const DAY_OPENERS = ['What should I do first today?', 'What is overdue?', 'What does the afternoon look like?']
 
 /** The finished turns before `upTo`, as the main process wants them: capped in number and size. */
@@ -83,27 +88,57 @@ function historyOf(messages: readonly Message[], upTo: number): AiTurn[] {
   return turns.slice(-(AI_LIMITS.historyTurns - 2))
 }
 
-/** What the council said, each member under a line that opens. */
+/** The colour a member is drawn and named in, for an element and what is inside it. */
+const memberStyle = (member: CouncilMemberId): CSSProperties => ({ '--member-color': `var(--c-${MEMBER_COLORS[member]})` }) as CSSProperties
+
+/** What the council said, each member under a line that opens; what they drafted to build is counted, and Herman's proposal carries it. */
 function CouncilView({ seats, working }: { seats: readonly Seat[]; working: boolean }): JSX.Element {
   return (
     <div className="council" aria-label="Council">
       {seats.map((seat) => {
         const { name, role } = COUNCIL_PEOPLE[seat.member]
-        const state = seat.status === 'thinking' ? (working ? 'thinking…' : 'stopped') : seat.status === 'failed' ? 'no answer' : ''
+        const state = seat.status === 'thinking' ? (working ? (seat.text ?? 'thinking…') : 'stopped') : seat.status === 'failed' ? 'no answer' : ''
+        const said = seat.status === 'done' && seat.text ? splitActions(seat.text) : null
+        const drafted = said?.actions.length ?? 0
         return (
-          <details key={seat.member} className={`council-seat is-${seat.status}`}>
+          <details key={seat.member} className={`council-seat is-${seat.status}`} style={memberStyle(seat.member)}>
             <summary>
+              <CouncilFace member={seat.member} state={seat.status === 'thinking' && !working ? 'idle' : seat.status} />
               <span className="council-name">{name}</span>
               <span className="council-role">{role}</span>
+              {drafted > 0 && <span className="council-drafted">{drafted === 1 ? '1 change drafted' : `${drafted} changes drafted`}</span>}
               {state && <span className="council-state">{state}</span>}
             </summary>
-            {seat.text && (seat.status === 'done' ? <MarkdownView markdown={seat.text} /> : <p className="council-note">{seat.text}</p>)}
+            {said ? <MarkdownView markdown={said.text} /> : seat.status === 'failed' && seat.text ? <p className="council-note">{seat.text}</p> : null}
           </details>
         )
       })}
     </div>
   )
 }
+
+/** The seats that are on, as stored; read again whenever the council chip is switched on. */
+function useSeated(on: boolean): CouncilMemberId[] {
+  const [seated, setSeated] = useState<CouncilMemberId[]>([])
+  useEffect(() => {
+    if (!on) return
+    let alive = true
+    window.api.app.getSetting<unknown>(COUNCIL_KEY).then(
+      (stored) => {
+        const seats = councilSeats(stored)
+        if (alive) setSeated(COUNCIL_MEMBERS.filter((member) => seats[member].enabled))
+      },
+      (error: unknown) => console.error('the council could not be read', error)
+    )
+    return () => {
+      alive = false
+    }
+  }, [on])
+  return on ? seated : []
+}
+
+/** A proposal with more steps than this shows a summary, and the steps on request. */
+const PROPOSAL_OPEN_STEPS = 6
 
 /** What an answer proposes to build, and the button that builds it. */
 function Proposal({ actions, outcome, pageId, onApply, onDismiss }: { actions: readonly HermanAction[]; outcome: Outcome | undefined; pageId: string | null; onApply(): void; onDismiss(): void }): JSX.Element | null {
@@ -130,14 +165,25 @@ function Proposal({ actions, outcome, pageId, onApply, onDismiss }: { actions: r
       </div>
     )
   }
+  const created = createdTitles(actions)
+  const steps = (
+    <ul>
+      {actions.map((action, index) => (
+        <li key={index}>{describeAction(action, { currentPageId: pageId, get: getBlock }, created)}</li>
+      ))}
+    </ul>
+  )
   return (
     <div className="ai-proposal">
       <p className="ai-proposal-title">Proposed</p>
-      <ul>
-        {actions.map((action, index) => (
-          <li key={index}>{describeAction(action, { currentPageId: pageId, get: getBlock })}</li>
-        ))}
-      </ul>
+      {actions.length > PROPOSAL_OPEN_STEPS ? (
+        <details className="ai-proposal-steps">
+          <summary>{summarizeActions(actions)}</summary>
+          {steps}
+        </details>
+      ) : (
+        steps
+      )}
       <div className="ai-proposal-buttons">
         <Button variant="primary" disabled={outcome?.state === 'applying'} onClick={onApply}>
           Apply
@@ -164,6 +210,7 @@ export function AssistantPanel(): JSX.Element {
   const messages = useChats((state) => state.chats[key] ?? NO_MESSAGES)
   /** Herman asks his council before he answers. Only he has one. */
   const council = useChats((state) => state.council) && herman
+  const seated = useSeated(council)
   const editor = useAiGate((state) => (state.editor && state.editor.pageId === pageId ? state.editor : null))
   const scope = useAiGate((state) => (state.scope && state.scope.pageId === pageId ? state.scope : null))
   const [draft, setDraft] = useState('')
@@ -319,15 +366,21 @@ export function AssistantPanel(): JSX.Element {
     }
   }
 
-  const openers = herman ? (today ? HERMAN_DAY_OPENERS : HERMAN_OPENERS) : today ? DAY_OPENERS : SUGGESTIONS
-  const emptyTitle = herman ? (today ? 'Ask about your day' : 'What is on your mind?') : today ? 'Ask about your day' : pageId ? 'Ask about this page' : 'Ask anything'
-  const emptyHelp = today
-    ? `${herman ? 'Herman' : 'The assistant'} is given today's agenda and open tasks.`
-    : pageId
-      ? herman
-        ? 'Herman reads this page and what is around it. Nothing changes unless you insert an answer or apply what he proposes.'
-        : 'The assistant reads this page and what is around it. Nothing changes unless you insert an answer or apply what it proposes.'
-      : 'Open a page to ask about what is in it.'
+  const openers = council ? (today ? COUNCIL_DAY_OPENERS : COUNCIL_OPENERS) : herman ? (today ? HERMAN_DAY_OPENERS : HERMAN_OPENERS) : today ? DAY_OPENERS : SUGGESTIONS
+  const emptyTitle = council ? 'The council is seated' : herman ? (today ? 'Ask about your day' : 'What is on your mind?') : today ? 'Ask about your day' : pageId ? 'Ask about this page' : 'Ask anything'
+  // Herman does not explain himself: with him on there is no help line, only the openers.
+  const emptyHelp = herman
+    ? null
+    : today
+      ? "The assistant is given today's agenda and open tasks."
+      : pageId
+        ? 'The assistant reads this page and what is around it. Nothing changes unless you insert an answer or apply what it proposes.'
+        : 'Open a page to ask about what is in it.'
+  /** How each seated member fares in the answer being written now; at rest they are simply there. */
+  const benchState = (member: CouncilMemberId): 'idle' | 'thinking' | 'done' | 'failed' => {
+    if (!busy) return 'done'
+    return last?.council?.find((seat) => seat.member === member)?.status ?? 'idle'
+  }
 
   return (
     <aside
@@ -371,6 +424,13 @@ export function AssistantPanel(): JSX.Element {
           <Figure pose={poseFor({ mood, attended: composing || draft.trim() !== '' })} draw />
         </div>
       )}
+      {seated.length > 0 && (
+        <div className="council-bench" aria-label="The council">
+          {seated.map((member) => (
+            <CouncilFace key={member} member={member} state={benchState(member)} draw label />
+          ))}
+        </div>
+      )}
 
       <div
         className="assistant-list"
@@ -383,8 +443,8 @@ export function AssistantPanel(): JSX.Element {
         {messages.length === 0 ? (
           <div className="assistant-empty">
             <p className="assistant-empty-title">{emptyTitle}</p>
-            <p className="assistant-empty-help">{emptyHelp}</p>
-            {(pageId || today) && (
+            {emptyHelp && <p className="assistant-empty-help">{emptyHelp}</p>}
+            {(pageId || today || council) && (
               <div className="assistant-suggestions">
                 {openers.map((suggestion) => (
                   <button key={suggestion} type="button" className="assistant-suggestion" onClick={() => send(suggestion)}>
@@ -492,7 +552,7 @@ export function AssistantPanel(): JSX.Element {
               type="button"
               className={council ? 'assistant-chip is-toggle is-on' : 'assistant-chip is-toggle'}
               aria-pressed={council}
-              title="Herman asks his council before he answers. Who sits on it is in Settings."
+              title="Herman asks his council first: they read the workspace and draft changes, and he proposes one plan. Who sits on it is in Settings."
               onClick={() => useChats.setState((state) => ({ council: !state.council }))}
             >
               Council

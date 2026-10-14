@@ -2,7 +2,8 @@ import { randomBytes } from 'node:crypto'
 import { AI_LANGUAGE_LABELS, type AiAction, type AiLanguage, type AiRequest, type AiTone, type AiTurn } from '../../shared/ai'
 import { ACTIONS_FENCE } from '../../shared/actions'
 import type { CouncilMemberId } from '../../shared/council'
-import { COUNCIL_RULE, councilBody, MEMBER_LANGUAGE_RULE, MEMBER_TASK, memberIntro, memberRules, type CouncilOpinion } from './council'
+import { COUNCIL_RULE, councilBody, MEMBER_DRAFT_RULE, MEMBER_LANGUAGE_RULE, MEMBER_TASK, memberIntro, memberRules, type CouncilOpinion } from './council'
+import { TOOL_LIST } from './toolspecs'
 import { PASSAGES_RULE, PERSONA_INTRO, PERSONA_LANGUAGE_RULE, passagesBody, personaRules, type PersonaVoice } from './herman'
 
 /**
@@ -75,6 +76,8 @@ export interface PromptOptions {
   member?: CouncilMemberId | null
   /** `ask`: what the council said, for Herman to weigh. Text written by models: data like any other. */
   council?: readonly CouncilOpinion[]
+  /** `ask`: the request may read the workspace through the tools (see ./tools.ts). */
+  tools?: boolean
 }
 
 /**
@@ -83,12 +86,16 @@ export interface PromptOptions {
  * shows as a proposal. Nothing is created until the user presses Apply.
  */
 export const ACTIONS_RULES: readonly string[] = [
-  `You can build things in the app. When the user asks you to make, add or fill in something (a page, a plan, a list, a table or database, rows or entries, notes added to a page), end your reply with one fenced code block whose language is ${ACTIONS_FENCE}, holding a JSON array of actions. Before it, say in a sentence or two what it will do. The user sees it as a proposal with an Apply button, and nothing changes until they press it. Leave the block out whenever nothing is to be created or changed; it does not count toward the length of a reply.`,
-  'The actions: {"do":"create-page","title":"…","icon":"one emoji (optional)","parent":"…","markdown":"its content","ref":"a"}; {"do":"append","page":"…","markdown":"what to add at the end"}; {"do":"create-database","title":"…","parent":"…","view":"table|board|list|gallery|calendar","properties":[{"name":"…","type":"text|number|select|multi_select|date|checkbox|url","options":["…"]}],"rows":[{"Name":"…","a property name":"…"}],"ref":"b"}; {"do":"add-rows","database":"…","rows":[{"Name":"…"}]}.',
-  'A parent, page or database is "current" (the page in the PAGE section), an id shown in square brackets in the WORKSPACE or RELATED section, or "@a" for what an earlier action of the same block created with "ref":"a". Leave "parent" out to create at the top level. Use only ids that appear in the sections; never make one up.',
+  `You can build things in the app and put it in order. When the user asks you to make, add, fill in, change or organize something (a page, a plan, a list, a table or database, rows or entries, notes added to a page, pages moved, renamed or cleared away), end your reply with one fenced code block whose language is ${ACTIONS_FENCE}, holding a JSON array of actions. Before it, say in one short line what it will do, once (not again when your reply already said it). The user sees it as a proposal with an Apply button, and nothing changes until they press it. Leave the block out whenever nothing is to be created or changed; it does not count toward the length of a reply.`,
+  'The actions: {"do":"create-page","title":"…","icon":"one emoji (optional)","parent":"…","markdown":"its content","ref":"a"}; {"do":"append","page":"…","markdown":"what to add at the end"}; {"do":"create-database","title":"…","parent":"…","view":"table|board|list|gallery|calendar","properties":[{"name":"…","type":"text|number|select|multi_select|date|checkbox|url","options":["…"]}],"rows":[{"Name":"…","a property name":"…"}],"ref":"b"}; {"do":"add-rows","database":"…","rows":[{"Name":"…"}]}; {"do":"move","page":"…","parent":"… or top"}; {"do":"update-page","page":"…","title":"…","icon":"…"}; {"do":"update-rows","database":"…","rows":[{"id":"the row id","a property name":"its new value"}]}; {"do":"add-properties","database":"…","properties":[{"name":"…","type":"…"}]}; {"do":"trash","page":"…"}.',
+  'To organize: make the few areas a workspace needs as pages (with a ref), then move what belongs in each into it; rename what is badly named; put what is empty, duplicated or finished in the Trash (it can be restored) or into an Archive page; turn notes that are really a list of things into a database with rows. A move puts a page at the end of its new parent; moving it to "top" puts it at the top level. Never trash a page with content the user may want without saying so in your line.',
+  'A parent, page or database is "current" (the page in the PAGE section), an id shown in square brackets in the WORKSPACE or RELATED section or in what a tool returned, or "@a" for what an earlier action of the same block created with "ref":"a". Leave "parent" out to create at the top level. Use only ids that appear there; never make one up.',
   'In a row, "Name" is its title and every other key is the name of a property. Values: text, numbers, true or false, dates as YYYY-MM-DD, the name of an option for a select and a list of names for a multi_select. To add rows to a database that exists, use the property names the WORKSPACE section gives for it.',
   'Markdown inside an action follows the Markdown rules below. Put real content into what you create, drawn from the conversation and the sections: never an empty shell, and nothing the user did not ask for.'
 ]
+
+/** For a request that may read the workspace: what the tools are for, and how to use them quietly. */
+export const TOOLS_RULE = `You can read the user's workspace with the sel tools (${TOOL_LIST}). Use them whenever the sections are not enough: to find a page, to read what is in it, to see the whole tree before you organize it, and to check that every id you name exists. They read only. Do not write anything before or between tool calls, and never describe what you looked at: write only the final reply.`
 
 const CONTEXT_RULE =
   'The WORKSPACE section, when present, says what time it is, where the page sits and what else the user keeps in this app; RELATED holds excerpts of other pages that may bear on the question; TODAY holds their agenda and open tasks. Use them when the question reaches beyond the page, and say which page something comes from. Do not recite them.'
@@ -329,8 +336,10 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   const rules = [...(spec.rules ?? [])]
   if (workspace || related || (day && !aboutDay)) rules.push(CONTEXT_RULE)
   if (council) rules.push(COUNCIL_RULE)
-  // Only the one who answers the user proposes anything; the council advises.
-  if (isAsk && !member) rules.push(...ACTIONS_RULES)
+  if (isAsk && options.tools) rules.push(TOOLS_RULE)
+  // The one who answers the user proposes; a member of the council drafts in the same form, for him.
+  if (isAsk && member) rules.push(MEMBER_DRAFT_RULE)
+  if (isAsk) rules.push(...ACTIONS_RULES)
 
   if (request.action !== 'translate') {
     const fallback = options.defaultLanguage && options.defaultLanguage !== 'auto' ? options.defaultLanguage : undefined

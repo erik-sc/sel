@@ -122,7 +122,7 @@ export function Dock(): JSX.Element | null {
     if (current.id) void window.api.herman.nudge.dismiss(current.id, feedback).catch(() => undefined)
   }, [])
 
-  // The first meeting: once he has drawn himself, two sentences about who he is. Said once.
+  // The first meeting: once he has drawn himself, a hello and his name. Said once.
   const greeting = state?.greeting ?? null
   useEffect(() => {
     if (!greeting) return
@@ -467,7 +467,7 @@ export function Dock(): JSX.Element | null {
               </>
             ) : (
               <button type="button" onClick={() => dismiss()}>
-                {bubble.greeting ? 'Good' : 'Close'}
+                {bubble.greeting ? 'Hello' : 'Close'}
               </button>
             )}
           </div>
