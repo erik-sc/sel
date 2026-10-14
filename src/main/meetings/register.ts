@@ -1,9 +1,10 @@
-import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, webContents, type IpcMainEvent, type IpcMainInvokeEvent, type Session } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, ipcMain, webContents, type IpcMainEvent, type Session } from 'electron'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { MEETINGS_CHANNELS, type MeetingsStatus } from '../../shared/meetings'
 import { isValidId } from '../db/blocks'
 import type { Repository } from '../db/repository'
+import type { Handlers } from '../invoke'
 import { isAppUrl, isTrustedSender } from '../security'
 import { recordingGrants } from './grant'
 import type { MeetingsBridge } from './index'
@@ -12,14 +13,12 @@ import type { MeetingsBridge } from './index'
  * The `meetings:*` channels and the two places where the app's lifecycle meets a recording
  * (a window closing, the app quitting). This file is all of the feature that loads at
  * start-up; the service, the transcription engine and the downloader are imported when a
- * window first asks. Every invoke goes through `handle`, which checks the sender and reduces
- * failures to safe messages; every argument is validated by the service before it is used.
+ * window first asks. Every invoke handler is registered by ../ipc.ts behind its wrapper, which
+ * checks the sender and reduces failures to safe messages; every argument is validated by the
+ * service before it is used.
  */
 
-type Handle = (channel: string, fn: (args: unknown[], event: IpcMainInvokeEvent) => unknown) => void
-
 export interface MeetingsIpcContext {
-  handle: Handle
   repo: Repository
   /** Broadcasts what a background step (a transcript written) changed in the database. */
   flushChanges(): void
@@ -38,61 +37,76 @@ export interface MeetingsHooks {
 
 const PRUNE_IDLE_MS = 30_000
 
-export function registerMeetingsIpc({ handle, repo, flushChanges }: MeetingsIpcContext): MeetingsHooks {
+export function registerMeetingsIpc({ repo, flushChanges }: MeetingsIpcContext): MeetingsHooks & { handlers: Handlers<'meetings'> } {
   let bridge: MeetingsBridge | null = null
   const meetings = async (): Promise<MeetingsBridge> => (bridge ??= new (await import('./index')).MeetingsBridge(repo, flushChanges))
   const windowOf = (event: { sender: Electron.WebContents }): BrowserWindow | null => BrowserWindow.fromWebContents(event.sender)
   app.on('will-quit', () => void bridge?.dispose())
 
-  // Every window asks this at start-up. Until something was recorded there is nothing to load:
-  // the answer is known from one setting.
-  handle('meetings:status', async () => {
-    if (bridge || existsSync(join(app.getPath('userData'), 'recordings'))) return (await meetings()).service.status()
-    const id = repo.getSetting('meetings.databaseId')
-    const database = isValidId(id) ? repo.get(id) : null
-    const idle: MeetingsStatus = {
-      systemAudio: process.platform === 'win32',
-      databaseId: database && database.type === 'database' && database.trashedAt === null ? database.id : null,
-      recording: null,
-      transcribing: null,
-      interrupted: []
-    }
-    return idle
-  })
-  handle('meetings:create', async ([input]) => (await meetings()).service.create(input))
+  const handlers: Handlers<'meetings'> = {
+    // Every window asks this at start-up. Until something was recorded there is nothing to load:
+    // the answer is known from one setting.
+    'meetings:status': async () => {
+      if (bridge || existsSync(join(app.getPath('userData'), 'recordings'))) return (await meetings()).service.status()
+      const id = repo.getSetting('meetings.databaseId')
+      const database = isValidId(id) ? repo.get(id) : null
+      const idle: MeetingsStatus = {
+        systemAudio: process.platform === 'win32',
+        databaseId: database && database.type === 'database' && database.trashedAt === null ? database.id : null,
+        recording: null,
+        transcribing: null,
+        interrupted: []
+      }
+      return idle
+    },
+    'meetings:create': async ([input]) => (await meetings()).service.create(input),
 
-  // ---- the transcription engine
-  handle('meetings:engine.status', async () => (await meetings()).engine.status())
-  // Runs for as long as the download does; its progress goes to every window as events.
-  handle('meetings:engine.download', async ([options]) => {
-    const model = options !== null && typeof options === 'object' ? (options as { model?: unknown }).model : undefined
-    return (await meetings()).engine.install(model)
-  })
-  handle('meetings:engine.cancelDownload', async () => (await meetings()).engine.cancelDownload())
-  // Both go through a native dialog: the renderer never names a path to run or to load.
-  handle('meetings:engine.pickProgram', async (_args, event) => (await meetings()).pickProgram(windowOf(event)))
-  handle('meetings:engine.pickModel', async (_args, event) => (await meetings()).pickModel(windowOf(event)))
-  handle('meetings:engine.remove', async () => (await meetings()).engine.remove())
+    // ---- the transcription engine
+    'meetings:engine.status': async () => (await meetings()).engine.status(),
+    // Runs for as long as the download does; its progress goes to every window as events.
+    'meetings:engine.download': async ([options]) => {
+      const model = options !== null && typeof options === 'object' ? (options as { model?: unknown }).model : undefined
+      return (await meetings()).engine.install(model)
+    },
+    'meetings:engine.cancelDownload': async () => (await meetings()).engine.cancelDownload(),
+    // Both go through a native dialog: the renderer never names a path to run or to load.
+    'meetings:engine.pickProgram': async (_args, event) => (await meetings()).pickProgram(windowOf(event)),
+    'meetings:engine.pickModel': async (_args, event) => (await meetings()).pickModel(windowOf(event)),
+    'meetings:engine.remove': async () => (await meetings()).engine.remove(),
 
-  // ---- recording. `begin` and `probe` are the user gestures the permission handlers wait for.
-  handle('meetings:recording.probe', async (_args, event) => {
-    const m = await meetings()
-    m.watch(event.sender)
-    m.service.probe(event.sender.id)
-  })
-  handle('meetings:recording.begin', async ([pageId, options], event) => {
-    const m = await meetings()
-    m.watch(event.sender)
-    return m.service.begin(event.sender.id, pageId, options)
-  })
-  handle('meetings:recording.pause', async ([token], event) => (await meetings()).service.pause(event.sender.id, token))
-  handle('meetings:recording.resume', async ([token], event) => (await meetings()).service.resume(event.sender.id, token))
-  handle('meetings:recording.stop', async ([token], event) => (await meetings()).service.stop(event.sender.id, token))
-  handle('meetings:recording.recover', async ([pageId]) => (await meetings()).service.recover(pageId))
-  handle('meetings:recording.discard', async ([pageId]) => (await meetings()).service.discard(pageId))
+    // ---- recording. `begin` and `probe` are the user gestures the permission handlers wait for.
+    'meetings:recording.probe': async (_args, event) => {
+      const m = await meetings()
+      m.watch(event.sender)
+      m.service.probe(event.sender.id)
+    },
+    'meetings:recording.begin': async ([pageId, options], event) => {
+      const m = await meetings()
+      m.watch(event.sender)
+      return m.service.begin(event.sender.id, pageId, options)
+    },
+    'meetings:recording.pause': async ([token], event) => (await meetings()).service.pause(event.sender.id, token),
+    'meetings:recording.resume': async ([token], event) => (await meetings()).service.resume(event.sender.id, token),
+    'meetings:recording.stop': async ([token], event) => (await meetings()).service.stop(event.sender.id, token),
+    'meetings:recording.recover': async ([pageId]) => (await meetings()).service.recover(pageId),
+    'meetings:recording.discard': async ([pageId]) => (await meetings()).service.discard(pageId),
 
-  // The binary channels: fire-and-forget, so nothing is thrown back. A message from anything
-  // but the app's own top frame is dropped here; everything else is the frame gate's business.
+    // ---- after the recording
+    'meetings:transcribe': async ([pageId]) => (await meetings()).service.transcribe(pageId),
+    'meetings:cancelTranscribe': async ([pageId]) => (await meetings()).service.cancelTranscribe(pageId),
+    'meetings:setSpeakers': async ([pageId, speakers]) => (await meetings()).service.setSpeakers(pageId, speakers),
+    'meetings:audio.info': async ([pageId]) => (await meetings()).service.info(pageId),
+    'meetings:audio.delete': async ([pageId]) => (await meetings()).service.deleteAudio(pageId),
+    'meetings:storage': async () => {
+      const m = await meetings()
+      const [recordings, engine] = await Promise.all([m.service.storage(), m.engine.storageBytes()])
+      return { ...recordings, engineBytes: engine }
+    },
+    'meetings:openFolder': async () => (await meetings()).openFolder()
+  }
+
+  // The binary channels of a recording: fire-and-forget, so nothing is thrown back. A message from
+  // anything but the app's own top frame is dropped here; everything else is the frame gate's business.
   const binary = (channel: string, deliver: (m: MeetingsBridge, sender: number, args: unknown[]) => void): void => {
     ipcMain.on(channel, (event: IpcMainEvent, ...args: unknown[]) => {
       // No bridge, no recording: there is nobody to deliver to.
@@ -107,19 +121,6 @@ export function registerMeetingsIpc({ handle, repo, flushChanges }: MeetingsIpcC
   binary(MEETINGS_CHANNELS.frames, (m, sender, [token, seq, mic, system]) => m.service.frames(sender, token, seq, mic, system))
   binary(MEETINGS_CHANNELS.encoded, (m, sender, [token, stream, seq, bytes]) => m.service.encoded(sender, token, stream, seq, bytes))
 
-  // ---- after the recording
-  handle('meetings:transcribe', async ([pageId]) => (await meetings()).service.transcribe(pageId))
-  handle('meetings:cancelTranscribe', async ([pageId]) => (await meetings()).service.cancelTranscribe(pageId))
-  handle('meetings:setSpeakers', async ([pageId, speakers]) => (await meetings()).service.setSpeakers(pageId, speakers))
-  handle('meetings:audio.info', async ([pageId]) => (await meetings()).service.info(pageId))
-  handle('meetings:audio.delete', async ([pageId]) => (await meetings()).service.deleteAudio(pageId))
-  handle('meetings:storage', async () => {
-    const m = await meetings()
-    const [recordings, engine] = await Promise.all([m.service.storage(), m.engine.storageBytes()])
-    return { ...recordings, engineBytes: engine }
-  })
-  handle('meetings:openFolder', async () => (await meetings()).openFolder())
-
   const recordingWindow = (): BrowserWindow | null => {
     const owner = bridge?.service.recordingOwner
     if (owner === null || owner === undefined) return null
@@ -128,7 +129,8 @@ export function registerMeetingsIpc({ handle, repo, flushChanges }: MeetingsIpcC
   let asking = false
 
   return {
-    holdsRecording: (win) => !win.isDestroyed() && bridge?.service.recordingOwner === win.webContents.id,
+    handlers,
+    holdsRecording:(win) => !win.isDestroyed() && bridge?.service.recordingOwner === win.webContents.id,
     recordingWindow,
     askToStop(win, then) {
       if (asking || win.isDestroyed()) return
