@@ -712,6 +712,31 @@ body.is-resizing .sidebar {
   flex-shrink: 0;
 }
 
+/* The page's word count and reading time: faint text beside the page actions, a little firmer
+   while it counts a selection. Characters are in its tooltip. */
+.word-count {
+  flex-shrink: 0;
+  padding: 0 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: default;
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.word-count:hover,
+.word-count.is-selection {
+  color: var(--text-secondary);
+}
+
+/* A narrow window keeps its room for the breadcrumb. */
+@media (max-width: 720px) {
+  .word-count {
+    display: none;
+  }
+}
+
 /* A meeting is being recorded: a steady dot, the word and the time. Quiet, and always there. */
 .recording-indicator {
   display: inline-flex;

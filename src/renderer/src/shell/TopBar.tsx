@@ -23,6 +23,7 @@ import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { topBarPageMenu } from './pageMenu'
 import { showOrHideAssistant } from './menuCommands'
+import { WordCount } from './WordCount'
 
 function Crumb({ id, current }: { id: string; current?: boolean }) {
   const block = useBlock(id)
@@ -139,6 +140,7 @@ export const TopBar = memo(function TopBar() {
         </IconButton>
       </div>
       {pageId && isPage ? <Breadcrumb pageId={pageId} /> : <div className="breadcrumb" />}
+      {pageId && block?.type === 'page' && <WordCount pageId={pageId} />}
       <RecordingIndicator />
       {pageId && isPage && block && (
         <div className="topbar-actions">

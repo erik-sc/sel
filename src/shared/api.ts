@@ -4,6 +4,7 @@ import type { BriefingApi } from './briefing'
 import type { AgentKind, AiAgentInfo } from './council'
 import type { FeedbackApi } from './feedback'
 import type { HermanApi } from './herman'
+import type { InvokeChannels } from './ipc'
 import type { MeetingsApi } from './meetings'
 import type {
   Block,
@@ -19,7 +20,8 @@ import type { RestoreMode, RestoreResult, VersionInfo, VersionSnapshot, VersionS
 
 /**
  * The contract exposed on `window.api` by the preload script.
- * Every method maps to the ipc channel `<namespace>:<method>` (see IPC below).
+ * Every method that returns a promise is an invoke call on the channel `<namespace>:<method>`,
+ * declared once in `INVOKE` below; events and fire-and-forget sends are named in `IPC`.
  * All mutations are applied in one SQLite transaction and broadcast a ChangeEvent.
  */
 export interface Api {
@@ -259,7 +261,7 @@ export type MenuCommand =
   | 'command-palette'
   | 'keyboard-shortcuts'
 
-/** ipc channel names. invoke channels are `<namespace>:<method>`. */
+/** Event and fire-and-forget channel names. Invoke channels are declared in `INVOKE` below. */
 export const IPC = {
   change: 'event:change',
   command: 'event:command',
@@ -267,5 +269,131 @@ export const IPC = {
   windowToggleMaximize: 'window:toggleMaximize',
   windowClose: 'window:close'
 } as const
+
+/** Every invoke channel of `Api`: `blocks.get` answers on `blocks:get`, `ai.agents.list` on `ai:agents.list`. */
+export type InvokeChannel = InvokeChannels<Api>
+
+/**
+ * The invoke channels, one per method of `Api` that returns a promise: the preload exposes these
+ * and no other, and main must give each one a handler (see src/main/invoke.ts). Typecheck fails
+ * when a method of `Api` is missing here or a line here names no method. To add a call: write the
+ * method in `Api` (or a feature's contract), add its channel here, and add its handler in main.
+ */
+export const INVOKE = {
+  'blocks:get': true,
+  'blocks:getMany': true,
+  'blocks:getTree': true,
+  'blocks:children': true,
+  'blocks:create': true,
+  'blocks:update': true,
+  'blocks:move': true,
+  'blocks:delete': true,
+  'blocks:apply': true,
+
+  'pages:listRoot': true,
+  'pages:listChildren': true,
+  'pages:listFavorites': true,
+  'pages:listRecent': true,
+  'pages:listTrash': true,
+  'pages:restore': true,
+  'pages:deleteForever': true,
+  'pages:ancestors': true,
+  'pages:duplicate': true,
+  'pages:exportMarkdown': true,
+  'pages:importMarkdown': true,
+
+  'databases:list': true,
+  'databases:locations': true,
+
+  'search:query': true,
+
+  'versions:list': true,
+  'versions:get': true,
+  'versions:current': true,
+  'versions:save': true,
+  'versions:rename': true,
+  'versions:delete': true,
+  'versions:restore': true,
+  'versions:stats': true,
+  'versions:clear': true,
+
+  'files:pickImage': true,
+  'files:saveImage': true,
+  'files:saveGeneratedImage': true,
+
+  'ai:status': true,
+  'ai:run': true,
+  'ai:cancel': true,
+  'ai:pickCli': true,
+  'ai:agents.list': true,
+  'ai:agents.connect': true,
+  'ai:agents.remove': true,
+
+  'sync:status': true,
+  'sync:setup': true,
+  'sync:now': true,
+  'sync:pause': true,
+  'sync:disconnect': true,
+  'sync:pickGit': true,
+  'sync:unlock': true,
+  'sync:setEncryption': true,
+
+  'briefing:get': true,
+  'briefing:agenda': true,
+  'briefing:anotherPhrase': true,
+  'briefing:calendars.list': true,
+  'briefing:calendars.add': true,
+  'briefing:calendars.update': true,
+  'briefing:calendars.remove': true,
+  'briefing:calendars.test': true,
+  'briefing:completeTask': true,
+  'briefing:undoCompleteTask': true,
+  'briefing:ensurePhrasesDatabase': true,
+  'briefing:addPhrase': true,
+  'briefing:databases': true,
+  'briefing:brief': true,
+
+  'meetings:status': true,
+  'meetings:engine.status': true,
+  'meetings:engine.download': true,
+  'meetings:engine.cancelDownload': true,
+  'meetings:engine.pickProgram': true,
+  'meetings:engine.pickModel': true,
+  'meetings:engine.remove': true,
+  'meetings:create': true,
+  'meetings:recording.probe': true,
+  'meetings:recording.begin': true,
+  'meetings:recording.pause': true,
+  'meetings:recording.resume': true,
+  'meetings:recording.stop': true,
+  'meetings:recording.recover': true,
+  'meetings:recording.discard': true,
+  'meetings:transcribe': true,
+  'meetings:cancelTranscribe': true,
+  'meetings:setSpeakers': true,
+  'meetings:audio.info': true,
+  'meetings:audio.delete': true,
+  'meetings:storage': true,
+  'meetings:openFolder': true,
+
+  'herman:state': true,
+  'herman:nudge.next': true,
+  'herman:nudge.dismiss': true,
+  'herman:met': true,
+  'herman:reset': true,
+
+  'feedback:list': true,
+  'feedback:create': true,
+  'feedback:withdraw': true,
+  'feedback:openFolder': true,
+
+  'app:getTheme': true,
+  'app:setTheme': true,
+  'app:getSetting': true,
+  'app:setSetting': true,
+  'app:openExternal': true,
+  'app:newWindow': true,
+  'app:window.isMaximized': true
+} as const satisfies Record<InvokeChannel, true>
 
 export const FILE_PROTOCOL = 'sel-file'

@@ -8,7 +8,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 ## What it does
 
-**Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go.
+**Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go. The top bar keeps a quiet count of the page's words and reading time, or of what you have selected; Settings → General turns it off.
 
 **Focus.** `Ctrl+Shift+F` leaves only the page: no sidebar, no tabs, no Herman. Move the mouse to the top edge for the bars; press the keys again, or Esc when nothing is selected, to come back. From `Ctrl+K` you can also have it fade every block but the one you are writing in.
 
