@@ -44,16 +44,44 @@ const OPERATORS: Record<PropertyType, FilterOperator[]> = {
   last_edited_time: ['equals', 'lt', 'gt'],
   relation: ['contains', 'not_contains', 'is_empty', 'is_not_empty'],
   // A rollup filters as what it gives (`filterTypeOf`); these are the operators of a count.
-  rollup: ['equals', 'not_equals', 'gt', 'lt', 'is_empty', 'is_not_empty']
+  rollup: ['equals', 'not_equals', 'gt', 'lt', 'is_empty', 'is_not_empty'],
+  // So does a formula; these are the operators of text (what a formula with an error counts as).
+  formula: TEXT_OPS
 }
 
-/** Operators of a property type. For a property, use `operatorsOf`: a rollup filters as what it gives. */
+/** Operators of a property type. For a property, use `operatorsOf`: a rollup or a formula filters as what it gives. */
 export function operatorsFor(type: PropertyType): FilterOperator[] {
   return Object.hasOwn(OPERATORS, type) ? OPERATORS[type] : TEXT_OPS
 }
 
-export function operatorsOf(prop: PropertySchema): FilterOperator[] {
-  return operatorsFor(filterTypeOf(prop))
+/** Operators of a property. A formula's depend on what it gives, which `schema` tells. */
+export function operatorsOf(prop: PropertySchema, schema?: Schema): FilterOperator[] {
+  return operatorsFor(filterTypeOf(prop, schema))
+}
+
+/**
+ * The operators a stored rule on a property may keep. A formula's are those of anything a
+ * formula can give: a rule that does not fit what it gives right now (say, while it has an
+ * error) is ignored rather than dropped, and works again once the formula does.
+ */
+export function ruleOperatorsOf(prop: PropertySchema, schema?: Schema): FilterOperator[] {
+  return prop.type === 'formula' ? FORMULA_RULE_OPERATORS : operatorsOf(prop, schema)
+}
+
+const FORMULA_RULE_OPERATORS: FilterOperator[] = [
+  ...new Set([...OPERATORS.number, ...OPERATORS.text, ...OPERATORS.checkbox, ...OPERATORS.date])
+]
+
+/** The value a stored rule keeps: for a formula any text or number (what it means depends on what the formula gives). */
+export function ruleValueOf(prop: PropertySchema, value: unknown, schema?: Schema): PropertyValue | undefined {
+  if (prop.type !== 'formula') return filterValueFor(prop, value, schema)
+  if (typeof value === 'number') return isFinite(value) ? value : undefined
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined
+}
+
+/** The schema a row's formulas are read with: its database's, as the context has it. */
+function schemaFor(row: Block, ctx: CellContext | undefined): Schema | undefined {
+  return ctx && row.parentId ? ctx.schemaOf(row.parentId) : undefined
 }
 
 export function operatorNeedsValue(op: FilterOperator): boolean {
@@ -86,8 +114,8 @@ export function operatorLabel(op: FilterOperator, type: PropertyType): string {
   }
 }
 
-export function defaultFilter(prop: PropertySchema): ViewFilter {
-  return { propertyId: prop.id, operator: operatorsOf(prop)[0] }
+export function defaultFilter(prop: PropertySchema, schema?: Schema): ViewFilter {
+  return { propertyId: prop.id, operator: operatorsOf(prop, schema)[0] }
 }
 
 /**
@@ -95,9 +123,9 @@ export function defaultFilter(prop: PropertySchema): ViewFilter {
  * it is missing, wrong-typed or points at an option that no longer exists.
  * A rule without a usable value is "incomplete" and filters nothing out.
  */
-export function filterValueFor(prop: PropertySchema, value: unknown): PropertyValue | undefined {
+export function filterValueFor(prop: PropertySchema, value: unknown, schema?: Schema): PropertyValue | undefined {
   if (value === null || value === undefined) return undefined
-  switch (filterTypeOf(prop)) {
+  switch (filterTypeOf(prop, schema)) {
     case 'title':
     case 'text':
     case 'url': {
@@ -130,10 +158,11 @@ export function filterValueFor(prop: PropertySchema, value: unknown): PropertyVa
   }
 }
 
-/** Whether a row passes one rule. `ctx` lets relations and rollups see the related rows. */
+/** Whether a row passes one rule. `ctx` lets relations and rollups see the related rows, and formulas their schema. */
 export function matchesFilter(row: Block, prop: PropertySchema, filter: ViewFilter, ctx?: CellContext): boolean {
   const op = filter?.operator
-  const type = filterTypeOf(prop)
+  const schema = prop.type === 'formula' ? schemaFor(row, ctx) : undefined
+  const type = filterTypeOf(prop, schema)
   if (!operatorsFor(type).includes(op)) return true
   const v = readCell(row, prop, ctx)
   switch (op) {
@@ -146,7 +175,7 @@ export function matchesFilter(row: Block, prop: PropertySchema, filter: ViewFilt
     case 'unchecked':
       return v !== true
   }
-  const fv = filterValueFor(prop, filter.value)
+  const fv = filterValueFor(prop, filter.value, schema)
   // An incomplete rule (no value typed yet) does not filter anything out.
   if (fv === undefined) return true
 
@@ -238,13 +267,13 @@ export function applySearch(rows: Block[], query: string): Block[] {
 export function defaultsFromFilters(schema: Schema, filters: ViewFilter[] | undefined): { title?: string; values: Values } {
   const out: { title?: string; values: Values } = { values: {} }
   for (const { filter: f, prop } of activeFilters(schema, filters)) {
-    if (!operatorsOf(prop).includes(f.operator)) continue
+    if (!operatorsOf(prop, schema).includes(f.operator)) continue
     if (prop.type === 'checkbox') {
       if (f.operator === 'checked') out.values[prop.id] = true
       else if (f.operator === 'unchecked') delete out.values[prop.id]
       continue
     }
-    const fv = filterValueFor(prop, f.value)
+    const fv = filterValueFor(prop, f.value, schema)
     if (fv === undefined) continue
     switch (prop.type) {
       case 'title':
@@ -292,7 +321,7 @@ export function defaultsFromFilters(schema: Schema, filters: ViewFilter[] | unde
 type SortKey = string | number | number[] | null
 
 function sortKey(row: Block, prop: PropertySchema, ctx?: CellContext): SortKey {
-  const type = filterTypeOf(prop)
+  const type = filterTypeOf(prop, prop.type === 'formula' ? schemaFor(row, ctx) : undefined)
   // Relations sort by the titles of the rows they link to.
   if (type === 'relation') return ctx ? cellText(row, prop, ctx) || null : null
   const v = readCell(row, prop, ctx)

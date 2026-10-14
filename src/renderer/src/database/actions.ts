@@ -488,7 +488,7 @@ export function updateRollup(databaseId: string, propertyId: string, patch: Part
   if (next === schema) return
   const before = L.propOf(schema, propertyId)
   const after = L.propOf(next, propertyId)
-  const kindChanged = !!before && !!after && L.filterTypeOf(before) !== L.filterTypeOf(after)
+  const kindChanged = !!before && !!after && L.filterTypeOf(before, schema) !== L.filterTypeOf(after, next)
   if (!kindChanged) {
     setSchema(databaseId, next)
     return
@@ -497,6 +497,17 @@ export function updateRollup(databaseId: string, propertyId: string, patch: Part
     v.filters.some((f) => f.propertyId === propertyId) ? { ...v, filters: v.filters.filter((f) => f.propertyId !== propertyId) } : v
   )
   setSchema(databaseId, next, L.sanitizeViews(cleared, next))
+}
+
+/**
+ * Sets what a formula computes from the text the editor holds (properties by name); it is
+ * stored with properties by id. The schema is read at commit time, so a rename made
+ * meanwhile is not undone.
+ */
+export function setFormula(databaseId: string, propertyId: string, text: string): void {
+  const { schema } = snapshot(databaseId)
+  const next = L.setFormula(schema, propertyId, L.formulaStoredText(text, schema))
+  if (next !== schema) setSchema(databaseId, next)
 }
 
 /**

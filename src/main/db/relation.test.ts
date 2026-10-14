@@ -102,6 +102,23 @@ describe('Markdown export', () => {
     expect(tasksMd).toContain('| Write | Alpha | 2 |')
   })
 
+  it('shows the result of a formula, which may read relations and rollups', () => {
+    const { projects } = twoWay()
+    const schema = repo.get(projects.id)?.props.schema ?? {}
+    repo.update(projects.id, {
+      props: tableOf({
+        ...schema,
+        summary: {
+          id: 'summary',
+          name: 'Summary',
+          type: 'formula',
+          formula: { expression: 'format(length(prop("tasks"))) + " tasks, " + format(prop("total") / 2) + " days | " + upper(prop("Name"))' }
+        }
+      })
+    })
+    expect(pageToMarkdown(repo, projects.id).markdown).toContain('| Alpha | Write, Test | 5 | 2 tasks, 2.5 days \\| ALPHA |')
+  })
+
   it('leaves out links to rows in the trash', () => {
     const { projects, t1 } = twoWay()
     repo.delete(t1.id)

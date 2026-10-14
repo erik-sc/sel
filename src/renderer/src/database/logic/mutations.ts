@@ -13,6 +13,7 @@ import type {
 } from '../../../../shared/types'
 import { sanitizeRelationConfig } from '../../../../shared/relation'
 import { isDateValue, normalizeDateValue, parseLooseDay } from './dates'
+import { DEFAULT_FORMULA, expressionOf, sanitizeFormulaConfig } from './formula'
 import { sanitizeViews } from './normalize'
 import { DEFAULT_ROLLUP, sanitizeRollupConfig } from './rollup'
 import {
@@ -69,7 +70,16 @@ export function createDefaultSchema(): Schema {
 
 export function addProperty(
   schema: Schema,
-  input: { id?: string; name?: string; type: PropertyType; options?: SelectOption[]; relation?: RelationConfig; rollup?: RollupConfig }
+  input: {
+    id?: string
+    name?: string
+    type: PropertyType
+    options?: SelectOption[]
+    relation?: RelationConfig
+    rollup?: RollupConfig
+    /** formula: its stored text (references by id). */
+    expression?: string
+  }
 ): { schema: Schema; property: PropertySchema } {
   // A database has exactly one title property.
   const type: PropertyType = input.type === 'title' && getTitleProperty(schema) ? 'text' : input.type
@@ -87,6 +97,7 @@ export function addProperty(
     if (relation) property.relation = relation
   }
   if (type === 'rollup') property.rollup = input.rollup ? sanitizeRollupConfig(input.rollup) : defaultRollup(schema)
+  if (type === 'formula') property.formula = sanitizeFormulaConfig({ expression: input.expression ?? '' })
   return { schema: { ...schema, [id]: property }, property }
 }
 
@@ -128,6 +139,17 @@ export function updateRollup(schema: Schema, propertyId: string, patch: Partial<
   for (const key of ['relationId', 'propertyId'] as const) if (next[key] === undefined) delete next[key]
   const clean = sanitizeRollupConfig(next)
   return sameValue(clean, current) ? schema : { ...schema, [propertyId]: { ...prop, rollup: clean } }
+}
+
+/**
+ * Sets what a formula computes. `expression` is the stored text, with references by id
+ * (`formulaStoredText` turns what the editor holds into it).
+ */
+export function setFormula(schema: Schema, propertyId: string, expression: string): Schema {
+  const prop = propOf(schema, propertyId)
+  if (!prop || prop.type !== 'formula') return schema
+  const formula = sanitizeFormulaConfig({ ...(prop.formula ?? DEFAULT_FORMULA), expression })
+  return formula.expression === expressionOf(prop) && prop.formula ? schema : { ...schema, [propertyId]: { ...prop, formula } }
 }
 
 export function renameProperty(schema: Schema, propertyId: string, name: string): Schema {
@@ -272,6 +294,7 @@ export function changePropertyType(
   const config = type === 'relation' ? sanitizeRelationConfig(relation) : undefined
   if (config) to.relation = config
   if (type === 'rollup') to.rollup = defaultRollup(schema)
+  if (type === 'formula') to.formula = DEFAULT_FORMULA
   const fromStored = !isComputedType(from.type) && from.type !== 'relation'
   let index: OptionIndex | undefined
   if (isSelectType(type)) {

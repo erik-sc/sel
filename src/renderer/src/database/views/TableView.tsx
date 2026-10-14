@@ -457,6 +457,7 @@ export function TableView(p: ViewProps): JSX.Element {
               key={row.id}
               databaseId={databaseId}
               row={row}
+              schema={schema}
               props={props}
               widths={widths}
               selected={selected.has(row.id)}

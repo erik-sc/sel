@@ -61,7 +61,7 @@ in main. A `MenuCommand` (src/shared/api.ts) is not an IPC call: it travels on `
 - Expected failures are typed codes defined in shared (src/shared/sync.ts:10-29, src/shared/ai.ts:114, src/shared/briefing.ts:34); sync's public methods return a status instead of throwing (src/main/sync/engine.ts:230-237).
 - Main logs with `console.error` and an area prefix such as `[main]`, `[ipc]`, `[sync]` (src/main/index.ts:163, src/main/ipc.ts:78, src/main/sync/engine.ts:362).
 - Renderer: `notifyError` for things the user must know, plain `console.error` for background refreshes (src/renderer/src/ui/toast.ts:88-91, src/renderer/src/store/blocks.ts:331).
-- Untrusted persisted data is sanitised on read and returned by reference when already valid, so memoisation holds (src/renderer/src/database/logic/normalize.ts:14, src/shared/chart.ts:60-84, src/renderer/src/store/tabs.ts:256).
+- Untrusted persisted data is sanitised on read and returned by reference when already valid, so memoisation holds (src/renderer/src/database/logic/normalize.ts:16, src/shared/chart.ts:60-84, src/renderer/src/store/tabs.ts:256).
 - Object keys from data are guarded against prototype members (src/shared/chart.ts:42-44, src/renderer/src/store/blocks.ts:51-57).
 - Child processes: no shell, argument arrays, allow-listed environment, timeouts and process-tree kill (src/main/sync/git.ts:370-378, src/main/ai/service.ts:118-148).
 

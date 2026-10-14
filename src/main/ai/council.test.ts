@@ -134,14 +134,15 @@ describe('what a question is asked against', () => {
     expect(workspace).toContain(`- Tasks [${tasks.id}], 2 rows. Properties: Name (title), Status (select: To do, Done), Due (date)`)
     expect(workspace).not.toContain('Old')
     expect(describeSchema(tasks)).not.toContain('Created')
-    // A relation names the database it links to; a rollup is computed, like the times.
+    // A relation names the database it links to; a rollup or a formula is computed, like the times.
     const related: Block = {
       ...tasks,
       props: {
         schema: {
           plan: { id: 'plan', name: 'Plan', type: 'relation', relation: { databaseId: tasks.id } },
           lost: { id: 'lost', name: 'Lost', type: 'relation', relation: { databaseId: 'gone-db' } },
-          sum: { id: 'sum', name: 'Sum', type: 'rollup', rollup: { function: 'count' } }
+          sum: { id: 'sum', name: 'Sum', type: 'rollup', rollup: { function: 'count' } },
+          calc: { id: 'calc', name: 'Calc', type: 'formula', formula: { expression: '1 + 1' } }
         }
       }
     }

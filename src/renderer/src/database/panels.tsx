@@ -75,17 +75,19 @@ function DebouncedInput({
 
 function FilterValueEditor({
   prop,
+  schema,
   filter,
   onChange
 }: {
   prop: PropertySchema
+  schema: L.Schema
   filter: ViewFilter
   onChange: (value: PropertyValue | undefined) => void
 }): JSX.Element | null {
   const { cells } = useRelated()
   if (!L.operatorNeedsValue(filter.operator)) return <span className="db-rule-value is-empty" />
   const value = filter.value
-  switch (L.filterTypeOf(prop)) {
+  switch (L.filterTypeOf(prop, schema)) {
     case 'relation': {
       const current = Array.isArray(value) ? (value[0] ?? '') : typeof value === 'string' ? value : ''
       const rows = cells ? L.linkableRows(L.relationOf(prop), cells) : []
@@ -204,7 +206,10 @@ export function FilterPanel({ databaseId, schema, view }: PanelProps): JSX.Eleme
       {filters.map((filter, index) => {
         const prop = L.propOf(schema, filter.propertyId)
         if (!prop) return null
-        const operators = L.operatorsOf(prop)
+        const type = L.filterTypeOf(prop, schema)
+        const fitting = L.operatorsOf(prop, schema)
+        // A rule on a formula keeps its condition while the formula gives something else (an error, say).
+        const operators = fitting.includes(filter.operator) ? fitting : [filter.operator, ...fitting]
         return (
           <div className="db-rule" key={index}>
             <span className="db-rule-prefix">{index === 0 ? 'Where' : 'And'}</span>
@@ -214,7 +219,7 @@ export function FilterPanel({ databaseId, schema, view }: PanelProps): JSX.Eleme
               onChange={(propertyId) =>
                 replace(index, prop.id, (_rule, s) => {
                   const target = L.propOf(s, propertyId)
-                  return target ? L.defaultFilter(target) : null
+                  return target ? L.defaultFilter(target, s) : null
                 })
               }
             />
@@ -233,13 +238,14 @@ export function FilterPanel({ databaseId, schema, view }: PanelProps): JSX.Eleme
             >
               {operators.map((operator) => (
                 <option key={operator} value={operator}>
-                  {L.operatorLabel(operator, L.filterTypeOf(prop))}
+                  {L.operatorLabel(operator, type)}
                 </option>
               ))}
             </select>
             <FilterValueEditor
-              key={`${prop.id}:${L.filterTypeOf(prop)}`}
+              key={`${prop.id}:${type}`}
               prop={prop}
+              schema={schema}
               filter={filter}
               onChange={(value) =>
                 replace(index, prop.id, (rule) => {
@@ -270,7 +276,7 @@ export function FilterPanel({ databaseId, schema, view }: PanelProps): JSX.Eleme
           onClick={() =>
             edit((current, s) => {
               const target = L.getTitleProperty(s)
-              return target ? [...current, L.defaultFilter(target)] : current
+              return target ? [...current, L.defaultFilter(target, s)] : current
             })
           }
         >

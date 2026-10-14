@@ -84,9 +84,12 @@ export function rollupValueType(config: RollupConfig | undefined): PropertyType 
   return kind === 'number' ? 'number' : kind === 'date' ? 'date' : 'text'
 }
 
-/** Properties of a related database a rollup can read: anything but relations and rollups (no chains). */
+/**
+ * Properties of a related database a rollup can read: anything but relations, rollups and
+ * formulas (no chains, so nothing can read itself through another database).
+ */
 export function isRollupSource(prop: PropertySchema | undefined): prop is PropertySchema {
-  return !!prop && prop.type !== 'relation' && prop.type !== 'rollup'
+  return !!prop && prop.type !== 'relation' && prop.type !== 'rollup' && prop.type !== 'formula'
 }
 
 const TEXT_FUNCTIONS: RollupFunction[] = ['show_original', 'count', 'count_values', 'count_unique']
