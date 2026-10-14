@@ -2,7 +2,7 @@
 
 | # | Question | Conjecture | Status | Evidence |
 |---|---|---|---|---|
-| 1 | Which types represent the core domain? | `Block`, `Op`, `PropertySchema`, `DatabaseView` in one shared file | verified (code) | src/shared/types.ts:62-74, src/shared/types.ts:251 |
+| 1 | Which types represent the core domain? | `Block`, `Op`, `PropertySchema`, `DatabaseView` in one shared file | verified (code) | src/shared/types.ts:62-74, src/shared/types.ts:264 |
 | 2 | Where is the entry point of the app? | Module body of the main script | verified (code) | src/main/index.ts:422-429 |
 | 3 | Where is data persisted? | One SQLite file, five tables | verified (code) | src/main/legacy.ts:5, src/main/db/schema.ts:9, src/main/db/schema.ts:66 |
 | 4 | How does the renderer talk to main? | Only through `window.api`; every invoke carries a client id | verified (code) | src/preload/index.ts:25, src/preload/index.ts:157 |
@@ -31,7 +31,7 @@
 | 27 | Can `addView` on a linked view with a missing source return a phantom id? | Yes | open | src/renderer/src/database/actions.ts:204-209, src/renderer/src/database/actions.ts:154-172 |
 | 28 | Is a silent first-run seed failure intended? | Yes; it retries next launch because `seeded` stays unset | open | src/main/index.ts:330-332, src/main/db/seed.ts:9-11 |
 | 29 | What does the editor use `document.execCommand` for? | Plain-text insertion on paste | open | src/renderer/src/editor/EditableText.tsx:209-211 |
-| 30 | What is a safe first change, and how to verify it? | A pure function under `database/logic` with its neighbouring test | open | src/renderer/src/database/logic/mutations.ts:58; `npx vitest run --dir src` |
+| 30 | What is a safe first change, and how to verify it? | A pure function under `database/logic` with its neighbouring test | open | src/renderer/src/database/logic/mutations.ts:59; `npx vitest run --dir src` |
 | 31 | What is the intended extension point for a new feature? | A shared contract with its `INVOKE` lines, a `register.ts` returning its `Handlers` map, a renderer gate and host; the preload changes only for events and sends | verified (code) | src/shared/api.ts:279, src/main/ipc.ts:244-295, src/preload/index.ts:30, src/renderer/src/ai/gate.ts:1-3, src/renderer/src/shell/Shell.tsx:5-9 |
 | 32 | Which areas have a single knowledgeable person? | All of them | verified (code) | `git shortlog -sn` (this session); commit 812b72a |
 | 33 | Was the Glass look abandoned as default? | Yes, Zen replaced it and Glass survives as a preset | verified (documented) | commit 5f843cb; src/renderer/src/appearance/presets.ts:4-5 |

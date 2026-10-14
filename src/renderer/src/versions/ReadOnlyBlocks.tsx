@@ -306,8 +306,8 @@ function BlockItem({ block, change, number, lookup }: { block: SnapshotBlock; ch
 
 function cellText(prop: PropertySchema, value: PropertyValue | undefined, row: SnapshotRow | undefined): string {
   if (prop.type === 'created_time') return row ? formatValue(row.createdAt, prop) : ''
-  // A rollup is computed from other rows, which a version does not hold; a relation shows how many it links.
-  if (prop.type === 'last_edited_time' || prop.type === 'rollup') return ''
+  // A rollup or a formula is computed from other rows or cells, which a version does not hold; a relation shows how many it links.
+  if (prop.type === 'last_edited_time' || prop.type === 'rollup' || prop.type === 'formula') return ''
   return formatValue(sanitizeValue(prop, value ?? null), prop)
 }
 

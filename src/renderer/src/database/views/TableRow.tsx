@@ -16,6 +16,8 @@ export function cellKey(rowId: string, propertyId: string): string {
 export interface TableRowProps {
   databaseId: string
   row: Block
+  /** The (store) schema the props come from: what a formula gives depends on it. */
+  schema: L.Schema
   props: PropertySchema[]
   widths: number[]
   selected: boolean
@@ -83,8 +85,8 @@ export const TableRow = memo(function TableRow(p: TableRowProps): JSX.Element {
         const editing = p.editingProp === prop.id
         const tdClasses = ['db-td']
         if (prop.type === 'title') tdClasses.push('is-title')
-        // Numbers line up on the right, rollups that give one included.
-        if (L.filterTypeOf(prop) === 'number') tdClasses.push('is-number')
+        // Numbers line up on the right, rollups and formulas that give one included.
+        if (L.filterTypeOf(prop, p.schema) === 'number') tdClasses.push('is-number')
         if (focused) tdClasses.push('is-focused')
         return (
           <div

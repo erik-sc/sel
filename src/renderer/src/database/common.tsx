@@ -9,6 +9,7 @@ import {
   Check,
   Clock,
   Close,
+  Formula,
   Gallery,
   Hash,
   Link,
@@ -48,6 +49,8 @@ export function TypeIcon({ type, size = 14 }: { type: PropertyType; size?: numbe
       return <ArrowUpRight size={size} />
     case 'rollup':
       return <Sigma size={size} />
+    case 'formula':
+      return <Formula size={size} />
     default:
       return <Text size={size} />
   }

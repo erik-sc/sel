@@ -194,6 +194,8 @@ export const Undo = make(
 export const Text = make(<path d="M2.5 4h11M2.5 8h11M2.5 12h7" />)
 export const Hash = make(<path d="M6.2 2.5 5 13.5M11 2.5 9.8 13.5M2.8 6h10.8M2.4 10h10.8" />)
 export const Sigma = make(<path d="M12 4V3H4l4.6 5L4 13h8v-1" />)
+/** "fx": a formula. */
+export const Formula = make(<path d="M8.6 2.6c-1.6-.4-2.5.3-2.8 2L4.6 11.4c-.3 1.7-1.2 2.4-2.8 2M3.6 6.2h4.6M9.4 7.2l4 4.6M13.4 7.2l-4 4.6" />)
 
 export const Tag = make(
   <>

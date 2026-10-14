@@ -1,6 +1,7 @@
-// The store side of relations and rollups: the databases a schema relates to are loaded,
-// pinned and watched while a view of it is on screen, and handed to the cells below as a
-// `CellContext` that changes whenever any of them (or their rows) does.
+// The store side of relations, rollups and formulas: the databases a schema relates to are
+// loaded, pinned and watched while a view of it is on screen, and handed to the cells below
+// as a `CellContext` that changes whenever any of them (or their rows) does. Formulas read
+// their own database's schema through it too.
 import { createContext, useContext, useEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import type { Block } from '@shared/types'
@@ -8,7 +9,7 @@ import { fetchBlocks, getBlock, pinTree, refreshBlocks, loadChildren, useBlockSt
 import * as L from './logic'
 
 export interface RelatedValue {
-  /** What relation and rollup cells read; undefined when the schema relates to nothing. */
+  /** What relation, rollup and formula cells read; undefined when the schema has none of them. */
   cells: L.CellContext | undefined
   /** Opens a linked row (as a page). */
   openPage?: (id: string, opts?: { newTab?: boolean }) => void
@@ -35,6 +36,7 @@ const MAX_DEPTH = 100
  */
 export function useRelatedCells(schema: L.Schema): L.CellContext | undefined {
   const targets = useMemo(() => L.relationTargets(schema), [schema])
+  const formulas = useMemo(() => L.hasFormulas(schema), [schema])
   const key = targets.join(' ')
 
   useEffect(() => {
@@ -69,11 +71,11 @@ export function useRelatedCells(schema: L.Schema): L.CellContext | undefined {
 
   return useMemo(
     () =>
-      targets.length
+      targets.length || formulas
         ? L.cellContext({ get: (id) => getBlock(id), isMissing: (id) => own(useBlockStore.getState().missing, id) === true })
         : undefined,
     // `watched` is what the context reads: a new one stands for new data.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [targets, watched]
+    [targets, formulas, watched]
   )
 }

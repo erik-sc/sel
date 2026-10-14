@@ -28,7 +28,8 @@ export const PROPERTY_TYPES: PropertyType[] = [
   'created_time',
   'last_edited_time',
   'relation',
-  'rollup'
+  'rollup',
+  'formula'
 ]
 
 export const TYPE_LABELS: Record<PropertyType, string> = {
@@ -43,7 +44,8 @@ export const TYPE_LABELS: Record<PropertyType, string> = {
   created_time: 'Created time',
   last_edited_time: 'Last edited time',
   relation: 'Relation',
-  rollup: 'Rollup'
+  rollup: 'Rollup',
+  formula: 'Formula'
 }
 
 export const VIEW_TYPES: ViewType[] = ['table', 'board', 'list', 'gallery', 'calendar', 'chart', 'calc']
@@ -101,11 +103,11 @@ export function isSelectType(type: PropertyType): type is 'select' | 'multi_sele
 }
 
 /**
- * Properties whose value is derived (from the block itself, or from related rows for a
- * rollup), never stored or edited.
+ * Properties whose value is derived (from the block itself, from related rows for a
+ * rollup, from the row's other properties for a formula), never stored or edited.
  */
 export function isComputedType(type: PropertyType): boolean {
-  return type === 'created_time' || type === 'last_edited_time' || type === 'rollup'
+  return type === 'created_time' || type === 'last_edited_time' || type === 'rollup' || type === 'formula'
 }
 
 /** Properties whose value is a day or a moment: dates, and the created / last edited times. */
@@ -182,8 +184,8 @@ export function findOption(prop: PropertySchema | undefined, id: unknown): Selec
  * data (e.g. a deleted select option) reads as empty instead of crashing.
  *
  * Only what the row itself holds: a relation gives every linked id it stores (whether
- * those rows still exist or not) and a rollup gives null. What other rows add to a cell
- * is read through `readCell` (./cell.ts).
+ * those rows still exist or not) and a rollup or a formula gives null. What other rows
+ * and properties add to a cell is read through `readCell` (./cell.ts).
  */
 export function getCellValue(row: Block, prop: PropertySchema): PropertyValue {
   switch (prop.type) {
@@ -194,6 +196,7 @@ export function getCellValue(row: Block, prop: PropertySchema): PropertyValue {
     case 'last_edited_time':
       return typeof row.updatedAt === 'number' && isFinite(row.updatedAt) ? row.updatedAt : null
     case 'rollup':
+    case 'formula':
       return null
   }
   const raw = storedValue(row, prop.id)
@@ -287,7 +290,7 @@ export function sanitizeValue(prop: PropertySchema, value: unknown): PropertyVal
       return ids.length ? ids : null
     }
     default:
-      // title lives in props.title; created/last edited time and rollups are computed.
+      // title lives in props.title; created/last edited time, rollups and formulas are computed.
       return null
   }
 }
@@ -506,8 +509,10 @@ export function formatValue(value: unknown, prop: PropertySchema, opts: FormatOp
       return count === 0 ? '' : count === 1 ? '1 page' : `${count} pages`
     }
     case 'rollup':
-      // A computed rollup value, by its shape (`cellText` knows the format of the related property).
+    case 'formula':
+      // A computed value, by its shape (`cellText` knows the format of a rollup's related property).
       if (typeof value === 'number') return formatNumber(value, prop.numberFormat, opts)
+      if (typeof value === 'boolean') return value ? 'Yes' : 'No'
       if (isDateValue(value)) return formatDate(value, opts)
       return typeof value === 'string' ? value : ''
   }

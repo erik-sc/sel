@@ -60,11 +60,12 @@ export function aggregateNeedsProperty(aggregate: ChartAggregate): boolean {
 }
 
 /**
- * Whether a chart can group by a property. Relations and rollups cannot: their values come
- * from other databases, which a chart (and its Markdown export) does not read.
+ * Whether a chart can group by a property. Relations, rollups and formulas cannot: their
+ * values are computed from other databases or properties, which a chart (and its Markdown
+ * export) does not read.
  */
 export function isChartAxisProperty(prop: PropertySchema | undefined): prop is PropertySchema {
-  return !!prop && prop.type !== 'relation' && prop.type !== 'rollup'
+  return !!prop && prop.type !== 'relation' && prop.type !== 'rollup' && prop.type !== 'formula'
 }
 
 /** The properties a chart can group by, in schema order. */
