@@ -239,7 +239,7 @@ export function SourcePicker({ onPick, onCreateNew, view = 'table' }: SourcePick
       label="Search databases"
       placeholder="Search databases…"
       loading={loading}
-      heading={view === 'chart' ? 'Chart a database' : 'Link to a database'}
+      heading={view === 'chart' ? 'Chart a database' : view === 'calc' ? 'Calculate from a database' : 'Link to a database'}
       onPick={pick}
       empty={(query) => (
         <>
@@ -251,6 +251,59 @@ export function SourcePicker({ onPick, onCreateNew, view = 'table' }: SourcePick
           )}
         </>
       )}
+    />
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Related database picker (a new relation property, or a relation pointed elsewhere)
+// ---------------------------------------------------------------------------
+
+/** Lists every database a relation can link to (this one included) and reports the chosen one. */
+export function RelationTargetPicker({ databaseId, onPick }: { databaseId: string; onPick: (targetId: string) => void }): JSX.Element {
+  const [items, setItems] = useState<PickItem[]>([])
+  const [loading, setLoading] = useState(true)
+  // A linked view relates the rows of its source.
+  const ownId = L.sourceIdOf(getBlock(databaseId)) ?? databaseId
+
+  useEffect(() => {
+    let alive = true
+    fetchBlocks(() => window.api.databases.list())
+      .then(async (databases) => {
+        if (!alive) return
+        const targets = databases.filter((b) => b.type === 'database' && !L.isLinkedView(b) && !b.trashedAt)
+        const base = (paths?: Map<string, string>): PickItem[] =>
+          targets.map((b) => ({
+            id: b.id,
+            title: titleOr(b),
+            icon: L.iconOf(b),
+            kind: 'database',
+            path: paths?.get(b.id) ?? '',
+            tag: b.id === ownId ? 'This database' : undefined
+          }))
+        setItems(base())
+        setLoading(false)
+        const paths = await loadPaths(targets.map((b) => b.id))
+        if (alive) setItems(base(paths))
+      })
+      .catch((error) => {
+        console.error('database: listing databases failed', error)
+        if (alive) setLoading(false)
+      })
+    return () => {
+      alive = false
+    }
+  }, [ownId])
+
+  return (
+    <PickList
+      items={items}
+      label="Search databases"
+      placeholder="Search databases…"
+      loading={loading}
+      heading="Relate to a database"
+      onPick={(item) => onPick(item.id)}
+      empty={(query) => <span>{query ? 'No databases match your search' : 'There are no databases yet'}</span>}
     />
   )
 }

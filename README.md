@@ -8,11 +8,13 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 ## What it does
 
-**Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go.
+**Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go. The top bar keeps a quiet count of the page's words and reading time, or of what you have selected; Settings → General turns it off.
 
-**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters.
+**Focus.** `Ctrl+Shift+F` leaves only the page: no sidebar, no tabs, no Herman. Move the mouse to the top edge for the bars; press the keys again, or Esc when nothing is selected, to come back. From `Ctrl+K` you can also have it fade every block but the one you are writing in.
 
-**Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not.
+**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters. A relation links rows to pages of another database (or of the same one), one way or both; a rollup sums up the linked pages: counts, totals, averages, the latest date. A Calculations view keeps the figures you work out from a database, such as `sum(Amount) / 12`. A formula property works out a value for each row from its other properties, like `prop("Price") * prop("Qty")`: the editor lists the functions and shows the result as you type, rows filter and sort by what it gives, and renaming a property never breaks it. Charts and other database blocks can sit side by side: choose "Place beside the previous block" from a block's menu.
+
+**Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not. `Ctrl+K` lists everything the app can do: type a few letters and press Enter. With text selected in a page, `Ctrl+K` adds a link instead. `Ctrl+/` shows every shortcut.
 
 **Go back.** Every page keeps a version history. Compare, restore, or restore as a copy.
 
@@ -38,7 +40,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 ## Principles
 
 - **Yours.** Your notes are a SQLite file on your disk. No account, no server.
-- **Still.** The app makes no network requests of its own, apart from loading images you link to, reading your calendar if you connect one, and downloading the transcription program and a speech model, once, when you ask for it.
+- **Still.** The app makes no network requests of its own, apart from loading images you link to, reading your calendar if you connect one, downloading the transcription program and a speech model, once, when you ask for it, and asking GitHub for a new version, if you turn that on or press Check now.
 - **Light.** One small window, a short list of dependencies.
 - **Careful.** The interface runs sandboxed, and nothing you paste or import is trusted.
 
@@ -46,9 +48,11 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 Download the installer for Windows from [Releases](https://github.com/erik-sc/sel/releases). It is not code-signed, so Windows asks before running it the first time.
 
+To hear of new versions, turn on Settings → General → Check for updates. sel then asks GitHub once a day, never while a meeting is recorded, and tells you when there is one. It downloads only when you say so, and installs when you restart or quit. Off, it asks nothing; Check now asks once.
+
 ## Run it
 
-You need [Node.js](https://nodejs.org) 22 or newer.
+You need [Node.js](https://nodejs.org) 24 or newer.
 
 ```bash
 npm install
@@ -68,6 +72,8 @@ npm test
 npm run typecheck
 ```
 
+CI runs both on every pull request.
+
 The code is in `src/`:
 
 - `main/` — the Electron main process: storage, files, version history, AI, the briefing, meetings, Herman.
@@ -77,15 +83,33 @@ The code is in `src/`:
 
 All style values live in one file, `src/renderer/src/styles/tokens.css`. Components only refer to them.
 
+To try the update flow in development, serve a folder with a `latest.yml` on `http://127.0.0.1:<port>/` and start the app with `SEL_UPDATE_FEED` set to that address. An installed app ignores the variable.
+
+## Releasing
+
+A tag publishes a release. For version `0.3.0`:
+
+1. Raise `version` in `package.json` to `0.3.0`, commit and merge it.
+2. Tag that commit `v0.3.0` (a `v`, then the version exactly) and push the tag: `git tag v0.3.0 && git push origin v0.3.0`.
+
+The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.3.0-setup.exe`, `sel-0.3.0-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
+
+To build by hand, `npm run dist` writes the same three files into `release/` and uploads nothing.
+
+sel 0.2.0 and earlier have no update check: install the first version that has one by hand.
+
 ## Keys
 
 | | |
 |---|---|
+| `Ctrl+K` | Commands (a link, with text selected) |
+| `Ctrl+/` | Every shortcut |
 | `Ctrl+P` | Find |
 | `Ctrl+F` | Find in this page |
 | `Ctrl+N` | New page |
 | `Ctrl+T` / `Ctrl+W` | New tab / close tab |
 | `Ctrl+\` | Hide the sidebar |
+| `Ctrl+Shift+F` | Focus mode |
 | `Ctrl+J` | Herman, the assistant |
 | `Ctrl+Alt+T` | Today |
 | `Ctrl+Alt+C` | Calendar |

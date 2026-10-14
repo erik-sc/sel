@@ -1,4 +1,5 @@
 import type { AiRequest } from '../../shared/ai'
+import { isRelationId } from '../../shared/relation'
 import { plainText } from '../../shared/richtext'
 import type { Block, SearchResult } from '../../shared/types'
 import { truncateMiddle } from './prompts'
@@ -68,8 +69,11 @@ function oneLine(value: unknown, max: number): string {
   return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : ''
 }
 
-/** "Name (title), Status (select: To do, Doing, Done), Due (date)": the shape of a database, from its stored schema. */
-export function describeSchema(database: Block): string {
+/**
+ * "Name (title), Status (select: To do, Doing, Done), Due (date), Projects (relation to Projects)":
+ * the shape of a database, from its stored schema. `source` names the databases relations point at.
+ */
+export function describeSchema(database: Block, source?: Pick<WorkspaceSource, 'get'>): string {
   const schema = database.props.schema
   if (!schema || typeof schema !== 'object') return ''
   const parts: string[] = []
@@ -78,7 +82,13 @@ export function describeSchema(database: Block): string {
     if (!property || typeof property !== 'object') continue
     const name = oneLine(property.name, 60)
     const type = oneLine(property.type, 20)
-    if (!name || !type || type === 'created_time' || type === 'last_edited_time') continue
+    // Computed values (times, rollups, formulas) are never written by a proposal.
+    if (!name || !type || type === 'created_time' || type === 'last_edited_time' || type === 'rollup' || type === 'formula') continue
+    if (type === 'relation') {
+      const target = isRelationId(property.relation?.databaseId) ? source?.get(property.relation.databaseId) : null
+      parts.push(`${name} (relation${target && target.type === 'database' ? ` to ${title(target)}` : ''})`)
+      continue
+    }
     const options = Array.isArray(property.options)
       ? property.options
           .map((option) => oneLine(option?.name, 40))
@@ -174,7 +184,7 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
     const path = source.ancestors(current.id).filter(live).map(title)
     const lines = [`Current page: ${label(current)}`, `Where it is: ${path.length ? `${path.join(' / ')} / ${title(current)}` : 'at the top level'}`]
     if (current.type === 'database') {
-      const schema = describeSchema(current)
+      const schema = describeSchema(current, source)
       lines.push(`It is a database with ${current.content.length} row${current.content.length === 1 ? '' : 's'}${schema ? `. Properties: ${schema}` : ''}`)
     } else {
       const children = source.listChildren(current.id).filter(live).slice(0, CONTEXT_CAPS.children)
@@ -194,7 +204,7 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
     const databases = source.listDatabases().filter(live).slice(0, CONTEXT_CAPS.databases)
     if (!databases.length) return null
     const lines = databases.map((database) => {
-      const schema = describeSchema(database)
+      const schema = describeSchema(database, source)
       return `- ${title(database)} [${database.id}], ${database.content.length} row${database.content.length === 1 ? '' : 's'}${schema ? `. Properties: ${schema}` : ''}`
     })
     return `Databases:\n${lines.join('\n')}`

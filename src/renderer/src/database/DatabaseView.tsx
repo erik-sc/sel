@@ -15,6 +15,7 @@ import { RenameInput, TitleInput } from './inputs'
 import { bootMark, whenIdle } from '@/boot'
 import {
   BoardView,
+  CalcView,
   CalendarView,
   ChartPanel,
   ChartView,
@@ -32,6 +33,7 @@ import {
   preloadView
 } from './lazyParts'
 import { useResolvedDatabase } from './resolved'
+import { RelatedContext, useRelatedCells } from './related'
 import { TableView } from './views/TableView'
 import { ListView } from './views/ListView'
 import './database.css'
@@ -199,7 +201,10 @@ export function DatabaseView(props: {
     setLinkPanel(null)
   }, [databaseId])
 
-  const rows = useMemo(() => L.queryRows(allRows, schema, view, search), [allRows, schema, view, search])
+  // Relations and rollups read the databases this one relates to; a change there re-runs the query.
+  const cells = useRelatedCells(schema)
+  const related = useMemo(() => ({ cells, openPage: onOpenPage }), [cells, onOpenPage])
+  const rows = useMemo(() => L.queryRows(allRows, schema, view, search, cells), [allRows, schema, view, search, cells])
 
   const onOpen = useCallback(
     (rowId: string, event?: OpenModifiers) => {
@@ -233,7 +238,7 @@ export function DatabaseView(props: {
     (propertyId: string) => {
       actions.patchView(databaseId, viewRef.current.id, (v, s) => {
         const prop = L.propOf(s, propertyId)
-        return prop ? { ...v, filters: [...v.filters, L.defaultFilter(prop)] } : v
+        return prop ? { ...v, filters: [...v.filters, L.defaultFilter(prop, s)] } : v
       })
       setPanel('filter')
     },
@@ -402,8 +407,10 @@ export function DatabaseView(props: {
     : []
 
   const isChart = view.type === 'chart'
-  // A panel only stays open on a view that has it (the chart panel on charts, sorts and properties elsewhere).
-  const openPanel: Panel | null = panel === 'filter' || (panel === 'chart') === isChart ? panel : null
+  // Figures are computed from all the rows the filters let through: their order and columns do not matter.
+  const ordersRows = !isChart && view.type !== 'calc'
+  // A panel only stays open on a view that has it (the chart panel on charts, sorts and properties on the views that order rows).
+  const openPanel: Panel | null = panel === 'filter' || (panel === 'chart' ? isChart : ordersRows) ? panel : null
   const panelAnchor =
     openPanel === 'filter'
       ? filterRef.current
@@ -433,11 +440,14 @@ export function DatabaseView(props: {
     case 'chart':
       body = <ChartView {...viewProps} />
       break
+    case 'calc':
+      body = <CalcView {...viewProps} />
+      break
     default:
       body = <TableView {...viewProps} />
   }
 
-  return (
+  const content = (
     <div className={inline ? 'db-root is-inline' : 'db-root'} data-view-type={view.type}>
       <div className="db-header">
         <button
@@ -555,7 +565,7 @@ export function DatabaseView(props: {
             {view.filters.length > 0 && <span className="db-tool-count">{view.filters.length}</span>}
           </button>
           {/* A chart orders its categories itself (chart settings), so row sorts are not offered on one. */}
-          {!isChart && (
+          {ordersRows && (
             <button
               type="button"
               ref={sortRef}
@@ -625,7 +635,7 @@ export function DatabaseView(props: {
               <Search size={14} />
             </button>
           )}
-          {!isChart && (
+          {ordersRows && (
             <button
               type="button"
               ref={propsRef}
@@ -720,4 +730,6 @@ export function DatabaseView(props: {
       )}
     </div>
   )
+  // Cells, cards and panels below read the related databases (and open linked rows) through this.
+  return <RelatedContext.Provider value={related}>{content}</RelatedContext.Provider>
 }

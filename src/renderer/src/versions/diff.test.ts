@@ -219,6 +219,14 @@ describe('diffSnapshots', () => {
     expect(d.counts.changed).toBe(5)
   })
 
+  it('says when a database block moved beside the one before it', () => {
+    const view = (sourceId: string, beside?: true) => ({ type: 'database' as const, p: { sourceId, views: [], ...(beside ? { beside } : {}) } })
+    const current = snap([blk('p', 'P', ['a', 'b']), blk('a', '', [], view('s')), blk('b', '', [], view('s', true))])
+    const version = snap([blk('p', 'P', ['a', 'b']), blk('a', '', [], view('s')), blk('b', '', [], view('s'))])
+    const d = diffSnapshots(current, version)
+    expect(d.blocks.get('b')!.props).toEqual([{ label: 'Place', from: 'Beside the block before', to: 'Below the block before' }])
+  })
+
   it('falls back to "changed" without word marks for a very large text', () => {
     const huge = 'word '.repeat(WORD_DIFF_LIMITS.chars / 5)
     const d = diffSnapshots(snap([blk('p', 'P', ['a']), blk('a', huge)]), snap([blk('p', 'P', ['a']), blk('a', huge + 'more')]))

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { sanitizeViewCharts } from '../../shared/chart'
 import { sourceIdOf } from '../../shared/linked'
+import { relinkDuplicate } from '../../shared/relation'
 import { plainText } from '../../shared/richtext'
 import type { Block, BlockProps, CreateBlockInput, DatabaseLocation, Op, SearchResult, UpdateBlockInput } from '../../shared/types'
 import {
@@ -944,12 +945,16 @@ export class Repository {
           trashedAt: null
         })
       }
+      // Relations follow the copy where their database was copied too, and a duplicated row
+      // shows up on the other side of its two-way relations (shared/relation.ts).
+      const relinked = relinkDuplicate(copies, copyOf, { get: (blockId) => this.get(blockId) })
       for (const copy of copies) {
         // A linked view copied together with its source follows the copy; any other keeps its source.
         const source = copy.type === 'database' && typeof copy.props.sourceId === 'string' ? copyOf.get(copy.props.sourceId) : undefined
         if (source !== undefined && source !== copy.id) copy.props.sourceId = source
         this.insertRow(copy)
       }
+      for (const [rowId, values] of relinked) this.updateOne(rowId, { props: { values } })
       this.attach(src.parentId, rootId, src.id)
       this.touchPage(src.parentId)
       return this.need(rootId)

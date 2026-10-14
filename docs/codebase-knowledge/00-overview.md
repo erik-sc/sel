@@ -36,19 +36,19 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 
 | Fact | Status |
 |---|---|
-| Node.js 22 or newer is required | verified in README.md:51 |
+| Node.js 24 or newer is required (a chart test fails on Node 22) | verified in README.md:53 |
 | `npm run dev` runs `electron-vite dev` | verified in package.json:9 |
 | `npm run build` runs `electron-vite build`; output entry is `./out/main/index.js` | verified in package.json:10, package.json:5 |
 | `npm run typecheck` runs `tsc --noEmit` twice, for `tsconfig.node.json` and `tsconfig.web.json` | verified in package.json:12 |
 | `npm test` runs `vitest run` | verified in package.json:13 |
-| There is no vitest config file at the root; vitest runs on defaults | verified: no `vitest.config.*` exists at the repo root (ls, this session) |
-| A bare `vitest run` can also collect stale copies under `.claude/worktrees/*`; `npx vitest run --dir src` avoids it | (unverified) carried over from an earlier session's notes |
+| vitest.config.ts restricts tests to `src/`, excludes `.claude/`, `out/`, `release/` and `node_modules/`, and resolves the `@shared` and `@` aliases; environment stays Node | verified in vitest.config.ts:15-26 |
+| `npm test` and `npx vitest run --dir src` collect the same 77 test files; worktree copies under `.claude/` are not collected | verified: both runs, and `vitest list --filesOnly` with a probe file under `.claude/worktrees` (this session) |
 | `npm run pack` builds an unpacked app into `release/`; `npm run dist` builds the installer | verified in package.json:15-16, electron-builder.yml:7 |
-| Packaging target is Windows NSIS x64, per-user, no auto-update, no signing, no publishing | verified in electron-builder.yml:47-50, electron-builder.yml:56-57, electron-builder.yml:28, electron-builder.yml:2 |
+| Packaging target is Windows NSIS x64, per-user, no signing; the build writes the GitHub update feed files (`latest.yml`, block map) but uploads nothing; updates are opt-in in the app | verified in electron-builder.yml:33, electron-builder.yml:72, package.json `dist`, src/main/updates/schedule.ts:46 |
 | The build fails on purpose if the installed Electron major is not 44 | verified in electron.vite.config.ts:15-26 |
 | Path aliases: `@shared` everywhere, `@` (renderer source) in the renderer only | verified in electron.vite.config.ts:60, electron.vite.config.ts:67, electron.vite.config.ts:73 |
 | The node tsconfig also compiles `src/renderer/src/database/logic/*.ts` | verified in tsconfig.node.json:15 |
-| No CI workflow exists | verified: `.github` does not exist (ls, this session) |
+| CI (GitHub Actions) runs `npm run typecheck` (Ubuntu) and `npx vitest run --dir src` (Windows) on Node 24, on every pull request and push to `main`; install is `npm ci --ignore-scripts` | verified in .github/workflows/ci.yml |
 
 ## Entry points
 

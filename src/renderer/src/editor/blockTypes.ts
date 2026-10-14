@@ -78,7 +78,8 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'db-board', label: 'Database – board', hint: 'Inline kanban board', glyph: '▥', keywords: 'database board kanban', kind: 'insert', type: 'database', view: 'board' },
   { id: 'db-list', label: 'Database – list', hint: 'Inline list database', glyph: '☰', keywords: 'database list', kind: 'insert', type: 'database', view: 'list' },
   { id: 'db-linked', label: 'Linked database view', hint: 'Show an existing database here', glyph: '↗', keywords: 'linked source view database', kind: 'insert', type: 'database', linked: true },
-  { id: 'chart', label: 'Chart', hint: 'Chart the rows of an existing database', glyph: '◔', keywords: 'chart graph plot bar line pie', kind: 'insert', type: 'database', linked: true, view: 'chart' }
+  { id: 'chart', label: 'Chart', hint: 'Chart the rows of an existing database', glyph: '◔', keywords: 'chart graph plot bar line pie', kind: 'insert', type: 'database', linked: true, view: 'chart' },
+  { id: 'calc', label: 'Calculations', hint: 'Figures computed from an existing database', glyph: 'Σ', keywords: 'calculations calc formula sum total average figures', kind: 'insert', type: 'database', linked: true, view: 'calc' }
 ]
 
 /** The "AI" group of the slash menu; offered only while AI is turned on (see ai/gate.ts). */

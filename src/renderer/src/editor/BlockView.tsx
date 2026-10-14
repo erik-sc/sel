@@ -9,6 +9,7 @@ import { useEditor } from './context'
 import { MIME_DRAG } from './clipboard'
 import { PLACEHOLDERS, isTextType } from './blockTypes'
 import { blockColorClass } from './richtext-dom'
+import { rowsOf } from './layout'
 import { isSelected } from './selection'
 import { textSel } from './types'
 import { EditableText } from './EditableText'
@@ -18,13 +19,23 @@ import { AiSlot } from '../ai/slot'
 export const BlockList = memo(function BlockList({ ids }: { ids: string[] }): JSX.Element {
   const blocks = useBlocks(ids)
   let n = 0
+  const view = (b: Block): JSX.Element => {
+    n = b.type === 'numbered_list' ? n + 1 : 0
+    return <BlockView key={b.id} block={b} number={n} />
+  }
+  // Database blocks marked `beside` share a row with the one before them (layout.ts).
+  const rows = rowsOf(blocks.filter((b): b is Block => !!b && !b.trashedAt))
   return (
     <>
-      {blocks.map((b) => {
-        if (!b || b.trashedAt) return null
-        n = b.type === 'numbered_list' ? n + 1 : 0
-        return <BlockView key={b.id} block={b} number={n} />
-      })}
+      {rows.map((row) =>
+        row.length > 1 ? (
+          <div key={`row:${row[0].id}`} className="blk-beside">
+            {row.map(view)}
+          </div>
+        ) : (
+          view(row[0])
+        )
+      )}
     </>
   )
 })

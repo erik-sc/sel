@@ -2,16 +2,19 @@ import { useRef, useState } from 'react'
 import type { CSSProperties, DragEvent, JSX, MouseEvent as ReactMouseEvent, SyntheticEvent } from 'react'
 import type { Block, DatabaseView, PropertyType, SelectOption, ViewType } from '@shared/types'
 import {
+  ArrowUpRight,
   Board,
   Calendar,
   ChartColumn,
   Check,
   Clock,
   Close,
+  Formula,
   Gallery,
   Hash,
   Link,
   List,
+  Sigma,
   Table,
   Tag,
   Text,
@@ -42,6 +45,12 @@ export function TypeIcon({ type, size = 14 }: { type: PropertyType; size?: numbe
     case 'created_time':
     case 'last_edited_time':
       return <Clock size={size} />
+    case 'relation':
+      return <ArrowUpRight size={size} />
+    case 'rollup':
+      return <Sigma size={size} />
+    case 'formula':
+      return <Formula size={size} />
     default:
       return <Text size={size} />
   }
@@ -59,6 +68,8 @@ export function ViewIcon({ type, size = 14 }: { type: ViewType; size?: number })
       return <Calendar size={size} />
     case 'chart':
       return <ChartColumn size={size} />
+    case 'calc':
+      return <Sigma size={size} />
     default:
       return <Table size={size} />
   }

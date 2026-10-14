@@ -11,6 +11,8 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import type { BlockProps, BlockType, Mark, Op, RichText } from '@shared/types'
 import { applyOps, getBlock, loadTree, newId } from '@/store/blocks'
+import { createThrottle } from '@/ui/throttle'
+import { notifyError } from '@/ui/toast'
 import { isTextType, type SlashItem } from './blockTypes'
 import { History } from './history'
 import { invertOps } from './ops'
@@ -52,6 +54,10 @@ import {
 
 export { MIME_BLOCKS, MIME_DRAG, MIME_RICHTEXT } from './clipboard'
 export type { DropPos, DropTarget, Focusable, PropsPatch, Sel, SlashState, TextRange, UIState } from './types'
+
+/** At most one write-failure toast per this many milliseconds, across every open editor. */
+const WRITE_FAILURE_NOTICE_MS = 5000
+const writeFailureNotice = createThrottle(WRITE_FAILURE_NOTICE_MS)
 
 export class EditorController {
   readonly history = new History<Sel>()
@@ -203,18 +209,21 @@ export class EditorController {
     const after = opts.after !== undefined ? opts.after : before
     const { inverse, restore } = invertOps(ops, getBlock)
     this.history.commit(ops, inverse, before, after, { key: opts.key, restore })
-    void applyOps(ops).catch((err: unknown) => this.onApplyFailed('applyOps', err))
+    void applyOps(ops).catch((err: unknown) => this.onApplyFailed("Couldn't save that change. It was undone.", err))
     if (!opts.silent) this.restoreSel(after)
   }
 
   /**
    * A batch was rejected (the store has already rolled the blocks back). The
    * recorded inverses no longer describe the document, so replaying any of them
-   * could corrupt it: drop the history.
+   * could corrupt it: drop the history. The rejection is caught here, so the
+   * global unhandled-rejection toast never sees it: tell the user, at most once
+   * per `WRITE_FAILURE_NOTICE_MS` (a failing disk fails every keystroke).
    */
-  private onApplyFailed(what: string, err: unknown): void {
-    console.error(`[editor] ${what} failed`, err)
+  private onApplyFailed(message: string, err: unknown): void {
     this.history.clear()
+    if (writeFailureNotice(Date.now())) notifyError(message, err)
+    else console.error(`[editor] ${message}`, err)
   }
 
   private enqueue(task: () => Promise<void>): Promise<void> {
@@ -239,7 +248,7 @@ export class EditorController {
         await this.restorePages(e.restore ?? [])
         if (e.inverse.length) await applyOps(e.inverse)
       } catch (err) {
-        this.onApplyFailed('undo', err)
+        this.onApplyFailed("Couldn't undo that change.", err)
       }
       this.restoreSel(e.before)
     })
@@ -256,7 +265,7 @@ export class EditorController {
         await this.restorePages(plan.restore)
         if (plan.ops.length) await applyOps(plan.ops)
       } catch (err) {
-        this.onApplyFailed('redo', err)
+        this.onApplyFailed("Couldn't redo that change.", err)
       }
       this.restoreSel(e.after)
     })
@@ -375,6 +384,11 @@ export class EditorController {
 
   setColor(ids: string[], color: string | null): void {
     this.commit(ids.filter((id) => getBlock(id)).map((id): Op => ({ op: 'update', id, patch: { props: { color } } })))
+  }
+
+  /** Draws a database block in one row with the one before it, or below it again (layout.ts). */
+  setBeside(id: string, beside: boolean): void {
+    if (getBlock(id)) this.commit([{ op: 'update', id, patch: { props: { beside: beside ? true : null } } }])
   }
 
   indent(ids: string[]): void {

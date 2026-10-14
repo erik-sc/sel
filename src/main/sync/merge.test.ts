@@ -7,7 +7,6 @@ import {
   mergeLists,
   mergeWorkspace,
   normalizeWorkspace,
-  sameWorkspace,
   type SyncBlock,
   type Workspace
 } from './merge'
@@ -167,6 +166,11 @@ function merge(base: Workspace, local: Workspace, remote: Workspace): ReturnType
   expect(describeDiff(out.result, mergeWorkspace(remote, out.result, remote).result)).toEqual([])
   expect(mergeWorkspace(out.result, out.result, out.result).conflicts).toEqual([])
   return out
+}
+
+function sameWorkspace(a: Workspace, b: Workspace): boolean {
+  const diff = diffWorkspace(a, b)
+  return diff.put.length === 0 && diff.remove.length === 0 && !diff.rootChanged
 }
 
 function describeDiff(a: Workspace, b: Workspace): string[] {
@@ -697,6 +701,30 @@ describe('mergeWorkspace: databases', () => {
     expect(out.result.blocks.get('row1')?.props['values']).toEqual({ due: { start: '2026-01-01' } })
   })
 
+  it('merges relation links as a set, so both halves of a two-way relation keep every link', () => {
+    const { a } = db()
+    a.edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: ['p1'] } })
+    const both = clone(a.ws)
+    const left = new Device(both, 4000)
+    const right = new Device(both, 5000)
+    // One device links row1 to p2 and unlinks p1; the other links it to p3.
+    left.edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: ['p2'] } })
+    right.edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: ['p1', 'p3'] } })
+    const out = merge(both, left.ws, right.ws)
+    expect([...((out.result.blocks.get('row1')?.props['values'] as Props)['project'] as string[])].sort()).toEqual(['p2', 'p3'])
+    expect(out.conflicts).toEqual([])
+    // Swapping the sides gives the same links.
+    expect([...((merge(both, right.ws, left.ws).result.blocks.get('row1')?.props['values'] as Props)['project'] as string[])].sort()).toEqual(['p2', 'p3'])
+    // Cleared on one side while the other added a link: the added link stays.
+    const cleared = new Device(both, 6000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' } } })
+    const added = new Device(both, 7000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: ['p1', 'p4'] } })
+    expect((merge(both, cleared.ws, added.ws).result.blocks.get('row1')?.props['values'] as Props)['project']).toEqual(['p4'])
+    // Both removed every link: the cell is gone rather than an empty list.
+    const none1 = new Device(both, 8000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: [] } })
+    const none2 = new Device(both, 9000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' } } })
+    expect(merge(both, none1.ws, none2.ws).result.blocks.get('row1')?.props['values']).toEqual({ status: 'o1', due: { start: '2026-01-01' } })
+  })
+
   it('merges the schema per property, keeping the order of the properties', () => {
     const { base, a, b } = db()
     const s = base.blocks.get('db')?.props['schema'] as Record<string, Props>
@@ -709,6 +737,28 @@ describe('mergeWorkspace: databases', () => {
     expect(merged['status']['name']).toBe('State')
     expect(merged['due']['name']).toBe('Deadline')
     expect(out.conflicts).toEqual([])
+  })
+
+  it('merges a formula as one value, apart from a rename of the property it reads', () => {
+    const d = db()
+    const s = d.base.blocks.get('db')?.props['schema'] as Record<string, Props>
+    const withFormula: Record<string, Props> = { ...s, total: { id: 'total', name: 'Total', type: 'formula', formula: { expression: 'dateAdd(prop("due"), 1, "days")' } } }
+    const start = new Device(d.base, 1500).edit('db', { schema: withFormula }).ws
+    // One device renames the date the formula reads (references are ids: the formula is untouched), the other edits the formula.
+    const a = new Device(start, 2000).edit('db', { schema: { ...withFormula, due: { ...withFormula.due, name: 'Deadline' } } })
+    const b = new Device(start, 3000).edit('db', {
+      schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: 'dateAdd(prop("due"), 2, "days")' } } }
+    })
+    const out = merge(start, a.ws, b.ws)
+    expect(schema(out.result)['due']['name']).toBe('Deadline')
+    expect(schema(out.result)['total']['formula']).toEqual({ expression: 'dateAdd(prop("due"), 2, "days")' })
+    expect(out.conflicts).toEqual([])
+    // Both edit the formula: the later edit wins whole, never a mix of the two texts.
+    const c = new Device(start, 4000).edit('db', { schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: '1' } } } })
+    const e = new Device(start, 5000).edit('db', { schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: '2' } } } })
+    const both = merge(start, c.ws, e.ws)
+    expect(schema(both.result)['total']['formula']).toEqual({ expression: '2' })
+    expect(both.conflicts.map((conflict) => conflict.field)).toEqual(['props.schema.total.formula'])
   })
 
   it('merges select options added on both sides and a rename against a new option', () => {
@@ -753,6 +803,25 @@ describe('mergeWorkspace: databases', () => {
     b.edit('db', { views: [v[0], { ...v[1], chart: { ...chart, showLegend: false, y: { aggregate: 'count' }, stacked: true } }] })
     const out = merge(base, a.ws, b.ws)
     expect(views(out.result)[1]['chart']).toEqual({ kind: 'line', x: 'status', y: { aggregate: 'sum', property: 'price' }, showLegend: false, stacked: true })
+    expect(out.conflicts).toEqual([])
+  })
+
+  it('merges the figures of a calculations view per id', () => {
+    const { base } = db()
+    const v = base.blocks.get('db')?.props['views'] as Props[]
+    const calcView = (calcs: Props[]): Props => ({ ...v[1], type: 'calc', calcs })
+    const total = { id: 'c1', name: 'Total', formula: 'count()' }
+    const first = new Device(base)
+    first.edit('db', { views: [v[0], calcView([total])] })
+    const start = first.ws
+    const a = new Device(start, 2000)
+    const b = new Device(start, 3000)
+    a.edit('db', { views: [v[0], calcView([{ ...total, name: 'Rows' }, { id: 'ca', name: 'A', formula: '1' }])] })
+    b.edit('db', { views: [v[0], calcView([{ ...total, formula: 'count(Status)' }, { id: 'cb', name: 'B', formula: '2' }])] })
+    const out = merge(start, a.ws, b.ws)
+    const calcs = views(out.result)[1]['calcs'] as Props[]
+    expect(calcs.map((c) => c['id']).sort()).toEqual(['c1', 'ca', 'cb'])
+    expect(calcs.find((c) => c['id'] === 'c1')).toEqual({ id: 'c1', name: 'Rows', formula: 'count(Status)' })
     expect(out.conflicts).toEqual([])
   })
 

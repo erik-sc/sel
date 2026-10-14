@@ -1,8 +1,21 @@
 // Schema mutations: properties, options, type changes and the views that depend on them.
 // All functions are pure and return their input by reference when nothing changes.
-import type { Block, DatabaseView, PropertySchema, PropertyType, PropertyValue, SelectOption, ViewType } from '../../../../shared/types'
+import type {
+  Block,
+  DatabaseView,
+  PropertySchema,
+  PropertyType,
+  PropertyValue,
+  RelationConfig,
+  RollupConfig,
+  SelectOption,
+  ViewType
+} from '../../../../shared/types'
+import { sanitizeRelationConfig } from '../../../../shared/relation'
 import { isDateValue, normalizeDateValue, parseLooseDay } from './dates'
+import { DEFAULT_FORMULA, expressionOf, sanitizeFormulaConfig } from './formula'
 import { sanitizeViews } from './normalize'
+import { DEFAULT_ROLLUP, sanitizeRollupConfig } from './rollup'
 import {
   DEFAULT_TITLE_ID,
   OPTION_COLORS,
@@ -57,7 +70,16 @@ export function createDefaultSchema(): Schema {
 
 export function addProperty(
   schema: Schema,
-  input: { id?: string; name?: string; type: PropertyType; options?: SelectOption[] }
+  input: {
+    id?: string
+    name?: string
+    type: PropertyType
+    options?: SelectOption[]
+    relation?: RelationConfig
+    rollup?: RollupConfig
+    /** formula: its stored text (references by id). */
+    expression?: string
+  }
 ): { schema: Schema; property: PropertySchema } {
   // A database has exactly one title property.
   const type: PropertyType = input.type === 'title' && getTitleProperty(schema) ? 'text' : input.type
@@ -70,7 +92,64 @@ export function addProperty(
   }
   if (isSelectType(type)) property.options = input.options ?? []
   if (type === 'number') property.numberFormat = 'number'
+  if (type === 'relation') {
+    const relation = sanitizeRelationConfig(input.relation)
+    if (relation) property.relation = relation
+  }
+  if (type === 'rollup') property.rollup = input.rollup ? sanitizeRollupConfig(input.rollup) : defaultRollup(schema)
+  if (type === 'formula') property.formula = sanitizeFormulaConfig({ expression: input.expression ?? '' })
   return { schema: { ...schema, [id]: property }, property }
+}
+
+/** What a new rollup starts as: a count over the first relation of the schema (if there is one). */
+function defaultRollup(schema: Schema): RollupConfig {
+  const relation = firstPropertyOfType(schema, 'relation')
+  return relation ? { ...DEFAULT_ROLLUP, relationId: relation.id } : DEFAULT_ROLLUP
+}
+
+/** Points a relation at another database: the links it held are of no use there and are dropped by the caller. */
+export function setRelationTarget(schema: Schema, propertyId: string, databaseId: string, limit?: RelationConfig['limit']): Schema {
+  const prop = propOf(schema, propertyId)
+  const relation = sanitizeRelationConfig(limit ? { databaseId, limit } : { databaseId })
+  if (!prop || prop.type !== 'relation' || !relation) return schema
+  if (prop.relation?.databaseId === databaseId) return schema
+  return { ...schema, [propertyId]: { ...prop, relation } }
+}
+
+/** Sets how many rows a relation may link to (`one`, or any number when undefined). */
+export function setRelationLimit(schema: Schema, propertyId: string, limit: RelationConfig['limit']): Schema {
+  const prop = propOf(schema, propertyId)
+  if (!prop || prop.type !== 'relation' || !prop.relation || prop.relation.limit === limit) return schema
+  const relation: RelationConfig = { ...prop.relation }
+  if (limit === 'one') relation.limit = 'one'
+  else delete relation.limit
+  return { ...schema, [propertyId]: { ...prop, relation } }
+}
+
+/**
+ * Changes what a rollup computes. A new relation drops the related property (it belongs
+ * to another database); a function that does not need a property keeps the one chosen.
+ */
+export function updateRollup(schema: Schema, propertyId: string, patch: Partial<RollupConfig>): Schema {
+  const prop = propOf(schema, propertyId)
+  if (!prop || prop.type !== 'rollup') return schema
+  const current = prop.rollup ?? DEFAULT_ROLLUP
+  const next: RollupConfig = { ...current, ...patch }
+  if (patch.relationId !== undefined && patch.relationId !== current.relationId && patch.propertyId === undefined) delete next.propertyId
+  for (const key of ['relationId', 'propertyId'] as const) if (next[key] === undefined) delete next[key]
+  const clean = sanitizeRollupConfig(next)
+  return sameValue(clean, current) ? schema : { ...schema, [propertyId]: { ...prop, rollup: clean } }
+}
+
+/**
+ * Sets what a formula computes. `expression` is the stored text, with references by id
+ * (`formulaStoredText` turns what the editor holds into it).
+ */
+export function setFormula(schema: Schema, propertyId: string, expression: string): Schema {
+  const prop = propOf(schema, propertyId)
+  if (!prop || prop.type !== 'formula') return schema
+  const formula = sanitizeFormulaConfig({ ...(prop.formula ?? DEFAULT_FORMULA), expression })
+  return formula.expression === expressionOf(prop) && prop.formula ? schema : { ...schema, [propertyId]: { ...prop, formula } }
 }
 
 export function renameProperty(schema: Schema, propertyId: string, name: string): Schema {
@@ -134,6 +213,8 @@ export function coerceValue(
 ): PropertyValue {
   if (value === null || value === undefined) return null
   if (from.type === to.type) return value
+  // Linked row ids mean nothing as any other type, and nothing else names rows.
+  if (from.type === 'relation' || to.type === 'relation') return null
   const lookup = (name: string): SelectOption | undefined =>
     index ? index.get(nameKey(name)) : optionByName(to, name)
   switch (to.type) {
@@ -201,14 +282,20 @@ export function changePropertyType(
   schema: Schema,
   propertyId: string,
   type: PropertyType,
-  rows: Block[] = []
+  rows: Block[] = [],
+  relation?: RelationConfig
 ): { schema: Schema; rowValues: Record<string, Values> } {
   const from = propOf(schema, propertyId)
   if (!from || from.type === 'title' || type === 'title' || from.type === type || !Object.hasOwn(TYPE_LABELS, type)) {
     return { schema, rowValues: {} }
   }
   const to: PropertySchema = { id: from.id, name: from.name, type }
-  const fromStored = !isComputedType(from.type)
+  // A new relation points at `relation` (or nowhere yet); a new rollup counts over the first relation.
+  const config = type === 'relation' ? sanitizeRelationConfig(relation) : undefined
+  if (config) to.relation = config
+  if (type === 'rollup') to.rollup = defaultRollup(schema)
+  if (type === 'formula') to.formula = DEFAULT_FORMULA
+  const fromStored = !isComputedType(from.type) && from.type !== 'relation'
   let index: OptionIndex | undefined
   if (isSelectType(type)) {
     to.options = isSelectType(from.type) ? optionsOf(from).slice() : []

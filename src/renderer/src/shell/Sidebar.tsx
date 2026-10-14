@@ -95,7 +95,8 @@ function Resizer() {
 
 // Memoised: the shell re-renders on every frame of a sidebar resize; its panels need not.
 export const Sidebar = memo(function Sidebar() {
-  const collapsed = useUi((state) => state.sidebarCollapsed)
+  // Focus mode hides it the way collapsing does, without changing whether it is collapsed.
+  const collapsed = useUi((state) => state.sidebarCollapsed || state.focusMode)
   const favorites = useTree((state) => state.favorites)
   const trashRef = useRef<HTMLButtonElement>(null)
   const [trashOpen, setTrashOpen] = useState(false)

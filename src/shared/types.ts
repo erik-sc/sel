@@ -57,6 +57,8 @@ export interface BlockProps {
   sourceId?: string
   /** page that is a database row: propertyId -> value */
   values?: Record<string, PropertyValue>
+  /** database: drawn in one row with the database block before it (see editor/layout.ts) */
+  beside?: boolean
 }
 
 export interface Block {
@@ -86,6 +88,9 @@ export type PropertyType =
   | 'url'
   | 'created_time'
   | 'last_edited_time'
+  | 'relation'
+  | 'rollup'
+  | 'formula'
 
 export interface SelectOption {
   id: string
@@ -99,17 +104,70 @@ export interface PropertySchema {
   type: PropertyType
   options?: SelectOption[]
   numberFormat?: 'number' | 'percent' | 'currency'
+  /** relation: the database whose rows it links to. */
+  relation?: RelationConfig
+  /** rollup: what it computes from the rows one of the relations links to. */
+  rollup?: RollupConfig
+  /** formula: the expression it computes for each row. */
+  formula?: FormulaConfig
+}
+
+/**
+ * A relation links a row to rows (pages) of a database, possibly its own. With
+ * `syncedPropertyId` it is two-way: that relation property of the target database
+ * holds the same links seen from the other side, and edits keep the two in step
+ * (see shared/relation.ts).
+ */
+export interface RelationConfig {
+  databaseId: string
+  syncedPropertyId?: string
+  /** `one`: at most one linked row. Absent: any number. */
+  limit?: 'one'
+}
+
+export type RollupFunction =
+  | 'show_original'
+  | 'count'
+  | 'count_values'
+  | 'count_unique'
+  | 'sum'
+  | 'average'
+  | 'min'
+  | 'max'
+  | 'range'
+  | 'earliest'
+  | 'latest'
+  | 'percent_checked'
+
+/** A rollup reads `propertyId` of the rows that the relation `relationId` links to, and sums them up with `function`. */
+export interface RollupConfig {
+  /** A relation property of the same database; absent until one is chosen. */
+  relationId?: string
+  /** A property of the related database; `count` needs none. */
+  propertyId?: string
+  function: RollupFunction
+}
+
+/**
+ * A formula computes a value for each row from the row's other properties (see
+ * renderer/src/database/logic/formula.ts). `expression` names properties by id, as
+ * `prop("<id>")`; the editor shows (and takes) their names instead, so a rename never
+ * has to rewrite a formula. Results are never stored.
+ */
+export interface FormulaConfig {
+  expression: string
 }
 
 /**
  * title -> stored in block.props.title, not in values.
  * text/url -> string, number -> number, checkbox -> boolean,
  * select -> option id, multi_select -> option ids,
- * date -> { start: ISO date, end?: ISO date }.
+ * date -> { start: ISO date, end?: ISO date }, relation -> ids of the linked rows.
+ * A rollup or a formula stores nothing: its value is computed whenever it is read.
  */
 export type PropertyValue = string | number | boolean | string[] | { start: string; end?: string } | null
 
-export type ViewType = 'table' | 'board' | 'list' | 'gallery' | 'calendar' | 'chart'
+export type ViewType = 'table' | 'board' | 'list' | 'gallery' | 'calendar' | 'chart' | 'calc'
 
 export type ChartKind = 'bar' | 'column' | 'line' | 'area' | 'pie' | 'donut' | 'number'
 export type ChartDateBucket = 'day' | 'week' | 'month' | 'quarter' | 'year'
@@ -149,6 +207,15 @@ export interface ChartConfig {
   height?: number
 }
 
+/** One figure of a `calc` view: a name and a formula over the view's rows (see database/logic/calc.ts). */
+export interface ViewCalc {
+  id: string
+  name: string
+  formula: string
+  /** How the result is written; when absent, like the number property it is computed from. */
+  format?: 'number' | 'currency' | 'percent'
+}
+
 export type FilterOperator =
   | 'contains'
   | 'not_contains'
@@ -185,6 +252,8 @@ export interface DatabaseView {
   groupBy?: string
   /** chart: what is drawn. Kept (but unused) when the view has another type. */
   chart?: ChartConfig
+  /** calc: the figures shown. Kept (but unused) when the view has another type. */
+  calcs?: ViewCalc[]
 }
 
 // ---- Operations ----

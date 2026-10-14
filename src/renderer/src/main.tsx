@@ -8,6 +8,8 @@ import { bootAppearance, initAppearance } from './appearance/store'
 import { bootMark, whenIdle } from './boot'
 import { preloadEditor } from './editor/lazy'
 import { preloadQuickFind } from './shell/QuickFind'
+import { preloadPalette } from './commands/Palette'
+import { preloadShortcuts } from './shortcuts/Host'
 import { getBlock, prefetchTree } from './store/blocks'
 import { activeTab, initTabs, initialPageId, tabPage } from './store/tabs'
 import { initTree } from './store/tree'
@@ -18,6 +20,7 @@ import { initHerman } from './herman/gate'
 import { preloadHerman } from './herman/Host'
 import { initSync } from './sync/store'
 import { initMeetings } from './meetings/gate'
+import { initUpdates } from './updates/store'
 import { openTodayOnLaunch, routeTitle } from './briefing/route'
 
 bootMark('start')
@@ -47,6 +50,8 @@ const herman = initHerman()
 // The state of sync, for the indicator in the sidebar (nothing is loaded for it unless this device syncs).
 void initSync()
 initMeetings()
+// What the main process knows about a new version, for the notice and Settings. Reading it asks nothing of the network.
+initUpdates()
 void initTabs(initialPageId()).then(() => {
   // The page about to be shown: fetch its blocks while the editor's code loads.
   const pageId = tabPage(activeTab())
@@ -65,6 +70,8 @@ function mount(): void {
   whenIdle(() => {
     preloadEditor()
     preloadQuickFind()
+    preloadPalette()
+    preloadShortcuts()
     void herman.then(preloadHerman)
   })
 }

@@ -376,6 +376,10 @@ function propChanges(from: SnapshotBlock, to: SnapshotBlock, isRoot: boolean): P
   const captionFrom = plainText(a.caption)
   const captionTo = plainText(b.caption)
   if (captionFrom !== captionTo) out.push({ label: 'Caption', from: short(captionFrom), to: short(captionTo) })
+  if (!!a.beside !== !!b.beside) {
+    const place = (beside: boolean | undefined): string => (beside ? 'Beside the block before' : 'Below the block before')
+    out.push({ label: 'Place', from: place(a.beside), to: place(b.beside) })
+  }
   if ((a.sourceId ?? '') !== (b.sourceId ?? '')) out.push({ label: 'Source database', from: a.sourceId ? 'Another database' : 'None', to: b.sourceId ? 'This database' : 'None' })
   if (plainText(a.title) === plainText(b.title) && !same(a.title ?? [], b.title ?? [])) {
     out.push({ label: 'Formatting', from: 'Current formatting', to: 'Formatting of this version' })
@@ -394,7 +398,10 @@ const PROPERTY_TYPE_NAMES: Record<string, string> = {
   checkbox: 'Checkbox',
   url: 'Link',
   created_time: 'Created time',
-  last_edited_time: 'Last edited time'
+  last_edited_time: 'Last edited time',
+  relation: 'Relation',
+  rollup: 'Rollup',
+  formula: 'Formula'
 }
 
 /** Properties added, removed, renamed or retyped, and whether the views differ. */
@@ -410,6 +417,8 @@ function schemaChanges(from: SnapshotBlock, to: SnapshotBlock): PropChange[] {
     else if (prev.name !== next.name) out.push({ label: 'Property name', from: prev.name, to: next.name })
     else if (prev.type !== next.type) {
       out.push({ label: next.name, from: PROPERTY_TYPE_NAMES[prev.type] ?? prev.type, to: PROPERTY_TYPE_NAMES[next.type] ?? next.type })
+    } else if (next.type === 'formula' && !same(prev.formula, next.formula)) {
+      out.push({ label: next.name, from: 'Current formula', to: 'Formula of this version' })
     } else if (!same(prev, next)) out.push({ label: next.name, from: 'Current options', to: 'Options of this version' })
   }
   for (const id of Object.keys(a)) {

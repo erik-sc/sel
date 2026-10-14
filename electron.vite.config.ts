@@ -56,7 +56,8 @@ export default defineConfig(({ command }) => {
   return {
     main: {
       // Only what is listed under `dependencies` in package.json stays a runtime `require`:
-      // better-sqlite3, a native module. Everything else is bundled.
+      // better-sqlite3, a native module, and electron-updater, required only when an update
+      // check runs. Everything else is bundled.
       resolve: { alias: { '@shared': shared } },
       build: {
         ...output,

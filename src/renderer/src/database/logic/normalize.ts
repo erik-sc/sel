@@ -5,17 +5,26 @@
 // actions) only ever sees the output of `normalizeDatabase`, which guarantees:
 //   - schema: own, prototype-safe keys; `prop.id === key`; a known type; a bounded
 //     string name; exactly one title; `options` an array of well-formed, uniquely
-//     identified options on select types (absent elsewhere); a valid numberFormat.
+//     identified options on select types (absent elsewhere); a valid numberFormat;
+//     a well-formed `relation` on relations that point somewhere, a `rollup` on every
+//     rollup and a `formula` on every formula (absent elsewhere). Where those point is
+//     checked when they are read.
 //   - views: at least one; unique string ids; a known type; only references to
-//     existing properties; operators valid for the property type; filter values of
-//     the right shape that never point at a deleted option; unique sorts with a
-//     valid direction; finite clamped widths; a groupBy of the type the layout needs;
-//     on a chart view, a chart configuration whose every reference fits the schema.
+//     existing properties; operators valid for the property type (for a formula, for
+//     anything it may give); filter values of the right shape that never point at a
+//     deleted option; unique sorts with a valid direction; finite clamped widths; a
+//     groupBy of the type the layout needs; on a chart view, a chart configuration
+//     whose every reference fits the schema; on a calculations view, a list of
+//     well-formed calculations.
 // Valid data comes back by reference (`changed: false`), so memoisation holds.
 import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyType, SelectOption, ViewFilter, ViewSort, ViewType } from '../../../../shared/types'
 import { sanitizeChartConfig } from '../../../../shared/chart'
+import { defaultCalcs, sanitizeCalcs } from './calcConfig'
+import { sanitizeRelationConfig } from '../../../../shared/relation'
 import { normalizeChartConfig } from './chartConfig'
-import { filterValueFor, operatorNeedsValue, operatorsFor } from './query'
+import { sanitizeFormulaConfig } from './formula'
+import { operatorNeedsValue, ruleOperatorsOf, ruleValueOf } from './query'
+import { sanitizeRollupConfig } from './rollup'
 import {
   DEFAULT_TITLE_ID,
   DEFAULT_VIEW_ID,
@@ -78,13 +87,31 @@ function normalizeProperty(id: string, raw: unknown): PropertySchema | undefined
   const name = boundedName(raw.name, TYPE_LABELS[type])
   const options = isSelectType(type) ? normalizeOptions(raw.options) : undefined
   const validFormat = raw.numberFormat === undefined || NUMBER_FORMATS.includes(raw.numberFormat)
-  if (raw.id === id && raw.name === name && raw.options === options && validFormat) {
+  // A relation that points nowhere yet has no `relation`; a rollup always has a (repaired) `rollup`.
+  const relation = type === 'relation' ? sanitizeRelationConfig(raw.relation) : undefined
+  const rollup = type === 'rollup' ? sanitizeRollupConfig(raw.rollup) : undefined
+  const formula = type === 'formula' ? sanitizeFormulaConfig(raw.formula) : undefined
+  if (
+    raw.id === id &&
+    raw.name === name &&
+    raw.options === options &&
+    validFormat &&
+    raw.relation === relation &&
+    raw.rollup === rollup &&
+    raw.formula === formula
+  ) {
     return raw as unknown as PropertySchema
   }
   const fixed = { ...raw, id, name, type } as PropertySchema
   if (options) fixed.options = options
   else delete fixed.options
   if (!validFormat) delete fixed.numberFormat
+  if (relation) fixed.relation = relation
+  else delete fixed.relation
+  if (rollup) fixed.rollup = rollup
+  else delete fixed.rollup
+  if (formula) fixed.formula = formula
+  else delete fixed.formula
   return fixed
 }
 
@@ -122,10 +149,10 @@ function normalizeFilters(raw: unknown, schema: Schema): ViewFilter[] {
     if (!isPlainObject(f)) continue
     const prop = propOf(schema, f.propertyId)
     const operator = f.operator as ViewFilter['operator']
-    if (!prop || !operatorsFor(prop.type).includes(operator)) continue
+    if (!prop || !ruleOperatorsOf(prop, schema).includes(operator)) continue
     const filter: ViewFilter = { propertyId: prop.id, operator }
     if (operatorNeedsValue(operator)) {
-      const value = filterValueFor(prop, f.value)
+      const value = ruleValueOf(prop, f.value, schema)
       // Keep the stored shape (e.g. a single option id) when it is already fine.
       if (value !== undefined) filter.value = sameValue(value, f.value) || sameValue([f.value], value) ? (f.value as ViewFilter['value']) : value
     }
@@ -213,6 +240,15 @@ export function sanitizeViews(views: DatabaseView[], schema: Schema): DatabaseVi
       if (kept) v.chart = sameValue(kept, rawChart) ? (rawChart as DatabaseView['chart']) : kept
       else delete v.chart
     }
+
+    // A calculations view always has its list of figures; one it has (even an empty one) is
+    // the user's own and is only cleaned. A view of another type keeps a well-formed list, for
+    // when it is shown as calculations again, and drops anything else.
+    const rawCalcs: unknown = (raw as { calcs?: unknown }).calcs
+    const calcs = sanitizeCalcs(rawCalcs)
+    if (calcs) v.calcs = sameValue(calcs, rawCalcs) ? (rawCalcs as DatabaseView['calcs']) : calcs
+    else if (type === 'calc') v.calcs = defaultCalcs(schema)
+    else delete v.calcs
     out.push(sameValue(v, raw) ? (raw as DatabaseView) : v)
   })
   return out

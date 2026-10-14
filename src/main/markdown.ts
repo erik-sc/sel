@@ -19,8 +19,14 @@ import { readFileCapped } from './fsutil'
 // The chart engine is the renderer's own (pure, no DOM): an exported chart shows the numbers that are on screen.
 import { buildChartData, chartCaption, chartTable } from '../renderer/src/database/logic/chart'
 import { CHART_KIND_LABELS, chartConfigOf } from '../renderer/src/database/logic/chartConfig'
+// So is the formula engine: an exported calculation is the figure on screen.
+import { evaluateCalc } from '../renderer/src/database/logic/calc'
+import { formatNumber } from '../renderer/src/database/logic/values'
 import { normalizeDatabase, sanitizeViews } from '../renderer/src/database/logic/normalize'
 import { queryRows } from '../renderer/src/database/logic/query'
+import { cellText as cellPlainText } from '../renderer/src/database/logic/cell'
+import type { CellContext } from '../renderer/src/database/logic/relation'
+import { cellContext } from '../renderer/src/database/logic/resolve'
 
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024
 const TOO_LARGE = `The file is too large to import (max ${MAX_IMPORT_BYTES / 1024 / 1024} MB)`
@@ -98,8 +104,28 @@ function cellText(value: string): string {
   return value.replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>')
 }
 
-function formatValue(schema: PropertySchema, row: Block): string {
+/**
+ * What relations, rollups and formulas read during one export: blocks from the repository
+ * (each read once) and the normalised schema of any database.
+ */
+function exportContext(repo: Repository): CellContext {
+  const seen = new Map<string, Block | null>()
+  const get = (id: string): Block | undefined => {
+    if (!seen.has(id)) seen.set(id, repo.get(id))
+    return seen.get(id) ?? undefined
+  }
+  return cellContext({ get, isMissing: (id) => get(id) === undefined })
+}
+
+/** Properties whose cells are worked out from other rows or properties (through a `CellContext`). */
+function isComputedFromContext(type: PropertySchema['type']): boolean {
+  return type === 'relation' || type === 'rollup' || type === 'formula'
+}
+
+function formatValue(schema: PropertySchema, row: Block, ctx?: CellContext): string {
   if (schema.type === 'title') return inlineToMarkdown(row.props.title)
+  // Titles of the linked rows, or the rollup's or formula's result, as the database shows them.
+  if (isComputedFromContext(schema.type)) return ctx ? escapeText(cellPlainText(row, schema, ctx)) : ''
   if (schema.type === 'created_time') return new Date(row.createdAt).toISOString()
   if (schema.type === 'last_edited_time') return new Date(row.updatedAt).toISOString()
   const value: PropertyValue | undefined = row.props.values?.[schema.id]
@@ -143,7 +169,10 @@ function chartToMarkdown(repo: Repository, db: Block, source: Block, title: stri
   const rows = queryRows(
     repo.children(source.id).filter((row) => row.type === 'page' && row.trashedAt === null),
     schema,
-    view
+    view,
+    '',
+    // Filter rules on relations, rollups and formulas see the related rows.
+    exportContext(repo)
   )
   const data = buildChartData(rows, schema, chartConfigOf(view, schema))
   const table = chartTable(data)
@@ -159,6 +188,33 @@ function chartToMarkdown(repo: Repository, db: Block, source: Block, title: stri
 }
 
 /**
+ * A calculations view as its figures, each computed over the rows the view shows (its
+ * filters apply, exactly as on screen); the rows themselves are not listed.
+ */
+function calcToMarkdown(repo: Repository, db: Block, source: Block, title: string): string[] {
+  const schema = normalizeDatabase(source).schema
+  const view = sanitizeViews(db.props.views ?? [], schema)[0]
+  const rows = queryRows(
+    repo.children(source.id).filter((row) => row.type === 'page' && row.trashedAt === null),
+    schema,
+    view
+  )
+  const cell = (text: string): string => cellText(escapeText(text))
+  const lines: string[] = []
+  if (title) lines.push(`**${title}**`, '')
+  const name = escapeText(view?.name ?? '')
+  if (name) lines.push(`*${name}*`, '')
+  lines.push('| Calculation | Value |', '| --- | ---: |')
+  for (const calc of view?.calcs ?? []) {
+    const result = evaluateCalc(calc, rows, schema)
+    // Like the figure on screen: two decimals for a plain number, a dash when there is none.
+    const value = !result.ok || result.value === null ? '—' : formatNumber(result.format === 'number' ? Math.round(result.value * 100) / 100 : result.value, result.format)
+    lines.push(`| ${cell(calc.name || 'Untitled')} | ${cell(value)} |`)
+  }
+  return lines
+}
+
+/**
  * A database as a table. A linked view exports its source's rows with the columns
  * of its own first view, under its own title when it has one.
  */
@@ -169,6 +225,7 @@ function databaseToMarkdown(repo: Repository, db: Block, withTitle = true): stri
   const schema = source.props.schema ?? {}
   const view = db.props.views?.[0]
   if (view?.type === 'chart') return chartToMarkdown(repo, db, source, withTitle ? ownTitle || inlineToMarkdown(source.props.title) : '')
+  if (view?.type === 'calc') return calcToMarkdown(repo, db, source, withTitle ? ownTitle || inlineToMarkdown(source.props.title) : '')
   let columns = (view?.visibleProperties ?? Object.keys(schema)).filter((id) => schema[id])
   if (!columns.length) columns = Object.keys(schema)
   const titleId = Object.keys(schema).find((id) => schema[id].type === 'title')
@@ -179,9 +236,13 @@ function databaseToMarkdown(repo: Repository, db: Block, withTitle = true): stri
   if (!columns.length) return lines.length ? lines.slice(0, 1) : []
   lines.push(`| ${columns.map((id) => cellText(escapeText(schema[id].name))).join(' | ')} |`)
   lines.push(`| ${columns.map(() => '---').join(' | ')} |`)
+  // Relations, rollups and formulas are read through the normalised schema: their stored configuration is not trusted.
+  const clean = normalizeDatabase(source).schema
+  const ctx = columns.some((id) => isComputedFromContext(schema[id].type)) ? exportContext(repo) : undefined
+  const propOf = (id: string): PropertySchema => (Object.hasOwn(clean, id) && clean[id].type === schema[id].type ? clean[id] : schema[id])
   for (const row of repo.children(source.id)) {
     if (row.trashedAt !== null) continue
-    lines.push(`| ${columns.map((id) => cellText(formatValue(schema[id], row))).join(' | ')} |`)
+    lines.push(`| ${columns.map((id) => cellText(formatValue(propOf(id), row, ctx))).join(' | ')} |`)
   }
   return lines
 }

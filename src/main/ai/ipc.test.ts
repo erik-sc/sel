@@ -23,6 +23,7 @@ vi.mock('electron', () => ({
       return electron.packaged
     },
     getPath: () => electron.userData,
+    getVersion: () => '0.0.0',
     on: (name: string, fn: () => void) => {
       if (name === 'will-quit') electron.quit.push(fn)
     }
