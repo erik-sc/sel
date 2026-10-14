@@ -1,5 +1,6 @@
 # Packaging (electron-builder). `npm run pack` = unpacked app in release/, `npm run dist` = installer.
-# No auto-update, no code signing, no publishing. The icon is build/icon.ico, rendered from build/icon.svg.
+# No code signing, and nothing is uploaded: `npm run dist` passes `--publish never` (see RELEASING in README.md).
+# The icon is build/icon.ico, rendered from build/icon.svg.
 appId: app.sel
 productName: sel
 
@@ -25,10 +26,19 @@ asarUnpack:
   - node_modules/better-sqlite3/prebuilds/*.node
 
 compression: maximum
-publish: null
+# Where updates come from (the opt-in check in the app, src/main/updates). With this, a build writes
+# `resources/app-update.yml` into the app and `latest.yml` next to the installer: electron-updater
+# reads the first to find the releases and the second, attached to a release, to learn its version
+# and the installer's SHA-512. Building never uploads anything.
+publish:
+  provider: github
+  owner: erik-sc
+  repo: sel
+  releaseType: release
 
-# main, preload and renderer are bundled into out/. The only package needed at run time is
-# better-sqlite3 (see `dependencies` in package.json), and of it only its JavaScript and the
+# main, preload and renderer are bundled into out/. The packages needed at run time are
+# better-sqlite3 and electron-updater (see `dependencies` in package.json; the updater is plain
+# JavaScript, loaded only when an update check runs), and of better-sqlite3 only its JavaScript and the
 # binary for the platform being packaged: no SQLite sources, no build files, no other
 # platforms' binaries, and not node-addon-api (C++ headers used to compile it).
 files:
@@ -57,5 +67,6 @@ nsis:
   allowElevation: false
   # The user's notes live in %APPDATA%\sel and are never removed by the uninstaller.
   deleteAppDataOnUninstall: false
-  # Block maps only serve differential auto-updates, which this app does not have.
-  differentialPackage: false
+  # Writes the installer's `.blockmap`, so that an update downloads only the blocks that changed
+  # (electron-updater falls back to the whole installer without it).
+  differentialPackage: true

@@ -6,6 +6,7 @@ import { registerBriefingIpc } from './briefing/register'
 import { registerFeedbackIpc } from './feedback/register'
 import { registerHermanIpc, type HermanHooks } from './herman/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
+import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
 import { ChangeFeed } from './changes'
@@ -173,6 +174,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   }
 
   // ---- app
+  let updates: UpdatesHooks | null = null
   const appHandlers: Handlers<'app'> = {
     'app:getTheme': () => readTheme(repo),
     'app:setTheme': ([a]) => applyTheme(repo, a),
@@ -188,6 +190,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       }
       // Which program runs, and whether any does, is decided by these: the cached answer is stale.
       if (key.startsWith('ai.')) aiBridge?.service.invalidate()
+      // The update check was turned on or off: its timer follows.
+      if (key.startsWith('updates.')) updates?.settingChanged()
     },
     'app:openExternal': async ([a]) => {
       const url = toExternalUrl(a)
@@ -275,6 +279,11 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
 
+  // ---- updates (opt-in, from GitHub Releases; see ./updates). Off by default: until the user
+  // turns the check on or presses Check now, nothing of it goes on the network.
+  const updatesIpc = registerUpdatesIpc({ repo, recording: () => meetings.recordingWindow() !== null })
+  updates = updatesIpc
+
   // Every channel declared in INVOKE (src/shared/api.ts) gets its handler here, and nothing else
   // is registered: a channel without a handler, or a handler without a channel, fails typecheck.
   const handlers: Handlers = {
@@ -290,7 +299,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...briefing.handlers,
     ...meetings.handlers,
     ...hermanIpc.handlers,
-    ...feedbackHandlers
+    ...feedbackHandlers,
+    ...updatesIpc.handlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 

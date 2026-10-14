@@ -22,6 +22,7 @@ vi.mock('electron', () => ({
   app: {
     isPackaged: false,
     getPath: () => electron.userData,
+    getVersion: () => '0.0.0',
     getLocale: () => electron.locale,
     on: (name: string, fn: () => void) => {
       if (name === 'will-quit') electron.quit.push(fn)

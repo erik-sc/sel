@@ -2,6 +2,7 @@ import { AI_KEYS, cleanAiSetting } from '../shared/ai'
 import { BRIEFING_KEYS, cleanBriefingSetting } from '../shared/briefing'
 import { cleanHermanSetting, HERMAN_KEYS } from '../shared/herman'
 import { cleanMeetingsSetting, MEETINGS_KEYS } from '../shared/meetings'
+import { cleanUpdatesSetting, UPDATES_KEYS } from '../shared/updates'
 import { cleanHistorySetting, HISTORY_KEYS, MAX_VERSION_LABEL } from '../shared/versions'
 import { isValidId, MAX_SETTING_CHARS } from './db/blocks'
 
@@ -30,9 +31,10 @@ const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
 /**
  * Exact keys the renderer may write. The `history.*` ones are the four the History settings show,
  * the `ai.*` ones the five the AI settings show, the `herman.*` ones those the Herman settings show,
- * the seats of his council among them (what he remembers, `herman.memory`, is not); nothing else in those namespaces.
+ * the seats of his council among them (what he remembers, `herman.memory`, is not); `updates.check`
+ * (not `updates.lastCheck`); nothing else in those namespaces.
  */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS])
+const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
 const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
 
@@ -163,6 +165,7 @@ export function settingValueFor(key: string, value: unknown): unknown {
   if (key.startsWith('briefing.')) return briefingSettingValue(key, value)
   if (key.startsWith('meetings.')) return meetingsSettingValue(key, value)
   if (key.startsWith('herman.')) return hermanSettingValue(key, value)
+  if (key.startsWith('updates.')) return updatesSettingValue(key, value)
   if (!key.startsWith('history.')) return settingValue(value)
   if (value === undefined || value === null) return null
   const clean = cleanHistorySetting(key, value)
@@ -211,6 +214,14 @@ function meetingsSettingValue(key: string, value: unknown): unknown {
 function hermanSettingValue(key: string, value: unknown): unknown {
   if (value === undefined || value === null) return null
   const clean = cleanHermanSetting(key, value)
+  if (clean === undefined) throw new Error('Invalid setting value')
+  return clean
+}
+
+/** Whether sel looks for updates by itself decides whether it goes on the network: a boolean. Null resets it (off). */
+function updatesSettingValue(key: string, value: unknown): unknown {
+  if (value === undefined || value === null) return null
+  const clean = cleanUpdatesSetting(key, value)
   if (clean === undefined) throw new Error('Invalid setting value')
   return clean
 }

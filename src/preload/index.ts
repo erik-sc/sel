@@ -7,6 +7,7 @@ import { buildInvokers, type Invokers } from '@shared/ipc'
 import { MEETINGS_CHANNELS } from '@shared/meetings'
 import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
 import type { ChangeEvent } from '@shared/types'
+import { UPDATES_CHANNEL } from '@shared/updates'
 
 // This script runs sandboxed: it may use `electron`'s renderer modules and web
 // globals only. Do not import Node built-ins or npm packages here.
@@ -86,6 +87,10 @@ const api: Api = {
   herman: {
     ...invoke.herman,
     onNudge: subscribe(HERMAN_NUDGE_CHANNEL)
+  },
+  updates: {
+    ...invoke.updates,
+    onStatus: subscribe(UPDATES_CHANNEL)
   },
   app: {
     ...invoke.app,

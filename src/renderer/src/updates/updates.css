@@ -1,0 +1,91 @@
+/* The update notice: in the lower left of the content, away from the toasts and from Herman's
+   usual corner. Quiet like a toast, and stays until the user answers it. */
+.updates-notice {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 320px;
+  max-width: calc(100% - 32px);
+  padding: 12px 14px;
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-popover);
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: var(--leading-ui);
+  animation: ui-sheet var(--duration) var(--ease);
+}
+
+.updates-notice-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.updates-notice-message {
+  overflow-wrap: anywhere;
+}
+
+.updates-notice-link {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.updates-notice-link:hover {
+  color: var(--text);
+}
+
+.updates-notice-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.updates-notice-action {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.updates-notice-action:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.updates-notice-action.is-primary {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: var(--weight-semibold);
+}
+
+.updates-notice-action.is-primary:hover {
+  background: var(--fill-2);
+}
+
+.updates-progress {
+  position: relative;
+  align-self: stretch;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--fill-2);
+}
+
+.updates-progress-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transform: scaleX(var(--updates-progress, 0));
+  transform-origin: left center;
+  transition: transform var(--duration) var(--ease);
+}

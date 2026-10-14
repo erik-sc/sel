@@ -11,6 +11,7 @@ import { HermanHost } from '@/herman/Host'
 import { FeedbackHost } from '@/feedback/Host'
 import { MeetingSetup, RecordingIndicator } from '@/meetings/slot'
 import { isCalendarRoute, isTodayRoute } from '@/briefing/route'
+import { UpdateNotice } from '@/updates/Notice'
 import { CommandPalette } from '@/commands/Palette'
 import { ShortcutsHost } from '@/shortcuts/Host'
 import { EmptyState, PageHost } from './PageHost'
@@ -78,6 +79,7 @@ export function Shell() {
             )}
             <HermanHost />
             <FindBar />
+            <UpdateNotice />
           </main>
         </div>
       </div>
