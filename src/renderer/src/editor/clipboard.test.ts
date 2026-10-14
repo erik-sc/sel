@@ -272,6 +272,16 @@ describe('linked database views', () => {
     for (const bad of [undefined, null, 'views', 7, { length: 3 }]) expect(cleanViews(bad)).toEqual([])
   })
 
+  it('keeps the figures of a calculations view, and its place beside the block before it', () => {
+    const calcs = [{ id: 'c1', name: 'Total', formula: 'sum(Points)', format: 'number' }]
+    const cleaned = cleanViews([{ id: 'v', type: 'calc', calcs: [...calcs, { id: 'c2', name: 'No formula' }, 'junk'] }, { id: 'w', type: 'table', calcs: 'junk' }])
+    expect(cleaned[0]).toEqual({ id: 'v', name: '', type: 'calc', visibleProperties: [], filters: [], sorts: [], calcs })
+    expect(cleaned[1]).not.toHaveProperty('calcs')
+    expect(cleanProps('database', { sourceId: 'src-1', beside: true } as never)).toEqual({ sourceId: 'src-1', views: [], beside: true })
+    expect(cleanProps('database', { sourceId: 'src-1', beside: 'yes' } as never)).toEqual({ sourceId: 'src-1', views: [] })
+    expect(cleanProps('text', { beside: true } as never)).toEqual({})
+  })
+
   it('bounds the number of views and of items in a view', () => {
     const many = Array.from({ length: 80 }, (_, i) => ({ id: `v${i}`, type: 'table' }))
     expect(cleanViews(many)).toHaveLength(50)

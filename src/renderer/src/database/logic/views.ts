@@ -1,5 +1,6 @@
 // Pure helpers on views (visibility, order, widths, sorts) and list ordering.
 import type { DatabaseView, PropertySchema, PropertyType, ViewSort, ViewType } from '../../../../shared/types'
+import { defaultCalcs } from './calcConfig'
 import { defaultChartConfig } from './chartConfig'
 import {
   VIEW_LABELS,
@@ -119,6 +120,7 @@ export function createDefaultView(type: ViewType, schema: Schema, id: string = m
   const group = groupType ? firstPropertyOfType(schema, groupType) : undefined
   if (group) view.groupBy = group.id
   if (type === 'chart') view.chart = defaultChartConfig(schema)
+  if (type === 'calc') view.calcs = defaultCalcs(schema)
   return view
 }
 

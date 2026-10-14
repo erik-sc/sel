@@ -8,9 +8,9 @@ import { canonicalJson } from '../../shared/versions'
  * The rules, per block id:
  *  - unchanged on one side: the other side's block;
  *  - changed on both: field by field. `props` keys changed by one side only are both kept;
- *    `values`, `schema` (and each property's options) and `views` (and each view's chart)
- *    merge per id the same way, and a cell holding a list of ids (relation links, options of
- *    a multi-select) merges as a set. Where both sides changed the same thing differently, the
+ *    `values`, `schema` (and each property's options) and `views` (and each view's chart and
+ *    calculations) merge per id the same way, and a cell holding a list of ids (relation links,
+ *    options of a multi-select) merges as a set. Where both sides changed the same thing differently, the
  *    side whose block has the later `updatedAt` wins and the loss is reported in `conflicts`;
  *  - deleted on one side: gone, unless the other side changed it since `base`, then it stays;
  *  - child lists: three-way, keeping the order of the side that reordered and inserting the
@@ -324,9 +324,20 @@ const atom = (): Spec => ATOM
 const OPTION: Spec = { kind: 'record', of: atom }
 const PROPERTY: Spec = { kind: 'record', of: (key) => (key === 'options' ? { kind: 'keyed', item: OPTION } : ATOM) }
 const CHART: Spec = { kind: 'record', of: (key) => (key === 'y' ? { kind: 'record', of: atom } : ATOM) }
+/** A figure of a calculations view, like a select option: merged per id, field by field. */
+const CALCS: Spec = { kind: 'keyed', item: { kind: 'record', of: atom } }
 const VIEW: Spec = {
   kind: 'record',
-  of: (key) => (key === 'chart' ? CHART : key === 'propertyWidths' ? { kind: 'record', of: atom } : key === 'visibleProperties' ? { kind: 'ids' } : ATOM)
+  of: (key) =>
+    key === 'chart'
+      ? CHART
+      : key === 'calcs'
+        ? CALCS
+        : key === 'propertyWidths'
+          ? { kind: 'record', of: atom }
+          : key === 'visibleProperties'
+            ? { kind: 'ids' }
+            : ATOM
 }
 /**
  * A row's cell. Lists of ids (relation links, multi-select options) merge as sets: links one

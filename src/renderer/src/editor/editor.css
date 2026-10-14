@@ -645,11 +645,27 @@ span[class*='rt-bg-'] {
  * A database at the top level of a page may be wider than the text: up to --database-width,
  * centred on the column, and never past the page's side padding. Nested ones keep to their indent.
  */
-.pe-page .pe-body > .blk-database > .blk-row {
+.pe-page .pe-body > .blk-database > .blk-row,
+.pe-page .pe-body > .blk-beside {
   --pe-database-width: max(100%, min(var(--database-width), 100cqi - var(--page-padding-x) * 2));
 
   width: var(--pe-database-width);
   margin-inline: calc((100% - var(--pe-database-width)) / 2);
+}
+
+/*
+ * Database blocks side by side (editor/layout.ts). The gap is as wide as a block's gutter, which
+ * sits in it; a row too narrow for its blocks wraps.
+ */
+.blk-beside {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 52px;
+}
+
+.blk-beside > .blk {
+  flex: 1 1 0;
+  min-width: min(100%, 240px);
 }
 
 .blk-code-box {
