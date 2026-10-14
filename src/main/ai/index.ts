@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, dialog, type BrowserWindow, type WebContents } from 'electron'
 import { AI_CHANNELS, type AiDone, type AiError, type AiErrorCode, type AiRequest, type AiStatus } from '../../shared/ai'
@@ -26,7 +25,7 @@ import { loadMeeting, prepareMeeting, type MeetingSource } from './meeting'
 import { buildPrompt, type BriefingPromptData, type PromptContext } from './prompts'
 import { aiRequest, loadContext } from './request'
 import { AiService, type PromptBuilder, type RunTarget } from './service'
-import { ToolHost } from './toolhost'
+import { ToolHost, toolScript } from './toolhost'
 import type { ToolSource } from './tools'
 
 /**
@@ -43,15 +42,6 @@ const DELTA_FLUSH_MS = 40
  */
 export function devCliOverride(raw: string | undefined, isPackaged: boolean): string | null {
   return !isPackaged && raw ? raw : null
-}
-
-/**
- * Where the bundled server script of the workspace tools is: next to the main bundle, which is
- * this file's folder or, when this file was split into a chunk of its own, the folder above.
- */
-export function toolScript(dir: string, exists: (path: string) => boolean = existsSync): string {
-  const candidates = [join(dir, 'mcp.js'), join(dir, '..', 'mcp.js')]
-  return candidates.find((path) => exists(path)) ?? candidates[0]
 }
 
 /** Why a seat of the council gave no answer, in words that fit any program. */

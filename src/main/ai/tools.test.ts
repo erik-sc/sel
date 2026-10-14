@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { Block, BlockProps, BlockType, SearchResult } from '../../shared/types'
 import { BASE_ARGS, buildArgs, buildSpawn, SYSTEM_PROMPT_TOOLS, toolArgs } from './command'
-import { ToolHost } from './toolhost'
+import { ToolHost, toolScript } from './toolhost'
 import { callTool, ToolError, toolActivity, type ToolSource } from './tools'
 import { ALLOWED_TOOLS, TOOL_NAMES, TOOL_SPECS } from './toolspecs'
 
@@ -239,8 +239,7 @@ describe('the command line with the tools', () => {
 })
 
 describe('the server script', () => {
-  it('is found next to the main bundle, also from a chunk', async () => {
-    const { toolScript } = await import('./index')
+  it('is found next to the main bundle, also from a chunk', () => {
     const there = new Set([join('/app/out/main', 'mcp.js')])
     expect(toolScript('/app/out/main', (path) => there.has(path))).toBe(join('/app/out/main', 'mcp.js'))
     expect(toolScript('/app/out/main/chunks', (path) => there.has(path))).toBe(join('/app/out/main', 'mcp.js'))
