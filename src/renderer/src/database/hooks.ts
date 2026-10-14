@@ -1,13 +1,17 @@
 // Small React hooks shared by the database editors.
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
+import { flushOnUnload } from '@/ui/unload'
 
 /**
- * Runs `commit` when the component really unmounts.
+ * Runs `commit` when the component really unmounts, and when the window closes
+ * while it is still mounted.
  *
  * Inputs inside popovers and windowed rows are often removed without ever
  * receiving a blur event (Escape / outside click close the popover first, a row
  * scrolls out of the window, the view switches), which used to drop the edit.
+ * Closing the window (Alt+F4, quitting) unmounts nothing and blurs nothing, so
+ * that case goes through `flushOnUnload`.
  *
  * `commit` must be idempotent and decide by itself whether there is anything to
  * save. StrictMode's simulated unmount is ignored: the effect is set up again
@@ -19,7 +23,9 @@ export function useCommitOnUnmount(commit: () => void): void {
   const mounted = useRef(false)
   useEffect(() => {
     mounted.current = true
+    const offUnload = flushOnUnload(() => latest.current())
     return () => {
+      offUnload()
       mounted.current = false
       queueMicrotask(() => {
         if (!mounted.current) latest.current()

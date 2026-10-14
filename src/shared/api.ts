@@ -257,6 +257,7 @@ export type MenuCommand =
   | 'open-calendar'
   | 'new-meeting'
   | 'send-feedback'
+  | 'command-palette'
 
 /** Event and fire-and-forget channel names. Invoke channels are declared in `INVOKE` below. */
 export const IPC = {

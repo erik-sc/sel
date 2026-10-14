@@ -18,6 +18,8 @@ interface UiState {
   renamingId: string | null
   /** Page whose version history is open, if any. */
   historyPageId: string | null
+  /** The page's word count and reading time in the top bar. */
+  wordCount: boolean
 }
 
 export type SettingsSection = 'general' | 'appearance' | 'history' | 'ai' | 'herman' | 'sync' | 'today' | 'meetings'
@@ -26,6 +28,7 @@ export const SIDEBAR_MIN = 200
 export const SIDEBAR_MAX = 480
 const SIDEBAR_KEY = 'shell.sidebar'
 const EXPANDED_KEY = 'shell.expanded'
+const WORD_COUNT_KEY = 'shell.wordCount'
 /** Synchronous copy of what decides the first frame (see boot.ts). */
 const MIRROR_KEY = 'ui'
 
@@ -38,7 +41,8 @@ export const useUi = create<UiState>(() => ({
   settingsSection: null,
   theme: 'system',
   renamingId: null,
-  historyPageId: null
+  historyPageId: null,
+  wordCount: true
 }))
 
 function save(key: string, value: unknown): void {
@@ -50,8 +54,8 @@ function clampWidth(width: number): number {
 }
 
 function mirror(): void {
-  const { theme, sidebarWidth, sidebarCollapsed } = useUi.getState()
-  writeMirror(MIRROR_KEY, { theme, width: sidebarWidth, collapsed: sidebarCollapsed })
+  const { theme, sidebarWidth, sidebarCollapsed, wordCount } = useUi.getState()
+  writeMirror(MIRROR_KEY, { theme, width: sidebarWidth, collapsed: sidebarCollapsed, words: wordCount })
 }
 
 function saveSidebar(): void {
@@ -91,6 +95,13 @@ export function setSettingsOpen(open: boolean): void {
 
 export function setRenaming(id: string | null): void {
   useUi.setState({ renamingId: id })
+}
+
+/** Shows or hides the word count in the top bar. */
+export function setWordCount(on: boolean): void {
+  useUi.setState({ wordCount: on })
+  save(WORD_COUNT_KEY, on)
+  mirror()
 }
 
 /** Opens the version history of a page (null closes it). */
@@ -145,19 +156,25 @@ function readWidth(value: unknown): number | null {
 export function bootUi(): boolean {
   const saved = readMirror(MIRROR_KEY)
   if (!saved || typeof saved !== 'object') return false
-  const raw = saved as { theme?: unknown; width?: unknown; collapsed?: unknown }
-  useUi.setState({ theme: readTheme(raw.theme), sidebarWidth: readWidth(raw.width), sidebarCollapsed: !!raw.collapsed })
+  const raw = saved as { theme?: unknown; width?: unknown; collapsed?: unknown; words?: unknown }
+  useUi.setState({
+    theme: readTheme(raw.theme),
+    sidebarWidth: readWidth(raw.width),
+    sidebarCollapsed: !!raw.collapsed,
+    wordCount: raw.words !== false
+  })
   paintTheme()
   return true
 }
 
 export async function initUi(): Promise<void> {
-  const [theme, sidebar, expanded] = await Promise.all([
+  const [theme, sidebar, expanded, wordCount] = await Promise.all([
     window.api.app.getTheme().catch(() => 'system' as Theme),
     window.api.app
       .getSetting<{ width?: unknown; collapsed?: unknown }>(SIDEBAR_KEY)
       .catch(() => null),
-    window.api.app.getSetting<string[]>(EXPANDED_KEY).catch(() => null)
+    window.api.app.getSetting<string[]>(EXPANDED_KEY).catch(() => null),
+    window.api.app.getSetting<boolean>(WORD_COUNT_KEY).catch(() => null)
   ])
   const map: Record<string, true> = {}
   if (Array.isArray(expanded)) {
@@ -167,7 +184,8 @@ export async function initUi(): Promise<void> {
     theme: readTheme(theme),
     sidebarWidth: readWidth(sidebar?.width),
     sidebarCollapsed: !!sidebar?.collapsed,
-    expanded: map
+    expanded: map,
+    wordCount: wordCount !== false
   })
   paintTheme()
   mirror()

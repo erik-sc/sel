@@ -8,7 +8,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { checkRemoteUrl, cleanBranch, cleanDeviceName, isPassphrase, SYNC_KEYS, SYNC_MESSAGES } from '../../shared/sync'
+import { checkRemoteUrl, cleanBranch, cleanDeviceName, isPassphrase, SYNC_MESSAGES } from '../../shared/sync'
 import { openTestRepository } from '../db/testing'
 import * as arg from '../validate'
 import { createEncryption, exportKeys, hiddenName, importKeys, keysMatch, open, seal, unlockEncryption, WrongKeyError } from './crypto'
@@ -305,7 +305,7 @@ describe('what a failure says', () => {
   })
 
   it('keeps every sync setting out of the renderer\'s reach for writing', () => {
-    for (const key of [...SYNC_KEYS, 'sync.encrypted', 'sync.anything', 'rootOrderAt']) {
+    for (const key of ['sync.remoteUrl', 'sync.branch', 'sync.gitPath', 'sync.encrypted', 'sync.firstMode', 'sync.anything', 'rootOrderAt']) {
       expect(() => arg.writableSettingKey(key), key).toThrow('read-only')
     }
   })

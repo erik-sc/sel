@@ -8,11 +8,11 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 ## What it does
 
-**Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go.
+**Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go. The top bar keeps a quiet count of the page's words and reading time, or of what you have selected; Settings → General turns it off.
 
 **Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters.
 
-**Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not.
+**Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not. `Ctrl+K` lists everything the app can do: type a few letters and press Enter. With text selected in a page, `Ctrl+K` adds a link instead.
 
 **Go back.** Every page keeps a version history. Compare, restore, or restore as a copy.
 
@@ -81,6 +81,7 @@ All style values live in one file, `src/renderer/src/styles/tokens.css`. Compone
 
 | | |
 |---|---|
+| `Ctrl+K` | Commands (a link, with text selected) |
 | `Ctrl+P` | Find |
 | `Ctrl+F` | Find in this page |
 | `Ctrl+N` | New page |

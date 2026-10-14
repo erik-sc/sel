@@ -8,6 +8,7 @@ import { bootAppearance, initAppearance } from './appearance/store'
 import { bootMark, whenIdle } from './boot'
 import { preloadEditor } from './editor/lazy'
 import { preloadQuickFind } from './shell/QuickFind'
+import { preloadPalette } from './commands/Palette'
 import { getBlock, prefetchTree } from './store/blocks'
 import { activeTab, initTabs, initialPageId, tabPage } from './store/tabs'
 import { initTree } from './store/tree'
@@ -65,6 +66,7 @@ function mount(): void {
   whenIdle(() => {
     preloadEditor()
     preloadQuickFind()
+    preloadPalette()
     void herman.then(preloadHerman)
   })
 }
