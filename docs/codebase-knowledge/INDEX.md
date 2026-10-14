@@ -36,8 +36,11 @@ src/main/ipc.ts:69-90, src/renderer/index.html:19).
 5. **Sync has no change log.** Each upload recomputes page fingerprints and compares them
    with `sync_state` (src/main/sync/engine.ts:834-850).
 
-Also worth knowing: adding an IPC call means editing three files by hand (src/shared/api.ts:40,
-src/preload/index.ts:64, src/main/ipc.ts:111), and the build refuses to run when the installed
+Also worth knowing: an invoke call is declared once, as a `namespace:method` line in `INVOKE`
+next to the `Api` type (src/shared/api.ts:279); the preload builds `window.api` from that table
+(src/preload/index.ts:30) and main must give every line a handler, or typecheck fails
+(src/main/invoke.ts:16, src/main/ipc.ts:280); see "Adding an IPC call" in
+[Conventions](50-conventions.md). The build refuses to run when the installed
 Electron major differs from the pinned targets (electron.vite.config.ts:15-26).
 
 ## Top open questions

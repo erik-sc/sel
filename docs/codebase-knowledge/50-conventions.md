@@ -2,7 +2,7 @@
 
 ## Naming
 
-- IPC invoke channels are `namespace:method`, nested with a dot, written as string literals (src/shared/api.ts:21, src/main/ipc.ts:111, src/main/ipc.ts:199).
+- IPC invoke channels are `namespace:method`, nested with a dot, and name the method's place on `window.api`: `api.ai.agents.list` answers on `ai:agents.list` (src/shared/ipc.ts:1-10). Each is declared once in `INVOKE` (src/shared/api.ts:279).
 - Settings keys are `area.key` (src/shared/ai.ts:142, src/shared/herman.ts:143-145); the pattern is enforced by a regex (src/main/validate.ts:29).
 - Main-process feature folders use `register.ts` (handlers, loaded at start-up), `index.ts` (the lazy `*Bridge`), `service.ts` (Electron-free) (src/main/briefing/register.ts:9-12, src/main/briefing/index.ts:36-55, src/main/briefing/service.ts:81).
 - Renderer features expose `gate.ts` (always loaded), `Host.tsx` (mount point) and lazy chunks (src/renderer/src/ai/gate.ts:1-3, src/renderer/src/ai/Host.tsx:8-19).
@@ -13,13 +13,45 @@
 
 ## Layering rules
 
-- The renderer reaches main only through `window.api` (src/preload/index.ts:157).
+- The renderer reaches main only through `window.api` (src/preload/index.ts:112).
 - Paths never come from the renderer; they come from native dialogs in main (src/main/ipc.ts:125, src/main/sync/index.ts:275-295, src/main/ai/index.ts:225-255).
 - Pure modules carry a header comment saying they are free of Electron, React or the store (src/renderer/src/database/logic.ts:1-12, src/main/briefing/secrets.ts:21, src/main/meetings/grant.ts:5).
 - zustand stores hold state only; mutations are free exported functions (src/renderer/src/store/tabs.ts:48, src/renderer/src/store/ui.ts:64).
 - Database code is consumed from outside through `@/database/lazy` (src/renderer/src/editor/BlockView.tsx:7, src/renderer/src/shell/PageHost.tsx:5).
 - Main imports shared by relative path; preload and renderer use the `@shared` and `@` aliases (src/main/validate.ts:1, src/preload/index.ts:2, src/renderer/src/App.tsx:2).
 - Migrations are append-only (src/main/db/schema.ts:4-7).
+
+## Adding an IPC call
+
+An invoke call (a `window.api` method that returns a promise) is declared once; typecheck
+points at every other place that must follow. Say the new call is `databases.rename(id, name)`:
+
+1. **Signature.** Add `rename(id: string, name: string): Promise<Block>` to the `databases`
+   namespace of `Api` (src/shared/api.ts:27), or to the feature's contract (`BriefingApi`,
+   `HermanApi`, `MeetingsApi`, `FeedbackApi` in src/shared/*.ts). A new namespace is a new
+   member of `Api`. Do not change the shape of anything already there.
+2. **Channel.** Add `'databases:rename': true,` to `INVOKE` (src/shared/api.ts:279), beside its
+   namespace. The channel is the namespace, a colon, then the path below it joined with dots
+   (`ai:agents.list`, `meetings:recording.begin`). Typecheck fails at `INVOKE` until this line
+   exists, and fails for a line that names no method. The preload needs no change: it builds
+   one method per line (src/preload/index.ts:30).
+3. **Handler.** Add `'databases:rename': ([a, b]) => ...` to that namespace's map: in
+   src/main/ipc.ts for the core namespaces (`databaseHandlers: Handlers<'databases'>`), or in
+   the feature's `register.ts` (`Handlers<'briefing'>` and so on). Typecheck fails until it
+   exists, and for a handler of an undeclared channel. A new namespace gets its own map, spread
+   into `handlers` in `registerIpc` (src/main/ipc.ts:280); typecheck fails until it is.
+   Arguments arrive as `unknown`: narrow them with `arg.*` (src/main/validate.ts) or in the
+   service before use. The wrapper already checks the sender and the client id, waits for
+   `ready`, drains changes and reduces errors (src/main/ipc.ts:70-92). Nothing calls
+   `ipcMain.handle` by itself.
+4. **Review list.** Add the channel to `INVOKE_CHANNELS` in src/preload/index.test.ts: that list
+   is what a renderer can reach, kept in a test so that a change to it is seen in review.
+
+Not invoke calls, and still written by hand: events (`on*` methods returning an unsubscribe
+function; their channel constants live with the feature, e.g. `SYNC_CHANNEL` in src/shared/sync.ts),
+fire-and-forget sends (`IPC.window*` in src/shared/api.ts:262, `MEETINGS_CHANNELS.frames`) and
+plain values (`clientId`, `app.platform`), all in src/preload/index.ts:43-110, with `ipcMain.on`
+in main. A `MenuCommand` (src/shared/api.ts) is not an IPC call: it travels on `event:command`.
 
 ## Error handling
 
@@ -35,7 +67,7 @@
 
 ## Testing
 
-- Tests sit next to the code as `*.test.ts`; 73 files, none under `src/shared` or `src/preload` (`git ls-files`, this session).
+- Tests sit next to the code as `*.test.ts`; 73 files at the time of the survey, none then under `src/shared` or `src/preload` (`git ls-files`); src/shared/ipc.test.ts and src/preload/index.test.ts came later. The preload test mocks each `@shared/*` alias it imports onto a relative path (src/preload/index.test.ts:28-36).
 - There is no vitest config (package.json:13), so path aliases do not resolve in tests; a unit-tested renderer module imports values relatively, for example src/renderer/src/store/blocks.ts:4.
 - No DOM library is installed (package.json:21-37); renderer tests cover pure logic. How src/renderer/src/editor/richtext-dom.test.ts:1 obtains a DOM was not checked (unverified).
 - Repository tests open an in-memory database on `node:sqlite`, or better-sqlite3 when `SEL_TEST_DRIVER` says so (src/main/db/testing.ts:12-22).
@@ -70,6 +102,5 @@
 | src/main/briefing/net.ts:9 | Comment claims to be the only network code | Stale comment |
 | src/main/meetings/whisper/download.ts:7 | Binary downloads reuse `validateCalendarUrl` and `CalendarError` | Naming leak, behaviour fine |
 | src/main/security.ts:84 | `eslint-disable` comment with no ESLint configured | Vestigial |
-| src/main/ipc.ts:257 | `window:isMaximized` is a literal beside constant-named siblings (src/shared/api.ts:251-257) | Minor inconsistency |
 | src/main/ipc.ts:169-172 | Two related settings written without a transaction | Probably harmless |
 | src/main/sync/git.ts:444 | The auth-failure pattern ends in a bare word that could match unrelated errors | Possible misclassification (unverified) |
