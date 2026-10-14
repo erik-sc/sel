@@ -17,6 +17,9 @@ import { createPage, reportError } from './actions'
 import { toggleAssistant } from '@/ai/gate'
 import { openCalendar, openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
+import { openFind } from './findStore'
+import { IS_MAC } from '@/ui/platform'
+import { openFeedback } from '@/feedback/gate'
 
 function isEditable(target: EventTarget | null): boolean {
   return (
@@ -47,6 +50,9 @@ export function useShellCommands(): void {
           break
         case 'quick-find':
           setQuickFindOpen(true)
+          break
+        case 'find-in-page':
+          openFind(window.getSelection()?.toString())
           break
         case 'toggle-sidebar':
           toggleSidebar()
@@ -87,6 +93,9 @@ export function useShellCommands(): void {
         case 'new-meeting':
           void newMeeting()
           break
+        case 'send-feedback':
+          openFeedback()
+          break
         case 'version-history': {
           // The shortcut toggles: the history of the page in the active tab.
           const pageId = tabPage(activeTab())
@@ -105,6 +114,11 @@ export function useShellCommands(): void {
       if (key === 'p' || (key === 'k' && !(isEditable(event.target) && hasSelection()))) {
         event.preventDefault()
         setQuickFindOpen(true)
+      } else if (key === 'f' && (IS_MAC ? event.metaKey : event.ctrlKey)) {
+        // On a Mac, Ctrl+F stays the text fields' "one character forward".
+        // Main delivers Ctrl+F as a command; this catches it when the key reaches the page instead.
+        event.preventDefault()
+        openFind(window.getSelection()?.toString())
       }
     }
 

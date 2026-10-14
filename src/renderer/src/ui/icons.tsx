@@ -49,6 +49,7 @@ export const Settings = make(
 
 export const ChevronRight = make(<path d="M6 3.5 10.5 8 6 12.5" />)
 export const ChevronDown = make(<path d="M3.5 6 8 10.5 12.5 6" />)
+export const ChevronUp = make(<path d="M3.5 10 8 5.5l4.5 4.5" />)
 export const ChevronLeft = make(<path d="M10 3.5 5.5 8l4.5 4.5" />)
 
 export const MoreHorizontal = make(
@@ -213,6 +214,9 @@ export const Mic = make(
     <path d="M3.8 7.6a4.2 4.2 0 0 0 8.4 0M8 11.8v2.2" />
   </>
 )
+
+/** A speech bubble: bug reports and suggestions. */
+export const Feedback = make(<path d="M3.2 3h9.6c.7 0 1.2.5 1.2 1.2v5.6c0 .7-.5 1.2-1.2 1.2H8.2L5 13.4V11H3.2C2.5 11 2 10.5 2 9.8V4.2C2 3.5 2.5 3 3.2 3zM8 5v2.6M8 9.2v.01" />)
 
 /** The mark of the AI features: a four-pointed star with a small one beside it. */
 export const Sparkle = make(<path d="M7 2.2l1.3 3.5 3.5 1.3-3.5 1.3L7 11.8 5.7 8.3 2.2 7l3.5-1.3zM12.3 10.6v3M10.8 12.1h3" />)

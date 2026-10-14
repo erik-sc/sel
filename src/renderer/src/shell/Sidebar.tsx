@@ -11,7 +11,9 @@ import {
   useUi
 } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
-import { Calendar, ChevronLeft, Clock, Mic, Plus, Search, Settings, Trash } from '@/ui/icons'
+import { Calendar, ChevronLeft, Clock, Feedback, Mic, Plus, Search, Settings, Trash } from '@/ui/icons'
+import { openFeedback } from '@/feedback/gate'
+import { preloadFeedback } from '@/feedback/Host'
 import { openCalendar, openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
 import { MOD_KEY } from '@/ui/platform'
@@ -172,6 +174,16 @@ export const Sidebar = memo(function Sidebar() {
           >
             <Trash />
             <span>Trash</span>
+          </button>
+          <button
+            type="button"
+            className="sidebar-action"
+            onPointerEnter={preloadFeedback}
+            onFocus={preloadFeedback}
+            onClick={() => openFeedback()}
+          >
+            <Feedback />
+            <span>Feedback</span>
           </button>
           <div className="sync-footer-row">
             <button
