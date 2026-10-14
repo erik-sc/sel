@@ -36,14 +36,14 @@
 ## Testing
 
 - Tests sit next to the code as `*.test.ts`; 73 files, none under `src/shared` or `src/preload` (`git ls-files`, this session).
-- There is no vitest config (package.json:13), so path aliases do not resolve in tests; a unit-tested renderer module imports values relatively, for example src/renderer/src/store/blocks.ts:4.
-- No DOM library is installed (package.json:21-37); renderer tests cover pure logic. How src/renderer/src/editor/richtext-dom.test.ts:1 obtains a DOM was not checked (unverified).
+- vitest.config.ts collects tests from `src/` only and resolves the build's `@shared` and `@` aliases, so tests may import through them; existing tests and modules mostly use relative paths (vitest.config.ts:15-26).
+- No DOM library is installed (package.json:21-37) and tests run in vitest's Node environment; renderer tests cover pure logic. src/renderer/src/editor/richtext-dom.test.ts needs no DOM: it tests the pure functions of richtext-dom.ts.
 - Repository tests open an in-memory database on `node:sqlite`, or better-sqlite3 when `SEL_TEST_DRIVER` says so (src/main/db/testing.ts:12-22).
 - Time-zone-sensitive suites run once per zone by setting `TZ` on the first lines of a tiny test file (src/main/briefing/ical.utc.test.ts:1-4).
 - External programs are replaced by scripted fakes selected with markers in the prompt (src/main/ai/fixtures/fake-claude.mjs:6-8).
 - Sync tests need a real git binary and skip themselves without one (src/main/sync/harness.ts:18-24).
 - Some suites are opt-in through environment flags (src/main/db/bench.test.ts:14, src/main/briefing/net.test.ts:405).
-- Suggested command, not run this session: `npx vitest run --dir src` and `npm run typecheck` (package.json:12-13).
+- Run `npm test` and `npm run typecheck` (package.json:12-13).
 
 ## Configuration and feature flags
 

@@ -20,7 +20,7 @@
 | 16 | Does main depend on renderer code? | Yes, in one file, for Markdown export | verified (code) | src/main/markdown.ts:20-23 |
 | 17 | Is there telemetry, crash reporting or auto-update? | No | verified (code) | electron-builder.yml:2, electron-builder.yml:28; grep over `src` (this session) matched only src/main/ai/command.ts:189 |
 | 18 | Is there CI or a linter? | No | verified (code) | package.json:8-17; `.github` absent (ls, this session) |
-| 19 | Why does a bare `vitest run` show spurious failures? | It collects stale copies under `.claude/worktrees` because there is no config | open | package.json:13; to check: `npx vitest run --dir src` |
+| 19 | Why does a bare `vitest run` show spurious failures? | It collected stale copies under `.claude/worktrees` because there was no config; vitest.config.ts now limits tests to `src/` | verified (code) | vitest.config.ts:22-25 |
 | 20 | Do all style values really live in the tokens file? | Mostly, with a few documented raw lengths | open | README.md:78; src/renderer/src/appearance/appearance.css:3; to check: grep CSS files for raw colours and px values |
 | 21 | Does a failed editor write tell the user? | No: the store rolls back, the controller catches the rejection, logs and clears undo, so the global toast never fires | verified (code) | src/renderer/src/store/blocks.ts:334-337, src/renderer/src/editor/controller.ts:206-218, src/renderer/src/main.tsx:26-28; whether that is intended stays open |
 | 22 | Are debounced text edits flushed when a window closes? | Unmount flush exists; no `beforeunload` path was found | open | src/renderer/src/editor/EditableText.tsx:172, src/renderer/src/editor/types.ts:10 |
