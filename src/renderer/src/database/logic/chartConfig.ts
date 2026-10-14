@@ -59,9 +59,22 @@ export function aggregateNeedsProperty(aggregate: ChartAggregate): boolean {
   return aggregate !== 'count'
 }
 
+/**
+ * Whether a chart can group by a property. Relations and rollups cannot: their values come
+ * from other databases, which a chart (and its Markdown export) does not read.
+ */
+export function isChartAxisProperty(prop: PropertySchema | undefined): prop is PropertySchema {
+  return !!prop && prop.type !== 'relation' && prop.type !== 'rollup'
+}
+
+/** The properties a chart can group by, in schema order. */
+export function chartAxisProperties(schema: Schema): PropertySchema[] {
+  return orderedProperties(schema).filter(isChartAxisProperty)
+}
+
 /** Whether a property can be the value of an aggregate. */
 export function isChartValueProperty(prop: PropertySchema | undefined, aggregate: ChartAggregate): boolean {
-  if (!prop) return false
+  if (!isChartAxisProperty(prop)) return false
   switch (aggregate) {
     case 'count':
       return false
@@ -112,7 +125,8 @@ export function normalizeChartConfig(raw: unknown, schema: Schema): ChartConfig 
   if (!clean) return fallback
 
   const out = { kind: clean.kind } as ChartConfig
-  const x = propOf(schema, clean.x) ?? (clean.kind === 'number' ? undefined : propOf(schema, fallback.x))
+  const asked = propOf(schema, clean.x)
+  const x = (isChartAxisProperty(asked) ? asked : undefined) ?? (clean.kind === 'number' ? undefined : propOf(schema, fallback.x))
   if (x) {
     out.x = x.id
     if (isDateLikeType(x.type)) out.xDateBucket = clean.xDateBucket ?? 'month'
@@ -127,7 +141,7 @@ export function normalizeChartConfig(raw: unknown, schema: Schema): ChartConfig 
   out.y = valueProp ? { aggregate, property: valueProp.id } : { aggregate }
 
   const series = propOf(schema, clean.series)
-  if (series && series.id !== x?.id) out.series = series.id
+  if (isChartAxisProperty(series) && series.id !== x?.id) out.series = series.id
 
   if (clean.sort !== undefined) out.sort = clean.sort
   if (clean.limit !== undefined) out.limit = clean.limit

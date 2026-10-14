@@ -1,13 +1,15 @@
-import { useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import type { DatabaseView, PropertySchema, PropertyType } from '@shared/types'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import type { PopoverAnchor, PopoverPlacement } from '@/ui/Popover'
-import { Check, Filter, Sort, Trash } from '@/ui/icons'
+import { ArrowUpRight, Check, Filter, Sigma, Sort, Trash } from '@/ui/icons'
 import * as L from './logic'
 import * as actions from './actions'
 import { Floating, TypeIcon } from './common'
 import { useCommitOnUnmount } from './hooks'
+import { PartFallback, RelationTargetPicker } from './lazyParts'
+import { useRelated } from './related'
 
 const NUMBER_FORMATS: { id: NonNullable<PropertySchema['numberFormat']>; label: string }[] = [
   { id: 'number', label: 'Number' },
@@ -32,6 +34,10 @@ export function AddPropertyMenu({
   onClose: () => void
   onAdded?: (propertyId: string) => void
 }): JSX.Element {
+  // A relation needs its database first: the menu turns into the database picker.
+  const [pickingTarget, setPickingTarget] = useState(false)
+  // The menu closes itself after a pick; the relation entry replaces it instead.
+  const keepOpen = useRef(false)
   const items: MenuItem[] = [
     { header: 'Property type' },
     ...L.PROPERTY_TYPES.map<MenuItem>((type) => ({
@@ -39,6 +45,11 @@ export function AddPropertyMenu({
       label: L.TYPE_LABELS[type],
       icon: <TypeIcon type={type} />,
       onSelect: () => {
+        if (type === 'relation') {
+          keepOpen.current = true
+          setPickingTarget(true)
+          return
+        }
         // Not `onAdded?.(addProperty(...))`: without a listener that would skip the add itself.
         const id = actions.addProperty(databaseId, type, viewId)
         onAdded?.(id)
@@ -47,9 +58,137 @@ export function AddPropertyMenu({
   ]
   return (
     <Floating open anchor={anchor} placement={placement} onClose={onClose}>
-      <Menu items={items} onClose={onClose} autoFocus />
+      {pickingTarget ? (
+        <Suspense fallback={<PartFallback kind="popover" />}>
+          <RelationTargetPicker
+            databaseId={databaseId}
+            onPick={(targetId) => {
+              const id = actions.addRelation(databaseId, targetId, viewId)
+              if (id) onAdded?.(id)
+              onClose()
+            }}
+          />
+        </Suspense>
+      ) : (
+        <Menu
+          items={items}
+          onClose={() => {
+            if (!keepOpen.current) onClose()
+          }}
+          autoFocus
+        />
+      )}
     </Floating>
   )
+}
+
+/** The menu entries that configure a relation: its database, how many pages it links, and the other side. */
+function relationItems(
+  databaseId: string,
+  prop: PropertySchema,
+  cells: L.CellContext | undefined,
+  onPickTarget: () => void
+): MenuItem[] {
+  const config = L.relationOf(prop)
+  const targetTitle = config ? L.titleOf(cells?.get(config.databaseId)) || 'Untitled' : ''
+  const state = config && cells ? L.relatedDatabaseState(config.databaseId, cells) : 'loading'
+  const ownId = actions.rowsOwnerId(databaseId)
+  const twoWay = !!config && !!cells && L.partnerOf(config, prop.id, ownId, cells.schemaOf(config.databaseId)) !== undefined
+  const items: MenuItem[] = [
+    { separator: true },
+    {
+      id: 'relation-target',
+      label: config ? `Related to: ${state === 'missing' ? 'a deleted database' : targetTitle}` : 'Choose a database…',
+      icon: <ArrowUpRight size={14} />,
+      hint: state === 'trashed' ? 'In the trash' : undefined,
+      onSelect: onPickTarget
+    }
+  ]
+  if (!config) return items
+  items.push(
+    {
+      id: 'relation-limit',
+      label: config.limit === 'one' ? 'Limit: 1 page' : 'Limit: no limit',
+      submenu: [
+        {
+          id: 'limit-many',
+          label: 'No limit',
+          icon: config.limit !== 'one' ? <Check size={14} /> : <span />,
+          onSelect: () => actions.setRelationLimit(databaseId, prop.id, undefined)
+        },
+        {
+          id: 'limit-one',
+          label: '1 page',
+          icon: config.limit === 'one' ? <Check size={14} /> : <span />,
+          onSelect: () => actions.setRelationLimit(databaseId, prop.id, 'one')
+        }
+      ]
+    },
+    {
+      id: 'relation-two-way',
+      label: config.databaseId === ownId ? 'Two-way: show the other side here too' : `Two-way: show on ${targetTitle}`,
+      icon: twoWay ? <Check size={14} /> : <span />,
+      disabled: state !== 'ok',
+      onSelect: () => actions.setRelationTwoWay(databaseId, prop.id, !twoWay)
+    }
+  )
+  return items
+}
+
+/** The menu entries that configure a rollup: which relation, which of the related properties, and how to sum them up. */
+function rollupItems(databaseId: string, prop: PropertySchema, schema: L.Schema, cells: L.CellContext | undefined): MenuItem[] {
+  const resolved = cells ? L.resolveRollup(prop, schema, cells) : undefined
+  const config = prop.rollup ?? L.DEFAULT_ROLLUP
+  const relations = L.orderedProperties(schema).filter((p) => p.type === 'relation')
+  const targetSchema = resolved?.relation?.relation ? cells?.schemaOf(resolved.relation.relation.databaseId) : undefined
+  const sources = targetSchema ? L.orderedProperties(targetSchema).filter(L.isRollupSource) : []
+  const functions = L.rollupFunctionsFor(resolved?.target)
+  const check = (on: boolean): JSX.Element => (on ? <Check size={14} /> : <span />)
+  return [
+    { separator: true },
+    {
+      id: 'rollup-relation',
+      label: `Relation: ${resolved?.relation?.name ?? 'none'}`,
+      icon: <ArrowUpRight size={14} />,
+      disabled: !relations.length,
+      hint: relations.length ? undefined : 'Add a relation first',
+      submenu: relations.map((p) => ({
+        id: `rollup-relation-${p.id}`,
+        label: p.name,
+        icon: check(p.id === config.relationId),
+        onSelect: () => actions.updateRollup(databaseId, prop.id, { relationId: p.id })
+      }))
+    },
+    {
+      id: 'rollup-property',
+      label: `Property: ${resolved?.target?.name ?? 'none'}`,
+      disabled: !sources.length,
+      submenu: sources.map((p) => ({
+        id: `rollup-property-${p.id}`,
+        label: p.name,
+        icon: <TypeIcon type={p.type} />,
+        hint: p.id === config.propertyId ? '✓' : undefined,
+        onSelect: () => {
+          const fits = L.rollupFunctionsFor(p)
+          actions.updateRollup(databaseId, prop.id, {
+            propertyId: p.id,
+            function: fits.includes(config.function) ? config.function : 'show_original'
+          })
+        }
+      }))
+    },
+    {
+      id: 'rollup-function',
+      label: `Calculate: ${L.ROLLUP_LABELS[config.function]}`,
+      icon: <Sigma size={14} />,
+      submenu: functions.map((fn) => ({
+        id: `rollup-function-${fn}`,
+        label: L.ROLLUP_LABELS[fn],
+        icon: check(fn === config.function),
+        onSelect: () => actions.updateRollup(databaseId, prop.id, { function: fn })
+      }))
+    }
+  ]
 }
 
 /** Property header menu: rename, type, sort, filter, hide, delete. */
@@ -73,6 +212,14 @@ export function PropertyMenu({
 }): JSX.Element {
   const [name, setName] = useState(prop.name)
   const isTitle = prop.type === 'title'
+  const { cells } = useRelated()
+  /** The database picker replaces the menu: to point a relation elsewhere, or to turn the property into one. */
+  const [picking, setPicking] = useState<'target' | 'type' | null>(null)
+  const keepOpen = useRef(false)
+  const pick = (mode: 'target' | 'type'): void => {
+    keepOpen.current = true
+    setPicking(mode)
+  }
 
   // Only a name the user typed is written (and only once): an untouched input
   // never overwrites a rename that arrived from elsewhere in the meantime.
@@ -90,7 +237,10 @@ export function PropertyMenu({
     label: L.TYPE_LABELS[type],
     icon: <TypeIcon type={type} />,
     hint: prop.type === type ? '✓' : undefined,
-    onSelect: () => actions.changePropertyType(databaseId, prop.id, type)
+    onSelect: () => {
+      if (type === 'relation' && prop.type !== 'relation') pick('type')
+      else actions.changePropertyType(databaseId, prop.id, type)
+    }
   }))
 
   const items: MenuItem[] = [
@@ -114,6 +264,8 @@ export function PropertyMenu({
       }))
     })
   }
+  if (prop.type === 'relation') items.push(...relationItems(databaseId, prop, cells, () => pick('target')))
+  if (prop.type === 'rollup') items.push(...rollupItems(databaseId, prop, actions.snapshot(databaseId).schema, cells))
   if (view) {
     items.push(
       { separator: true },
@@ -157,6 +309,23 @@ export function PropertyMenu({
     onClose()
   }
 
+  if (picking) {
+    return (
+      <Floating open anchor={anchor} placement={placement} onClose={close}>
+        <Suspense fallback={<PartFallback kind="popover" />}>
+          <RelationTargetPicker
+            databaseId={databaseId}
+            onPick={(targetId) => {
+              if (picking === 'type') actions.changePropertyType(databaseId, prop.id, 'relation', targetId)
+              else actions.setRelationTarget(databaseId, prop.id, targetId)
+              close()
+            }}
+          />
+        </Suspense>
+      </Floating>
+    )
+  }
+
   return (
     <Floating open anchor={anchor} placement={placement} onClose={close}>
       <div className="db-prop-menu">
@@ -180,7 +349,12 @@ export function PropertyMenu({
             }}
           />
         </div>
-        <Menu items={items} onClose={close} />
+        <Menu
+          items={items}
+          onClose={() => {
+            if (!keepOpen.current) close()
+          }}
+        />
       </div>
     </Floating>
   )

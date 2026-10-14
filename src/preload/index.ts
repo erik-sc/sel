@@ -1,9 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { AI_CHANNELS, type AiEvent } from '@shared/ai'
-import { BRIEFING_CHANGED, type BriefingApi } from '@shared/briefing'
-import { IPC, type Api, type MenuCommand } from '@shared/api'
-import { HERMAN_NUDGE_CHANNEL, type HermanApi } from '@shared/herman'
-import { MEETINGS_CHANNELS, type MeetingsApi } from '@shared/meetings'
+import { BRIEFING_CHANGED } from '@shared/briefing'
+import { INVOKE, IPC, type Api, type MenuCommand } from '@shared/api'
+import { HERMAN_NUDGE_CHANNEL } from '@shared/herman'
+import { buildInvokers, type Invokers } from '@shared/ipc'
+import { MEETINGS_CHANNELS } from '@shared/meetings'
 import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
 import type { ChangeEvent } from '@shared/types'
 
@@ -24,8 +25,9 @@ const call =
   (...args: unknown[]) =>
     ipcRenderer.invoke(channel, clientId, ...args)
 
-const ns = <T extends object>(namespace: string, methods: readonly string[], separator = ':'): T =>
-  Object.fromEntries(methods.map((m) => [m, call(`${namespace}${separator}${m}`)])) as T
+// One method per channel declared in INVOKE (`blocks:get` becomes `invoke.blocks.get`) and no
+// other: nothing here invokes a channel named at run time.
+const invoke = buildInvokers(Object.keys(INVOKE), call) as Invokers<Api>
 
 /** Subscribes to a channel that carries one payload. Returns the unsubscribe function. */
 const subscribe =
@@ -36,52 +38,13 @@ const subscribe =
     return () => ipcRenderer.removeListener(channel, handler)
   }
 
-const meetings: MeetingsApi = {
-  ...ns<Pick<MeetingsApi, 'status' | 'create' | 'transcribe' | 'cancelTranscribe' | 'setSpeakers' | 'storage' | 'openFolder'>>('meetings', [
-    'status',
-    'create',
-    'transcribe',
-    'cancelTranscribe',
-    'setSpeakers',
-    'storage',
-    'openFolder'
-  ]),
-  engine: ns('meetings:engine', ['status', 'download', 'cancelDownload', 'pickProgram', 'pickModel', 'remove'], '.'),
-  recording: {
-    ...ns<Omit<MeetingsApi['recording'], 'frames' | 'encoded'>>('meetings:recording', ['probe', 'begin', 'pause', 'resume', 'stop', 'recover', 'discard'], '.'),
-    // Fire-and-forget, binary: a hundred milliseconds of audio at a time must not wait for a reply.
-    frames: (token, seq, mic, system) => ipcRenderer.send(MEETINGS_CHANNELS.frames, token, seq, mic, system),
-    encoded: (token, stream, seq, bytes) => ipcRenderer.send(MEETINGS_CHANNELS.encoded, token, stream, seq, bytes)
-  },
-  audio: ns('meetings:audio', ['info', 'delete'], '.'),
-  onStatus: subscribe(MEETINGS_CHANNELS.status),
-  onProgress: subscribe(MEETINGS_CHANNELS.progress),
-  onStop: subscribe(MEETINGS_CHANNELS.stop)
-}
-
+// The invoke calls come from `invoke`; written out below is everything else: events,
+// fire-and-forget sends and plain values.
 const api: Api = {
+  ...invoke,
   clientId,
-  blocks: ns('blocks', ['get', 'getMany', 'getTree', 'children', 'create', 'update', 'move', 'delete', 'apply']),
-  pages: ns('pages', [
-    'listRoot',
-    'listChildren',
-    'listFavorites',
-    'listRecent',
-    'listTrash',
-    'restore',
-    'deleteForever',
-    'ancestors',
-    'duplicate',
-    'exportMarkdown',
-    'importMarkdown'
-  ]),
-  databases: ns('databases', ['list', 'locations']),
-  search: ns('search', ['query']),
-  versions: ns('versions', ['list', 'get', 'current', 'save', 'rename', 'delete', 'restore', 'stats', 'clear']),
-  files: ns('files', ['pickImage', 'saveImage', 'saveGeneratedImage']),
   ai: {
-    ...ns<Omit<Api['ai'], 'onEvent' | 'agents'>>('ai', ['status', 'run', 'cancel', 'pickCli']),
-    agents: ns('ai:agents', ['list', 'connect', 'remove'], '.'),
+    ...invoke.ai,
     onEvent(listener) {
       const types = ['delta', 'done', 'error', 'council'] as const
       const handlers = types.map((type) => {
@@ -93,7 +56,7 @@ const api: Api = {
     }
   },
   sync: {
-    ...ns<Omit<Api['sync'], 'onStatus'>>('sync', ['status', 'setup', 'now', 'pause', 'disconnect', 'pickGit', 'unlock', 'setEncryption']),
+    ...invoke.sync,
     onStatus(listener) {
       const handler = (_: unknown, status: SyncStatus): void => listener(status)
       ipcRenderer.on(SYNC_CHANNEL, handler)
@@ -101,46 +64,37 @@ const api: Api = {
     }
   },
   briefing: {
-    ...ns<Omit<BriefingApi, 'calendars' | 'onChanged'>>('briefing', [
-      'get',
-      'agenda',
-      'anotherPhrase',
-      'completeTask',
-      'undoCompleteTask',
-      'ensurePhrasesDatabase',
-      'addPhrase',
-      'databases',
-      'brief'
-    ]),
-    calendars: ns('briefing:calendars', ['list', 'add', 'update', 'remove', 'test'], '.'),
+    ...invoke.briefing,
     onChanged(listener) {
       const handler = (): void => listener()
       ipcRenderer.on(BRIEFING_CHANGED, handler)
       return () => ipcRenderer.removeListener(BRIEFING_CHANGED, handler)
     }
   },
-  meetings,
+  meetings: {
+    ...invoke.meetings,
+    recording: {
+      ...invoke.meetings.recording,
+      // Fire-and-forget, binary: a hundred milliseconds of audio at a time must not wait for a reply.
+      frames: (token, seq, mic, system) => ipcRenderer.send(MEETINGS_CHANNELS.frames, token, seq, mic, system),
+      encoded: (token, stream, seq, bytes) => ipcRenderer.send(MEETINGS_CHANNELS.encoded, token, stream, seq, bytes)
+    },
+    onStatus: subscribe(MEETINGS_CHANNELS.status),
+    onProgress: subscribe(MEETINGS_CHANNELS.progress),
+    onStop: subscribe(MEETINGS_CHANNELS.stop)
+  },
   herman: {
-    ...ns<Pick<HermanApi, 'state' | 'met' | 'reset'>>('herman', ['state', 'met', 'reset']),
-    nudge: ns('herman:nudge', ['next', 'dismiss'], '.'),
+    ...invoke.herman,
     onNudge: subscribe(HERMAN_NUDGE_CHANNEL)
   },
-  feedback: ns('feedback', ['list', 'create', 'withdraw', 'openFolder']),
   app: {
-    ...ns<Omit<Api['app'], 'platform' | 'window'>>('app', [
-      'getTheme',
-      'setTheme',
-      'getSetting',
-      'setSetting',
-      'openExternal',
-      'newWindow'
-    ]),
+    ...invoke.app,
     platform: process.platform,
     window: {
+      ...invoke.app.window,
       minimize: () => ipcRenderer.send(IPC.windowMinimize),
       toggleMaximize: () => ipcRenderer.send(IPC.windowToggleMaximize),
-      close: () => ipcRenderer.send(IPC.windowClose),
-      isMaximized: () => ipcRenderer.invoke('window:isMaximized', clientId)
+      close: () => ipcRenderer.send(IPC.windowClose)
     }
   },
   onChange(listener) {

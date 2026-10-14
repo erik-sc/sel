@@ -193,6 +193,7 @@ export const Undo = make(
 
 export const Text = make(<path d="M2.5 4h11M2.5 8h11M2.5 12h7" />)
 export const Hash = make(<path d="M6.2 2.5 5 13.5M11 2.5 9.8 13.5M2.8 6h10.8M2.4 10h10.8" />)
+export const Sigma = make(<path d="M12 4V3H4l4.6 5L4 13h8v-1" />)
 
 export const Tag = make(
   <>

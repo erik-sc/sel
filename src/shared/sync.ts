@@ -97,22 +97,6 @@ export const SYNC_LIMITS = {
   activity: 10
 } as const
 
-/** Settings the main process keeps for sync. A renderer can read them and write none. */
-export const SYNC_KEYS = [
-  'sync.remoteUrl',
-  'sync.branch',
-  'sync.deviceName',
-  'sync.lastCommit',
-  'sync.lastSyncAt',
-  'sync.paused',
-  'sync.gitPath',
-  'sync.activity',
-  'sync.useAnyway',
-  'sync.appearanceAt',
-  'sync.encrypted',
-  'sync.firstMode'
-] as const
-
 export const SYNC_MESSAGES: Record<SyncErrorCode, string> = {
   'git-not-found': 'Git was not found on this computer. Install Git, or choose the git program.',
   'auth-failed':

@@ -35,7 +35,7 @@ export function DatabaseView(props: DatabaseViewProps): JSX.Element {
 }
 
 /** `RowProperties`, loaded on demand. Renders nothing until then (as it does for ordinary pages). */
-export function RowProperties(props: { pageId: string }): JSX.Element {
+export function RowProperties(props: { pageId: string; onOpenPage?: (id: string, opts?: { newTab?: boolean }) => void }): JSX.Element {
   return (
     <Suspense fallback={null}>
       <RowPropertiesImpl {...props} />
