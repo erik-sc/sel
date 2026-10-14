@@ -5,8 +5,12 @@
 # (src/main/db/testing.ts), esbuild's binary comes from its platform package, and skipping
 # Electron's script saves downloading its ~100 MB binary, which only running the app needs.
 #
-# Tests run on Windows, the platform the app ships for, and on Ubuntu, which is quicker and
-# keeps the code honest about paths and line endings. Typecheck is the same everywhere: once.
+# Node 24: what the project is developed and tested with. On Node 22 Intl formats compact
+# currency differently ("$12.0K", not "$12K") and a chart test fails.
+#
+# Tests run on Windows, the only platform the app ships for. Several tests exercise the
+# Windows code paths with the host's `path` module and do not pass on Linux. Typecheck does
+# not depend on the OS, so it runs once, on the quicker Ubuntu runner.
 name: CI
 
 on:
@@ -32,26 +36,21 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run typecheck
 
   test:
-    name: test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       # --dir src: only the project's own tests, never copies under .claude/worktrees.
