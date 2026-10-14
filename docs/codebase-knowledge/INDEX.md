@@ -31,8 +31,9 @@ src/main/ipc.ts:69-90, src/renderer/index.html:19).
 3. **Main imports renderer code.** Markdown export reuses the renderer's pure database logic,
    which is why the node tsconfig includes that folder (src/main/markdown.ts:20-23,
    tsconfig.node.json:15).
-4. **Tests cannot use path aliases.** There is no vitest config, so a unit-tested renderer
-   module imports values by relative path (package.json:13, src/renderer/src/store/blocks.ts:4).
+4. **Tests only come from `src/`.** vitest.config.ts limits discovery to `src/` (so copies
+   under `.claude/worktrees` are skipped) and gives tests the build's `@shared` and `@`
+   aliases; older modules still import values by relative path (vitest.config.ts:15-26).
 5. **Sync has no change log.** Each upload recomputes page fingerprints and compares them
    with `sync_state` (src/main/sync/engine.ts:834-850).
 
