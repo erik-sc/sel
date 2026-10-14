@@ -396,7 +396,8 @@ const PROPERTY_TYPE_NAMES: Record<string, string> = {
   created_time: 'Created time',
   last_edited_time: 'Last edited time',
   relation: 'Relation',
-  rollup: 'Rollup'
+  rollup: 'Rollup',
+  formula: 'Formula'
 }
 
 /** Properties added, removed, renamed or retyped, and whether the views differ. */
@@ -412,6 +413,8 @@ function schemaChanges(from: SnapshotBlock, to: SnapshotBlock): PropChange[] {
     else if (prev.name !== next.name) out.push({ label: 'Property name', from: prev.name, to: next.name })
     else if (prev.type !== next.type) {
       out.push({ label: next.name, from: PROPERTY_TYPE_NAMES[prev.type] ?? prev.type, to: PROPERTY_TYPE_NAMES[next.type] ?? next.type })
+    } else if (next.type === 'formula' && !same(prev.formula, next.formula)) {
+      out.push({ label: next.name, from: 'Current formula', to: 'Formula of this version' })
     } else if (!same(prev, next)) out.push({ label: next.name, from: 'Current options', to: 'Options of this version' })
   }
   for (const id of Object.keys(a)) {

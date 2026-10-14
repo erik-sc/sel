@@ -735,6 +735,28 @@ describe('mergeWorkspace: databases', () => {
     expect(out.conflicts).toEqual([])
   })
 
+  it('merges a formula as one value, apart from a rename of the property it reads', () => {
+    const d = db()
+    const s = d.base.blocks.get('db')?.props['schema'] as Record<string, Props>
+    const withFormula: Record<string, Props> = { ...s, total: { id: 'total', name: 'Total', type: 'formula', formula: { expression: 'dateAdd(prop("due"), 1, "days")' } } }
+    const start = new Device(d.base, 1500).edit('db', { schema: withFormula }).ws
+    // One device renames the date the formula reads (references are ids: the formula is untouched), the other edits the formula.
+    const a = new Device(start, 2000).edit('db', { schema: { ...withFormula, due: { ...withFormula.due, name: 'Deadline' } } })
+    const b = new Device(start, 3000).edit('db', {
+      schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: 'dateAdd(prop("due"), 2, "days")' } } }
+    })
+    const out = merge(start, a.ws, b.ws)
+    expect(schema(out.result)['due']['name']).toBe('Deadline')
+    expect(schema(out.result)['total']['formula']).toEqual({ expression: 'dateAdd(prop("due"), 2, "days")' })
+    expect(out.conflicts).toEqual([])
+    // Both edit the formula: the later edit wins whole, never a mix of the two texts.
+    const c = new Device(start, 4000).edit('db', { schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: '1' } } } })
+    const e = new Device(start, 5000).edit('db', { schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: '2' } } } })
+    const both = merge(start, c.ws, e.ws)
+    expect(schema(both.result)['total']['formula']).toEqual({ expression: '2' })
+    expect(both.conflicts.map((conflict) => conflict.field)).toEqual(['props.schema.total.formula'])
+  })
+
   it('merges select options added on both sides and a rename against a new option', () => {
     const { base, a, b } = db()
     const s = base.blocks.get('db')?.props['schema'] as Record<string, Props>

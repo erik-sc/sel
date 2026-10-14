@@ -21,8 +21,13 @@ export function openUrl(url: string): void {
   window.api.app.openExternal(target).catch((error) => console.error('openExternal failed', error))
 }
 
-/** Whether a cell shows anything. Relations and rollups need the related rows (`cells`) to tell. */
+/** Whether a cell shows anything. Relations, rollups and formulas need the context (`cells`) to tell. */
 export function hasDisplayValue(row: Block, prop: PropertySchema, cells?: L.CellContext): boolean {
+  if (prop.type === 'formula') {
+    const outcome = cells ? L.computeFormula(row, prop, cells) : null
+    // One that fails shows its error; an unchecked result shows nothing, like a checkbox.
+    return !!outcome && (!outcome.ok || !L.isEmptyFormulaValue(outcome.value))
+  }
   const value = L.readCell(row, prop, cells)
   return prop.type === 'checkbox' ? value === true : !L.isEmptyValue(value)
 }
@@ -47,6 +52,36 @@ function RollupValue({ row, prop }: { row: Block; prop: PropertySchema }): JSX.E
     )
   }
   return <span className="db-text">{result.items.map((item) => item.text).join(', ')}</span>
+}
+
+/**
+ * A formula cell: its result like a cell of that type (a checkbox, a right-aligned number,
+ * a date or text), or a small "!" with what is wrong.
+ */
+function FormulaValue({ row, prop }: { row: Block; prop: PropertySchema }): JSX.Element | null {
+  const { cells } = useRelated()
+  const outcome = cells ? L.computeFormula(row, prop, cells) : null
+  if (!outcome) return null
+  if (!outcome.ok) {
+    return (
+      <span className="db-formula-error" title={outcome.error}>
+        <span className="db-formula-error-mark" aria-hidden="true">
+          !
+        </span>
+        <span className="db-formula-error-text">{outcome.error}</span>
+      </span>
+    )
+  }
+  if (outcome.type === 'checkbox') {
+    return (
+      <span className={outcome.value === true ? 'db-checkbox is-checked' : 'db-checkbox'} role="img" aria-label={outcome.value === true ? 'Yes' : 'No'}>
+        {outcome.value === true && <Check size={12} />}
+      </span>
+    )
+  }
+  const text = L.formulaText(outcome)
+  if (!text) return null
+  return <span className={outcome.type === 'number' ? 'db-text is-number' : 'db-text'}>{text}</span>
 }
 
 /** A url cell: a link-like control (never an anchor with a raw href) when the url is safe to open. */
@@ -117,6 +152,8 @@ export function CellDisplay({ row, prop }: { row: Block; prop: PropertySchema })
       return <RelationValue row={row} prop={prop} />
     case 'rollup':
       return <RollupValue row={row} prop={prop} />
+    case 'formula':
+      return <FormulaValue row={row} prop={prop} />
     default: {
       const text = L.formatValue(value, prop)
       if (!text) return null
@@ -262,9 +299,9 @@ function selectedIds(value: PropertyValue): string[] {
   return typeof value === 'string' && value ? [value] : []
 }
 
-/** Types whose cells read other rows (through the related context). */
+/** Types whose cells read other rows or the schema (through the related context). */
 function isRelatedType(type: PropertySchema['type']): boolean {
-  return type === 'relation' || type === 'rollup'
+  return type === 'relation' || type === 'rollup' || type === 'formula'
 }
 
 /** What a cell shows when it is not being edited: its value, or the placeholder when it is empty. */
@@ -274,8 +311,8 @@ function CellBody({ row, prop, placeholder, cells }: { row: Block; prop: Propert
 }
 
 /**
- * The same for a relation or a rollup. Only these cells read the related context, so a
- * change in another database re-renders them and leaves the other cells of a row alone.
+ * The same for a relation, a rollup or a formula. Only these cells read the related context,
+ * so a change in another database re-renders them and leaves the other cells of a row alone.
  */
 function RelatedCellBody(props: { row: Block; prop: PropertySchema; placeholder?: string }): JSX.Element | null {
   const { cells } = useRelated()

@@ -237,7 +237,7 @@ export function DatabaseView(props: {
     (propertyId: string) => {
       actions.patchView(databaseId, viewRef.current.id, (v, s) => {
         const prop = L.propOf(s, propertyId)
-        return prop ? { ...v, filters: [...v.filters, L.defaultFilter(prop)] } : v
+        return prop ? { ...v, filters: [...v.filters, L.defaultFilter(prop, s)] } : v
       })
       setPanel('filter')
     },

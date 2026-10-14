@@ -102,8 +102,8 @@ function cellText(value: string): string {
 }
 
 /**
- * What relations and rollups read during one export: blocks from the repository (each read
- * once) and the normalised schema of any database.
+ * What relations, rollups and formulas read during one export: blocks from the repository
+ * (each read once) and the normalised schema of any database.
  */
 function exportContext(repo: Repository): CellContext {
   const seen = new Map<string, Block | null>()
@@ -114,10 +114,15 @@ function exportContext(repo: Repository): CellContext {
   return cellContext({ get, isMissing: (id) => get(id) === undefined })
 }
 
+/** Properties whose cells are worked out from other rows or properties (through a `CellContext`). */
+function isComputedFromContext(type: PropertySchema['type']): boolean {
+  return type === 'relation' || type === 'rollup' || type === 'formula'
+}
+
 function formatValue(schema: PropertySchema, row: Block, ctx?: CellContext): string {
   if (schema.type === 'title') return inlineToMarkdown(row.props.title)
-  // Titles of the linked rows, or the rollup's result, as the database shows them.
-  if (schema.type === 'relation' || schema.type === 'rollup') return ctx ? escapeText(cellPlainText(row, schema, ctx)) : ''
+  // Titles of the linked rows, or the rollup's or formula's result, as the database shows them.
+  if (isComputedFromContext(schema.type)) return ctx ? escapeText(cellPlainText(row, schema, ctx)) : ''
   if (schema.type === 'created_time') return new Date(row.createdAt).toISOString()
   if (schema.type === 'last_edited_time') return new Date(row.updatedAt).toISOString()
   const value: PropertyValue | undefined = row.props.values?.[schema.id]
@@ -163,7 +168,7 @@ function chartToMarkdown(repo: Repository, db: Block, source: Block, title: stri
     schema,
     view,
     '',
-    // Filter rules on relations and rollups see the related rows.
+    // Filter rules on relations, rollups and formulas see the related rows.
     exportContext(repo)
   )
   const data = buildChartData(rows, schema, chartConfigOf(view, schema))
@@ -200,9 +205,9 @@ function databaseToMarkdown(repo: Repository, db: Block, withTitle = true): stri
   if (!columns.length) return lines.length ? lines.slice(0, 1) : []
   lines.push(`| ${columns.map((id) => cellText(escapeText(schema[id].name))).join(' | ')} |`)
   lines.push(`| ${columns.map(() => '---').join(' | ')} |`)
-  // Relations and rollups are read through the normalised schema: their stored configuration is not trusted.
+  // Relations, rollups and formulas are read through the normalised schema: their stored configuration is not trusted.
   const clean = normalizeDatabase(source).schema
-  const ctx = columns.some((id) => schema[id].type === 'relation' || schema[id].type === 'rollup') ? exportContext(repo) : undefined
+  const ctx = columns.some((id) => isComputedFromContext(schema[id].type)) ? exportContext(repo) : undefined
   const propOf = (id: string): PropertySchema => (Object.hasOwn(clean, id) && clean[id].type === schema[id].type ? clean[id] : schema[id])
   for (const row of repo.children(source.id)) {
     if (row.trashedAt !== null) continue

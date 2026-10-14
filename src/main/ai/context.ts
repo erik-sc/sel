@@ -82,8 +82,8 @@ export function describeSchema(database: Block, source?: Pick<WorkspaceSource, '
     if (!property || typeof property !== 'object') continue
     const name = oneLine(property.name, 60)
     const type = oneLine(property.type, 20)
-    // Computed values (times, rollups) are never written by a proposal.
-    if (!name || !type || type === 'created_time' || type === 'last_edited_time' || type === 'rollup') continue
+    // Computed values (times, rollups, formulas) are never written by a proposal.
+    if (!name || !type || type === 'created_time' || type === 'last_edited_time' || type === 'rollup' || type === 'formula') continue
     if (type === 'relation') {
       const target = isRelationId(property.relation?.databaseId) ? source?.get(property.relation.databaseId) : null
       parts.push(`${name} (relation${target && target.type === 'database' ? ` to ${title(target)}` : ''})`)

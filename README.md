@@ -10,7 +10,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Write.** Headings, lists, to-dos, toggles, quotes, callouts, code and images. Type `/` for any block, or use Markdown shortcuts as you go.
 
-**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters. A relation links rows to pages of another database (or of the same one), one way or both; a rollup sums up the linked pages: counts, totals, averages, the latest date.
+**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters. A relation links rows to pages of another database (or of the same one), one way or both; a rollup sums up the linked pages: counts, totals, averages, the latest date. A formula works out a value for each row from its other properties, like `prop("Price") * prop("Qty")`: the editor lists the functions and shows the result as you type, rows filter and sort by what it gives, and renaming a property never breaks it.
 
 **Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not.
 

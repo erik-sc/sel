@@ -6,19 +6,22 @@
 //   - schema: own, prototype-safe keys; `prop.id === key`; a known type; a bounded
 //     string name; exactly one title; `options` an array of well-formed, uniquely
 //     identified options on select types (absent elsewhere); a valid numberFormat;
-//     a well-formed `relation` on relations that point somewhere and a `rollup` on
-//     every rollup (absent elsewhere). Where those point is checked when they are read.
+//     a well-formed `relation` on relations that point somewhere, a `rollup` on every
+//     rollup and a `formula` on every formula (absent elsewhere). Where those point is
+//     checked when they are read.
 //   - views: at least one; unique string ids; a known type; only references to
-//     existing properties; operators valid for the property type; filter values of
-//     the right shape that never point at a deleted option; unique sorts with a
-//     valid direction; finite clamped widths; a groupBy of the type the layout needs;
-//     on a chart view, a chart configuration whose every reference fits the schema.
+//     existing properties; operators valid for the property type (for a formula, for
+//     anything it may give); filter values of the right shape that never point at a
+//     deleted option; unique sorts with a valid direction; finite clamped widths; a
+//     groupBy of the type the layout needs; on a chart view, a chart configuration
+//     whose every reference fits the schema.
 // Valid data comes back by reference (`changed: false`), so memoisation holds.
 import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyType, SelectOption, ViewFilter, ViewSort, ViewType } from '../../../../shared/types'
 import { sanitizeChartConfig } from '../../../../shared/chart'
 import { sanitizeRelationConfig } from '../../../../shared/relation'
 import { normalizeChartConfig } from './chartConfig'
-import { filterValueFor, operatorNeedsValue, operatorsOf } from './query'
+import { sanitizeFormulaConfig } from './formula'
+import { operatorNeedsValue, ruleOperatorsOf, ruleValueOf } from './query'
 import { sanitizeRollupConfig } from './rollup'
 import {
   DEFAULT_TITLE_ID,
@@ -85,13 +88,15 @@ function normalizeProperty(id: string, raw: unknown): PropertySchema | undefined
   // A relation that points nowhere yet has no `relation`; a rollup always has a (repaired) `rollup`.
   const relation = type === 'relation' ? sanitizeRelationConfig(raw.relation) : undefined
   const rollup = type === 'rollup' ? sanitizeRollupConfig(raw.rollup) : undefined
+  const formula = type === 'formula' ? sanitizeFormulaConfig(raw.formula) : undefined
   if (
     raw.id === id &&
     raw.name === name &&
     raw.options === options &&
     validFormat &&
     raw.relation === relation &&
-    raw.rollup === rollup
+    raw.rollup === rollup &&
+    raw.formula === formula
   ) {
     return raw as unknown as PropertySchema
   }
@@ -103,6 +108,8 @@ function normalizeProperty(id: string, raw: unknown): PropertySchema | undefined
   else delete fixed.relation
   if (rollup) fixed.rollup = rollup
   else delete fixed.rollup
+  if (formula) fixed.formula = formula
+  else delete fixed.formula
   return fixed
 }
 
@@ -140,10 +147,10 @@ function normalizeFilters(raw: unknown, schema: Schema): ViewFilter[] {
     if (!isPlainObject(f)) continue
     const prop = propOf(schema, f.propertyId)
     const operator = f.operator as ViewFilter['operator']
-    if (!prop || !operatorsOf(prop).includes(operator)) continue
+    if (!prop || !ruleOperatorsOf(prop, schema).includes(operator)) continue
     const filter: ViewFilter = { propertyId: prop.id, operator }
     if (operatorNeedsValue(operator)) {
-      const value = filterValueFor(prop, f.value)
+      const value = ruleValueOf(prop, f.value, schema)
       // Keep the stored shape (e.g. a single option id) when it is already fine.
       if (value !== undefined) filter.value = sameValue(value, f.value) || sameValue([f.value], value) ? (f.value as ViewFilter['value']) : value
     }

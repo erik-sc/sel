@@ -3,12 +3,12 @@ import type { JSX } from 'react'
 import type { DatabaseView, PropertySchema, PropertyType } from '@shared/types'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import type { PopoverAnchor, PopoverPlacement } from '@/ui/Popover'
-import { ArrowUpRight, Check, Filter, Sigma, Sort, Trash } from '@/ui/icons'
+import { ArrowUpRight, Check, Filter, Formula, Sigma, Sort, Trash } from '@/ui/icons'
 import * as L from './logic'
 import * as actions from './actions'
 import { Floating, TypeIcon } from './common'
 import { useCommitOnUnmount } from './hooks'
-import { PartFallback, RelationTargetPicker } from './lazyParts'
+import { FormulaEditor, PartFallback, RelationTargetPicker } from './lazyParts'
 import { useRelated } from './related'
 
 const NUMBER_FORMATS: { id: NonNullable<PropertySchema['numberFormat']>; label: string }[] = [
@@ -36,6 +36,8 @@ export function AddPropertyMenu({
 }): JSX.Element {
   // A relation needs its database first: the menu turns into the database picker.
   const [pickingTarget, setPickingTarget] = useState(false)
+  // A new formula opens its editor in place of the menu.
+  const [formulaId, setFormulaId] = useState<string | null>(null)
   // The menu closes itself after a pick; the relation entry replaces it instead.
   const keepOpen = useRef(false)
   const items: MenuItem[] = [
@@ -52,13 +54,22 @@ export function AddPropertyMenu({
         }
         // Not `onAdded?.(addProperty(...))`: without a listener that would skip the add itself.
         const id = actions.addProperty(databaseId, type, viewId)
+        if (type === 'formula') {
+          keepOpen.current = true
+          setFormulaId(id)
+        }
         onAdded?.(id)
       }
     }))
   ]
+  const formulaProp = formulaId ? L.propOf(actions.snapshot(databaseId).schema, formulaId) : undefined
   return (
     <Floating open anchor={anchor} placement={placement} onClose={onClose}>
-      {pickingTarget ? (
+      {formulaProp ? (
+        <Suspense fallback={<PartFallback kind="popover" />}>
+          <FormulaEditor databaseId={databaseId} prop={formulaProp} onClose={onClose} />
+        </Suspense>
+      ) : pickingTarget ? (
         <Suspense fallback={<PartFallback kind="popover" />}>
           <RelationTargetPicker
             databaseId={databaseId}
@@ -213,10 +224,13 @@ export function PropertyMenu({
   const [name, setName] = useState(prop.name)
   const isTitle = prop.type === 'title'
   const { cells } = useRelated()
-  /** The database picker replaces the menu: to point a relation elsewhere, or to turn the property into one. */
-  const [picking, setPicking] = useState<'target' | 'type' | null>(null)
+  /**
+   * The database picker replaces the menu: to point a relation elsewhere, or to turn the
+   * property into one. So does the formula editor.
+   */
+  const [picking, setPicking] = useState<'target' | 'type' | 'formula' | null>(null)
   const keepOpen = useRef(false)
-  const pick = (mode: 'target' | 'type'): void => {
+  const pick = (mode: 'target' | 'type' | 'formula'): void => {
     keepOpen.current = true
     setPicking(mode)
   }
@@ -239,7 +253,11 @@ export function PropertyMenu({
     hint: prop.type === type ? '✓' : undefined,
     onSelect: () => {
       if (type === 'relation' && prop.type !== 'relation') pick('type')
-      else actions.changePropertyType(databaseId, prop.id, type)
+      else {
+        actions.changePropertyType(databaseId, prop.id, type)
+        // A new formula is written straight away.
+        if (type === 'formula' && prop.type !== 'formula') pick('formula')
+      }
     }
   }))
 
@@ -266,6 +284,9 @@ export function PropertyMenu({
   }
   if (prop.type === 'relation') items.push(...relationItems(databaseId, prop, cells, () => pick('target')))
   if (prop.type === 'rollup') items.push(...rollupItems(databaseId, prop, actions.snapshot(databaseId).schema, cells))
+  if (prop.type === 'formula') {
+    items.push({ separator: true }, { id: 'formula-edit', label: 'Edit formula…', icon: <Formula size={14} />, onSelect: () => pick('formula') })
+  }
   if (view) {
     items.push(
       { separator: true },
@@ -307,6 +328,16 @@ export function PropertyMenu({
   const close = (): void => {
     commitName()
     onClose()
+  }
+
+  if (picking === 'formula') {
+    return (
+      <Floating open anchor={anchor} placement={placement} onClose={close}>
+        <Suspense fallback={<PartFallback kind="popover" />}>
+          <FormulaEditor databaseId={databaseId} prop={prop} onClose={close} />
+        </Suspense>
+      </Floating>
+    )
   }
 
   if (picking) {

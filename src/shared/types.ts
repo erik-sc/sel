@@ -88,6 +88,7 @@ export type PropertyType =
   | 'last_edited_time'
   | 'relation'
   | 'rollup'
+  | 'formula'
 
 export interface SelectOption {
   id: string
@@ -105,6 +106,8 @@ export interface PropertySchema {
   relation?: RelationConfig
   /** rollup: what it computes from the rows one of the relations links to. */
   rollup?: RollupConfig
+  /** formula: the expression it computes for each row. */
+  formula?: FormulaConfig
 }
 
 /**
@@ -144,11 +147,21 @@ export interface RollupConfig {
 }
 
 /**
+ * A formula computes a value for each row from the row's other properties (see
+ * renderer/src/database/logic/formula.ts). `expression` names properties by id, as
+ * `prop("<id>")`; the editor shows (and takes) their names instead, so a rename never
+ * has to rewrite a formula. Results are never stored.
+ */
+export interface FormulaConfig {
+  expression: string
+}
+
+/**
  * title -> stored in block.props.title, not in values.
  * text/url -> string, number -> number, checkbox -> boolean,
  * select -> option id, multi_select -> option ids,
  * date -> { start: ISO date, end?: ISO date }, relation -> ids of the linked rows.
- * A rollup stores nothing: its value is computed from the related rows.
+ * A rollup or a formula stores nothing: its value is computed whenever it is read.
  */
 export type PropertyValue = string | number | boolean | string[] | { start: string; end?: string } | null
 
