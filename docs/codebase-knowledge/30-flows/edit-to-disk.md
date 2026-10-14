@@ -50,8 +50,8 @@ There is no timer. All captures go through `VersionStore.capture` (src/main/db/v
 
 - Main: any throw rolls back and rethrows — src/main/db/repository.ts:203-210; the wrapper logs unexpected errors and throws a sanitised error — src/main/ipc.ts:77-79
 - Renderer store: on rejection it refetches the written blocks, or restores the snapshot if that fails too, then rethrows — src/renderer/src/store/blocks.ts:334-337
-- Controller: `onApplyFailed` logs and clears the undo history — src/renderer/src/editor/controller.ts:210-218
-- No toast is raised on the editor path: the rejection is consumed by the `.catch` at src/renderer/src/editor/controller.ts:206, so the global `unhandledrejection` toast (src/renderer/src/main.tsx:26-28) does not fire. Another `applyOps` caller without a catch would reach that toast. The typed text silently reverting is an inference, not observed (unverified).
+- Controller: `onApplyFailed` clears the undo history and shows an error toast ("Couldn't save that change. It was undone.", or the undo/redo variant), at most once per 5 s across all editors; failures inside that window are only logged — src/renderer/src/editor/controller.ts:57-60, src/renderer/src/editor/controller.ts:216-227, src/renderer/src/ui/throttle.ts:12
+- The rejection is consumed by the `.catch` at src/renderer/src/editor/controller.ts:212, so the global `unhandledrejection` toast (src/renderer/src/main.tsx:26-28) does not also fire. Another `applyOps` caller without a catch would reach that toast.
 
 ## Tests covering this flow
 
