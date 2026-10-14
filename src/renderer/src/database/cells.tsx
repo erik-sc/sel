@@ -8,6 +8,8 @@ import * as actions from './actions'
 import { Floating, OptionTag } from './common'
 import { DatePicker, PartFallback } from './lazyParts'
 import { SelectEditor } from './SelectEditor'
+import { RelationEditor, RelationValue } from './RelationEditor'
+import { useRelated } from './related'
 import { useCommitOnUnmount } from './hooks'
 
 export type EditMove = 'next' | 'prev' | undefined
@@ -19,9 +21,32 @@ export function openUrl(url: string): void {
   window.api.app.openExternal(target).catch((error) => console.error('openExternal failed', error))
 }
 
-export function hasDisplayValue(row: Block, prop: PropertySchema): boolean {
-  const value = L.getCellValue(row, prop)
+/** Whether a cell shows anything. Relations and rollups need the related rows (`cells`) to tell. */
+export function hasDisplayValue(row: Block, prop: PropertySchema, cells?: L.CellContext): boolean {
+  const value = L.readCell(row, prop, cells)
   return prop.type === 'checkbox' ? value === true : !L.isEmptyValue(value)
+}
+
+/** A rollup cell: its result, formatted like the property it reads; the original values as tags or text. */
+function RollupValue({ row, prop }: { row: Block; prop: PropertySchema }): JSX.Element | null {
+  const { cells } = useRelated()
+  const result = cells ? L.computeRollup(row, prop, cells) : null
+  if (!result) return null
+  if (result.kind === 'number') {
+    return result.value === null ? null : <span className="db-text is-number">{L.formatNumber(result.value, result.format)}</span>
+  }
+  if (result.kind === 'date') return result.value ? <span className="db-text">{L.formatDate(result.value)}</span> : null
+  if (!result.items.length) return null
+  if (result.items.some((item) => item.option)) {
+    return (
+      <span className="db-tags">
+        {result.items.map((item, index) =>
+          item.option ? <OptionTag key={index} option={item.option} /> : <span key={index} className="db-text">{item.text}</span>
+        )}
+      </span>
+    )
+  }
+  return <span className="db-text">{result.items.map((item) => item.text).join(', ')}</span>
 }
 
 /** A url cell: a link-like control (never an anchor with a raw href) when the url is safe to open. */
@@ -88,6 +113,10 @@ export function CellDisplay({ row, prop }: { row: Block; prop: PropertySchema })
     }
     case 'url':
       return typeof value === 'string' && value ? <UrlValue url={value} /> : null
+    case 'relation':
+      return <RelationValue row={row} prop={prop} />
+    case 'rollup':
+      return <RollupValue row={row} prop={prop} />
     default: {
       const text = L.formatValue(value, prop)
       if (!text) return null
@@ -108,7 +137,9 @@ export const RowProps = memo(function RowProps({
   skip?: string
   className?: string
 }): JSX.Element | null {
-  const shown = props.filter((p) => p.type !== 'title' && p.id !== skip && hasDisplayValue(row, p))
+  // Reading the context re-renders the card when related rows change (it is memoised on its row).
+  const { cells } = useRelated()
+  const shown = props.filter((p) => p.type !== 'title' && p.id !== skip && hasDisplayValue(row, p, cells))
   if (!shown.length) return null
   return (
     <div className={className ?? 'db-row-props'}>
@@ -231,6 +262,26 @@ function selectedIds(value: PropertyValue): string[] {
   return typeof value === 'string' && value ? [value] : []
 }
 
+/** Types whose cells read other rows (through the related context). */
+function isRelatedType(type: PropertySchema['type']): boolean {
+  return type === 'relation' || type === 'rollup'
+}
+
+/** What a cell shows when it is not being edited: its value, or the placeholder when it is empty. */
+function CellBody({ row, prop, placeholder, cells }: { row: Block; prop: PropertySchema; placeholder?: string; cells?: L.CellContext }): JSX.Element | null {
+  const isEmpty = prop.type !== 'title' && !hasDisplayValue(row, prop, cells)
+  return isEmpty && placeholder ? <span className="db-text is-muted">{placeholder}</span> : <CellDisplay row={row} prop={prop} />
+}
+
+/**
+ * The same for a relation or a rollup. Only these cells read the related context, so a
+ * change in another database re-renders them and leaves the other cells of a row alone.
+ */
+function RelatedCellBody(props: { row: Block; prop: PropertySchema; placeholder?: string }): JSX.Element | null {
+  const { cells } = useRelated()
+  return <CellBody {...props} cells={cells} />
+}
+
 export interface PropertyCellProps {
   databaseId: string
   row: Block
@@ -287,8 +338,7 @@ export function PropertyCell({
     )
   }
 
-  const popoverType = L.isSelectType(prop.type) || prop.type === 'date'
-  const isEmpty = prop.type !== 'title' && !hasDisplayValue(row, prop)
+  const popoverType = L.isSelectType(prop.type) || prop.type === 'date' || prop.type === 'relation'
 
   return (
     <div
@@ -303,13 +353,19 @@ export function PropertyCell({
         }
       }}
     >
-      {isEmpty && placeholder ? <span className="db-text is-muted">{placeholder}</span> : <CellDisplay row={row} prop={prop} />}
+      {isRelatedType(prop.type) ? (
+        <RelatedCellBody row={row} prop={prop} placeholder={placeholder} />
+      ) : (
+        <CellBody row={row} prop={prop} placeholder={placeholder} />
+      )}
       {popoverType && (
         <Floating open={editing && !!el} anchor={el} onClose={() => onStopEdit()} className="db-popover">
           {prop.type === 'date' ? (
             <Suspense fallback={<PartFallback kind="popover" />}>
               <DatePicker value={L.isDateValue(value) ? value : null} onChange={(next) => actions.setCell(row.id, prop, next)} />
             </Suspense>
+          ) : prop.type === 'relation' ? (
+            <RelationEditor row={row} prop={prop} onClose={() => onStopEdit()} />
           ) : (
             <SelectEditor
               databaseId={databaseId}

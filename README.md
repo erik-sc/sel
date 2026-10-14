@@ -12,7 +12,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Focus.** `Ctrl+Shift+F` leaves only the page: no sidebar, no tabs, no Herman. Move the mouse to the top edge for the bars; press the keys again, or Esc when nothing is selected, to come back. From `Ctrl+K` you can also have it fade every block but the one you are writing in.
 
-**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters.
+**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters. A relation links rows to pages of another database (or of the same one), one way or both; a rollup sums up the linked pages: counts, totals, averages, the latest date.
 
 **Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not. `Ctrl+K` lists everything the app can do: type a few letters and press Enter. With text selected in a page, `Ctrl+K` adds a link instead. `Ctrl+/` shows every shortcut.
 

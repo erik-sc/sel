@@ -8,6 +8,7 @@ import * as actions from './actions'
 import { TypeIcon, beginDrag, draggedOf, endDrag } from './common'
 import { useCommitOnUnmount } from './hooks'
 import { AddPropertyMenu } from './propertyMenus'
+import { useRelated } from './related'
 
 interface PanelProps {
   databaseId: string
@@ -81,9 +82,30 @@ function FilterValueEditor({
   filter: ViewFilter
   onChange: (value: PropertyValue | undefined) => void
 }): JSX.Element | null {
+  const { cells } = useRelated()
   if (!L.operatorNeedsValue(filter.operator)) return <span className="db-rule-value is-empty" />
   const value = filter.value
-  switch (prop.type) {
+  switch (L.filterTypeOf(prop)) {
+    case 'relation': {
+      const current = Array.isArray(value) ? (value[0] ?? '') : typeof value === 'string' ? value : ''
+      const rows = cells ? L.linkableRows(L.relationOf(prop), cells) : []
+      return (
+        <select
+          className="db-select db-rule-value"
+          value={current}
+          aria-label="Page"
+          onChange={(event) => onChange(event.target.value ? [event.target.value] : undefined)}
+        >
+          <option value="">Select a page…</option>
+          {current && !rows.some((row) => row.id === current) && <option value={current}>A page that is gone</option>}
+          {rows.map((row) => (
+            <option key={row.id} value={row.id}>
+              {L.titleOf(row) || 'Untitled'}
+            </option>
+          ))}
+        </select>
+      )
+    }
     case 'select':
     case 'multi_select': {
       const current = Array.isArray(value) ? (value[0] ?? '') : typeof value === 'string' ? value : ''
@@ -182,7 +204,7 @@ export function FilterPanel({ databaseId, schema, view }: PanelProps): JSX.Eleme
       {filters.map((filter, index) => {
         const prop = L.propOf(schema, filter.propertyId)
         if (!prop) return null
-        const operators = L.operatorsFor(prop.type)
+        const operators = L.operatorsOf(prop)
         return (
           <div className="db-rule" key={index}>
             <span className="db-rule-prefix">{index === 0 ? 'Where' : 'And'}</span>
@@ -211,12 +233,12 @@ export function FilterPanel({ databaseId, schema, view }: PanelProps): JSX.Eleme
             >
               {operators.map((operator) => (
                 <option key={operator} value={operator}>
-                  {L.operatorLabel(operator, prop.type)}
+                  {L.operatorLabel(operator, L.filterTypeOf(prop))}
                 </option>
               ))}
             </select>
             <FilterValueEditor
-              key={`${prop.id}:${prop.type}`}
+              key={`${prop.id}:${L.filterTypeOf(prop)}`}
               prop={prop}
               filter={filter}
               onChange={(value) =>

@@ -12,8 +12,21 @@
 // changes (views -> the linked block, schema / rows / cells -> the source). While
 // the source is unavailable (loading, in the trash, deleted) nothing is written
 // (`setSchema`, `setViews` and `createRow` are the gates every edit passes).
-import type { Block, BlockProps, DatabaseView, Op, PropertySchema, PropertyType, PropertyValue, RichText, ViewType } from '../../../shared/types'
-import { applyOps, getBlock, loadChildren, loadTree, newId } from '../store/blocks'
+import type {
+  Block,
+  BlockProps,
+  DatabaseView,
+  Op,
+  PropertySchema,
+  PropertyType,
+  PropertyValue,
+  RelationConfig,
+  RichText,
+  RollupConfig,
+  ViewType
+} from '../../../shared/types'
+import { partnerOf } from '../../../shared/relation'
+import { applyOps, getBlock, loadChildren, loadTree, newId, useBlockStore } from '../store/blocks'
 import * as L from './logic'
 import { markFreshChart } from './chartFresh'
 
@@ -42,6 +55,11 @@ export interface DbSnapshot {
 }
 
 const storeLookup: L.BlockLookup = { get: (id) => getBlock(id) }
+
+/** Relations and rollups as the store has them right now. */
+export function storeCellContext(): L.CellContext {
+  return L.cellContext({ get: (id) => getBlock(id), isMissing: (id) => Object.hasOwn(useBlockStore.getState().missing, id) })
+}
 
 /** A database (or linked view) and its source as they are in the store right now. */
 export function resolve(databaseId: string): L.ResolvedDatabase | undefined {
@@ -242,10 +260,10 @@ export function addProperty(
   type: PropertyType,
   viewId?: string,
   name?: string,
-  options: { groupView?: boolean } = {}
+  options: { groupView?: boolean; relation?: RelationConfig } = {}
 ): string {
   const { schema, views } = snapshot(databaseId)
-  const result = L.addProperty(schema, { id: newId(), type, name })
+  const result = L.addProperty(schema, { id: newId(), type, name, relation: options.relation })
   const id = result.property.id
   const nextViews = views.map((v) => {
     if (!(v.id === viewId || (viewId === undefined && v.type === 'table'))) return v
@@ -273,29 +291,236 @@ export function updateProperty(
   if (next !== schema) setSchema(databaseId, next)
 }
 
-export function changePropertyType(databaseId: string, propertyId: string, type: PropertyType): void {
+/** Changes a property's type. Becoming a relation, it can be given its database (`relatedTo`) at once. */
+export function changePropertyType(databaseId: string, propertyId: string, type: PropertyType, relatedTo?: string): void {
+  const target = relatedTo ? getBlock(rowsOwnerId(relatedTo)) : undefined
+  const relation = target?.type === 'database' && !L.isLinkedView(target) ? { databaseId: target.id } : undefined
   withAllRows(databaseId, () => {
-    const { schema, views } = snapshot(databaseId)
-    const result = L.changePropertyType(schema, propertyId, type, rowsOf(databaseId, { includeTrashed: true }))
-    if (result.schema === schema) return
+    const snap = snapshot(databaseId)
+    const unlinked = unlinkPartner(snap, propertyId)
+    const result = L.changePropertyType(unlinked.schema, propertyId, type, rowsOf(databaseId, { includeTrashed: true }), relation)
+    if (result.schema === unlinked.schema) return
     const rowOps = Object.keys(result.rowValues).map((id) => valuesOp(id, result.rowValues[id]))
-    setSchema(databaseId, result.schema, L.sanitizeViews(views, result.schema), rowOps)
+    setSchema(databaseId, result.schema, L.sanitizeViews(snap.views, result.schema), [...unlinked.ops, ...rowOps])
   })
 }
 
 /** Deletes a property together with every view reference and every stored cell. */
 export function deleteProperty(databaseId: string, propertyId: string): void {
   withAllRows(databaseId, () => {
-    const { schema, views } = snapshot(databaseId)
-    const result = L.deleteProperty(schema, views, propertyId)
-    if (result.schema === schema) return
+    const snap = snapshot(databaseId)
+    const unlinked = unlinkPartner(snap, propertyId)
+    const result = L.deleteProperty(unlinked.schema, snap.views, propertyId)
+    if (result.schema === unlinked.schema) return
     const rowOps: Op[] = []
     for (const row of rowsOf(databaseId, { includeTrashed: true })) {
       const values = L.stripPropertyFromValues(row, propertyId)
       if (values) rowOps.push(valuesOp(row.id, values))
     }
-    setSchema(databaseId, result.schema, result.views, rowOps)
+    setSchema(databaseId, result.schema, result.views, [...unlinked.ops, ...rowOps])
   })
+}
+
+// ---- relations ----
+
+/** The partner of a two-way relation, as the store has it (undefined for a one-way relation). */
+function partnerIn(snap: DbSnapshot, prop: PropertySchema | undefined): { targetId: string; id: string; config: RelationConfig } | undefined {
+  const config = L.relationOf(prop)
+  if (!prop || !config) return undefined
+  const targetSchema = config.databaseId === snap.sourceId ? snap.schema : snapshot(config.databaseId).schema
+  const partner = partnerOf(config, prop.id, snap.sourceId, targetSchema)
+  return partner ? { targetId: config.databaseId, ...partner } : undefined
+}
+
+/**
+ * Before a relation stops being one (deleted, retyped, pointed elsewhere): its partner in the
+ * other database is made one-way and keeps its links. Returns the schema to go on with (the
+ * partner may live in this same schema) and the op that unlinks a partner elsewhere.
+ */
+function unlinkPartner(snap: DbSnapshot, propertyId: string): { schema: L.Schema; ops: Op[] } {
+  const partner = partnerIn(snap, L.propOf(snap.schema, propertyId))
+  if (!partner) return { schema: snap.schema, ops: [] }
+  if (partner.targetId === snap.sourceId) return { schema: L.dropPartnerLink(snap.schema, partner.id), ops: [] }
+  const target = snapshot(partner.targetId)
+  const schema = L.dropPartnerLink(target.schema, partner.id)
+  return { schema: snap.schema, ops: schema === target.schema ? [] : [{ op: 'update', id: partner.targetId, patch: { props: { schema } } }] }
+}
+
+/** Runs `task` once the rows of every given database are in the store. */
+function withRowsOf(databaseIds: string[], task: () => void): void {
+  const owners = [...new Set(databaseIds.map(rowsOwnerId))]
+  const missing = owners.filter((id) => !getBlock(id) || !L.contentOf(getBlock(id)).every((rowId) => getBlock(rowId)))
+  if (!missing.length) {
+    task()
+    return
+  }
+  Promise.all(missing.map((id) => loadChildren(id))).then(task, (error) => console.error('database: loading rows failed', error))
+}
+
+/** Adds a relation to `targetId` (a database, or the source of a linked view) and shows it in the view. */
+export function addRelation(databaseId: string, targetId: string, viewId?: string): string | undefined {
+  const target = getBlock(rowsOwnerId(targetId))
+  if (!target || target.type !== 'database' || L.isLinkedView(target)) return undefined
+  return addProperty(databaseId, 'relation', viewId, L.titleOf(target) || undefined, { relation: { databaseId: target.id } })
+}
+
+/**
+ * Points a relation at another database. The links it held are dropped (they name rows of
+ * the old one), as are filter rules on it; a two-way relation becomes one-way first.
+ */
+export function setRelationTarget(databaseId: string, propertyId: string, targetId: string): void {
+  const target = getBlock(rowsOwnerId(targetId))
+  if (!target || target.type !== 'database' || L.isLinkedView(target)) return
+  withAllRows(databaseId, () => {
+    const snap = snapshot(databaseId)
+    const prop = L.propOf(snap.schema, propertyId)
+    if (!prop || prop.type !== 'relation' || prop.relation?.databaseId === target.id) return
+    const unlinked = unlinkPartner(snap, propertyId)
+    const schema = L.setRelationTarget(unlinked.schema, propertyId, target.id, prop.relation?.limit)
+    if (schema === unlinked.schema) return
+    const rowOps: Op[] = []
+    for (const row of rowsOf(databaseId, { includeTrashed: true })) {
+      const values = L.stripPropertyFromValues(row, propertyId)
+      if (values) rowOps.push(valuesOp(row.id, values))
+    }
+    const views = snap.views.map((v) =>
+      v.filters.some((f) => f.propertyId === propertyId) ? { ...v, filters: v.filters.filter((f) => f.propertyId !== propertyId) } : v
+    )
+    setSchema(databaseId, schema, L.sanitizeViews(views, schema), [...unlinked.ops, ...rowOps])
+  })
+}
+
+/** Lets a relation link to one row only, or to any number. Going to one keeps each row's first link. */
+export function setRelationLimit(databaseId: string, propertyId: string, limit: RelationConfig['limit']): void {
+  const config = L.relationOf(L.propOf(snapshot(databaseId).schema, propertyId))
+  if (!config) return
+  withRowsOf([databaseId, config.databaseId], () => {
+    const snap = snapshot(databaseId)
+    const prop = L.propOf(snap.schema, propertyId)
+    const schema = L.setRelationLimit(snap.schema, propertyId, limit)
+    if (!prop || schema === snap.schema) return
+    const ops: Op[] = []
+    if (limit === 'one') {
+      // Written through the relation as it was (no limit), so the partner cells lose the dropped links too.
+      const ctx = storeCellContext()
+      const writes = new Map<string, L.Values>()
+      for (const row of rowsOf(databaseId, { includeTrashed: true })) {
+        const ids = L.getCellValue(row, prop)
+        if (!Array.isArray(ids) || ids.length <= 1) continue
+        for (const [id, values] of L.relationWrites(row, prop, ids.slice(0, 1), ctx)) writes.set(id, values)
+      }
+      for (const [id, values] of writes) ops.push(valuesOp(id, values))
+    }
+    setSchema(databaseId, schema, undefined, ops)
+  })
+}
+
+/**
+ * Makes a relation two-way (a partner property appears in the related database, filled in
+ * with the links that already exist) or one-way again (the partner property is deleted).
+ */
+export function setRelationTwoWay(databaseId: string, propertyId: string, on: boolean): void {
+  const config = L.relationOf(L.propOf(snapshot(databaseId).schema, propertyId))
+  if (!config) return
+  withRowsOf([databaseId, config.databaseId], () => {
+    const snap = snapshot(databaseId)
+    const prop = L.propOf(snap.schema, propertyId)
+    const relation = L.relationOf(prop)
+    if (!prop || !relation || !snap.ready) return
+    const self = relation.databaseId === snap.sourceId
+    const target = self ? snap : snapshot(relation.databaseId)
+    if (!target.source || target.source.type !== 'database') return
+    const partner = partnerIn(snap, prop)
+    if (on === !!partner) return
+
+    if (on) {
+      const added = L.addPartnerProperty(self ? snap.schema : target.schema, {
+        partnerId: newId(),
+        sourceDatabaseId: snap.sourceId,
+        sourceTitle: L.titleOf(snap.source) || 'Related',
+        propertyId
+      })
+      const linked: PropertySchema = { ...prop, relation: { ...relation, syncedPropertyId: added.partner.id } }
+      const sourceSchema = { ...(self ? added.schema : snap.schema), [propertyId]: linked }
+      const targetSchema = self ? sourceSchema : added.schema
+      const showPartner = (views: DatabaseView[], schema: L.Schema): DatabaseView[] =>
+        L.sanitizeViews(
+          views.map((v) => (v.type === 'table' ? { ...v, visibleProperties: [...v.visibleProperties, added.partner.id] } : v)),
+          schema
+        )
+      const backfill = L.partnerBackfill(rowsOf(databaseId, { includeTrashed: true }), linked, added.partner.id, storeCellContext())
+      const ops: Op[] = [...backfill].map(([id, values]) => valuesOp(id, values))
+      if (self) {
+        setSchema(databaseId, sourceSchema, showPartner(snap.views, sourceSchema), ops)
+      } else {
+        ops.unshift({ op: 'update', id: target.sourceId, patch: { props: { schema: targetSchema, views: showPartner(target.views, targetSchema) } } })
+        setSchema(databaseId, sourceSchema, undefined, ops)
+      }
+      return
+    }
+
+    if (!partner) return
+    // Off: the partner property goes, with its cells and every view reference to it.
+    const oneWay = L.dropPartnerLink(snap.schema, propertyId)
+    const targetRows = rowsOf(partner.targetId, { includeTrashed: true })
+    const stripOps: Op[] = []
+    for (const row of targetRows) {
+      const values = L.stripPropertyFromValues(row, partner.id)
+      if (values) stripOps.push(valuesOp(row.id, values))
+    }
+    if (self) {
+      const removed = L.deleteProperty(oneWay, snap.views, partner.id)
+      setSchema(databaseId, removed.schema, removed.views, stripOps)
+    } else {
+      const removed = L.deleteProperty(target.schema, target.views, partner.id)
+      setSchema(databaseId, oneWay, undefined, [
+        { op: 'update', id: partner.targetId, patch: { props: { schema: removed.schema, views: removed.views } } },
+        ...stripOps
+      ])
+    }
+  })
+}
+
+/** Changes what a rollup computes. Filter rules on it go when it starts giving another kind of value. */
+export function updateRollup(databaseId: string, propertyId: string, patch: Partial<RollupConfig>): void {
+  const { schema, views } = snapshot(databaseId)
+  const next = L.updateRollup(schema, propertyId, patch)
+  if (next === schema) return
+  const before = L.propOf(schema, propertyId)
+  const after = L.propOf(next, propertyId)
+  const kindChanged = !!before && !!after && L.filterTypeOf(before) !== L.filterTypeOf(after)
+  if (!kindChanged) {
+    setSchema(databaseId, next)
+    return
+  }
+  const cleared = views.map((v) =>
+    v.filters.some((f) => f.propertyId === propertyId) ? { ...v, filters: v.filters.filter((f) => f.propertyId !== propertyId) } : v
+  )
+  setSchema(databaseId, next, L.sanitizeViews(cleared, next))
+}
+
+/**
+ * Edits the links of a relation cell. `update` gets the ids the cell stores now (links to
+ * rows in the trash included, so they come back with their row) and returns the new ones.
+ * A two-way relation also updates the partner cells of the rows that gain or lose the link;
+ * both databases' rows are loaded first when they are not in the store.
+ */
+export function updateRelation(rowId: string, prop: PropertySchema, update: (current: string[]) => string[]): void {
+  const row = getBlock(rowId)
+  const config = row ? L.relationOf(latestProp(row, prop)) : undefined
+  if (!row || !config) return
+  const commit = (): void => {
+    const fresh = getBlock(rowId)
+    if (!fresh) return
+    const latest = latestProp(fresh, prop)
+    if (latest.type !== 'relation') return
+    const current = L.getCellValue(fresh, latest)
+    const writes = L.relationWrites(fresh, latest, update(Array.isArray(current) ? current : []), storeCellContext())
+    run([...writes].map(([id, values]) => valuesOp(id, values)))
+  }
+  const snap = row.parentId ? snapshot(row.parentId) : undefined
+  if (snap && partnerIn(snap, latestProp(row, prop))) withRowsOf([snap.sourceId, config.databaseId], commit)
+  else commit()
 }
 
 export function addOption(databaseId: string, propertyId: string, name: string): string | undefined {
@@ -361,6 +586,11 @@ export function cellUpdateOp(rowId: string, prop: PropertySchema, value: Propert
 }
 
 export function setCell(rowId: string, prop: PropertySchema, value: PropertyValue): void {
+  // A relation cell goes through `updateRelation`, which keeps the other side of a two-way relation in step.
+  if (prop.type === 'relation') {
+    updateRelation(rowId, prop, () => L.relationIds(Array.isArray(value) ? value : value === null ? [] : [value]))
+    return
+  }
   const op = cellUpdateOp(rowId, prop, value)
   if (op) run([op])
 }
@@ -370,6 +600,13 @@ export function setCell(rowId: string, prop: PropertySchema, value: PropertyValu
  * the current normalised value, so quick successive edits never drop each other.
  */
 export function updateCell(rowId: string, prop: PropertySchema, update: (current: PropertyValue) => PropertyValue): void {
+  if (prop.type === 'relation') {
+    updateRelation(rowId, prop, (current) => {
+      const next = update(current)
+      return L.relationIds(Array.isArray(next) ? next : next === null ? [] : [next])
+    })
+    return
+  }
   const row = getBlock(rowId)
   if (!row) return
   const latest = latestProp(row, prop)
@@ -406,7 +643,19 @@ export function createRow(databaseId: string, input: NewRowInput = {}): string {
   // Rows always live in the source, whichever view they were added from.
   const create: Op = { op: 'create', input: { id, type: 'page', parentId: sourceId, props } }
   if (input.afterId !== undefined) create.input.afterId = input.afterId
-  if (ready) run([create])
+  if (!ready) return id
+  // Links it starts with (from a "contains" filter) show on the other side of a two-way relation too.
+  const partnerOps: Op[] = []
+  const ctx = storeCellContext()
+  const blank: Block = { id, type: 'page', parentId: sourceId, content: [], props: {}, createdAt: 0, updatedAt: 0, trashedAt: null }
+  for (const propertyId of Object.keys(values)) {
+    const prop = L.propOf(schema, propertyId)
+    if (prop?.type !== 'relation') continue
+    for (const [rowId, rowValues] of L.relationWrites(blank, prop, values[propertyId], ctx)) {
+      if (rowId !== id) partnerOps.push(valuesOp(rowId, rowValues))
+    }
+  }
+  run([create, ...partnerOps])
   return id
 }
 
