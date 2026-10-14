@@ -255,6 +255,7 @@ export type MenuCommand =
   | 'open-calendar'
   | 'new-meeting'
   | 'send-feedback'
+  | 'command-palette'
 
 /** ipc channel names. invoke channels are `<namespace>:<method>`. */
 export const IPC = {
