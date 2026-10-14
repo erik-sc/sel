@@ -19,6 +19,7 @@ import { openCalendar, openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
 import { openFind } from './findStore'
 import { IS_MAC } from '@/ui/platform'
+import { openFeedback } from '@/feedback/gate'
 
 function isEditable(target: EventTarget | null): boolean {
   return (
@@ -91,6 +92,9 @@ export function useShellCommands(): void {
           break
         case 'new-meeting':
           void newMeeting()
+          break
+        case 'send-feedback':
+          openFeedback()
           break
         case 'version-history': {
           // The shortcut toggles: the history of the page in the active tab.

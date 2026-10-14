@@ -2,6 +2,7 @@ import type { AiEvent, AiRequest, AiStatus } from './ai'
 import type { SyncSetup, SyncStatus } from './sync'
 import type { BriefingApi } from './briefing'
 import type { AgentKind, AiAgentInfo } from './council'
+import type { FeedbackApi } from './feedback'
 import type { HermanApi } from './herman'
 import type { MeetingsApi } from './meetings'
 import type {
@@ -201,6 +202,12 @@ export interface Api {
    */
   herman: HermanApi
 
+  /**
+   * Bug reports and suggestions the user writes in the app, kept as files on this computer for
+   * the nightly development agent to pick up. See shared/feedback.ts.
+   */
+  feedback: FeedbackApi
+
   app: {
     getTheme(): Promise<Theme>
     setTheme(theme: Theme): Promise<void>
@@ -247,6 +254,7 @@ export type MenuCommand =
   | 'open-today'
   | 'open-calendar'
   | 'new-meeting'
+  | 'send-feedback'
 
 /** ipc channel names. invoke channels are `<namespace>:<method>`. */
 export const IPC = {

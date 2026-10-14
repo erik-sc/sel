@@ -155,6 +155,11 @@ export function buildMenu(): void {
       submenu: isMac
         ? [{ role: 'minimize' }, { role: 'zoom' }, { type: 'separator' }, { role: 'front' }]
         : [{ role: 'minimize' }]
+    },
+    {
+      label: 'Help',
+      role: 'help',
+      submenu: [item('Report a Bug or Suggest a Feature…', 'send-feedback')]
     }
   )
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
