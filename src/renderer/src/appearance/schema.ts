@@ -155,6 +155,12 @@ export const TOKENS: TokenDef[] = [
   color('Text', '--text-secondary', 'Secondary text', '#615d54', '#a8a297'),
   color('Text', '--text-tertiary', 'Tertiary text', '#7c766a', '#7f7a70'),
   color('Text', '--text-code', 'Inline code text', '#8a4530', '#d99a82'),
+  def('Text', 'number', '--text-faded-opacity', 'Faded blocks in focus mode', '0.32', undefined, {
+    min: 0.1,
+    max: 1,
+    step: 0.02,
+    description: 'How much of the other blocks shows while focus mode fades all but the one you write in.'
+  }),
 
   // ---- lines ----
   color('Lines', '--border', 'Separator', 'rgba(70, 58, 36, 0.11)', 'rgba(232, 222, 200, 0.09)'),

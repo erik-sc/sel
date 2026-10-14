@@ -7,7 +7,6 @@ import {
   mergeLists,
   mergeWorkspace,
   normalizeWorkspace,
-  sameWorkspace,
   type SyncBlock,
   type Workspace
 } from './merge'
@@ -167,6 +166,11 @@ function merge(base: Workspace, local: Workspace, remote: Workspace): ReturnType
   expect(describeDiff(out.result, mergeWorkspace(remote, out.result, remote).result)).toEqual([])
   expect(mergeWorkspace(out.result, out.result, out.result).conflicts).toEqual([])
   return out
+}
+
+function sameWorkspace(a: Workspace, b: Workspace): boolean {
+  const diff = diffWorkspace(a, b)
+  return diff.put.length === 0 && diff.remove.length === 0 && !diff.rootChanged
 }
 
 function describeDiff(a: Workspace, b: Workspace): string[] {

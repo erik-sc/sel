@@ -1,6 +1,7 @@
-import { app, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, shell } from 'electron'
 import { join } from 'node:path'
 import { cleanFeedbackInput } from '../../shared/feedback'
+import type { Handlers } from '../invoke'
 import type { FeedbackStore } from './store'
 
 /**
@@ -9,13 +10,11 @@ import type { FeedbackStore } from './store'
  * imported the first time a window asks. The folder's path is fixed here; the renderer never names one.
  */
 
-type Handle = (channel: string, fn: (args: unknown[], event: IpcMainInvokeEvent) => unknown) => void
-
 export function feedbackDir(): string {
   return join(app.getPath('userData'), 'feedback')
 }
 
-export function registerFeedbackIpc(handle: Handle): void {
+export function registerFeedbackIpc(): Handlers<'feedback'> {
   let store: FeedbackStore | null = null
   const feedback = async (): Promise<FeedbackStore> =>
     (store ??= new (await import('./store')).FeedbackStore(feedbackDir(), {
@@ -23,14 +22,16 @@ export function registerFeedbackIpc(handle: Handle): void {
       platform: process.platform
     }))
 
-  handle('feedback:list', async () => (await feedback()).list())
-  handle('feedback:create', async ([a]) => {
-    const input = cleanFeedbackInput(a)
-    return (await feedback()).create(input)
-  })
-  handle('feedback:withdraw', async ([a]) => (await feedback()).withdraw(typeof a === 'string' ? a : ''))
-  handle('feedback:openFolder', async () => {
-    const dir = await (await feedback()).folder()
-    await shell.openPath(dir)
-  })
+  return {
+    'feedback:list': async () => (await feedback()).list(),
+    'feedback:create': async ([a]) => {
+      const input = cleanFeedbackInput(a)
+      return (await feedback()).create(input)
+    },
+    'feedback:withdraw': async ([a]) => (await feedback()).withdraw(typeof a === 'string' ? a : ''),
+    'feedback:openFolder': async () => {
+      const dir = await (await feedback()).folder()
+      await shell.openPath(dir)
+    }
+  }
 }

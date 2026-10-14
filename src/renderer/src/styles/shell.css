@@ -7,6 +7,7 @@
   height: 100%;
   min-width: 0;
   padding: var(--panel-gap);
+  transition: padding var(--duration) var(--ease);
 }
 
 body.is-resizing {
@@ -565,7 +566,8 @@ body.is-resizing .sidebar {
   -webkit-app-region: drag;
 }
 
-.platform-darwin.is-sidebar-collapsed .tabbar {
+.platform-darwin.is-sidebar-collapsed .tabbar,
+.platform-darwin.is-focus .tabbar {
   padding-left: 78px;
 }
 
@@ -708,6 +710,31 @@ body.is-resizing .sidebar {
   align-items: center;
   gap: 2px;
   flex-shrink: 0;
+}
+
+/* The page's word count and reading time: faint text beside the page actions, a little firmer
+   while it counts a selection. Characters are in its tooltip. */
+.word-count {
+  flex-shrink: 0;
+  padding: 0 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: default;
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.word-count:hover,
+.word-count.is-selection {
+  color: var(--text-secondary);
+}
+
+/* A narrow window keeps its room for the breadcrumb. */
+@media (max-width: 720px) {
+  .word-count {
+    display: none;
+  }
 }
 
 /* A meeting is being recorded: a steady dot, the word and the time. Quiet, and always there. */
@@ -1155,4 +1182,79 @@ body.is-resizing .sidebar {
   font-family: var(--font-sans);
   font-size: var(--text-2xs);
   font-weight: var(--weight-medium);
+}
+
+/* ---------- focus mode: only the page ---------- */
+/* The sheet takes the whole window; the sidebar folds away as it does when collapsed (Sidebar.tsx).
+   The tab strip and the top bar float above the page, hidden, and come back at the top edge. */
+.main-bars {
+  display: contents;
+}
+
+.shell.is-focus {
+  padding: 0;
+}
+
+.shell.is-focus .main {
+  position: relative;
+  border-radius: 0;
+}
+
+.shell.is-focus .main-bars {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-bottom: var(--hairline) solid var(--border);
+  opacity: 0;
+  transform: translateY(calc(-1 * var(--panel-gap)));
+  pointer-events: none;
+  transition:
+    opacity var(--duration) var(--ease),
+    transform var(--duration) var(--ease);
+}
+
+/* Hidden, the strip must not stay a window drag area: the page under it would stop taking clicks. */
+.shell.is-focus .main-bars:not(.is-revealed):not(:has(:focus-visible)) .tabbar {
+  -webkit-app-region: no-drag;
+}
+
+/* A keyboard that tabs into them shows them too; a click on a button there does not keep them. */
+.shell.is-focus .main-bars.is-revealed,
+.shell.is-focus .main-bars:has(:focus-visible) {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.shell.is-focus .assistant,
+.shell.is-focus .herman-dock {
+  display: none;
+}
+
+/* With the bars hidden, the recording sign keeps a corner of the page. */
+.focus-indicators {
+  position: absolute;
+  right: calc(var(--panel-gap) * 2);
+  bottom: calc(var(--panel-gap) * 2);
+  z-index: 34;
+}
+
+.focus-indicators .recording-indicator {
+  margin-right: 0;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-control);
+}
+
+/* Fading the other blocks: only while the caret is in one, so a page being read stays whole. */
+.shell.is-focus-dim .blk-row {
+  transition: opacity var(--duration) var(--ease);
+}
+
+.shell.is-focus-dim .pe-root:has(.blk-row:focus-within) .blk-row:not(:focus-within) {
+  opacity: var(--text-faded-opacity);
 }

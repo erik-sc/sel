@@ -513,7 +513,6 @@ function collectKeep(blocks: BlockMap, now: number, withBackgroundTrees: boolean
   return keep
 }
 
-let cachedAtLastSweep = 0
 let grownSinceSweep = 0
 let sweepTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -545,7 +544,6 @@ export function sweepCache(now: number = Date.now()): number {
   const dropped = ids.filter((id) => !keep.has(id))
   const staleMissing = Object.keys(state.missing).filter((id) => !keep.has(id))
   grownSinceSweep = 0
-  cachedAtLastSweep = ids.length - dropped.length
   for (const id of touched.keys()) {
     if (!keep.has(id) || !Object.hasOwn(state.blocks, id)) touched.delete(id)
   }
@@ -564,17 +562,6 @@ export function sweepCache(now: number = Date.now()): number {
   return dropped.length
 }
 
-/** Numbers for diagnostics and tests. */
-export function cacheStats(): { cached: number; retained: number; pinnedTrees: number; recentTrees: number; afterLastSweep: number } {
-  return {
-    cached: Object.keys(useBlockStore.getState().blocks).length,
-    retained: retained.size,
-    pinnedTrees: pinnedTrees.size,
-    recentTrees: recentTrees.length,
-    afterLastSweep: cachedAtLastSweep
-  }
-}
-
 /** Test hook: forgets all eviction bookkeeping (not the cache itself). */
 export function resetCacheTracking(): void {
   touched.clear()
@@ -586,7 +573,6 @@ export function resetCacheTracking(): void {
   lastWrite.clear()
   recentTrees = []
   grownSinceSweep = 0
-  cachedAtLastSweep = 0
   if (sweepTimer !== null) clearTimeout(sweepTimer)
   sweepTimer = null
 }
