@@ -12,7 +12,7 @@ main (validation, SQLite, files, git, CLIs, network)   src/main
 ```
 
 - The renderer is an ordinary sandboxed web page with context isolation and no node integration (src/main/index.ts:108-110).
-- The renderer cannot open connections: the CSP sets `connect-src 'none'` (src/renderer/index.html:19), and the session cancels every request that `isAllowedRequest` rejects (src/main/index.ts:230-232, src/main/security.ts:114).
+- The renderer cannot open connections: the CSP sets `connect-src 'none'` (src/renderer/index.html:19), and the session cancels every request that `isAllowedRequest` rejects (src/main/index.ts:230-232, src/main/security.ts:110).
 - Every invoke handler is wrapped: trusted sender, client id, wait for first-run seeding, run, then drain changes (src/main/ipc.ts:69-90).
 - Inside main, features follow three tiers: pure modules, an Electron-free service, and a `*Bridge` that wires Electron (src/main/ai/locate.ts:5-6, src/main/herman/service.ts:21-23, src/main/sync/engine.ts:55-68).
 - Inside the renderer the intended direction is ui, then store, then editor and shell, then features; store imports only the toast, boot and shared (src/renderer/src/store/tabs.ts:2, src/renderer/src/store/blocks.ts:5).
@@ -25,7 +25,7 @@ main (validation, SQLite, files, git, CLIs, network)   src/main
 | `src/main/index.ts` | Process lifecycle, window creation, session hardening | `createWindow`, `start` | db, ipc, security, files, meetings, legacy, menu | Electron entry | src/main/index.ts:84, src/main/index.ts:335 |
 | `src/main/ipc.ts` | Registers every invoke channel behind one wrapper | `registerIpc`, `readTheme` | validate, security, changes, db, feature registers | src/main/index.ts:353 | src/main/ipc.ts:57, src/main/ipc.ts:69-90 |
 | `src/main/validate.ts` | Narrows untrusted renderer arguments; settings write allow-list; error scrubbing | `arg.*`, `toIpcError` | db/blocks, shared key lists | ipc, herman service | src/main/validate.ts:35-37, src/main/validate.ts:234 |
-| `src/main/security.ts` | URL and sender trust rules | `isTrustedSender`, `isAppUrl`, `toExternalUrl`, `isAllowedRequest` | none of note | index, ipc, meetings | src/main/security.ts:41, src/main/security.ts:65, src/main/security.ts:82, src/main/security.ts:114 |
+| `src/main/security.ts` | URL and sender trust rules | `isTrustedSender`, `isAppUrl`, `toExternalUrl`, `isAllowedRequest` | none of note | index, ipc, meetings | src/main/security.ts:41, src/main/security.ts:65, src/main/security.ts:82, src/main/security.ts:110 |
 | `src/main/changes.ts` | Coalesces changed ids per origin per event-loop turn | `ChangeFeed` | none | ipc | src/main/changes.ts:13, src/main/changes.ts:37-39 |
 | `src/main/db` | Block store, tree queries, FTS search, version history, migrations, seed | `Repository`, `openDatabase` | shared types, better-sqlite3 | index, ipc, markdown, sync, ai, briefing, meetings, herman | src/main/db/repository.ts:105, src/main/db/index.ts:12, src/main/db/versions.ts:475 |
 | `src/main/files.ts` | Image store and the `sel-file:` protocol | `storeImage`, `handleFileProtocol`, `registerFileScheme` | meetings/serve | index, ipc, sync | src/main/files.ts:57, src/main/files.ts:150 |
@@ -47,14 +47,14 @@ main (validation, SQLite, files, git, CLIs, network)   src/main
 
 ## Data stores and external services
 
-- **SQLite**, one file `sel.db` under `userData` (src/main/legacy.ts:5, src/main/index.ts:308). Tables `blocks`, `settings`, `blocks_fts`, `page_versions`, `sync_state` (src/main/db/schema.ts:9, src/main/db/schema.ts:25, src/main/db/schema.ts:30, src/main/db/schema.ts:50, src/main/db/schema.ts:66). WAL mode and other pragmas are set in `configure` (src/main/db/schema.ts:94-106).
-- **Migrations** are an append-only array where index plus one is `user_version` (src/main/db/schema.ts:4-7, src/main/db/schema.ts:108-130).
+- **SQLite**, one file `sel.db` under `userData` (src/main/legacy.ts:5, src/main/index.ts:308). Tables `blocks`, `settings`, `blocks_fts`, `page_versions`, `sync_state` (src/main/db/schema.ts:9, src/main/db/schema.ts:25, src/main/db/schema.ts:30, src/main/db/schema.ts:50, src/main/db/schema.ts:66). WAL mode and other pragmas are set in `configure` (src/main/db/schema.ts:95-107).
+- **Migrations** are an append-only array where index plus one is `user_version` (src/main/db/schema.ts:4-7, src/main/db/schema.ts:109-131).
 - **Tree storage**: a child holds `parent_id` (src/main/db/repository.ts:690), and the parent's `content` array holds the order (src/main/db/repository.ts:389-390); root order is a setting (src/main/db/repository.ts:48-50).
 - **Full-text search** is FTS5 maintained by hand in the repository, not by triggers (src/main/db/repository.ts:370-376, src/main/db/repository.ts:645-648).
 - **Files under `userData`**: images (src/main/files.ts:33), recordings (src/main/meetings/index.ts:20), the whisper engine (src/main/meetings/index.ts:57), the encrypted calendar list and event cache (src/main/briefing/index.ts:15-19), the sync clone and sealed keys (src/main/sync/index.ts:111, src/main/sync/index.ts:119), the AI sandbox directory (src/main/ai/index.ts:73).
 - **Secrets** go through Electron `safeStorage`: calendar URLs (src/main/briefing/index.ts:40-45) and derived sync keys, never the passphrase (src/main/sync/index.ts:36-56).
 - **External programs**, all spawned without a shell and with a rebuilt environment: the Claude Code CLI (src/main/ai/service.ts:211-221, src/main/ai/command.ts:180), optional Codex, Gemini and Ollama CLIs (src/main/ai/agents.ts:49-55), system git (src/main/sync/git.ts:370-378, src/main/sync/git.ts:186), whisper.cpp (src/main/meetings/whisper/run.ts:179, src/main/meetings/whisper/run.ts:148).
-- **Network the app itself opens**: calendar fetches (src/main/briefing/net.ts:376) and whisper downloads from pinned URLs with SHA-256 checks (src/main/meetings/whisper/download.ts:215, src/main/meetings/whisper/download.ts:252-257). The renderer additionally loads https images (src/main/security.ts:114-124).
+- **Network the app itself opens**: calendar fetches (src/main/briefing/net.ts:376) and whisper downloads from pinned URLs with SHA-256 checks (src/main/meetings/whisper/download.ts:215, src/main/meetings/whisper/download.ts:252-257). The renderer additionally loads https images (src/main/security.ts:110-120).
 - **No telemetry, crash reporter or auto-update**: a grep over `src` and root configs for sentry, crashReporter, telemetry, analytics and autoUpdater matched only an environment flag for the child CLI (src/main/ai/command.ts:189); packaging publishes nothing (electron-builder.yml:28).
 
 ## Boundaries and seams
@@ -69,7 +69,7 @@ main (validation, SQLite, files, git, CLIs, network)   src/main
 ## Where implemented differs from documented
 
 - README says the app "makes no network requests of its own" apart from three named cases (README.md:41); the code agrees, but the comment calling the calendar module "the one place where sel itself goes on the network" (src/main/briefing/net.ts:9) is stale since the whisper downloader exists (src/main/meetings/whisper/download.ts:215).
-- README lists `shared/` as "types both sides agree on" (README.md:76); it also holds runtime validators and parsers such as `splitActions` (src/shared/actions.ts:182) and `checkRemoteUrl` (src/shared/sync.ts:171).
+- README lists `shared/` as "types both sides agree on" (README.md:76); it also holds runtime validators and parsers such as `splitActions` (src/shared/actions.ts:182) and `checkRemoteUrl` (src/shared/sync.ts:155).
 - README's layering implies main never depends on the renderer (README.md:73-76); in fact Markdown export imports the renderer's pure database logic (src/main/markdown.ts:20-23), made possible by the node tsconfig (tsconfig.node.json:15).
 - README says all style values live in one tokens file (README.md:78); compliance was not verified this session (unverified).
 - The schema comment lists four version kinds (src/main/db/schema.ts:54) but sync stores a fifth, `sync` (src/main/db/repository.ts:1472).

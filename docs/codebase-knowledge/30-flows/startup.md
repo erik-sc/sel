@@ -8,7 +8,7 @@ Trigger: the main-process module body (src/main/index.ts:422-429)
 2. `adoptEarlierNotes` moves a profile left by the app's earlier name — src/main/index.ts:407-409; `adoptLegacyProfile` is defined at src/main/legacy.ts:18 and returns early when the new database already exists — src/main/legacy.ts:19
 3. Single-instance lock; a second instance quits — src/main/index.ts:424-425
 4. `openStore` opens the database before Electron is ready — src/main/index.ts:306-308; `openDatabase` is defined at src/main/db/index.ts:12
-5. The `Repository` constructor configures pragmas and migrates — src/main/db/repository.ts:131-132; `configure` at src/main/db/schema.ts:94, `migrate` at src/main/db/schema.ts:108
+5. The `Repository` constructor configures pragmas and migrates — src/main/db/repository.ts:131-132; `configure` at src/main/db/schema.ts:95, `migrate` at src/main/db/schema.ts:109
 6. `start(repo)` installs process error loggers, the `second-instance` handler and per-webContents hardening — src/main/index.ts:337-343
 7. On `app.whenReady()`: session hardening, theme, file protocol, then `registerIpc` — src/main/index.ts:350-353
 8. Seeding is started but not awaited: `seedWorkspace(store)` is passed as `ready` — src/main/index.ts:353; it is a no-op unless the store is empty — src/main/index.ts:325; the seed module is imported dynamically — src/main/index.ts:327; `seedIfEmpty` is defined at src/main/db/seed.ts:8
