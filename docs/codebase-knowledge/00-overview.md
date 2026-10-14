@@ -44,7 +44,7 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 | There is no vitest config file at the root; vitest runs on defaults | verified: no `vitest.config.*` exists at the repo root (ls, this session) |
 | A bare `vitest run` can also collect stale copies under `.claude/worktrees/*`; `npx vitest run --dir src` avoids it | (unverified) carried over from an earlier session's notes |
 | `npm run pack` builds an unpacked app into `release/`; `npm run dist` builds the installer | verified in package.json:15-16, electron-builder.yml:7 |
-| Packaging target is Windows NSIS x64, per-user, no auto-update, no signing, no publishing | verified in electron-builder.yml:47-50, electron-builder.yml:56-57, electron-builder.yml:28, electron-builder.yml:2 |
+| Packaging target is Windows NSIS x64, per-user, no signing; the build writes the GitHub update feed files (`latest.yml`, block map) but uploads nothing; updates are opt-in in the app | verified in electron-builder.yml:33, electron-builder.yml:72, package.json `dist`, src/main/updates/schedule.ts:46 |
 | The build fails on purpose if the installed Electron major is not 44 | verified in electron.vite.config.ts:15-26 |
 | Path aliases: `@shared` everywhere, `@` (renderer source) in the renderer only | verified in electron.vite.config.ts:60, electron.vite.config.ts:67, electron.vite.config.ts:73 |
 | The node tsconfig also compiles `src/renderer/src/database/logic/*.ts` | verified in tsconfig.node.json:15 |

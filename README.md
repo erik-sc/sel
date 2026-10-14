@@ -38,13 +38,15 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 ## Principles
 
 - **Yours.** Your notes are a SQLite file on your disk. No account, no server.
-- **Still.** The app makes no network requests of its own, apart from loading images you link to, reading your calendar if you connect one, and downloading the transcription program and a speech model, once, when you ask for it.
+- **Still.** The app makes no network requests of its own, apart from loading images you link to, reading your calendar if you connect one, downloading the transcription program and a speech model, once, when you ask for it, and asking GitHub for a new version, if you turn that on or press Check now.
 - **Light.** One small window, a short list of dependencies.
 - **Careful.** The interface runs sandboxed, and nothing you paste or import is trusted.
 
 ## Get it
 
 Download the installer for Windows from [Releases](https://github.com/erik-sc/sel/releases). It is not code-signed, so Windows asks before running it the first time.
+
+To hear of new versions, turn on Settings → General → Check for updates. sel then asks GitHub once a day, never while a meeting is recorded, and tells you when there is one. It downloads only when you say so, and installs when you restart or quit. Off, it asks nothing; Check now asks once.
 
 ## Run it
 
@@ -76,6 +78,19 @@ The code is in `src/`:
 - `shared/` — types both sides agree on.
 
 All style values live in one file, `src/renderer/src/styles/tokens.css`. Components only refer to them.
+
+To try the update flow in development, serve a folder with a `latest.yml` on `http://127.0.0.1:<port>/` and start the app with `SEL_UPDATE_FEED` set to that address. An installed app ignores the variable.
+
+## Releasing
+
+The update check reads the project's GitHub Releases. For a version to reach installed apps:
+
+1. Raise `version` in `package.json` (say `0.3.0`) and commit it.
+2. Run `npm run dist`. It builds into `release/` and uploads nothing. Three files matter: `sel-0.3.0-setup.exe`, `sel-0.3.0-setup.exe.blockmap` and `latest.yml`.
+3. On GitHub, create a release with the tag `v0.3.0` (a `v`, then the version exactly) and attach those three files.
+4. Publish it as a full release, not a draft or a pre-release: the app only sees the latest published release.
+
+sel 0.2.0 and earlier have no update check: install the first version that has one by hand.
 
 ## Keys
 

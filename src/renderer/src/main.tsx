@@ -18,6 +18,7 @@ import { initHerman } from './herman/gate'
 import { preloadHerman } from './herman/Host'
 import { initSync } from './sync/store'
 import { initMeetings } from './meetings/gate'
+import { initUpdates } from './updates/store'
 import { openTodayOnLaunch, routeTitle } from './briefing/route'
 
 bootMark('start')
@@ -47,6 +48,8 @@ const herman = initHerman()
 // The state of sync, for the indicator in the sidebar (nothing is loaded for it unless this device syncs).
 void initSync()
 initMeetings()
+// What the main process knows about a new version, for the notice and Settings. Reading it asks nothing of the network.
+initUpdates()
 void initTabs(initialPageId()).then(() => {
   // The page about to be shown: fetch its blocks while the editor's code loads.
   const pageId = tabPage(activeTab())

@@ -81,7 +81,7 @@ in main. A `MenuCommand` (src/shared/api.ts) is not an IPC call: it travels on `
 
 - User configuration is the `settings` table; the renderer may write only allow-listed keys and namespaces (src/main/validate.ts:35-37, src/main/validate.ts:140-143).
 - Settings that steer the main process are cleaned by per-feature functions from shared (src/shared/ai.ts:168, src/shared/herman.ts:160).
-- Development-only environment variables are ignored in packaged builds: `ELECTRON_RENDERER_URL` (src/main/security.ts:17-29), `SEL_AI_CLI` (src/main/ai/index.ts:41-43), `SEL_HERMAN_FAST` (src/main/herman/service.ts:56-58), `SEL_BRIEFING_LOOPBACK` (src/main/briefing/net.ts:53-55), `SEL_WHISPER_PINS` (src/main/meetings/index.ts:29-41).
+- Development-only environment variables are ignored in packaged builds: `ELECTRON_RENDERER_URL` (src/main/security.ts:17-29), `SEL_AI_CLI` (src/main/ai/index.ts:41-43), `SEL_HERMAN_FAST` (src/main/herman/service.ts:56-58), `SEL_BRIEFING_LOOPBACK` (src/main/briefing/net.ts:53-55), `SEL_WHISPER_PINS` (src/main/meetings/index.ts:29-41), `SEL_UPDATE_FEED` (src/main/updates/register.ts:25).
 - `SEL_TRACE_STARTUP` or `--sel-trace-startup` prints a startup timeline (src/main/trace.ts:10).
 - Features are switched by settings, not build flags: `ai.enabled` and `herman.enabled` (src/shared/ai.ts:142, src/shared/herman.ts:143-145).
 - No linter or formatter is configured; the gates are typecheck and tests (package.json:8-17).

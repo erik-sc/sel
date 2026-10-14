@@ -12,6 +12,7 @@ import { HistorySection } from '@/versions/HistorySettings'
 import { AiSection } from '@/ai/AiSettings'
 import { takeSettingsSection } from '@/briefing/route'
 import { TodaySection } from '@/briefing/TodaySettings'
+import { UpdatesGroup } from '@/updates/UpdatesSettings'
 import { importMarkdown } from './actions'
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -172,6 +173,8 @@ function GeneralSection() {
           </div>
         </div>
       </section>
+
+      <UpdatesGroup />
 
       <section className="ap-group">
         <div className="ap-group-head">

@@ -34,6 +34,7 @@ vi.mock('@shared/ipc', () => import('../shared/ipc'))
 vi.mock('@shared/meetings', () => import('../shared/meetings'))
 vi.mock('@shared/sync', () => import('../shared/sync'))
 vi.mock('@shared/types', () => import('../shared/types'))
+vi.mock('@shared/updates', () => import('../shared/updates'))
 
 import { INVOKE } from '../shared/api'
 
@@ -93,6 +94,7 @@ describe('the preload', () => {
       'meetings.onProgress': 'on meetings:progress',
       'meetings.onStop': 'on meetings:stop',
       'herman.onNudge': 'on herman:nudge',
+      'updates.onStatus': 'on updates:status',
       'app.platform': 'string',
       'app.window.minimize': 'send window:minimize',
       'app.window.toggleMaximize': 'send window:toggleMaximize',
@@ -199,6 +201,11 @@ const INVOKE_CHANNELS = [
   'sync:setup',
   'sync:status',
   'sync:unlock',
+  'updates:check',
+  'updates:dismiss',
+  'updates:download',
+  'updates:restart',
+  'updates:status',
   'versions:clear',
   'versions:current',
   'versions:delete',

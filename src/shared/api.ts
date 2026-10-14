@@ -16,6 +16,7 @@ import type {
   Theme,
   UpdateBlockInput
 } from './types'
+import type { UpdatesApi } from './updates'
 import type { RestoreMode, RestoreResult, VersionInfo, VersionSnapshot, VersionStats } from './versions'
 
 /**
@@ -210,6 +211,12 @@ export interface Api {
    */
   feedback: FeedbackApi
 
+  /**
+   * New versions from the project's GitHub Releases: looked for once a day only when the user
+   * turned that on, downloaded and installed only when they say so. See shared/updates.ts.
+   */
+  updates: UpdatesApi
+
   app: {
     getTheme(): Promise<Theme>
     setTheme(theme: Theme): Promise<void>
@@ -383,6 +390,12 @@ export const INVOKE = {
   'feedback:create': true,
   'feedback:withdraw': true,
   'feedback:openFolder': true,
+
+  'updates:status': true,
+  'updates:check': true,
+  'updates:download': true,
+  'updates:restart': true,
+  'updates:dismiss': true,
 
   'app:getTheme': true,
   'app:setTheme': true,
