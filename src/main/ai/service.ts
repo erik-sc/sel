@@ -10,6 +10,7 @@ import { envValue, locateCli, type CliLocation, type LocateResult } from './loca
 import { activeVoice } from '../../shared/herman'
 import { selectPassages, type PersonaVoice } from './herman'
 import { NdjsonParser, readEvent } from './ndjson'
+import type { ToolGrant } from './toolhost'
 import { buildPrompt, type PromptContext } from './prompts'
 
 /**
@@ -33,8 +34,8 @@ export interface AiRunLimits {
 }
 
 export const AI_RUN_LIMITS: AiRunLimits = {
-  /** Requests running at once; further ones wait. Room for Herman and three members of his council. */
-  running: 4,
+  /** Requests running at once; further ones wait. Room for Herman and all five members of his council. */
+  running: 6,
   /** Requests waiting; one more is refused. */
   queued: 8,
   /** Characters of answer after which a run is stopped and marked truncated. */
@@ -75,10 +76,12 @@ export interface AiServiceOptions {
   limits?: Partial<AiRunLimits>
   /** Tests: overrides `ai.timeoutSec`. */
   timeoutMs?: number
+  /** The workspace tools (see toolhost.ts), for requests whose target asks for them. */
+  tools?: { grant(listener?: (activity: string) => void): Promise<ToolGrant> }
 }
 
-/** Builds a whole prompt in the main process; it is told the language answers default to, and the voice that is on. */
-export type PromptBuilder = (language: AiLanguage | 'auto', voice: PersonaVoice | null) => string | Promise<string>
+/** Builds a whole prompt in the main process; it is told the language answers default to, the voice that is on, and whether the workspace tools were granted. */
+export type PromptBuilder = (language: AiLanguage | 'auto', voice: PersonaVoice | null, tools: boolean) => string | Promise<string>
 
 /**
  * Who answers a request, when it is not simply the Claude Code program with the model of the
@@ -92,7 +95,15 @@ export interface RunTarget {
    * The prompt goes to it on stdin like any other, and what it prints is the answer.
    */
   program?: { cli: CliLocation; args: readonly string[]; envAllow?: readonly string[] }
+  /**
+   * Claude Code may read the workspace through the tools, taking up to this many turns. Ignored
+   * for another program. When the tools cannot be granted the request runs without them.
+   */
+  tools?: { maxTurns: number; onActivity?: (activity: string) => void }
 }
+
+/** A request that looks things up in the workspace before it answers gets at least this long. */
+export const TOOL_TIMEOUT_MS = 300_000
 
 /** Colour and cursor sequences a program may print even when nobody is looking. */
 // eslint-disable-next-line no-control-regex
@@ -112,6 +123,10 @@ interface Job {
   cancelled: boolean
   timedOut: boolean
   startedAt: number
+  /** Ends what was granted to the request (its tools) once it settles. */
+  release?: () => void
+  /** The request was given the workspace tools: it may take several turns, and more time. */
+  tools?: boolean
 }
 
 /** Kills a child and everything it started. Never throws. */
@@ -373,6 +388,7 @@ export class AiService {
     if (job.state === 'settled') return false
     const counted = job.state === 'starting' || job.state === 'running'
     job.state = 'settled'
+    job.release?.()
     if (job.timer) clearTimeout(job.timer)
     job.timer = null
     this.jobs.delete(job.id)
@@ -443,23 +459,38 @@ export class AiService {
       const language = isAiLanguage(stored) ? stored : 'auto'
       // Herman's voice: which of the voices held here is on (`herman.*`), never words from a setting.
       const voice = activeVoice(this.setting('herman.enabled'), this.setting('herman.voice'))
+      await mkdir(this.options.sandboxDir, { recursive: true })
+      if (job.state !== 'starting') return
+      // The workspace tools, when the target asks for them: granted before the prompt is written, which says whether there are any.
+      let tools: { configPath: string; maxTurns: number } | null = null
+      const wanted = program ? undefined : job.target?.tools
+      if (wanted && this.options.tools) {
+        try {
+          const grant = await this.options.tools.grant(wanted.onActivity)
+          job.release = grant.release
+          if (job.state !== 'starting') return grant.release()
+          tools = { configPath: grant.configPath, maxTurns: wanted.maxTurns }
+        } catch (err) {
+          // Without its tools the request is still answered, from what the prompt carries.
+          console.error('[ai] the workspace tools could not be offered', err)
+        }
+      }
+      job.tools = tools !== null
       if (job.build) {
-        prompt = await job.build(language, voice)
+        prompt = await job.build(language, voice, tools !== null)
       } else {
         const context = await this.options.loadContext(job.request)
         if (job.state !== 'starting') return
         const speaks = voice !== null && job.request.action === 'ask'
         // What he may quote is chosen here, from the bundled collection, by what was asked.
         const passageIds = speaks ? selectPassages(`${job.request.instruction ?? ''}\n${job.request.selectionText ?? ''}`).map((quote) => quote.id) : []
-        prompt = buildPrompt(job.request, context, { defaultLanguage: language, ...(speaks ? { voice, passageIds } : {}) })
+        prompt = buildPrompt(job.request, context, { defaultLanguage: language, ...(speaks ? { voice, passageIds } : {}), ...(tools ? { tools: true } : {}) })
       }
       if (job.state !== 'starting') return
       const model = job.target?.model
       spec = program
         ? buildSpawn(program.cli, program.args, this.env)
-        : this.spawnSpec(cli as CliLocation, buildArgs({ model: typeof model === 'string' && AI_MODEL_RE.test(model) ? model : this.model() }))
-      await mkdir(this.options.sandboxDir, { recursive: true })
-      if (job.state !== 'starting') return
+        : this.spawnSpec(cli as CliLocation, buildArgs({ model: typeof model === 'string' && AI_MODEL_RE.test(model) ? model : this.model(), tools }))
     } catch (err) {
       // A domain error (the page is gone…) carries a safe message; anything else stays in the log.
       const safe = err instanceof Error && !('code' in err) && err.message ? err.message.slice(0, 160) : undefined
@@ -561,7 +592,7 @@ export class AiService {
       job.timedOut = true
       killTree(child, this.platform, this.env, this.limits.killGraceMs)
       this.fail(job, failure('timeout'))
-    }, this.timeoutMs())
+    }, job.tools ? Math.max(this.timeoutMs(), TOOL_TIMEOUT_MS) : this.timeoutMs())
 
     // The prompt goes in on stdin and nowhere else. A program that exits early closes the pipe.
     const stdin = child.stdin

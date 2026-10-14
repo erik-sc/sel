@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, dialog, type BrowserWindow, type WebContents } from 'electron'
 import { AI_CHANNELS, type AiDone, type AiError, type AiErrorCode, type AiRequest, type AiStatus } from '../../shared/ai'
@@ -17,7 +18,7 @@ import {
 import type { Repository } from '../db/repository'
 import { AGENT_PROGRAMS, AGENTS_KEY, agentArgs, agentInfo, locateAgent, newAgent, readAgents } from './agents'
 import { buildWorkspace } from './context'
-import { COUNCIL_OPINION_CHARS, type CouncilOpinion } from './council'
+import { COUNCIL_OPINION_CHARS, HERMAN_TURNS, MEMBER_TURNS, type CouncilOpinion } from './council'
 import type { Failure } from './errors'
 import { selectPassages } from './herman'
 import { inspectCli, type CliLocation } from './locate'
@@ -25,6 +26,8 @@ import { loadMeeting, prepareMeeting, type MeetingSource } from './meeting'
 import { buildPrompt, type BriefingPromptData, type PromptContext } from './prompts'
 import { aiRequest, loadContext } from './request'
 import { AiService, type PromptBuilder, type RunTarget } from './service'
+import { ToolHost } from './toolhost'
+import type { ToolSource } from './tools'
 
 /**
  * The AI service as the app uses it: wired to the repository, the profile directory and the
@@ -40,6 +43,15 @@ const DELTA_FLUSH_MS = 40
  */
 export function devCliOverride(raw: string | undefined, isPackaged: boolean): string | null {
   return !isPackaged && raw ? raw : null
+}
+
+/**
+ * Where the bundled server script of the workspace tools is: next to the main bundle, which is
+ * this file's folder or, when this file was split into a chunk of its own, the folder above.
+ */
+export function toolScript(dir: string, exists: (path: string) => boolean = existsSync): string {
+  const candidates = [join(dir, 'mcp.js'), join(dir, '..', 'mcp.js')]
+  return candidates.find((path) => exists(path)) ?? candidates[0]
 }
 
 /** Why a seat of the council gave no answer, in words that fit any program. */
@@ -60,6 +72,10 @@ export class AiBridge {
   readonly service: AiService
   /** Windows whose requests are cancelled when they go away. */
   private readonly watched = new WeakSet<WebContents>()
+  /** The workspace tools Herman and his council may read through (see ./toolhost.ts). */
+  private readonly tools: ToolHost
+  /** The Markdown converter, loaded before the first tool is granted: the tools read pages through it. */
+  private markdown: typeof import('../markdown') | null = null
 
   constructor(
     private readonly repo: Repository,
@@ -68,9 +84,17 @@ export class AiBridge {
   ) {
     const override = devCliOverride(process.env['SEL_AI_CLI'], app.isPackaged)
     const script = override && /\.(m|c)?js$/i.test(override) ? override : null
+    const sandboxDir = join(app.getPath('userData'), 'ai-sandbox')
+    this.tools = new ToolHost({ source: () => this.toolSource(), dir: sandboxDir, execPath: process.execPath, script: toolScript(__dirname) })
     this.service = new AiService({
-      // Empty and dedicated: with its tools off the program reads nothing, and there is nothing here to read.
-      sandboxDir: join(app.getPath('userData'), 'ai-sandbox'),
+      // Empty and dedicated: the program's file tools are off, and there is nothing here to read but the configuration of its one MCP server.
+      sandboxDir,
+      tools: {
+        grant: async (listener) => {
+          this.markdown ??= await import('../markdown')
+          return this.tools.grant(listener)
+        }
+      },
       getSetting: (key) => (key === 'ai.cliPath' && override && !script ? override : repo.getSetting(key)),
       devScript: script,
       loadContext: (request) => this.context(request)
@@ -119,6 +143,24 @@ export class AiBridge {
     return { ...base, ...(day ? { day } : {}), ...workspace }
   }
 
+  /** The repository as the tools read it. */
+  private toolSource(): ToolSource {
+    const repo = this.repo
+    const markdown = this.markdown
+    if (!markdown) throw new Error('The Markdown converter is not loaded yet.')
+    return {
+      get: (id) => repo.get(id),
+      ancestors: (id) => repo.ancestors(id),
+      listRoot: () => repo.listRoot(),
+      listChildren: (id) => repo.listChildren(id),
+      listRecent: (limit) => repo.listRecent(limit),
+      listDatabases: () => repo.listDatabases(),
+      search: (text, limit) => repo.search(text, limit),
+      pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id),
+      children: (id) => repo.children(id)
+    }
+  }
+
   status(refresh: unknown): Promise<AiStatus> {
     return this.service.status(refresh === true)
   }
@@ -129,6 +171,8 @@ export class AiBridge {
     // "Write up notes" on a meeting page: the transcript is read here, not sent by the window.
     if (request.action === 'consolidate' && !request.transcript?.trim() && request.pageId) return this.startMeeting(request, request.pageId, sender)
     if (request.action === 'ask' && request.council) return this.startCouncil(request, sender)
+    // A question may be answered from anywhere in the workspace: the tools let the answer look.
+    if (request.action === 'ask') return this.start(request, sender, undefined, undefined, { tools: { maxTurns: HERMAN_TURNS } })
     return this.start(request, sender)
   }
 
@@ -141,8 +185,9 @@ export class AiBridge {
   }
 
   /** Who answers for a seat: Claude Code with the seat's model, or a connected program, checked again now. */
-  private target(seat: CouncilSeat): RunTarget {
-    if (seat.agent === CLAUDE_AGENT) return { model: seat.model }
+  private target(seat: CouncilSeat, onActivity?: (activity: string) => void): RunTarget {
+    // Claude Code, as sel starts it, can be given the workspace tools; another program cannot.
+    if (seat.agent === CLAUDE_AGENT) return { model: seat.model, tools: { maxTurns: MEMBER_TURNS, ...(onActivity ? { onActivity } : {}) } }
     const agent = readAgents(this.repo.getSetting(AGENTS_KEY)).find((entry) => entry.id === seat.agent)
     if (!agent) throw new Error('The program chosen for this seat is no longer connected.')
     const found = inspectCli(agent.path)
@@ -153,8 +198,10 @@ export class AiBridge {
   /**
    * A question put to the council first. Each seat that is taken answers it from its own point
    * of view, as a request of its own through the same service and at the same time as the
-   * others; Herman then answers with what they said in front of him. The window is told how
-   * each member fares. A member that fails is left out; stopping the request stops them all.
+   * others; a seat answered by Claude Code may first read the workspace through the tools, and
+   * may draft changes. Herman then answers with what they said in front of him, and he alone
+   * proposes. The window is told how each member fares, and what they are reading. A member
+   * that fails is left out; stopping the request stops them all.
    */
   private startCouncil(request: AiRequest, sender: WebContents): { id: string } {
     const seats = this.seats()
@@ -168,8 +215,12 @@ export class AiBridge {
     const consult = (member: CouncilMemberId, seat: CouncilSeat, prompt: string): Promise<CouncilOpinion | null> =>
       new Promise((resolve) => {
         let target: RunTarget
+        let settled = false
         try {
-          target = this.target(seat)
+          // While they look around, the window hears what they are looking at.
+          target = this.target(seat, (activity) => {
+            if (!settled) tell({ member, status: 'thinking', text: activity })
+          })
         } catch (err) {
           tell({ member, status: 'failed', text: err instanceof Error && err.message ? err.message.slice(0, 160) : 'This seat could not be asked.' })
           return resolve(null)
@@ -180,12 +231,14 @@ export class AiBridge {
           {
             delta: () => undefined,
             done: (result) => {
+              settled = true
               inner.delete(id)
               const text = result.text.trim().slice(0, COUNCIL_OPINION_CHARS)
               tell(text ? { member, status: 'done', text } : { member, status: 'failed', text: 'It said nothing.' })
               resolve(text ? { member, text } : null)
             },
             error: (failure) => {
+              settled = true
               inner.delete(id)
               tell({ member, status: 'failed', text: seatFailure(failure) })
               resolve(null)
@@ -196,17 +249,25 @@ export class AiBridge {
         )
         inner.add(id)
       })
-    const build: PromptBuilder = async (language, voice) => {
+    const build: PromptBuilder = async (language, voice, tools) => {
       const context = await this.context(request)
-      const asked = await Promise.all(seats.map(({ member, seat }) => consult(member, seat, buildPrompt(request, context, { defaultLanguage: language, member }))))
+      const asked = await Promise.all(
+        seats.map(({ member, seat }) => consult(member, seat, buildPrompt(request, context, { defaultLanguage: language, member, tools: seat.agent === CLAUDE_AGENT })))
+      )
       const council = asked.filter((opinion): opinion is CouncilOpinion => opinion !== null)
       const passageIds = voice ? selectPassages(`${request.instruction ?? ''}\n${request.selectionText ?? ''}`).map((quote) => quote.id) : []
-      return buildPrompt(request, context, { defaultLanguage: language, council, ...(voice ? { voice, passageIds } : {}) })
+      return buildPrompt(request, context, { defaultLanguage: language, council, ...(tools ? { tools: true } : {}), ...(voice ? { voice, passageIds } : {}) })
     }
-    const started = this.start(request, sender, build, () => {
-      over = true
-      for (const id of [...inner]) this.service.cancel(id)
-    })
+    const started = this.start(
+      request,
+      sender,
+      build,
+      () => {
+        over = true
+        for (const id of [...inner]) this.service.cancel(id)
+      },
+      { tools: { maxTurns: HERMAN_TURNS } }
+    )
     outer.id = started.id
     return started
   }
@@ -307,7 +368,7 @@ export class AiBridge {
     return this.start({ action: 'custom' }, sender, build)
   }
 
-  private start(request: AiRequest, sender: WebContents, build?: PromptBuilder, onEnd?: () => void): { id: string } {
+  private start(request: AiRequest, sender: WebContents, build?: PromptBuilder, onEnd?: () => void, target?: RunTarget): { id: string } {
     if (!this.watched.has(sender)) {
       this.watched.add(sender)
       const owner = sender.id
@@ -350,7 +411,8 @@ export class AiBridge {
         }
       },
       sender.id,
-      build
+      build,
+      target
     )
     return { id }
   }
@@ -391,5 +453,6 @@ export class AiBridge {
 
   dispose(): void {
     this.service.dispose()
+    this.tools.dispose()
   }
 }

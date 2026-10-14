@@ -11,9 +11,9 @@ import type { Block, SearchResult } from '../../shared/types'
 import * as arg from '../validate'
 import { agentArgs, AGENTS_KEY, locateAgent, newAgent, readAgents } from './agents'
 import { buildWorkspace, describeSchema, keywords, relatedPages, type WorkspaceSource } from './context'
-import { COUNCIL_OPINION_CHARS, councilBody } from './council'
+import { COUNCIL_OPINION_CHARS, councilBody, MEMBER_DRAFT_RULE } from './council'
 import type { Failure } from './errors'
-import { buildPrompt } from './prompts'
+import { buildPrompt, TOOLS_RULE } from './prompts'
 import { aiRequest } from './request'
 import { AiService, type AiResult } from './service'
 
@@ -181,11 +181,24 @@ describe('what a question is asked against', () => {
     expect(buildPrompt({ action: 'ask', instruction: 'Hi', today: true }, { day: context.day, workspace: 'x' }, { nonce: N })).toContain("about the user's day")
   })
 
-  it('tells the one who answers how to propose building something, and nobody else', () => {
+  it('tells the one who answers how to propose, and a member of the council how to draft for him', () => {
     const prompt = buildPrompt(ask(), page, { nonce: N, voice: 'herman' })
     expect(prompt).toContain(`whose language is ${ACTIONS_FENCE}`)
     expect(prompt).toContain('nothing changes until they press it')
-    expect(buildPrompt(ask(), page, { nonce: N, member: 'builder' })).not.toContain(ACTIONS_FENCE)
+    expect(prompt).not.toContain(MEMBER_DRAFT_RULE)
+    // A member drafts in the same form; the draft goes to Herman, who alone proposes.
+    const member = buildPrompt(ask(), page, { nonce: N, member: 'builder' })
+    expect(member).toContain(MEMBER_DRAFT_RULE)
+    expect(member).toContain(`whose language is ${ACTIONS_FENCE}`)
+    expect(member.indexOf(MEMBER_DRAFT_RULE)).toBeLessThan(member.indexOf(`whose language is ${ACTIONS_FENCE}`))
+  })
+
+  it('tells a request with the workspace tools what they are, and one without them nothing', () => {
+    expect(buildPrompt(ask(), page, { nonce: N, tools: true })).toContain(TOOLS_RULE)
+    expect(buildPrompt(ask(), page, { nonce: N })).not.toContain('sel tools')
+    expect(buildPrompt(ask(), page, { nonce: N, member: 'skeptic', tools: true })).toContain(TOOLS_RULE)
+    // The rewriting tools never read the workspace.
+    expect(buildPrompt({ action: 'summarize', pageId: ID }, page, { nonce: N, tools: true })).not.toContain('sel tools')
   })
 })
 

@@ -63,7 +63,7 @@ describe('his state', () => {
 
   it('introduces himself once', () => {
     const { service, settings, restart } = world({ met: false })
-    expect(service.state().greeting).toMatch(/^I am Herman/)
+    expect(service.state().greeting).toBe('Hello. I am Herman.')
     service.met()
     expect(service.state().greeting).toBeNull()
     expect(readMemory(settings[MEMORY_KEY]).met).toBe(true)
@@ -84,7 +84,7 @@ describe('his state', () => {
     expect(hermanLocale('auto', 'pt-BR')).toBe('pt-BR')
     const { service } = world({ met: false, deps: { systemLocale: () => 'pt-BR' } })
     expect(service.state()).toMatchObject({ locale: 'pt-BR', lines: { notNow: 'Agora não', fewer: 'Menos como esta' } })
-    expect(service.state().greeting).toMatch(/^Eu sou o Herman/)
+    expect(service.state().greeting).toBe('Olá. Sou o Herman.')
   })
 
   it('sleeps during the quiet hours', () => {
@@ -286,7 +286,7 @@ describe('a streak', () => {
     expect(await service.completed()).toBeNull()
     clock.now += MIN
     const nudge = await service.completed()
-    expect(nudge).toMatchObject({ kind: 'streak', text: 'Three done. Notice how that feels before you reach for the next.' })
+    expect(nudge).toMatchObject({ kind: 'streak', text: 'Three done. Notice how that feels.' })
     expect(nudge?.action).toBeUndefined()
     clock.now += MIN
     expect(await service.completed()).toBeNull()

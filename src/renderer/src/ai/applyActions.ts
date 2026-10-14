@@ -21,6 +21,8 @@ export async function applyActions(actions: readonly HermanAction[], currentPage
   const plan = planActions(actions, { currentPageId, get: getBlock, newId })
   if (!plan.ops.length) return plan
   await applyOps(plan.ops)
+  // Where pages were moved from or trashed out of: the backend decided what those pages now hold.
+  if (plan.refresh.length) await refreshBlocks(plan.refresh).catch(logError('refresh'))
   for (const parent of plan.parents) if (parent) setExpanded(parent, true)
   await refreshTree().catch(logError('tree refresh'))
   return plan

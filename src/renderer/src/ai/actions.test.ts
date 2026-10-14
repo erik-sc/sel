@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ACTION_LIMITS, cleanAction, splitActions, type HermanAction } from '../../../shared/actions'
 import type { Block, BlockProps, BlockType } from '@shared/types'
 import { applyOpsToMap, type BlockMap } from '../store/ops'
-import { actionTargets, describeAction, planActions } from './actions'
+import { actionTargets, createdTitles, describeAction, planActions, summarizeActions } from './actions'
 
 const fence = (json: unknown): string => '```sel-actions\n' + (typeof json === 'string' ? json : JSON.stringify(json)) + '\n```'
 
@@ -208,6 +208,150 @@ describe('carrying out a proposal', () => {
     expect(actionTargets(actions, page.id)).toEqual([page.id, 'db-9'])
     expect(actionTargets(actions, null)).toEqual(['db-9'])
     const look = { currentPageId: page.id, get: (id: string) => base[id] }
-    expect(actions.map((action) => describeAction(action, look))).toEqual(['Create the page “Trip” in “Projects”', 'Add to the page created above', 'Add 2 rows to a page'])
+    expect(actions.map((action) => describeAction(action, look))).toEqual(['Create the page “Trip” in “Projects”', 'Add to the page created above', 'Add 2 rows to a database'])
+  })
+})
+
+// ---------------------------------------------------------------------- putting in order
+
+describe('putting a workspace in order', () => {
+  const home = block('home-1', 'page', { title: [['Home']] }, { content: ['note-1', 'note-2'] })
+  const note1 = block('note-1', 'page', { title: [['Meeting notes']] }, { parentId: 'home-1' })
+  const note2 = block('note-2', 'page', { title: [['Untitled']] }, { parentId: 'home-1', content: ['child-1'] })
+  const child = block('child-1', 'page', { title: [['Inside']] }, { parentId: 'note-2' })
+  const db = block(
+    'db-1',
+    'database',
+    {
+      title: [['Tasks']],
+      schema: {
+        title: { id: 'title', name: 'Name', type: 'title' },
+        s: { id: 's', name: 'Status', type: 'select', options: [{ id: 'o1', name: 'To do', color: 'blue' }] },
+        n: { id: 'n', name: 'Notes', type: 'text' }
+      }
+    },
+    { content: ['row-1', 'row-2'] }
+  )
+  const row1 = block('row-1', 'page', { title: [['Write']], values: { s: 'o1', n: 'draft' } }, { parentId: 'db-1' })
+  const row2 = block('row-2', 'page', { title: [['Read']] }, { parentId: 'db-1' })
+  const base: BlockMap = { [home.id]: home, [note1.id]: note1, [note2.id]: note2, [child.id]: child, [db.id]: db, [row1.id]: row1, [row2.id]: row2 }
+
+  it('reads the organizing actions, strictly', () => {
+    expect(cleanAction({ do: 'move', page: 'note-0001', parent: 'top' })).toEqual({ do: 'move', page: 'note-0001', parent: null })
+    expect(cleanAction({ do: 'move', page: 'note-0001' })).toEqual({ do: 'move', page: 'note-0001', parent: null })
+    expect(cleanAction({ do: 'move', page: 'note-0001', parent: '@area' })).toEqual({ do: 'move', page: 'note-0001', parent: '@area' })
+    expect(cleanAction({ do: 'move', page: 'note-0001', parent: '../x' })).toBeNull()
+    expect(cleanAction({ do: 'move', page: 'note-0001', parent: 'note-0001' })).toBeNull()
+    expect(cleanAction({ do: 'update-page', page: 'note-0002', title: ' Ideas\n', icon: '💡', extra: 1 })).toEqual({ do: 'update-page', page: 'note-0002', title: 'Ideas', icon: '💡' })
+    expect(cleanAction({ do: 'update-page', page: 'note-0002', icon: 'nope' })).toBeNull()
+    expect(cleanAction({ do: 'trash', page: '@a' })).toBeNull()
+    expect(cleanAction({ do: 'trash', page: 'note-0001' })).toEqual({ do: 'trash', page: 'note-0001' })
+    expect(cleanAction({ do: 'update-rows', database: 'db-00001', rows: [{ id: 'row-00001', Status: 'Done' }, { Status: 'no id' }, { id: '@x', Status: 'ref' }, { id: 'row-00002' }] })).toEqual({
+      do: 'update-rows',
+      database: 'db-00001',
+      rows: [{ id: 'row-00001', Status: 'Done' }]
+    })
+    expect(cleanAction({ do: 'add-properties', database: 'db-00001', properties: [{ name: 'Due', type: 'date' }, { name: 'Again', type: 'title' }] })).toEqual({
+      do: 'add-properties',
+      database: 'db-00001',
+      properties: [{ name: 'Due', type: 'date' }]
+    })
+  })
+
+  it('makes areas, moves pages into them, renames and clears away, in one batch', () => {
+    const actions: HermanAction[] = [
+      { do: 'create-page', title: 'Archive', icon: '📦', ref: 'archive' },
+      { do: 'move', page: 'note-1', parent: '@archive' },
+      { do: 'update-page', page: 'note-2', title: 'Ideas', icon: '💡' },
+      { do: 'move', page: 'note-2', parent: null },
+      { do: 'trash', page: 'child-1' }
+    ]
+    const plan = planActions(actions, env(base))
+    expect(plan.skipped).toEqual([])
+    const { map } = applyOpsToMap(base, plan.ops)
+    expect(map['note-1'].parentId).toBe('new-1')
+    expect(map['new-1'].content).toEqual(['note-1'])
+    expect(map['home-1'].content).toEqual([])
+    expect(map['note-2']).toMatchObject({ parentId: null, props: { title: [['Ideas']], icon: '💡' } })
+    expect(map['child-1'].trashedAt).not.toBeNull()
+    expect(plan.done).toEqual([
+      'Created the page “Archive”.',
+      'Moved “Meeting notes” into “Archive”.',
+      'Renamed “Untitled” to “Ideas”.',
+      'Moved “Ideas” to the top level.',
+      'Moved “Inside” to the Trash.'
+    ])
+    // Where pages left from is read again afterwards; the sidebar opens where they went.
+    expect(plan.refresh).toEqual(['home-1', 'note-2'])
+    expect(plan.parents).toEqual(expect.arrayContaining([null, 'new-1', 'home-1', 'note-2']))
+  })
+
+  it('never moves a page into itself, nor twice into the same place, nor after it went to the Trash', () => {
+    const plan = planActions(
+      [
+        { do: 'move', page: 'note-2', parent: 'child-1' },
+        { do: 'move', page: 'note-1', parent: 'home-1' },
+        { do: 'trash', page: 'note-1' },
+        { do: 'move', page: 'note-1', parent: null },
+        { do: 'trash', page: 'note-1' },
+        { do: 'move', page: 'missing-id-0000', parent: null },
+        { do: 'move', page: 'note-1', parent: 'missing-id-0000' }
+      ],
+      env(base)
+    )
+    expect(plan.ops).toEqual([{ op: 'delete', id: 'note-1' }])
+    expect(plan.skipped).toEqual([
+      '“Untitled” was not moved: it cannot go inside itself.',
+      '“Meeting notes” is already there.',
+      'Nothing was moved: the page was not found.',
+      'Nothing was put in the Trash: the page was not found.',
+      'Nothing was moved: the page was not found.',
+      'Nothing was moved: the page was not found.'
+    ])
+  })
+
+  it('changes rows that exist, keeping their other values, and adds properties once', () => {
+    const plan = planActions(
+      [
+        { do: 'add-properties', database: 'db-1', properties: [{ name: 'Due', type: 'date' }, { name: 'status', type: 'select' }] },
+        { do: 'update-rows', database: 'db-1', rows: [{ id: 'row-1', Status: 'Done' }, { id: 'row-2', Name: 'Read twice', Notes: 'slowly' }, { id: 'note-1', Status: 'Done' }] }
+      ],
+      env(base)
+    )
+    const { map } = applyOpsToMap(base, plan.ops)
+    const schema = Object.values(map['db-1'].props.schema ?? {})
+    expect(schema.map((p) => p.name)).toEqual(['Name', 'Status', 'Notes', 'Due'])
+    const done = schema[1].options?.find((o) => o.name === 'Done')?.id
+    expect(map['row-1'].props).toMatchObject({ title: [['Write']], values: { s: done, n: 'draft' } })
+    expect(map['row-2'].props).toMatchObject({ title: [['Read twice']], values: { n: 'slowly' } })
+    expect(plan.done).toEqual(['Added “Due” to “Tasks”.', 'Changed 2 rows of “Tasks”.'])
+    expect(plan.skipped).toEqual(['1 row of “Tasks” was not found.'])
+  })
+
+  it('says what it will do, one line each and in sum', () => {
+    const look = { currentPageId: null, get: (id: string) => base[id] }
+    const actions: HermanAction[] = [
+      { do: 'move', page: 'note-1', parent: null },
+      { do: 'move', page: 'note-2', parent: '@a' },
+      { do: 'update-page', page: 'note-2', title: 'Ideas' },
+      { do: 'trash', page: 'child-1' },
+      { do: 'update-rows', database: 'db-1', rows: [{ id: 'row-1', Status: 'Done' }] },
+      { do: 'add-properties', database: 'db-1', properties: [{ name: 'Due', type: 'date' }] }
+    ]
+    expect(actions.map((action) => describeAction(action, look))).toEqual([
+      'Move “Meeting notes” to the top level',
+      'Move “Untitled” into the page created above',
+      'Rename “Untitled” to “Ideas”',
+      'Move “Inside” to the Trash',
+      'Change 1 row of “Tasks”',
+      'Add “Due” to “Tasks”'
+    ])
+    expect(summarizeActions(actions)).toBe('2 moved, 1 renamed, 1 to the Trash, 1 row changed, 1 property added')
+    // What an earlier action of the same proposal creates is named by its title; a database nobody loaded is a database.
+    const created = createdTitles([{ do: 'create-page', title: 'Archive', ref: 'a' }])
+    expect(describeAction(actions[1], look, created)).toBe('Move “Untitled” into “Archive”')
+    expect(describeAction({ do: 'add-rows', database: 'db-unknown', rows: [{ Name: 'x' }] }, look)).toBe('Add 1 row to a database')
+    expect(summarizeActions([{ do: 'create-page', title: 'A' }, { do: 'create-page', title: 'B' }])).toBe('2 pages created')
+    expect(actionTargets(actions, null)).toEqual(['note-1', 'note-2', 'child-1', 'db-1', 'row-1'])
   })
 })

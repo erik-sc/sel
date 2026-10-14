@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { AI_MODEL_RE } from '../../shared/ai'
 import { envValue, type CliLocation } from './locate'
+import { ALLOWED_TOOLS } from './toolspecs'
 
 /**
  * How the Claude Code program is started for one request. Pure: it returns what to spawn and
@@ -56,14 +57,60 @@ export const BASE_ARGS: readonly string[] = [
   SYSTEM_PROMPT
 ]
 
+/** The system prompt when the workspace tools are given: the same rules, and leave to read. Same character set. */
+export const SYSTEM_PROMPT_TOOLS =
+  'You are the writing assistant inside sel, a notes app. You may read the workspace of the user with the sel tools, and you change nothing. Follow the task in the user message exactly and reply with the requested text only.'
+
 export interface CommandOptions {
   /** `ai.model`; ignored unless it matches AI_MODEL_RE. */
   model?: string | null
+  /**
+   * The workspace tools (see toolhost.ts): the MCP configuration file written for this request,
+   * and how many turns the model may take to look things up before it answers.
+   */
+  tools?: { configPath: string; maxTurns: number } | null
 }
 
+/** A path that can travel as one argument on any of the command lines built here. */
+const SAFE_PATH_RE = /^[^"%^!&|<>\r\n]+$/
+
 export function buildArgs(options: CommandOptions = {}): string[] {
-  const args = [...BASE_ARGS]
+  const tools = options.tools && SAFE_PATH_RE.test(options.tools.configPath) ? options.tools : null
+  const args = tools ? toolArgs(tools.configPath, tools.maxTurns) : [...BASE_ARGS]
   if (typeof options.model === 'string' && AI_MODEL_RE.test(options.model)) args.push('--model', options.model)
+  return args
+}
+
+/**
+ * The flags for a request that may read the workspace. The same as BASE_ARGS but for three
+ * things: `--safe-mode` would not load the one MCP server either, so `--restricted` stands in
+ * for it (none of the user's settings files, hence none of their hooks, CLAUDE.md or MCP
+ * servers; no tool that runs code); that one server is given with `--mcp-config` and its tools
+ * are the only ones allowed (`--tools ""` still removes every built-in one); and the model gets
+ * a few turns to look things up.
+ */
+export function toolArgs(configPath: string, maxTurns: number): string[] {
+  const args: string[] = []
+  for (let index = 0; index < BASE_ARGS.length; index++) {
+    const arg = BASE_ARGS[index]
+    if (arg === '--safe-mode') continue
+    if (arg === '--setting-sources') {
+      index++
+      continue
+    }
+    if (arg === '--max-turns') {
+      args.push(arg, String(Math.max(2, Math.min(24, Math.floor(maxTurns)))))
+      index++
+      continue
+    }
+    if (arg === '--system-prompt') {
+      args.push(arg, SYSTEM_PROMPT_TOOLS)
+      index++
+      continue
+    }
+    args.push(arg)
+  }
+  args.push('--restricted', '--mcp-config', configPath, '--allowedTools', ALLOWED_TOOLS.join(','))
   return args
 }
 

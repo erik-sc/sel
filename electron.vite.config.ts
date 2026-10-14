@@ -58,7 +58,14 @@ export default defineConfig(({ command }) => {
       // Only what is listed under `dependencies` in package.json stays a runtime `require`:
       // better-sqlite3, a native module. Everything else is bundled.
       resolve: { alias: { '@shared': shared } },
-      build: { ...output, target: NODE_TARGET }
+      build: {
+        ...output,
+        target: NODE_TARGET,
+        rollupOptions: {
+          // mcp.js: the workspace tools' server, started by the Claude Code program (see src/main/mcp.ts).
+          input: { index: resolve(__dirname, 'src/main/index.ts'), mcp: resolve(__dirname, 'src/main/mcp.ts') }
+        }
+      }
     },
     preload: {
       // The preload runs sandboxed and can only `require('electron')`. It imports nothing

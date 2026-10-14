@@ -108,8 +108,8 @@ describe('herman ipc', () => {
     const win = sender(1)
     const state = (await invoke('herman:state', win.event)) as HermanState
     expect(state).toMatchObject({ enabled: true, voice: 'herman', nudges: true, frequency: 'sometimes', size: 'small', corner: 'bottom-right', locale: 'en', quiet: false })
-    expect(state.greeting).toMatch(/^I am Herman/)
-    expect(state.lines).toEqual({ aiOff: expect.stringContaining('AI is turned off'), notNow: 'Not now', fewer: 'Fewer like this' })
+    expect(state.greeting).toBe('Hello. I am Herman.')
+    expect(state.lines).toEqual({ aiOff: 'AI is off in Settings.', notNow: 'Not now', fewer: 'Fewer like this' })
     await invoke('herman:met', win.event)
     expect(((await invoke('herman:state', win.event)) as HermanState).greeting).toBeNull()
     expect(readMemory(repo.getSetting(MEMORY_KEY)).met).toBe(true)

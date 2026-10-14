@@ -1,5 +1,6 @@
 /**
- * What the assistant may propose to build: pages, databases, rows, content added to a page.
+ * What the assistant may propose to build or put in order: pages, databases, rows, content
+ * added to a page; pages moved, renamed or put in the Trash; rows changed; properties added.
  * The model has no tools. It writes its proposal as JSON in one fenced block at the end of an
  * answer; this file reads that block, strictly, and the window shows it as a proposal. Nothing
  * is created until the user presses Apply (see renderer/ai/actions.ts).
@@ -8,7 +9,8 @@
 export const ACTIONS_FENCE = 'sel-actions'
 
 export const ACTION_LIMITS = {
-  actions: 12,
+  /** Putting a workspace in order takes many small steps: one proposal may hold this many. */
+  actions: 80,
   rows: 200,
   properties: 24,
   options: 40,
@@ -46,6 +48,16 @@ export type HermanAction =
   | { do: 'append'; page: ActionTarget; markdown: string }
   | { do: 'create-database'; title: string; icon?: string; parent?: ActionTarget; view?: ActionView; properties: ActionProperty[]; rows: ActionRow[]; ref?: string }
   | { do: 'add-rows'; database: ActionTarget; rows: ActionRow[] }
+  /** Puts a page or database inside another page, or at the top level (`parent` null). At the end of what is there. */
+  | { do: 'move'; page: ActionTarget; parent: ActionTarget | null }
+  /** A new title or icon for a page or database. */
+  | { do: 'update-page'; page: ActionTarget; title?: string; icon?: string }
+  /** New values for rows that exist, each named by its id. `Name` renames the row. */
+  | { do: 'update-rows'; database: ActionTarget; rows: (ActionRow & { id: string })[] }
+  /** New properties for a database that exists. */
+  | { do: 'add-properties'; database: ActionTarget; properties: ActionProperty[] }
+  /** Puts a page or database in the Trash, from where it can be restored. */
+  | { do: 'trash'; page: ActionTarget }
 
 export interface ParsedAnswer {
   /** The answer without the proposal block. */
@@ -90,13 +102,19 @@ function cell(value: unknown): ActionCell | undefined {
   return undefined
 }
 
-function rows(value: unknown): ActionRow[] {
+function rows(value: unknown, keepId = false): ActionRow[] {
   if (!Array.isArray(value)) return []
   const out: ActionRow[] = []
   for (const item of value.slice(0, ACTION_LIMITS.rows)) {
     if (!isObject(item)) continue
     const row: ActionRow = {}
-    for (const [key, raw] of Object.entries(item).slice(0, ACTION_LIMITS.properties + 1)) {
+    for (const [key, raw] of Object.entries(item).slice(0, ACTION_LIMITS.properties + 2)) {
+      // The row an update is for: an id like any other target, never `current` or a reference.
+      if (keepId && key === 'id') {
+        const id = target(raw)
+        if (id && id !== 'current' && !id.startsWith('@')) row['id'] = id
+        continue
+      }
       const name = oneLine(key, ACTION_LIMITS.name)
       const clean = cell(raw)
       // A plain object keyed by what the model wrote: names that would reach a prototype are dropped.
@@ -169,6 +187,38 @@ export function cleanAction(value: unknown): HermanAction | null {
       const database = target(value['database'])
       const list = rows(value['rows'])
       return database && list.length ? { do: 'add-rows', database, rows: list } : null
+    }
+    case 'move': {
+      const page = target(value['page'])
+      const raw = value['parent']
+      // No parent, null or "top": the top level of the workspace.
+      const parent = raw === undefined || raw === null || raw === 'top' ? null : target(raw)
+      if (!page || parent === undefined || page === parent) return null
+      return { do: 'move', page, parent }
+    }
+    case 'update-page': {
+      const page = target(value['page'])
+      if (!page) return null
+      const action: HermanAction = { do: 'update-page', page }
+      const title = oneLine(value['title'], ACTION_LIMITS.title)
+      if (title) action.title = title
+      const glyph = icon(value['icon'])
+      if (glyph) action.icon = glyph
+      return action.title || action.icon ? action : null
+    }
+    case 'update-rows': {
+      const database = target(value['database'])
+      const list = rows(value['rows'], true).filter((row): row is ActionRow & { id: string } => typeof row['id'] === 'string' && Object.keys(row).length > 1)
+      return database && list.length ? { do: 'update-rows', database, rows: list } : null
+    }
+    case 'add-properties': {
+      const database = target(value['database'])
+      const list = properties(value['properties']).filter((property) => property.type !== 'title')
+      return database && list.length ? { do: 'add-properties', database, properties: list } : null
+    }
+    case 'trash': {
+      const page = target(value['page'])
+      return page && !page.startsWith('@') ? { do: 'trash', page } : null
     }
     default:
       return null
