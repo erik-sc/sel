@@ -342,7 +342,7 @@ describe('ipc argument validation', () => {
   })
 
   it('lets the renderer write only its own settings', () => {
-    for (const key of ['theme', 'appearance', 'shell.tabs', 'shell.sidebar', 'shell.expanded', 'database.activeView.abc-123', 'editor.x', 'ui.y']) {
+    for (const key of ['theme', 'appearance', 'shell.tabs', 'shell.sidebar', 'shell.expanded', 'shell.wordCount','database.activeView.abc-123', 'editor.x', 'ui.y']) {
       expect(arg.writableSettingKey(key)).toBe(key)
     }
     for (const key of ['rootOrder', 'seeded', 'windowBounds', 'shell', 'other.key', 'themes', 'appearancex']) {
