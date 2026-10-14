@@ -22,6 +22,7 @@ import { newMeeting } from '@/meetings/gate'
 import { openFind } from './findStore'
 import { openFeedback } from '@/feedback/gate'
 import { openPalette } from '@/commands/store'
+import { openShortcuts } from '@/shortcuts/gate'
 
 export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
   switch (command) {
@@ -48,6 +49,9 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       break
     case 'command-palette':
       openPalette()
+      break
+    case 'keyboard-shortcuts':
+      openShortcuts()
       break
     case 'toggle-sidebar':
       toggleSidebar()

@@ -4,6 +4,7 @@ import { setQuickFindOpen } from '@/store/ui'
 import { openFind } from './findStore'
 import { IS_MAC } from '@/ui/platform'
 import { openPalette } from '@/commands/store'
+import { openShortcuts } from '@/shortcuts/gate'
 import { runMenuCommand } from './menuCommands'
 
 function isEditable(target: EventTarget | null): boolean {
@@ -21,9 +22,17 @@ export function useShellCommands(): void {
     // Bubble phase on purpose: the editor claims Ctrl+K for links (with text selected) with preventDefault.
     const onKeyDown = (event: KeyboardEvent): void => {
       // Not while an IME is composing, and not once per auto-repeat of a held key.
-      if (event.defaultPrevented || event.isComposing || event.repeat || event.altKey || event.shiftKey) return
+      if (event.defaultPrevented || event.isComposing || event.repeat || event.altKey) return
       if (!(event.ctrlKey || event.metaKey)) return
       const key = event.key.toLowerCase()
+      // Main delivers Ctrl+/ as a command; this catches it when the key reaches the page instead,
+      // as it does where / needs Shift (Shift+7 on a German keyboard).
+      if (key === '/' && (IS_MAC ? event.metaKey : event.ctrlKey)) {
+        event.preventDefault()
+        openShortcuts()
+        return
+      }
+      if (event.shiftKey) return
       if (key === 'p') {
         event.preventDefault()
         setQuickFindOpen(true)

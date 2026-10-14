@@ -258,6 +258,7 @@ export type MenuCommand =
   | 'new-meeting'
   | 'send-feedback'
   | 'command-palette'
+  | 'keyboard-shortcuts'
 
 /** Event and fire-and-forget channel names. Invoke channels are declared in `INVOKE` below. */
 export const IPC = {
