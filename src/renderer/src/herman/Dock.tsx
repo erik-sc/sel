@@ -7,8 +7,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import type { HermanCommand, HermanCorner, HermanFeedback, HermanNudge, HermanState } from '@shared/herman'
 import { toggleAssistant, useAiGate } from '@/ai/gate'
+import { putAway, useAlarms } from '@/alarms/gate'
 import { openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
+import { openCloseDay } from '@/notebook/route'
 import { getBlock } from '@/store/blocks'
 import { activeTab, isBlockId, openPage, tabPage, useTabs } from '@/store/tabs'
 import { setSettingsOpen, useUi } from '@/store/ui'
@@ -20,6 +22,8 @@ import { cornerAfterKey, editingSince, near, nearestCorner, poseFor, type Box } 
 /** How long a line of his stays before it leaves by itself. */
 const BUBBLE_MS = 20_000
 const GREETING_MS = 45_000
+/** A briefing or a reminder the user asked for stays longer: it is read aloud first. */
+const ANNOUNCE_MS = 120_000
 /** He does not ask the main process while a key was pressed this recently. */
 const SETTLE_MS = 3000
 /** The first question after start-up waits for the window to come to rest. */
@@ -37,6 +41,8 @@ interface Bubble {
   greeting?: boolean
   /** Said while AI is turned off: the line offers the settings. */
   settings?: boolean
+  /** Set for a briefing or a reminder (shared/alarms.ts): its id. */
+  announcement?: string
 }
 
 function editable(target: EventTarget | null): target is HTMLElement {
@@ -120,7 +126,24 @@ export function Dock(): JSX.Element | null {
     if (!current) return
     setBubble(null)
     if (current.id) void window.api.herman.nudge.dismiss(current.id, feedback).catch(() => undefined)
+    if (current.announcement) putAway(current.announcement)
   }, [])
+
+  // A briefing at one of its times, or a task's reminder: said at once, over anything else he was saying.
+  const announcement = useAlarms((alarms) => alarms.current)
+  useEffect(() => {
+    if (!announcement) return
+    if (bubbleRef.current?.announcement === announcement.id) return
+    if (bubbleRef.current) dismiss()
+    const portuguese = announcement.locale === 'pt-BR'
+    const action: HermanNudge['action'] =
+      announcement.kind === 'briefing'
+        ? { label: portuguese ? 'Abrir Today' : 'Open Today', command: { type: 'open-today' } }
+        : announcement.pageId
+          ? { label: portuguese ? 'Abrir tarefa' : 'Open task', command: { type: 'open-page', pageId: announcement.pageId } }
+          : undefined
+    setBubble({ text: announcement.text, announcement: announcement.id, ...(action ? { action } : {}) })
+  }, [announcement, dismiss])
 
   // The first meeting: once he has drawn himself, a hello and his name. Said once.
   const greeting = state?.greeting ?? null
@@ -139,7 +162,7 @@ export function Dock(): JSX.Element | null {
   const [held, setHeld] = useState(false)
   useEffect(() => {
     if (!bubbleKey || held) return
-    const timer = setTimeout(() => dismiss(), bubbleRef.current?.greeting ? GREETING_MS : BUBBLE_MS)
+    const timer = setTimeout(() => dismiss(), bubbleRef.current?.greeting ? GREETING_MS : bubbleRef.current?.announcement ? ANNOUNCE_MS : BUBBLE_MS)
     return () => clearTimeout(timer)
   }, [bubbleKey, held, dismiss])
 
@@ -368,6 +391,9 @@ export function Dock(): JSX.Element | null {
     switch (command.type) {
       case 'open-today':
         openToday()
+        break
+      case 'close-day':
+        openCloseDay()
         break
       case 'open-page':
         if (isBlockId(command.pageId)) openPage(command.pageId)

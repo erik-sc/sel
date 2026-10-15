@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { localDay, type Briefing, type BriefingPhrase } from '@shared/briefing'
+import { NOTEBOOK_ID, type NotebookLocale } from '@shared/notebook'
+import { CLOSE_COPY } from '@/notebook/copy'
 import { aiReady, useAiGate } from '@/ai/gate'
 import { Figure } from '@/herman/Figure'
 import { noteAiEvent, useHerman } from '@/herman/gate'
@@ -15,6 +17,63 @@ import { EventRow, Lines, TaskRow, openSettings, useCompleteTask, useLive, useNo
 import './today.css'
 
 const readBriefing = (force: boolean): Promise<Briefing> => window.api.briefing.get(force)
+
+// ---- what last night set aside -----------------------------------------------------
+
+/**
+ * The things the evening before set aside for today, when the day was closed (see
+ * notebook/CloseDayScreen.tsx), until they are put away. Read from today's day of the notebook,
+ * so they came along from whichever device closed the day.
+ */
+function Plans({ date }: { date: string }): JSX.Element | null {
+  const [plans, setPlans] = useState<{ items: string[]; locale: NotebookLocale } | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    const read = (): void => {
+      window.api.notebook.get().then(
+        (view) => {
+          if (!alive) return
+          const entry = view.todayEntry
+          setPlans(entry && entry.day === date && !entry.plansDismissed && entry.plans.length ? { items: entry.plans, locale: view.locale } : null)
+        },
+        (error: unknown) => console.error('the plans for today failed to load', error)
+      )
+    }
+    read()
+    const off = window.api.onChange((event) => {
+      if (event.origin !== window.api.clientId && event.ids.some((id) => id.startsWith(NOTEBOOK_ID))) read()
+    })
+    return () => {
+      alive = false
+      off()
+    }
+  }, [date])
+
+  if (!plans) return null
+  const copy = CLOSE_COPY[plans.locale]
+  const dismiss = (): void => {
+    setPlans(null)
+    window.api.notebook.dismissPlans(date).catch((error: unknown) => notifyError('Could not put them away.', error))
+  }
+  return (
+    <section className="today-section today-plans" aria-labelledby="today-plans" lang={plans.locale}>
+      <h2 className="today-label" id="today-plans">
+        {copy.plansLabel}
+      </h2>
+      <ol className="today-plans-list">
+        {plans.items.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ol>
+      <div className="today-actions">
+        <button type="button" className="today-link" onClick={dismiss}>
+          {copy.plansDismiss}
+        </button>
+      </div>
+    </section>
+  )
+}
 
 // ---- the phrase ---------------------------------------------------------------
 
@@ -371,6 +430,7 @@ export function TodayScreen(): JSX.Element {
         <p className="today-greeting">{data.greeting}</p>
         <h1 className="today-date">{longDate(data.date)}</h1>
       </header>
+      <Plans date={data.date} />
       <Phrase phrase={data.phrase} hasPhrases={data.hasPhrases} onChange={setPhrase} />
       <Agenda briefing={data} now={now} />
       <Tasks briefing={data} />

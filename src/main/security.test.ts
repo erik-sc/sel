@@ -355,6 +355,14 @@ describe('ipc argument validation', () => {
     }
   })
 
+  it('lets the renderer turn other apps in and out, as a boolean, and nothing else of mcp', () => {
+    expect(arg.writableSettingKey('mcp.enabled')).toBe('mcp.enabled')
+    for (const key of ['mcp', 'mcp.token', 'mcp.enabled.x']) expect(() => arg.writableSettingKey(key)).toThrow('read-only')
+    expect(arg.settingValueFor('mcp.enabled', true)).toBe(true)
+    expect(arg.settingValueFor('mcp.enabled', null)).toBeNull()
+    for (const bad of ['yes', 1, {}]) expect(() => arg.settingValueFor('mcp.enabled', bad)).toThrow('Invalid setting value')
+  })
+
   it('accepts exactly the four history settings, typed and clamped', () => {
     for (const key of ['history.enabled', 'history.sessionMinutes', 'history.maxPerPage', 'history.budgetMb']) {
       expect(arg.writableSettingKey(key)).toBe(key)

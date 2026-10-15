@@ -1,11 +1,14 @@
 import type { AiEvent, AiRequest, AiStatus } from './ai'
+import type { AlarmsApi } from './alarms'
 import type { SyncSetup, SyncStatus } from './sync'
 import type { BriefingApi } from './briefing'
 import type { AgentKind, AiAgentInfo } from './council'
 import type { FeedbackApi } from './feedback'
 import type { HermanApi } from './herman'
 import type { InvokeChannels } from './ipc'
+import type { McpApi } from './mcp'
 import type { MeetingsApi } from './meetings'
+import type { NotebookApi } from './notebook'
 import type {
   Block,
   ChangeEvent,
@@ -206,6 +209,12 @@ export interface Api {
   herman: HermanApi
 
   /**
+   * The ink notebook: one line a day, written while the day lasts and kept as it is after, and
+   * the ritual that closes the day. Stored as blocks, so it syncs. See shared/notebook.ts.
+   */
+  notebook: NotebookApi
+
+  /**
    * Bug reports and suggestions the user writes in the app, kept as files on this computer for
    * the nightly development agent to pick up. See shared/feedback.ts.
    */
@@ -216,6 +225,18 @@ export interface Api {
    * turned that on, downloaded and installed only when they say so. See shared/updates.ts.
    */
   updates: UpdatesApi
+
+  /**
+   * Other apps (Claude Desktop, Claude Code, any MCP client) connected to the notes over MCP, when
+   * the user turned that on: the state of the endpoint, and a new token. See shared/mcp.ts.
+   */
+  mcp: McpApi
+
+  /**
+   * The times of day Herman briefs the user, aloud if they like, and the reminders of tasks
+   * that carry a time: kept by the main process's clock, said in a window. See shared/alarms.ts.
+   */
+  alarms: AlarmsApi
 
   app: {
     getTheme(): Promise<Theme>
@@ -263,6 +284,8 @@ export type MenuCommand =
   | 'toggle-assistant'
   | 'open-today'
   | 'open-calendar'
+  | 'open-notebook'
+  | 'close-day'
   | 'new-meeting'
   | 'send-feedback'
   | 'command-palette'
@@ -389,6 +412,12 @@ export const INVOKE = {
   'herman:met': true,
   'herman:reset': true,
 
+  'notebook:get': true,
+  'notebook:write': true,
+  'notebook:plan': true,
+  'notebook:dismissPlans': true,
+  'notebook:review': true,
+
   'feedback:list': true,
   'feedback:create': true,
   'feedback:withdraw': true,
@@ -399,6 +428,12 @@ export const INVOKE = {
   'updates:download': true,
   'updates:restart': true,
   'updates:dismiss': true,
+
+  'mcp:status': true,
+  'mcp:rotateToken': true,
+  'alarms:pending': true,
+  'alarms:heard': true,
+  'alarms:test': true,
 
   'app:getTheme': true,
   'app:setTheme': true,

@@ -21,6 +21,7 @@ import { preloadHerman } from './herman/Host'
 import { initSync } from './sync/store'
 import { initMeetings } from './meetings/gate'
 import { initUpdates } from './updates/store'
+import { initAlarms } from './alarms/gate'
 import { openTodayOnLaunch, routeTitle } from './briefing/route'
 
 bootMark('start')
@@ -52,6 +53,8 @@ void initSync()
 initMeetings()
 // What the main process knows about a new version, for the notice and Settings. Reading it asks nothing of the network.
 initUpdates()
+// What the alarms' clock in the main process has to say (a briefing at one of its times, a reminder).
+initAlarms()
 void initTabs(initialPageId()).then(() => {
   // The page about to be shown: fetch its blocks while the editor's code loads.
   const pageId = tabPage(activeTab())

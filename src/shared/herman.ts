@@ -70,6 +70,8 @@ export type HermanNudgeKind = (typeof HERMAN_NUDGE_KINDS)[number]
 /** What a nudge can offer to do: each is something the app already does when asked. */
 export type HermanCommand =
   | { type: 'open-today' }
+  /** The ritual that closes the day (notebook/route.ts). */
+  | { type: 'close-day' }
   | { type: 'open-page'; pageId: string }
   /** A meeting page for a calendar event that is about to start. */
   | { type: 'new-meeting'; event: { title: string; start: number; end: number } }

@@ -1,0 +1,263 @@
+/*
+ * Closing the day. The notebook's column and type (notebook.css), four quiet step marks, and the
+ * rest: the whole window dims to the ground colour with two words on it. Tokens only, so it
+ * follows light, dark and the Glass presets; every motion is a fade, shortened to nothing under
+ * prefers-reduced-motion (styles/global.css).
+ */
+
+.close {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--page-width) + var(--page-padding-x) * 2);
+  margin: 0 auto;
+  padding: 96px var(--page-padding-x) 140px;
+  color: var(--text);
+  animation: ui-fade var(--duration) var(--ease);
+}
+
+.close-head {
+  margin-bottom: 40px;
+}
+
+/* ---- the step marks: four short rules, the current one in ink ---- */
+
+.close-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 0 0 56px;
+  padding: 0;
+  list-style: none;
+}
+
+.close-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  transition: color var(--duration) var(--ease);
+}
+
+.close-step-mark {
+  height: 0;
+  border-top: var(--hairline) solid var(--border-strong);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.close-step.is-past .close-step-mark {
+  border-top-color: var(--text-tertiary);
+}
+
+.close-step.is-current {
+  color: var(--text-secondary);
+}
+
+.close-step.is-current .close-step-mark {
+  border-top: 1px solid var(--accent);
+}
+
+/* ---- one step ---- */
+
+.close-body {
+  animation: ui-fade calc(var(--duration) * 2) var(--ease);
+}
+
+.close-title {
+  margin: 0 0 20px;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+  outline: none;
+}
+
+.close-help {
+  margin: 0 0 28px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.close-reviews {
+  display: grid;
+  gap: 32px;
+}
+
+.close-review-label {
+  margin: 0 0 10px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+}
+
+.close-review-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.close-review-list li {
+  padding: 6px 0;
+  color: var(--text-secondary);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.close-line {
+  min-height: calc(var(--text-h3) * var(--leading-body) * 2 + 12px);
+  overflow: auto;
+}
+
+.close-plans {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: plan;
+}
+
+.close-plans li {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: baseline;
+  counter-increment: plan;
+}
+
+.close-plans li::before {
+  content: counter(plan);
+  color: var(--text-tertiary);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+}
+
+.close-plan {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: var(--hairline) solid var(--border);
+  background: transparent;
+  color: var(--text);
+  caret-color: var(--accent);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  outline: none;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.close-plan::placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.close-plan:focus {
+  border-bottom-color: var(--accent);
+}
+
+.close-problem {
+  margin: 20px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.close-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 48px;
+}
+
+/* ---- closed ---- */
+
+.close-done {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  animation: ui-fade calc(var(--duration) * 3) var(--ease);
+}
+
+.close-done-words {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  line-height: var(--leading-title);
+}
+
+.close-done-line {
+  margin-top: 24px;
+}
+
+/* ---- the rest: the whole window, dimmed ---- */
+
+.close-rest {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  background: var(--wall-base);
+  color: var(--text-tertiary);
+  outline: none;
+  cursor: default;
+  animation: close-dim calc(var(--duration) * 6) var(--ease) both;
+}
+
+.close-rest.is-waking {
+  animation: close-wake calc(var(--duration) * 1.5) var(--ease) both;
+}
+
+.close-rest-inner {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+  animation: close-words calc(var(--duration) * 10) var(--ease) both;
+}
+
+.close-rest-words {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-title);
+  font-weight: var(--weight-title);
+  letter-spacing: var(--tracking-title);
+  color: var(--text-secondary);
+}
+
+.close-rest-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  opacity: 0.7;
+}
+
+@keyframes close-dim {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes close-wake {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* The words arrive after the dark, slowly. */
+@keyframes close-words {
+  0%,
+  30% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
