@@ -4,6 +4,7 @@ import type { PromptBuilder } from '../ai/service'
 import type { Briefing } from '../../shared/briefing'
 import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
+import type { CalendarSync } from '../sync/format'
 import type { BriefingBridge } from './index'
 
 /**
@@ -20,6 +21,8 @@ export interface BriefingIpcContext {
   /** A task was marked done from a window, or that was taken back (Herman notices a streak). */
   onTaskCompleted?: (sender: WebContents) => void
   onTaskUncompleted?: () => void
+  /** A calendar was connected, changed or removed here: sync carries it (to an encrypted repository only). */
+  onCalendarsChanged?: () => void
 }
 
 export interface BriefingAccess {
@@ -27,9 +30,11 @@ export interface BriefingAccess {
   stored(): Promise<Briefing>
   /** The same, as the lines a prompt about the day is written from. */
   promptData(): Promise<BriefingPromptData>
+  /** The calendars for sync. Loads the briefing, so it is asked for only by an encrypted repository. */
+  calendarSync(): Promise<CalendarSync>
 }
 
-export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncompleted }: BriefingIpcContext): BriefingAccess & { handlers: Handlers<'briefing'> } {
+export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncompleted, onCalendarsChanged }: BriefingIpcContext): BriefingAccess & { handlers: Handlers<'briefing'> } {
   let bridge: BriefingBridge | null = null
   const briefing = async (): Promise<BriefingBridge> => (bridge ??= new (await import('./index')).BriefingBridge(repo))
 
@@ -58,18 +63,21 @@ export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncomplet
       // Read it right away; the windows hear when it has answered.
       void b.service.get(false).catch(() => undefined)
       b.changed()
+      onCalendarsChanged?.()
       return calendar
     },
     'briefing:calendars.update': async ([id, patch]) => {
       const b = await briefing()
       const calendar = b.service.updateCalendar(id, patch)
       b.changed()
+      onCalendarsChanged?.()
       return calendar
     },
     'briefing:calendars.remove': async ([id]) => {
       const b = await briefing()
       b.service.removeCalendar(id)
       b.changed()
+      onCalendarsChanged?.()
     },
     'briefing:calendars.test': async ([id]) => (await briefing()).service.testCalendar(id),
 
@@ -82,5 +90,10 @@ export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncomplet
     }
   }
 
-  return { handlers, stored: async () => (await briefing()).service.build(), promptData: async () => (await briefing()).service.promptData() }
+  return {
+    handlers,
+    stored: async () => (await briefing()).service.build(),
+    promptData: async () => (await briefing()).service.promptData(),
+    calendarSync: async () => (await briefing()).calendarSync
+  }
 }

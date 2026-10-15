@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { systemKindOf } from '../../../shared/system'
 import { notifyError } from '../ui/toast'
 import { addCacheRoots, fetchBlocks, getBlock } from './blocks'
 
@@ -31,7 +32,8 @@ function sameIds(a: string[] | undefined, b: string[]): boolean {
 
 async function fetchChildren(key: string): Promise<string[]> {
   const blocks = await fetchBlocks(() => (key === ROOT ? window.api.pages.listRoot() : window.api.pages.listChildren(key)))
-  return blocks.map((b) => b.id)
+  // The notebook lives at the root but has a place of its own in the sidebar, above the tree.
+  return blocks.filter((b) => key !== ROOT || systemKindOf(b) !== 'notebook').map((b) => b.id)
 }
 
 export async function loadTreeChildren(key: string): Promise<void> {

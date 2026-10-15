@@ -1,5 +1,6 @@
 import { plainText } from '../../shared/richtext'
 import type { Block, PropertySchema } from '../../shared/types'
+import type { Repository } from '../db/repository'
 import { describeSchema, type WorkspaceSource } from './context'
 import { truncateMiddle } from './prompts'
 import { TOOL_CAPS } from './toolspecs'
@@ -28,19 +29,19 @@ export interface ToolSource extends WorkspaceSource {
 // eslint-disable-next-line no-control-regex
 const oneLine = (text: string, max: number): string => text.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max)
 
-function titleOf(block: Block | null | undefined): string {
+export function titleOf(block: Block | null | undefined): string {
   const text = oneLine(plainText(block?.props.title).replace(/[[\]]/g, ' '), TOOL_CAPS.title)
   return text || 'Untitled'
 }
 
-const live = (block: Block | null | undefined): block is Block => !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database')
+export const live = (block: Block | null | undefined): block is Block => !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database')
 
-const label = (block: Block): string => `${block.props.icon ? `${oneLine(String(block.props.icon), 8)} ` : ''}${titleOf(block)} [${block.id}]${block.type === 'database' ? ' (database)' : ''}`
+export const label = (block: Block): string => `${block.props.icon ? `${oneLine(String(block.props.icon), 8)} ` : ''}${titleOf(block)} [${block.id}]${block.type === 'database' ? ' (database)' : ''}`
 
 const day = (ms: number): string => new Date(ms).toISOString().slice(0, 10)
 
 /** "Projects / Q4 / Launch": where a block sits. */
-function pathOf(source: ToolSource, id: string): string {
+export function pathOf(source: Pick<ToolSource, 'ancestors'>, id: string): string {
   const path = source.ancestors(id).filter(live).map(titleOf)
   return path.length ? path.join(' / ') : 'the top level'
 }
@@ -274,5 +275,20 @@ export function toolActivity(source: Pick<ToolSource, 'get'>, name: string, rawA
       return 'checking the workspace'
     default:
       return 'looking'
+  }
+}
+
+/** The repository as the tools read it, with the Markdown converter they read pages through. */
+export function repositorySource(repo: Repository, markdown: Pick<typeof import('../markdown'), 'pageToMarkdown'>): ToolSource {
+  return {
+    get: (id) => repo.get(id),
+    ancestors: (id) => repo.ancestors(id),
+    listRoot: () => repo.listRoot(),
+    listChildren: (id) => repo.listChildren(id),
+    listRecent: (limit) => repo.listRecent(limit),
+    listDatabases: () => repo.listDatabases(),
+    search: (text, limit) => repo.search(text, limit),
+    pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id),
+    children: (id) => repo.children(id)
   }
 }
