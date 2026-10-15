@@ -6,6 +6,7 @@ import { registerBriefingIpc } from './briefing/register'
 import { registerExternalIpc, type ExternalHooks } from './external/register'
 import { registerFeedbackIpc } from './feedback/register'
 import { registerHermanIpc, type HermanHooks } from './herman/register'
+import { registerAlarmsIpc, type AlarmsHooks } from './alarms/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
 import { registerNotebookIpc } from './notebook/register'
 import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
@@ -52,6 +53,8 @@ export interface SyncHooks {
   beforeQuit(): Promise<void> | null
   /** What the windows and the quit sequence need to know about a recording in progress. */
   meetings: MeetingsHooks
+  /** Whether sel waits in the notification area, rather than quitting, when its windows close (alarms). */
+  alarms: Pick<AlarmsHooks, 'keepRunning' | 'startHidden'>
 }
 
 const SYNC_URL_KEY = 'sync.remoteUrl'
@@ -179,6 +182,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // ---- app
   let updates: UpdatesHooks | null = null
   let external: ExternalHooks | null = null
+  let alarms: AlarmsHooks | null = null
   const appHandlers: Handlers<'app'> = {
     'app:getTheme': () => readTheme(repo),
     'app:setTheme': ([a]) => applyTheme(repo, a),
@@ -203,6 +207,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       if (key.startsWith('updates.')) updates?.settingChanged()
       // Other apps were let in or shut out: the endpoint for them opens or closes.
       if (key.startsWith('mcp.')) external?.settingChanged()
+      // A briefing time, a reminder switch or the notification-area icon: the alarms' clock follows.
+      alarms?.settingChanged(key)
     },
     'app:openExternal': async ([a]) => {
       const url = toExternalUrl(a)
@@ -297,6 +303,18 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // blocks: the repository keeps the rule that a day that has ended stays as it is.
   const notebookHandlers = registerNotebookIpc({ repo })
 
+  // ---- alarms (the briefing at the times the user chose, and the reminders of tasks; see ./alarms).
+  // The one clock in sel that runs at times the user set: it starts with the app, a few seconds in.
+  const alarmsIpc = registerAlarmsIpc({
+    repo,
+    briefing: () => briefing.stored(),
+    promptData: () => briefing.promptData(),
+    ai,
+    recording: () => meetings.recordingWindow() !== null,
+    createWindow: () => createWindow()
+  })
+  alarms = alarmsIpc
+
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
 
@@ -337,7 +355,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...notebookHandlers,
     ...feedbackHandlers,
     ...updatesIpc.handlers,
-    ...externalIpc.handlers
+    ...externalIpc.handlers,
+    ...alarmsIpc.handlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 
@@ -352,6 +371,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
 
   return {
     meetings,
+    alarms: alarmsIpc,
     start() {
       if (typeof repo.getSetting(SYNC_URL_KEY) !== 'string') return
       sync().then(

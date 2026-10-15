@@ -1,4 +1,5 @@
 import type { AiEvent, AiRequest, AiStatus } from './ai'
+import type { AlarmsApi } from './alarms'
 import type { SyncSetup, SyncStatus } from './sync'
 import type { BriefingApi } from './briefing'
 import type { AgentKind, AiAgentInfo } from './council'
@@ -231,6 +232,12 @@ export interface Api {
    */
   mcp: McpApi
 
+  /**
+   * The times of day Herman briefs the user, aloud if they like, and the reminders of tasks
+   * that carry a time: kept by the main process's clock, said in a window. See shared/alarms.ts.
+   */
+  alarms: AlarmsApi
+
   app: {
     getTheme(): Promise<Theme>
     setTheme(theme: Theme): Promise<void>
@@ -424,6 +431,9 @@ export const INVOKE = {
 
   'mcp:status': true,
   'mcp:rotateToken': true,
+  'alarms:pending': true,
+  'alarms:heard': true,
+  'alarms:test': true,
 
   'app:getTheme': true,
   'app:setTheme': true,
