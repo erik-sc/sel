@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { isSystemBlock } from '@shared/system'
 import { notifyError } from '../ui/toast'
 import { addCacheRoots, fetchBlocks, getBlock } from './blocks'
 
@@ -31,7 +32,8 @@ function sameIds(a: string[] | undefined, b: string[]): boolean {
 
 async function fetchChildren(key: string): Promise<string[]> {
   const blocks = await fetchBlocks(() => (key === ROOT ? window.api.pages.listRoot() : window.api.pages.listChildren(key)))
-  return blocks.map((b) => b.id)
+  // Built-in databases (Tasks) are reached from their own button, not from the page tree.
+  return blocks.filter((b) => !isSystemBlock(b)).map((b) => b.id)
 }
 
 export async function loadTreeChildren(key: string): Promise<void> {

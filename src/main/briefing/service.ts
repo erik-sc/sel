@@ -19,6 +19,8 @@ import {
 } from '../../shared/briefing'
 import { CALENDAR_ERROR_TEXT } from '../../shared/briefing'
 import { plainText } from '../../shared/richtext'
+import { systemKindOf } from '../../shared/system'
+import { localMoment, TASK_PROPS } from '../../shared/tasks'
 import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyValue } from '../../shared/types'
 import type { BriefingPromptData } from '../ai/prompts'
 import type { Repository } from '../db/repository'
@@ -388,6 +390,11 @@ export class BriefingService {
     if (!signal) throw new Error('That task cannot be marked done from here.')
     const plan = planCompletion(signal, block.props)
     if (!plan) throw new Error('That task is already done.')
+    // The built-in Tasks database also notes when: its Completed list is ordered by it.
+    if (systemKindOf(parent) === 'tasks') {
+      plan.previous[TASK_PROPS.completedAt] = Object.hasOwn(plan.values, TASK_PROPS.completedAt) ? plan.values[TASK_PROPS.completedAt] : undefined
+      plan.values[TASK_PROPS.completedAt] = { start: localMoment(this.now()) }
+    }
     this.repo.update(id, { props: { values: plan.values } as BlockProps })
     this.undo.set(token, { id, at: this.now(), previous: plan.previous })
     return { token }

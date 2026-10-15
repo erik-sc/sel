@@ -1,6 +1,6 @@
 # Plano: Tasks (estilo Todoist) sobre as databases do sel
 
-Status: fase 0 implementada (datas com hora, filtro `date_is`, `props.system`) · 2026-10-15
+Status: fases 0 e 1 implementadas (datas com hora, `date_is`, `props.system`; DB de sistema, rota `_tasks`, tela Tasks) · 2026-10-15
 
 ## O que já existe e vamos reaproveitar
 

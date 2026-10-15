@@ -4,6 +4,7 @@ import { APPEARANCE_KEY, windowBackground } from './background'
 import { DEFAULT_SIZE, fitBounds, MIN_SIZE, type SavedBounds } from './bounds'
 import { openDatabase, type Repository } from './db'
 import { isValidId } from './db/blocks'
+import { ensureTasksDatabase } from './db/tasks'
 import { handleFileProtocol, registerFileScheme } from './files'
 import { readTheme, registerIpc, type SyncHooks } from './ipc'
 import { recordingGrants } from './meetings/grant'
@@ -320,15 +321,22 @@ function openStore(): Repository | null {
  * First run only: the welcome content. Kept off the path to the first window
  * (the module is not even loaded on later runs); ipc handlers wait for it, so
  * the renderer can never observe the workspace half-seeded or still empty.
+ * Then, on every run, the built-in Tasks database (one read when it is there).
  */
 async function seedWorkspace(store: Repository): Promise<void> {
-  if (!store.isEmpty()) return
+  if (store.isEmpty()) {
+    try {
+      const { seedIfEmpty } = await import('./db/seed')
+      seedIfEmpty(store)
+      mark('workspace seeded')
+    } catch (err) {
+      console.error('[main] could not create the welcome page', err)
+    }
+  }
   try {
-    const { seedIfEmpty } = await import('./db/seed')
-    seedIfEmpty(store)
-    mark('workspace seeded')
+    ensureTasksDatabase(store)
   } catch (err) {
-    console.error('[main] could not create the welcome page', err)
+    console.error('[main] could not create the Tasks database', err)
   }
 }
 

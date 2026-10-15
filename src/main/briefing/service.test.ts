@@ -7,7 +7,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { BRIEFING_KEYS, cleanBriefingSetting, localDay } from '../../shared/briefing'
 import type { PropertySchema } from '../../shared/types'
 import { buildBriefingPrompt } from '../ai/prompts'
+import { ensureTasksDatabase } from '../db/tasks'
 import { openTestRepository } from '../db/testing'
+import { TASK_PROPS } from '../../shared/tasks'
 import type { Repository } from '../db/repository'
 import * as arg from '../validate'
 import { CalendarService } from './calendars'
@@ -193,6 +195,17 @@ describe('the briefing', () => {
     expect(() => service.undoCompleteTask(token)).toThrow('no longer be undone')
     // The page keeps a version history like any edited page.
     expect(repo.get(db)).not.toBeNull()
+  })
+
+  it('notes when a task of the built-in Tasks database was completed, and forgets it on undo', () => {
+    const db = ensureTasksDatabase(repo)
+    const row = repo.create({ type: 'page', parentId: db, props: { title: [['Water the plants']], values: { [TASK_PROPS.due]: { start: '2026-10-13T09:00' } } } })
+    const { service } = make()
+    expect(service.build().tasks.today.map((item) => item.title)).toContain('Water the plants')
+    const { token } = service.completeTask(row.id)
+    expect(repo.get(row.id)!.props.values).toEqual({ [TASK_PROPS.due]: { start: '2026-10-13T09:00' }, [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-13T08:05' } })
+    service.undoCompleteTask(token)
+    expect(repo.get(row.id)!.props.values).toEqual({ [TASK_PROPS.due]: { start: '2026-10-13T09:00' } })
   })
 
   it('completes a to-do block, and refuses what is not a task', () => {
