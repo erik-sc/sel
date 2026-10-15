@@ -2,7 +2,8 @@
 // and the calendar), the ways to reach them and the rule for opening Today at start-up. The
 // screens themselves are chunks of their own (see Host.tsx).
 import { localDay, type OpenOnLaunch } from '@shared/briefing'
-import { CALENDAR_ROUTE, openRoute, TODAY_ROUTE, useTabs } from '@/store/tabs'
+import { notebookRouteTitle } from '@/notebook/route'
+import { CALENDAR_ROUTE, openScreen, TODAY_ROUTE, useTabs } from '@/store/tabs'
 import { TASKS_ROUTE, TASKS_TITLE } from '@/tasks/gate'
 
 export { CALENDAR_ROUTE, TODAY_ROUTE }
@@ -21,15 +22,15 @@ export function isCalendarRoute(pageId: string | null | undefined): boolean {
 
 /** The name of the built-in screen a tab shows, or null when it shows a stored page (or nothing). */
 export function routeTitle(pageId: string | null | undefined): string | null {
-  return pageId === TODAY_ROUTE ? TODAY_TITLE : pageId === CALENDAR_ROUTE ? CALENDAR_TITLE : pageId === TASKS_ROUTE ? TASKS_TITLE : null
+  return pageId === TODAY_ROUTE ? TODAY_TITLE : pageId === CALENDAR_ROUTE ? CALENDAR_TITLE : pageId === TASKS_ROUTE ? TASKS_TITLE : notebookRouteTitle(pageId)
 }
 
 export function openToday(): void {
-  openRoute(TODAY_ROUTE)
+  openScreen(TODAY_ROUTE)
 }
 
 export function openCalendar(): void {
-  openRoute(CALENDAR_ROUTE)
+  openScreen(CALENDAR_ROUTE)
 }
 
 /** Which section the settings window opens on next time (the screen links to its own settings). */

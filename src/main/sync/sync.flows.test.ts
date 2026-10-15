@@ -8,6 +8,9 @@ import { expect, it } from 'vitest'
 import { SyncEngine } from './engine'
 import { bareRemote, commitCount, device, git, pair, plain, PNG, remoteFiles, suite, sync } from './harness'
 
+const CALENDAR = 'https://calendar.google.com/calendar/ical/me%40example.com/private-SECRETTOKEN123/basic.ics'
+const PASSPHRASE = 'a passphrase for the test'
+
 suite('sync with real git: flows', () => {
   it('uploads a workspace to an empty repository in the documented layout', async () => {
     const remote = bareRemote()
@@ -265,16 +268,128 @@ suite('sync with real git: flows', () => {
     expect(b.repo.getSetting('history.enabled')).toBeNull()
   })
 
-  it('never puts the version history table or local settings in the repository', async () => {
-    const { remote, a, pageId } = await pair()
+  it('never puts the version history table, local settings or calendars in an unencrypted repository', async () => {
+    const { remote, a, b, pageId } = await pair()
     a.repo.saveVersion(pageId, 'A secret label')
     a.repo.setSetting('shell.tabs', [{ id: 'tab-secret' }])
+    a.calendars.add({ label: 'Work', url: CALENDAR, color: 'green' })
+    a.repo.setSetting('briefing.databases', [pageId])
+    a.repo.setSetting('sync.briefingAt', 5_000_000)
     a.text(pageId, 'another line')
-    await sync(a)
-    const everything = [...remoteFiles(remote).values()].map((bytes) => bytes.toString()).join('\n')
+    await sync(a, b)
+    const files = remoteFiles(remote)
+    const everything = [...files.values()].map((bytes) => bytes.toString()).join('\n')
     expect(everything).not.toContain('A secret label')
     expect(everything).not.toContain('tab-secret')
+    expect(everything).not.toContain('SECRETTOKEN')
+    expect(everything).not.toContain('calendar.google.com')
     expect(everything).toContain('another line')
+    expect(files.has('settings/calendars.json')).toBe(false)
+    expect(git(remote, 'log', '--all', '-p', '--text')).not.toContain('SECRETTOKEN')
+    expect(b.calendars.list()).toEqual([])
+    expect(b.repo.getSetting('briefing.databases')).toBeNull()
+  })
+
+  it('carries calendars and the task databases between devices of an encrypted repository', async () => {
+    const remote = bareRemote()
+    const a = device('Device A', 1_000_000)
+    const b = device('Device B', 2_000_000)
+    a.page('Shared page')
+    const work = a.calendars.add({ label: 'Work', url: CALENDAR, color: 'green' })
+    expect((await a.setup(remote, { passphrase: PASSPHRASE })).lastError).toBeUndefined()
+    expect((await b.setup(remote, { passphrase: PASSPHRASE })).lastError).toBeUndefined()
+
+    // A adds a calendar, sync: B has it, address and all.
+    expect(b.calendars.list()).toEqual([{ id: expect.any(String), label: 'Work', host: 'calendar.google.com', color: 'green', enabled: true }])
+    const onB = b.calendars.list()[0].id
+    expect(onB).not.toBe(work.id)
+    expect(b.calendars.urlOf(onB)).toBe(CALENDAR)
+    // Only ever sealed: no file of the repository, and nothing in its history, shows the address.
+    const files = remoteFiles(remote)
+    expect(files.has('settings/calendars.json')).toBe(true)
+    const everything = [...files.values()].map((bytes) => bytes.toString('latin1')).join('\n')
+    expect(everything).not.toContain('SECRETTOKEN')
+    expect(everything).not.toContain('calendar.google.com')
+    expect(git(remote, 'log', '--all', '-p', '--text')).not.toContain('SECRETTOKEN')
+
+    // Edits on both devices merge field by field; each keeps its own id.
+    a.calendars.update(work.id, { label: 'Office' })
+    b.calendars.update(onB, { color: 'red' })
+    await sync(a, b, a)
+    expect(a.calendars.get(work.id)).toMatchObject({ label: 'Office', color: 'red' })
+    expect(b.calendars.get(onB)).toMatchObject({ label: 'Office', color: 'red' })
+    // The same field on both: the later edit (B's clock is ahead).
+    a.calendars.update(work.id, { label: 'From A' })
+    b.calendars.update(onB, { label: 'From B' })
+    await sync(a, b, a)
+    expect(a.calendars.get(work.id)?.label).toBe('From B')
+    expect(b.calendars.get(onB)?.label).toBe('From B')
+    expect(a.forgotten).toEqual([])
+
+    // A removal propagates, and the reader forgets what it had read from that calendar.
+    const home = b.calendars.add({ label: 'Home', url: 'https://p01-caldav.icloud.com/published/2/home-SECRETTOKEN', color: 'blue' })
+    await sync(b, a)
+    expect(a.calendars.list().map((entry) => entry.label)).toEqual(['From B', 'Home'])
+    const homeOnA = a.calendars.list()[1].id
+    a.calendars.remove(homeOnA)
+    await sync(a, b)
+    expect(b.calendars.list().map((entry) => entry.label)).toEqual(['From B'])
+    expect(b.forgotten).toEqual([home.id])
+    expect(b.calendars.get(home.id)).toBeNull()
+
+    // Which databases feed Today goes along.
+    const tasks = a.page('Tasks')
+    a.repo.setSetting('briefing.databases', [tasks.id])
+    a.repo.setSetting('sync.briefingAt', 5_000_000)
+    await sync(a, b)
+    expect(b.repo.getSetting('briefing.databases')).toEqual([tasks.id])
+
+    // Nothing changed: nothing more to upload.
+    const commits = commitCount(remote)
+    await sync(a, b)
+    expect(commitCount(remote)).toBe(commits)
+  })
+
+  it('syncs without the calendars on a device that has no key store for them', async () => {
+    const remote = bareRemote()
+    const a = device('Device A', 1_000_000)
+    const b = device('Device B', 2_000_000)
+    a.calendars.add({ label: 'Work', url: CALENDAR, color: 'green' })
+    await a.setup(remote, { passphrase: PASSPHRASE })
+    b.keyStore.available = false
+    expect((await b.setup(remote, { passphrase: PASSPHRASE })).lastError).toBeUndefined()
+    expect(b.calendars.list()).toEqual([])
+    b.page('From B')
+    await sync(b, a)
+    // B's missing calendars removed nothing.
+    expect(a.calendars.list().map((entry) => entry.label)).toEqual(['Work'])
+    // With a key store, the next sync brings them.
+    b.keyStore.available = true
+    await sync(b)
+    expect(b.calendars.list().map((entry) => entry.label)).toEqual(['Work'])
+  })
+
+  it('writes the calendars when encryption is turned on, and removes them when it is turned off', async () => {
+    const { remote, a, b } = await pair()
+    a.calendars.add({ label: 'Work', url: CALENDAR, color: 'green' })
+    await sync(a)
+    expect(remoteFiles(remote).has('settings/calendars.json')).toBe(false)
+
+    expect((await a.engine.setEncryption(PASSPHRASE)).lastError).toBeUndefined()
+    expect(remoteFiles(remote).has('settings/calendars.json')).toBe(true)
+    expect((await b.engine.unlock(PASSPHRASE)).lastError).toBeUndefined()
+    expect(b.calendars.list().map((entry) => entry.label)).toEqual(['Work'])
+
+    expect((await a.engine.setEncryption(null)).lastError).toBeUndefined()
+    const files = remoteFiles(remote)
+    expect(files.has('settings/calendars.json')).toBe(false)
+    expect([...files.values()].map((bytes) => bytes.toString('latin1')).join('\n')).not.toContain('SECRETTOKEN')
+    // A change made afterwards stays on the device; what each device has is kept.
+    a.calendars.add({ label: 'Home', url: 'https://p01-caldav.icloud.com/published/2/home-SECRETTOKEN', color: 'blue' })
+    await sync(b, a, b)
+    expect(remoteFiles(remote).has('settings/calendars.json')).toBe(false)
+    expect(b.calendars.list().map((entry) => entry.label)).toEqual(['Work'])
+    expect(a.calendars.list().map((entry) => entry.label)).toEqual(['Work', 'Home'])
   })
 
   it('starts over when another device pushes between the fetch and the push', async () => {

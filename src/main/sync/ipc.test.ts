@@ -41,12 +41,21 @@ vi.mock('electron', () => ({
   dialog: { showOpenDialog: async () => electron.dialog },
   safeStorage: {
     isEncryptionAvailable: () => electron.keychain,
+    getSelectedStorageBackend: () => 'gnome_libsecret',
     encryptString: (text: string) => Buffer.from(`sealed:${text}`),
     decryptString: (data: Buffer) => data.toString().replace(/^sealed:/, '')
   },
   nativeTheme: {},
   shell: {},
   protocol: {}
+}))
+
+// A connected calendar is read right away: never over the network in a test.
+vi.mock('../briefing/net', async (original) => ({
+  ...(await original<typeof import('../briefing/net')>()),
+  fetchCalendar: async () => {
+    throw new Error('offline in tests')
+  }
 }))
 
 import type { SyncStatus } from '../../shared/sync'
@@ -158,7 +167,7 @@ describe('sync ipc', () => {
 
   it('lets a renderer read the sync settings and write none of them', async () => {
     const win = sender()
-    for (const key of ['sync.remoteUrl', 'sync.gitPath', 'sync.lastCommit', 'sync.deviceName', 'sync.paused', 'sync.branch', 'sync.encrypted', 'sync.appearanceAt', 'sync.activity', 'sync.useAnyway']) {
+    for (const key of ['sync.remoteUrl', 'sync.gitPath', 'sync.lastCommit', 'sync.deviceName', 'sync.paused', 'sync.branch', 'sync.encrypted', 'sync.appearanceAt', 'sync.briefingAt', 'sync.activity', 'sync.useAnyway']) {
       await expect(invoke('app:setSetting', win, key, 'x'), key).rejects.toThrow('read-only')
       await expect(invoke('app:setSetting', win, key, null), key).rejects.toThrow('read-only')
     }
@@ -206,5 +215,19 @@ describe('sync ipc', () => {
     expect(status.lastError?.message).toContain('no secure place')
     await expect(invoke('sync:setEncryption', sender(), 'a long passphrase')).rejects.toThrow('no secure place')
     electron.keychain = true
+  })
+
+  it('notes a local change when a calendar or the task databases change, so sync carries them', async () => {
+    repo.setSetting('sync.remoteUrl', 'https://github.com/o/r.git')
+    try {
+      expect(((await invoke('sync:status', sender())) as SyncStatus).pending).toBe(0)
+      await invoke('briefing:calendars.add', sender(), { label: 'Work', url: 'https://calendar.example.com/private-x/basic.ics', color: 'blue' })
+      expect(((await invoke('sync:status', sender())) as SyncStatus).pending).toBe(1)
+      const before = Date.now()
+      await invoke('app:setSetting', sender(), 'briefing.databases', [])
+      expect(repo.getSetting<number>('sync.briefingAt')).toBeGreaterThanOrEqual(before)
+    } finally {
+      repo.setSetting('sync.remoteUrl', null)
+    }
   })
 })

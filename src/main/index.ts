@@ -360,9 +360,14 @@ function start(store: Repository): void {
       handleFileProtocol()
       const hooks = registerIpc({ repo: store, ready: seedWorkspace(store), createWindow: (pageId) => void createWindow(pageId) })
       syncHooks = hooks
-      const first = createWindow()
-      // Sync never competes with the first paint: it starts once the window is on screen.
-      first.once('show', () => setTimeout(() => hooks.start(), SYNC_START_DELAY_MS).unref())
+      if (hooks.alarms.startHidden(process.argv)) {
+        // Started by the system at login to wait in the notification area: no window until asked.
+        setTimeout(() => hooks.start(), SYNC_START_DELAY_MS).unref()
+      } else {
+        const first = createWindow()
+        // Sync never competes with the first paint: it starts once the window is on screen.
+        first.once('show', () => setTimeout(() => hooks.start(), SYNC_START_DELAY_MS).unref())
+      }
       mark('window created')
       scheduleHistoryMaintenance(store)
       hooks.meetings.prune()
@@ -383,7 +388,8 @@ function start(store: Repository): void {
     })
 
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit()
+    // With the notification-area icon on, sel keeps running so that its alarms still ring.
+    if (process.platform !== 'darwin' && !syncHooks?.alarms.keepRunning()) app.quit()
   })
 
   // What is still to upload goes out on the way out, when that takes a few seconds at most.

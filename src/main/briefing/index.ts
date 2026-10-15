@@ -4,7 +4,8 @@ import { BRIEFING_CHANGED } from '../../shared/briefing'
 import type { Repository } from '../db/repository'
 import { CalendarService } from './calendars'
 import { devLoopback, type NetPolicy } from './net'
-import { CalendarStore, type Cipher } from './secrets'
+import type { CalendarSync } from '../sync/format'
+import { calendarSync, CalendarStore, type Cipher } from './secrets'
 import { BriefingService } from './service'
 
 /**
@@ -14,8 +15,10 @@ import { BriefingService } from './service'
  *
  * Files, all under `<userData>/briefing/`:
  *   calendars.bin        the connected calendars and their secret addresses, encrypted with
- *                        `safeStorage`. A credential store: never synced, exported or logged
- *                        (see ./secrets.ts).
+ *                        `safeStorage`. A credential store: never exported or logged, and the
+ *                        file itself never synced. What it holds goes to the user's other
+ *                        devices only through a sync repository encrypted with their passphrase
+ *                        (`calendarSync` below; see ./secrets.ts and ../sync/engine.ts).
  *   calendar-cache.json  the events last read, so the agenda shows at once and offline.
  */
 
@@ -35,6 +38,8 @@ const cipher: Cipher = {
 
 export class BriefingBridge {
   readonly service: BriefingService
+  /** For sync: the same store the briefing reads, so what a sync brings is seen at once. */
+  readonly calendarSync: CalendarSync
 
   constructor(repo: Repository) {
     const dir = join(app.getPath('userData'), 'briefing')
@@ -45,6 +50,7 @@ export class BriefingBridge {
     const store = new CalendarStore(join(dir, 'calendars.bin'), cipher, policy)
     const calendars = new CalendarService({ store, cacheFile: join(dir, 'calendar-cache.json'), policy, onChange: () => this.changed() })
     this.service = new BriefingService({ repo, store, calendars })
+    this.calendarSync = calendarSync(store, calendars, () => this.changed())
   }
 
   /** Tells every window that what the Today screen shows may have changed. Carries no data. */

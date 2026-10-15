@@ -119,13 +119,14 @@ const EN: Record<HermanNudgeKind, Line[]> = {
     line(() => 'Another morning. Begin small.'),
     line(() => 'Good morning. Start with what is in front of you.')
   ],
+  // Each is an invitation to close the day: its button opens the ritual.
   evening: [
     line(() => 'Enough for today. What is worth keeping?'),
-    line(() => 'The day is closing. Note where you stopped.'),
-    line(() => 'Evening. The unfinished can wait.'),
-    line(() => 'A good place to end. What went well?'),
-    line(() => 'Late enough. Leave tomorrow a note.'),
-    line(() => 'What is the last small thing?'),
+    line(() => 'The day is closing. Shall we close it properly?'),
+    line(() => 'Evening. The unfinished can wait until tomorrow.'),
+    line(() => 'A good place to end. One line for the notebook?'),
+    line(() => 'Late enough. Leave tomorrow three small things.'),
+    line(() => 'Close the day before it closes you.'),
     line(() => 'Day’s end. One thing you would repeat?'),
     line(() => 'You gave today what you had. Close gently.')
   ],
@@ -217,11 +218,11 @@ const PT: Record<HermanNudgeKind, Line[]> = {
   ],
   evening: [
     line(() => 'Chega por hoje. O que vale guardar?'),
-    line(() => 'O dia está fechando. Anote onde parou.'),
-    line(() => 'Fim de tarde. O inacabado pode esperar.'),
-    line(() => 'Bom lugar para parar. O que deu certo?'),
-    line(() => 'Já é tarde. Deixe um bilhete para amanhã.'),
-    line(() => 'Qual é a última coisa pequena?'),
+    line(() => 'O dia está fechando. Vamos fechá-lo direito?'),
+    line(() => 'Fim de tarde. O inacabado pode esperar até amanhã.'),
+    line(() => 'Bom lugar para parar. Uma linha para o caderno?'),
+    line(() => 'Já é tarde. Deixe três coisas pequenas para amanhã.'),
+    line(() => 'Feche o dia antes que ele feche você.'),
     line(() => 'Fim do dia. Uma coisa que você repetiria?'),
     line(() => 'Você deu a hoje o que tinha. Feche com calma.')
   ],
@@ -244,6 +245,8 @@ export const PHRASES: Record<
   HermanLocale,
   {
     openToday: string
+    /** The evening invitation's button: it opens the ritual that closes the day. */
+    closeDay: string
     openTask: string
     takeNotes: string
     ask: string
@@ -256,11 +259,11 @@ export const PHRASES: Record<
     /** Questions he writes into the conversation for the user to send or change. */
     askFirst: string
     askPage: string
-    askDay: string
   }
 > = {
   en: {
     openToday: 'Open Today',
+    closeDay: 'Close the day',
     openTask: 'Open it',
     takeNotes: 'Take notes',
     ask: 'Ask Herman',
@@ -269,11 +272,11 @@ export const PHRASES: Record<
     greeting: 'Hello. I am Herman.',
     aiOff: 'AI is off in Settings.',
     askFirst: 'What should I do first today?',
-    askPage: 'What is this page really about?',
-    askDay: 'What is worth carrying over to tomorrow?'
+    askPage: 'What is this page really about?'
   },
   'pt-BR': {
     openToday: 'Abrir Hoje',
+    closeDay: 'Fechar o dia',
     openTask: 'Abrir',
     takeNotes: 'Fazer anotações',
     ask: 'Perguntar ao Herman',
@@ -282,8 +285,7 @@ export const PHRASES: Record<
     greeting: 'Olá. Sou o Herman.',
     aiOff: 'A IA está desligada em Settings.',
     askFirst: 'O que devo fazer primeiro hoje?',
-    askPage: 'Sobre o que é esta página, de verdade?',
-    askDay: 'O que vale levar para amanhã?'
+    askPage: 'Sobre o que é esta página, de verdade?'
   }
 }
 
