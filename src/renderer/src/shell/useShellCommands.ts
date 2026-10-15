@@ -29,7 +29,14 @@ export function useShellCommands(): void {
         return
       }
       // Not while an IME is composing, and not once per auto-repeat of a held key.
-      if (event.defaultPrevented || event.isComposing || event.repeat || event.altKey) return
+      if (event.defaultPrevented || event.isComposing || event.repeat) return
+      // Main delivers Ctrl+Alt+N as a command; this catches it when the key reaches the page instead.
+      if (event.altKey && !event.shiftKey && (IS_MAC ? event.metaKey : event.ctrlKey) && event.key.toLowerCase() === 'n') {
+        event.preventDefault()
+        runMenuCommand('open-notebook')
+        return
+      }
+      if (event.altKey) return
       if (!(event.ctrlKey || event.metaKey)) return
       const key = event.key.toLowerCase()
       // Main delivers Ctrl+/ as a command; this catches it when the key reaches the page instead,

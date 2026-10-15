@@ -579,7 +579,11 @@ function isSafeImageUrl(url: string): boolean {
 }
 
 /** Parses a pragmatic subset of CommonMark/GFM into a block tree. */
-export function parseMarkdown(source: string): { title: string | null; nodes: Node[] } {
+/**
+ * The blocks of a Markdown text. A leading `# heading` is the title of the page it becomes,
+ * unless `keepTitle` keeps it a heading (the text goes into a page that has its own title).
+ */
+export function parseMarkdown(source: string, { keepTitle = false }: { keepTitle?: boolean } = {}): { title: string | null; nodes: Node[] } {
   scanBudget = INLINE_SCAN_BUDGET
   const lines = source.replace(/^﻿/, '').replace(/\r\n?/g, '\n').replace(/\t/g, INDENT).split('\n')
   const root: Node[] = []
@@ -640,7 +644,7 @@ export function parseMarkdown(source: string): { title: string | null; nodes: No
       flush()
       stack = []
       const content = headingText(heading[2])
-      if (heading[1].length === 1 && title === null && root.length === 0) {
+      if (!keepTitle && heading[1].length === 1 && title === null && root.length === 0) {
         title = plainText(inline(content))
       } else {
         const level = Math.min(3, heading[1].length) as 1 | 2 | 3
@@ -716,23 +720,44 @@ export function parseMarkdown(source: string): { title: string | null; nodes: No
   return { title, nodes: root }
 }
 
-/** Creates a new page under `parentId` from Markdown source, atomically. */
-export function importMarkdownText(
-  repo: Repository,
-  source: string,
-  parentId: string | null,
-  fallbackTitle = 'Untitled'
-): Block {
+/** Refuses a text too large to import, or one that parses into too many blocks. */
+function checkImport(source: string, nodes: readonly Node[]): void {
   if (source.length > MAX_IMPORT_BYTES) throw new Error(TOO_LARGE)
-  const { title, nodes } = parseMarkdown(source)
   let count = 0
   const pending = [...nodes]
   for (let node = pending.pop(); node; node = pending.pop()) {
     if (++count > MAX_IMPORT_BLOCKS) throw new Error('The file has too many blocks to import')
     for (const child of node.children) pending.push(child)
   }
-  const pageTitle = (title ?? fallbackTitle).trim().slice(0, MAX_TITLE_CHARS) || 'Untitled'
-  return repo.createTree({ type: 'page', props: { title: [[pageTitle]] }, children: nodes }, parentId)
+}
+
+/**
+ * Creates a new page under `parentId` from Markdown source, atomically. With `title`, the page
+ * is called that and a leading `# heading` of the text stays a heading.
+ */
+export function importMarkdownText(
+  repo: Repository,
+  source: string,
+  parentId: string | null,
+  fallbackTitle = 'Untitled',
+  title?: string
+): Block {
+  if (source.length > MAX_IMPORT_BYTES) throw new Error(TOO_LARGE)
+  const parsed = parseMarkdown(source, { keepTitle: title !== undefined })
+  checkImport(source, parsed.nodes)
+  const pageTitle = (title ?? parsed.title ?? fallbackTitle).trim().slice(0, MAX_TITLE_CHARS) || 'Untitled'
+  return repo.createTree({ type: 'page', props: { title: [[pageTitle]] }, children: parsed.nodes }, parentId)
+}
+
+/** Adds the blocks of a Markdown text to the end of page `pageId`, atomically. Returns how many top-level blocks were added. */
+export function appendMarkdownText(repo: Repository, pageId: string, source: string): number {
+  if (source.length > MAX_IMPORT_BYTES) throw new Error(TOO_LARGE)
+  const { nodes } = parseMarkdown(source, { keepTitle: true })
+  checkImport(source, nodes)
+  repo.transaction(() => {
+    for (const node of nodes) repo.createTree(node, pageId)
+  })
+  return nodes.length
 }
 
 // ================================================================== dialogs

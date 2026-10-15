@@ -71,6 +71,56 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   }
 ]
 
+const VALUES = {
+  type: 'object',
+  description:
+    'Values by property name, as read_database lists them. Title and text: a string. Number: a number. Checkbox: true or false. Select: the name of one of its options; multi-select: a list of option names. Date: "YYYY-MM-DD", "YYYY-MM-DDTHH:mm" (a local time), or {"start", "end"} with those. URL: a string. Relation: a list of row ids. null clears a value. Computed properties cannot be set.',
+  additionalProperties: true
+}
+
+const MARKDOWN = { type: 'string', description: 'Markdown: headings, paragraphs, lists, to-dos ("- [ ] "), quotes, code, tables and links.' }
+
+/**
+ * The tools that write, offered only to the apps the user connected in Settings (see
+ * ../external): never to Herman, whose changes are proposals the user applies. None of them
+ * deletes or overwrites anything but the values it is asked to set.
+ */
+export const WRITE_TOOL_SPECS: readonly ToolSpec[] = [
+  {
+    name: 'create_page',
+    description: 'Creates a new page from Markdown, at the top level of the workspace or inside another page. Returns its id.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'The title. Without one, a leading "# heading" of the Markdown becomes the title.' },
+        markdown: MARKDOWN,
+        parent: { ...ID, description: 'The page to create it in, by id. Leave it out for the top level.' }
+      },
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'append_to_page',
+    description: 'Adds Markdown to the end of an existing page. What the page already holds is left as it is.',
+    inputSchema: { type: 'object', properties: { id: ID, markdown: MARKDOWN }, required: ['id', 'markdown'], additionalProperties: false }
+  },
+  {
+    name: 'add_database_row',
+    description: 'Adds a row to a database, with its values by property name. Returns the id of the new row.',
+    inputSchema: { type: 'object', properties: { database: ID, values: VALUES }, required: ['database', 'values'], additionalProperties: false }
+  },
+  {
+    name: 'update_database_row',
+    description: 'Sets values of one row of a database, by property name. Properties left out keep their values.',
+    inputSchema: { type: 'object', properties: { id: ID, values: VALUES }, required: ['id', 'values'], additionalProperties: false }
+  }
+]
+
+/** Everything a connected app is offered: the reading tools, then the writing ones. */
+export const EXTERNAL_TOOL_SPECS: readonly ToolSpec[] = [...TOOL_SPECS, ...WRITE_TOOL_SPECS]
+
+export const WRITE_TOOL_NAMES: readonly string[] = WRITE_TOOL_SPECS.map((spec) => spec.name)
+
 export const TOOL_NAMES: readonly string[] = TOOL_SPECS.map((spec) => spec.name)
 
 /** The tool names as Claude Code knows them once the server is called `sel`. */

@@ -174,7 +174,8 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
 
   if (input.firstLaunch && minuteOfDay >= limits.morningFrom && minuteOfDay < limits.morningTo) out.morning = { words: {}, action: openToday }
 
-  if (minuteOfDay >= limits.eveningFrom && minuteOfDay < limits.eveningTo) out.evening = { words: {}, action: ask(phrases.askDay) }
+  // The evening line is an invitation to close the day: a few quiet steps, then the window rests.
+  if (minuteOfDay >= limits.eveningFrom && minuteOfDay < limits.eveningTo) out.evening = { words: {}, action: { label: phrases.closeDay, command: { type: 'close-day' } } }
 
   // A stretch with nothing on the calendar, on a day that has a calendar at all.
   const busyNow = timed.some((event) => event.start <= input.now && event.end > input.now)
