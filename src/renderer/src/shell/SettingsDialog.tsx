@@ -37,7 +37,8 @@ const SECTIONS: { value: Section; label: string }[] = [
   { value: 'sync', label: 'Sync' }
 ,
   { value: 'today', label: 'Today' },
-  { value: 'meetings', label: 'Meetings' }
+  { value: 'meetings', label: 'Meetings' },
+  { value: 'mcp', label: 'MCP' }
 ]
 
 // Sync settings are a chunk of their own: most people open Settings for something else.
@@ -46,6 +47,8 @@ const SyncSection = lazy(() => import('@/sync/SyncSettings').then((module) => ({
 const HermanSection = lazy(() => import('@/herman/HermanSettings').then((module) => ({ default: module.HermanSection })))
 // And so are the meetings settings.
 const MeetingsSection = lazy(() => import('@/meetings/MeetingsSettings').then((module) => ({ default: module.MeetingsSection })))
+// And so are the settings for connecting other apps.
+const McpSection = lazy(() => import('@/external/McpSettings').then((module) => ({ default: module.McpSection })))
 
 export function SettingsDialog() {
   const open = useUi((state) => state.settingsOpen)
@@ -109,6 +112,10 @@ function SettingsBody() {
           ) : section === 'meetings' ? (
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
               <MeetingsSection />
+            </Suspense>
+          ) : section === 'mcp' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <McpSection />
             </Suspense>
           ) : section === 'today' ? (
             <TodaySection />

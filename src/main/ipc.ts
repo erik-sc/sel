@@ -3,6 +3,7 @@ import { INVOKE, IPC, type InvokeChannel } from '../shared/api'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
+import { registerExternalIpc, type ExternalHooks } from './external/register'
 import { registerFeedbackIpc } from './feedback/register'
 import { registerHermanIpc, type HermanHooks } from './herman/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
@@ -175,6 +176,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
 
   // ---- app
   let updates: UpdatesHooks | null = null
+  let external: ExternalHooks | null = null
   const appHandlers: Handlers<'app'> = {
     'app:getTheme': () => readTheme(repo),
     'app:setTheme': ([a]) => applyTheme(repo, a),
@@ -192,6 +194,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       if (key.startsWith('ai.')) aiBridge?.service.invalidate()
       // The update check was turned on or off: its timer follows.
       if (key.startsWith('updates.')) updates?.settingChanged()
+      // Other apps were let in or shut out: the endpoint for them opens or closes.
+      if (key.startsWith('mcp.')) external?.settingChanged()
     },
     'app:openExternal': async ([a]) => {
       const url = toExternalUrl(a)
@@ -284,6 +288,20 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   const updatesIpc = registerUpdatesIpc({ repo, recording: () => meetings.recordingWindow() !== null })
   updates = updatesIpc
 
+  // ---- mcp (other apps connected to the notes over MCP, when the user turned that on; see
+  // ./external). Off by default: until then no pipe is opened. What a connected app writes
+  // reaches the windows like any other change, from the origin `mcp` that no window has.
+  const externalIpc = registerExternalIpc({
+    repo,
+    ready,
+    changed: () => {
+      const ids = repo.drainChanges()
+      changes.add('mcp', ids, repo.drainResets())
+      if (ids.length) syncBridge?.noteLocalChange()
+    }
+  })
+  external = externalIpc
+
   // Every channel declared in INVOKE (src/shared/api.ts) gets its handler here, and nothing else
   // is registered: a channel without a handler, or a handler without a channel, fails typecheck.
   const handlers: Handlers = {
@@ -300,7 +318,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...meetings.handlers,
     ...hermanIpc.handlers,
     ...feedbackHandlers,
-    ...updatesIpc.handlers
+    ...updatesIpc.handlers,
+    ...externalIpc.handlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 

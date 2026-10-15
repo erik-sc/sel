@@ -5,6 +5,7 @@ import type { AgentKind, AiAgentInfo } from './council'
 import type { FeedbackApi } from './feedback'
 import type { HermanApi } from './herman'
 import type { InvokeChannels } from './ipc'
+import type { McpApi } from './mcp'
 import type { MeetingsApi } from './meetings'
 import type {
   Block,
@@ -217,6 +218,12 @@ export interface Api {
    */
   updates: UpdatesApi
 
+  /**
+   * Other apps (Claude Desktop, Claude Code, any MCP client) connected to the notes over MCP, when
+   * the user turned that on: the state of the endpoint, and a new token. See shared/mcp.ts.
+   */
+  mcp: McpApi
+
   app: {
     getTheme(): Promise<Theme>
     setTheme(theme: Theme): Promise<void>
@@ -399,6 +406,9 @@ export const INVOKE = {
   'updates:download': true,
   'updates:restart': true,
   'updates:dismiss': true,
+
+  'mcp:status': true,
+  'mcp:rotateToken': true,
 
   'app:getTheme': true,
   'app:setTheme': true,
