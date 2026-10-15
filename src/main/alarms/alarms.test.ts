@@ -7,6 +7,7 @@ import type { Block, BlockProps } from '../../shared/types'
 import { composeBriefing, composeReminder } from './compose'
 import { dueReminders, momentOf, nextReminderAt, remindersOf, tasksDatabase } from './reminders'
 import { AlarmsService, PREPARE_MS, type AlarmsDeps } from './service'
+import { isQuickAddUrl } from './windows'
 
 const MIN = 60_000
 const local = (y: number, m: number, d: number, h = 0, mi = 0): number => new Date(y, m - 1, d, h, mi).getTime()
@@ -287,5 +288,15 @@ describe('the clock', () => {
     expect(h.said.length).toBe(1)
     expect(h.said[0].sound).toBe(false)
     expect(h.store.get(ALARMS_FIRED_KEY)).toBeUndefined()
+  })
+})
+
+describe('the windows that speak', () => {
+  it('leave out the quick-add window', () => {
+    expect(isQuickAddUrl('file:///C:/sel/out/renderer/index.html?quickadd=1')).toBe(true)
+    expect(isQuickAddUrl('http://localhost:5173/?quickadd=1')).toBe(true)
+    expect(isQuickAddUrl('file:///C:/sel/out/renderer/index.html')).toBe(false)
+    expect(isQuickAddUrl('file:///C:/sel/out/renderer/index.html?quickadd=0')).toBe(false)
+    expect(isQuickAddUrl('')).toBe(false)
   })
 })
