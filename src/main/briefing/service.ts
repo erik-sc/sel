@@ -20,7 +20,7 @@ import {
 import { CALENDAR_ERROR_TEXT } from '../../shared/briefing'
 import { plainText } from '../../shared/richtext'
 import { systemKindOf } from '../../shared/system'
-import { localMoment, TASK_PROPS } from '../../shared/tasks'
+import { completeTaskValues } from '../../shared/tasks/recur'
 import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyValue } from '../../shared/types'
 import type { BriefingPromptData } from '../ai/prompts'
 import type { Repository } from '../db/repository'
@@ -373,7 +373,7 @@ export class BriefingService {
    * to the done option, a to-do block is checked. An ordinary write: history and change events
    * follow as for any edit. The token takes it back for ten minutes.
    */
-  completeTask(rawId: unknown): { token: string } {
+  completeTask(rawId: unknown): { token: string; next?: string } {
     const id = arg.id(rawId, 'task')
     const block = this.repo.get(id)
     if (!block || block.trashedAt !== null) throw new Error('That task no longer exists.')
@@ -386,15 +386,18 @@ export class BriefingService {
       return { token }
     }
     const parent = block.type === 'page' && block.parentId ? this.repo.get(block.parentId) : null
+    // The built-in Tasks database completes the way the Tasks screen does (a repeating task moves on).
+    if (block.type === 'page' && systemKindOf(parent) === 'tasks') {
+      const completion = completeTaskValues(block.props.values, new Date(this.now()))
+      if (!completion) throw new Error('That task is already done.')
+      this.repo.update(id, { props: { values: completion.values } as BlockProps })
+      this.undo.set(token, { id, at: this.now(), previous: completion.previous })
+      return completion.next ? { token, next: completion.next } : { token }
+    }
     const signal = parent && parent.type === 'database' && typeof parent.props.sourceId !== 'string' ? detectSignal(parent.props) : null
     if (!signal) throw new Error('That task cannot be marked done from here.')
     const plan = planCompletion(signal, block.props)
     if (!plan) throw new Error('That task is already done.')
-    // The built-in Tasks database also notes when: its Completed list is ordered by it.
-    if (systemKindOf(parent) === 'tasks') {
-      plan.previous[TASK_PROPS.completedAt] = Object.hasOwn(plan.values, TASK_PROPS.completedAt) ? plan.values[TASK_PROPS.completedAt] : undefined
-      plan.values[TASK_PROPS.completedAt] = { start: localMoment(this.now()) }
-    }
     this.repo.update(id, { props: { values: plan.values } as BlockProps })
     this.undo.set(token, { id, at: this.now(), previous: plan.previous })
     return { token }

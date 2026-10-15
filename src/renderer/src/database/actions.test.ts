@@ -2,6 +2,7 @@
 // (`applyOpsToMap`). Each test is about what reaches the store: lost updates,
 // reference clean-up, and the fate of a cancelled new row.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { TASK_PROPS, tasksDatabaseProps } from '../../../shared/tasks'
 import type { Block, DatabaseView, Op, PropertyValue } from '../../../shared/types'
 
 const store = vi.hoisted(() => ({
@@ -144,6 +145,26 @@ describe('cell edits are built from the store at commit time', () => {
     expect(valuesOf('r').chk).toBe(true)
     actions.toggleCheckbox('r', schema.chk)
     expect(valuesOf('r').chk).toBe(false)
+  })
+
+  it('Done in the built-in Tasks database completes the way the Tasks screen does', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 15, 18, 40))
+    try {
+      const props = tasksDatabaseProps() as Record<string, unknown>
+      const done = (props.schema as L.Schema)[TASK_PROPS.done]
+      const daily = JSON.stringify({ rule: 'FREQ=DAILY', from: 'due', text: 'todo dia' })
+      seed([page('rep', 'Water', { [TASK_PROPS.due]: { start: '2026-10-15T08:00' }, [TASK_PROPS.recurrence]: daily }), page('once', 'Call')], props)
+      actions.toggleCheckbox('rep', done)
+      expect(valuesOf('rep')).toEqual({ [TASK_PROPS.due]: { start: '2026-10-16T08:00' }, [TASK_PROPS.recurrence]: daily, [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' } })
+      actions.toggleCheckbox('once', done)
+      expect(valuesOf('once')).toEqual({ [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' } })
+      // Unticking reopens it: no longer done, no completion time.
+      actions.toggleCheckbox('once', done)
+      expect(valuesOf('once')).toEqual({})
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('writes nothing when the value did not change', () => {

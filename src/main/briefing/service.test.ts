@@ -208,6 +208,20 @@ describe('the briefing', () => {
     expect(repo.get(row.id)!.props.values).toEqual({ [TASK_PROPS.due]: { start: '2026-10-13T09:00' } })
   })
 
+  it('moves a repeating task of the Tasks database on instead of closing it, and takes that back', () => {
+    const db = ensureTasksDatabase(repo)
+    const recurrence = JSON.stringify({ rule: 'FREQ=WEEKLY;BYDAY=MO,TU', from: 'due', text: 'toda seg e ter' })
+    const values = { [TASK_PROPS.due]: { start: '2026-10-13T07:00' }, [TASK_PROPS.recurrence]: recurrence }
+    const row = repo.create({ type: 'page', parentId: db, props: { title: [['Gym']], values } })
+    const { service } = make()
+    const result = service.completeTask(row.id)
+    expect(result.next).toBe('2026-10-19T07:00')
+    expect(repo.get(row.id)!.props.values).toEqual({ ...values, [TASK_PROPS.due]: { start: '2026-10-19T07:00' }, [TASK_PROPS.completedAt]: { start: '2026-10-13T08:05' } })
+    expect(service.build().tasks.today.map((item) => item.title)).not.toContain('Gym')
+    service.undoCompleteTask(result.token)
+    expect(repo.get(row.id)!.props.values).toEqual(values)
+  })
+
   it('completes a to-do block, and refuses what is not a task', () => {
     const page = repo.create({ type: 'page', parentId: null, props: { title: [['Notes']] } })
     const todo = repo.create({ type: 'to_do', parentId: page.id, props: { title: [['Buy coffee']] } })

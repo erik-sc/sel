@@ -4,7 +4,7 @@
 // opens one, the round checkbox completes it through the same path as the Today screen.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
-import type { Block, PropertyValue } from '@shared/types'
+import type { Block } from '@shared/types'
 import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
 import { getBlock, useBlocks } from '@/store/blocks'
 import { openPage } from '@/store/tabs'
@@ -40,16 +40,30 @@ const FIXED: { kind: 'inbox' | 'today' | 'upcoming' | 'completed'; name: string 
 
 const sameList = (a: TaskListKey, b: TaskListKey): boolean => a.kind === b.kind && ('id' in a ? a.id : '') === ('id' in b ? b.id : '')
 
+/** A task ticked here: hidden until it is done, or, when it repeats, until it shows its next date. */
+interface Pending {
+  next?: string
+}
+
+function isPending(entry: Pending | undefined, task: TaskItem): boolean {
+  return !!entry && (entry.next === undefined || task.due !== entry.next)
+}
+
 /**
- * Completing from a list. Ticked tasks hide at once (the database hears of it a moment later);
- * a toast offers to take it back. Through `briefing:completeTask`, as on the Today screen.
+ * Completing from a list. A ticked task hides at once, until the database hears of it: then it
+ * is done (and gone from the open lists), or, when it repeats, back with its next date. A toast
+ * offers to take it back. Through `briefing:completeTask`, as on the Today screen.
  */
-function useCompletion(): { pending: ReadonlySet<string>; complete: (task: TaskItem) => void; reopen: (task: TaskItem) => void } {
-  const [pending, setPending] = useState<ReadonlySet<string>>(() => new Set())
+function useCompletion(today: string): {
+  pending: ReadonlyMap<string, Pending>
+  complete: (task: TaskItem) => void
+  reopen: (task: TaskItem) => void
+} {
+  const [pending, setPending] = useState<ReadonlyMap<string, Pending>>(() => new Map())
   const forget = useCallback((id: string) => {
     setPending((current) => {
       if (!current.has(id)) return current
-      const next = new Set(current)
+      const next = new Map(current)
       next.delete(id)
       return next
     })
@@ -57,10 +71,12 @@ function useCompletion(): { pending: ReadonlySet<string>; complete: (task: TaskI
 
   const complete = useCallback(
     (task: TaskItem): void => {
-      setPending((current) => new Set(current).add(task.id))
+      setPending((current) => new Map(current).set(task.id, {}))
       window.api.briefing.completeTask(task.id).then(
-        ({ token }) => {
-          toast(`Completed "${task.title || 'Untitled'}".`, {
+        ({ token, next }) => {
+          if (next) setPending((current) => (current.has(task.id) ? new Map(current).set(task.id, { next }) : current))
+          const title = task.title || 'Untitled'
+          toast(next ? `Completed "${title}". Next: ${dueLabel(next, today).text}.` : `Completed "${title}".`, {
             action: {
               label: 'Undo',
               run: () => {
@@ -78,7 +94,7 @@ function useCompletion(): { pending: ReadonlySet<string>; complete: (task: TaskI
         }
       )
     },
-    [forget]
+    [forget, today]
   )
 
   // Back to open: unticked, and no longer counted as completed.
@@ -86,11 +102,7 @@ function useCompletion(): { pending: ReadonlySet<string>; complete: (task: TaskI
     (task: TaskItem): void => {
       forget(task.id)
       const row = getBlock(task.id)
-      if (!row) return
-      const values: Record<string, PropertyValue> = { ...(L.isPlainObject(row.props.values) ? row.props.values : {}) }
-      delete values[TASK_PROPS.done]
-      delete values[TASK_PROPS.completedAt]
-      actions.runOps([{ op: 'update', id: task.id, patch: { props: { values } } }])
+      if (row) actions.runOps([actions.reopenTaskOp(row)])
     },
     [forget]
   )
@@ -166,9 +178,9 @@ export function TasksScreen(): JSX.Element {
   )
   const today = useToday()
   const list = useTasksGate((state) => state.list)
-  const { pending, complete, reopen } = useCompletion()
+  const { pending, complete, reopen } = useCompletion(today)
 
-  const tasks = useMemo(() => readTasks(rows, schema).filter((task) => task.done || !pending.has(task.id)), [rows, schema, pending])
+  const tasks = useMemo(() => readTasks(rows, schema).filter((task) => task.done || !isPending(pending.get(task.id), task)), [rows, schema, pending])
   const groups = useMemo(() => listTasks(tasks, schema, list, today), [tasks, schema, list, today])
   const counts = useMemo(() => listCounts(tasks, schema), [tasks, schema])
   const projects = L.optionsOf(L.propOf(schema, TASK_PROPS.project))

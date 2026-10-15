@@ -194,8 +194,11 @@ export interface BriefingApi {
     /** Reads the calendar now and counts its events today and in the next seven days. */
     test(id: string): Promise<CalendarTestResult>
   }
-  /** Marks a task done in place. The token undoes it for a few minutes. */
-  completeTask(rowId: string): Promise<{ token: string }>
+  /**
+   * Marks a task done in place. The token undoes it for a few minutes. A repeating task of the
+   * Tasks database stays open with its due date moved on: `next` is that date.
+   */
+  completeTask(rowId: string): Promise<{ token: string; next?: string }>
   undoCompleteTask(token: string): Promise<void>
   /** The database of the user's own phrases, created when there is none. */
   ensurePhrasesDatabase(): Promise<{ id: string }>
