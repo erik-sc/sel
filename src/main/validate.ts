@@ -1,4 +1,5 @@
 import { AI_KEYS, cleanAiSetting } from '../shared/ai'
+import { ALARMS_KEYS, cleanAlarmsSetting } from '../shared/alarms'
 import { BRIEFING_KEYS, cleanBriefingSetting } from '../shared/briefing'
 import { cleanHermanSetting, HERMAN_KEYS } from '../shared/herman'
 import { cleanMeetingsSetting, MEETINGS_KEYS } from '../shared/meetings'
@@ -34,7 +35,7 @@ const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
  * the seats of his council among them (what he remembers, `herman.memory`, is not); `updates.check`
  * (not `updates.lastCheck`); nothing else in those namespaces.
  */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS])
+const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...ALARMS_KEYS])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
 const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
 
@@ -166,6 +167,7 @@ export function settingValueFor(key: string, value: unknown): unknown {
   if (key.startsWith('meetings.')) return meetingsSettingValue(key, value)
   if (key.startsWith('herman.')) return hermanSettingValue(key, value)
   if (key.startsWith('updates.')) return updatesSettingValue(key, value)
+  if (key.startsWith('alarms.')) return alarmsSettingValue(key, value)
   if (!key.startsWith('history.')) return settingValue(value)
   if (value === undefined || value === null) return null
   const clean = cleanHistorySetting(key, value)
@@ -214,6 +216,14 @@ function meetingsSettingValue(key: string, value: unknown): unknown {
 function hermanSettingValue(key: string, value: unknown): unknown {
   if (value === undefined || value === null) return null
   const clean = cleanHermanSetting(key, value)
+  if (clean === undefined) throw new Error('Invalid setting value')
+  return clean
+}
+
+/** The alarms decide when sel speaks and whether it keeps running: each is typed. Null resets one to its default. */
+function alarmsSettingValue(key: string, value: unknown): unknown {
+  if (value === undefined || value === null) return null
+  const clean = cleanAlarmsSetting(key, value)
   if (clean === undefined) throw new Error('Invalid setting value')
   return clean
 }
