@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { AI_CHANNELS, type AiEvent } from '@shared/ai'
+import { ALARMS_CHANNEL } from '@shared/alarms'
 import { BRIEFING_CHANGED } from '@shared/briefing'
 import { INVOKE, IPC, type Api, type MenuCommand } from '@shared/api'
 import { HERMAN_NUDGE_CHANNEL } from '@shared/herman'
@@ -91,6 +92,10 @@ const api: Api = {
   updates: {
     ...invoke.updates,
     onStatus: subscribe(UPDATES_CHANNEL)
+  },
+  alarms: {
+    ...invoke.alarms,
+    onAnnounce: subscribe(ALARMS_CHANNEL)
   },
   app: {
     ...invoke.app,

@@ -26,6 +26,9 @@ import type {
   ViewType
 } from '../../../shared/types'
 import { partnerOf } from '../../../shared/relation'
+import { systemKindOf } from '../../../shared/system'
+import { TASK_PROPS } from '../../../shared/tasks'
+import { completeTaskOps } from '../../../shared/tasks/recur'
 import { applyOps, getBlock, loadChildren, loadTree, newId, useBlockStore } from '../store/blocks'
 import * as L from './logic'
 import { markFreshChart } from './chartFresh'
@@ -626,7 +629,24 @@ export function updateCell(rowId: string, prop: PropertySchema, update: (current
 }
 
 export function toggleCheckbox(rowId: string, prop: PropertySchema): void {
-  if (prop.type === 'checkbox') updateCell(rowId, prop, (current) => current !== true)
+  if (prop.type !== 'checkbox') return
+  // Done in the built-in Tasks database means what it means on the Tasks screen: a repeating
+  // task moves on to its next date, and every completion is dated.
+  const row = getBlock(rowId)
+  if (row && prop.id === TASK_PROPS.done && systemKindOf(getBlock(row.parentId)) === 'tasks') {
+    if (L.getCellValue(row, prop) === true) run([reopenTaskOp(row)])
+    else run(completeTaskOps(row, new Date()))
+    return
+  }
+  updateCell(rowId, prop, (current) => current !== true)
+}
+
+/** A completed task of the Tasks database back to open: not done, no completion time. */
+export function reopenTaskOp(row: Block): Op {
+  const values: L.Values = { ...(L.isPlainObject(row.props.values) ? (row.props.values as L.Values) : {}) }
+  delete values[TASK_PROPS.done]
+  delete values[TASK_PROPS.completedAt]
+  return valuesOp(row.id, values)
 }
 
 export interface NewRowInput {

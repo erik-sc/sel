@@ -1,5 +1,6 @@
 import type { BriefingTask } from '../../shared/briefing'
 import { plainText } from '../../shared/richtext'
+import { TASK_PROPS } from '../../shared/tasks'
 import type { Block, BlockProps, PropertySchema, PropertyValue } from '../../shared/types'
 
 /**
@@ -115,6 +116,9 @@ export function detectSignal(props: BlockProps | undefined | null): TaskSignal |
   const properties = propertiesOf(props?.schema)
   if (!properties.length) return null
   const signal: TaskSignal = {}
+  // The built-in Tasks database is read by its property ids first: its properties may be renamed.
+  const builtIn = (id: string, type: string): PropertySchema | undefined =>
+    props?.system === 'tasks' ? properties.find((property) => property.id === id && property.type === type) : undefined
 
   for (const property of properties) {
     if (property.type !== 'select' || !STATUS_NAMES.has(fold(property.name))) continue
@@ -133,7 +137,7 @@ export function detectSignal(props: BlockProps | undefined | null): TaskSignal |
   }
 
   const checkboxes = properties.filter((property) => property.type === 'checkbox')
-  const named = checkboxes.find((property) => CHECKBOX_DONE_NAMES.has(fold(property.name)))
+  const named = builtIn(TASK_PROPS.done, 'checkbox') ?? checkboxes.find((property) => CHECKBOX_DONE_NAMES.has(fold(property.name)))
   if (named) signal.checkbox = named.id
   else if (!signal.status && checkboxes.length === 1 && !CHECKBOX_OTHER.test(fold(checkboxes[0].name))) signal.checkbox = checkboxes[0].id
 
@@ -141,8 +145,9 @@ export function detectSignal(props: BlockProps | undefined | null): TaskSignal |
 
   const dates = properties.filter((property) => property.type === 'date')
   if (dates.length) {
-    let best = dates[0]
-    let bestRank = DATE_NAMES.length
+    const due = builtIn(TASK_PROPS.due, 'date')
+    let best = due ?? dates[0]
+    let bestRank = due ? -1 : DATE_NAMES.length
     for (const property of dates) {
       const rank = DATE_NAMES.indexOf(fold(property.name))
       if (rank >= 0 && rank < bestRank) {
@@ -153,7 +158,8 @@ export function detectSignal(props: BlockProps | undefined | null): TaskSignal |
     signal.date = best.id
   }
 
-  const priority = properties.find((property) => property.type === 'select' && PRIORITY_NAMES.has(fold(property.name)))
+  const priority =
+    builtIn(TASK_PROPS.priority, 'select') ?? properties.find((property) => property.type === 'select' && PRIORITY_NAMES.has(fold(property.name)))
   if (priority) {
     const options = new Map<string, { name: string; color: string; rank: number }>()
     for (const option of optionsOf(priority)) {

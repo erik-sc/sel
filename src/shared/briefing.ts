@@ -55,6 +55,14 @@ export const BRIEFING_LIMITS = {
   databases: 200
 } as const
 
+/** A calendar's name as it is kept: one line, no control characters, at most `label` long. */
+export function cleanCalendarLabel(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback
+  // eslint-disable-next-line no-control-regex
+  const label = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, BRIEFING_LIMITS.label)
+  return label || fallback
+}
+
 /** A calendar as the renderer knows it: a label and the host of its address, nothing more. */
 export interface BriefingCalendar {
   id: string
@@ -194,8 +202,11 @@ export interface BriefingApi {
     /** Reads the calendar now and counts its events today and in the next seven days. */
     test(id: string): Promise<CalendarTestResult>
   }
-  /** Marks a task done in place. The token undoes it for a few minutes. */
-  completeTask(rowId: string): Promise<{ token: string }>
+  /**
+   * Marks a task done in place. The token undoes it for a few minutes. A repeating task of the
+   * Tasks database stays open with its due date moved on: `next` is that date.
+   */
+  completeTask(rowId: string): Promise<{ token: string; next?: string }>
   undoCompleteTask(token: string): Promise<void>
   /** The database of the user's own phrases, created when there is none. */
   ensurePhrasesDatabase(): Promise<{ id: string }>

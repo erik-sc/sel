@@ -35,6 +35,7 @@ vi.mock('@shared/meetings', () => import('../shared/meetings'))
 vi.mock('@shared/sync', () => import('../shared/sync'))
 vi.mock('@shared/types', () => import('../shared/types'))
 vi.mock('@shared/updates', () => import('../shared/updates'))
+vi.mock('@shared/alarms', () => import('../shared/alarms'))
 
 import { INVOKE } from '../shared/api'
 
@@ -95,6 +96,7 @@ describe('the preload', () => {
       'meetings.onStop': 'on meetings:stop',
       'herman.onNudge': 'on herman:nudge',
       'updates.onStatus': 'on updates:status',
+      'alarms.onAnnounce': 'on alarms:announce',
       'app.platform': 'string',
       'app.window.minimize': 'send window:minimize',
       'app.window.toggleMaximize': 'send window:toggleMaximize',
@@ -117,6 +119,9 @@ const INVOKE_CHANNELS = [
   'ai:status',
   'app:getSetting',
   'app:getTheme',
+  'alarms:heard',
+  'alarms:pending',
+  'alarms:test',
   'app:newWindow',
   'app:openExternal',
   'app:setSetting',
@@ -151,6 +156,9 @@ const INVOKE_CHANNELS = [
   'feedback:list',
   'feedback:openFolder',
   'feedback:withdraw',
+  'tasks:globalShortcut',
+  'tasks:importTodoist',
+  'tasks:setGlobalShortcut',
   'files:pickImage',
   'files:saveGeneratedImage',
   'files:saveImage',
@@ -159,6 +167,8 @@ const INVOKE_CHANNELS = [
   'herman:nudge.next',
   'herman:reset',
   'herman:state',
+  'mcp:rotateToken',
+  'mcp:status',
   'meetings:audio.delete',
   'meetings:audio.info',
   'meetings:cancelTranscribe',
@@ -181,6 +191,11 @@ const INVOKE_CHANNELS = [
   'meetings:status',
   'meetings:storage',
   'meetings:transcribe',
+  'notebook:dismissPlans',
+  'notebook:get',
+  'notebook:plan',
+  'notebook:review',
+  'notebook:write',
   'pages:ancestors',
   'pages:deleteForever',
   'pages:duplicate',

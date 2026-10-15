@@ -2,6 +2,10 @@
 // the proleptic civil calendar through UTC, so no result ever depends on the
 // machine's timezone or on a DST transition. Local time is only consulted to answer
 // "which day is it now / which day did this timestamp fall on".
+//
+// A date value may also carry a time of day, `YYYY-MM-DDTHH:mm`: a wall-clock time with no
+// zone ("9:00 wherever I am"), the way a to-do app means it. Everything that works on days
+// reads such a value as its day; only formatting, sorting and the picker look at the time.
 
 export type DateValue = { start: string; end?: string }
 
@@ -73,15 +77,56 @@ export function normalizeDay(s: unknown): string | null {
 }
 
 /**
+ * The time of day a date string carries, as `HH:mm`, or null. Only a plain wall-clock time
+ * counts (`T09:30`, `T09:30:15`, also after a space): a time with a zone or an offset is not a
+ * local time, so such a value is read as its day alone, as before times existed.
+ */
+export function timeOf(s: unknown): string | null {
+  if (typeof s !== 'string') return null
+  const m = /^\d{4}-\d{1,2}-\d{1,2}[T ](\d{1,2}):(\d{2})(?::\d{2}(?:\.\d{1,9})?)?$/.exec(s.trim())
+  return m ? clockTime(m[1], m[2]) : null
+}
+
+/** `HH:mm` of a time typed or picked (`9:05`, `09:05`), or null. */
+export function normalizeTime(s: unknown): string | null {
+  if (typeof s !== 'string') return null
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim())
+  return m ? clockTime(m[1], m[2]) : null
+}
+
+function clockTime(hours: string, minutes: string): string | null {
+  const h = Number(hours)
+  const m = Number(minutes)
+  return h <= 23 && m <= 59 ? `${pad(h)}:${pad(m)}` : null
+}
+
+/** The day `day` at `time`; the day alone when there is no (valid) time. */
+export function withTime(day: string, time: string | null | undefined): string {
+  const clean = normalizeTime(time)
+  return clean ? `${day}T${clean}` : day
+}
+
+/**
+ * Canonical form of a date string: `YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm` when it carries a
+ * wall-clock time. Null when it is not a real day. Canonical strings sort in time order,
+ * a day without a time before the same day with one.
+ */
+export function normalizeMoment(s: unknown): string | null {
+  const day = normalizeDay(s)
+  return day === null ? null : withTime(day, timeOf(s))
+}
+
+/**
  * Lenient parse of text a user may have typed in a text cell (`2026-04-01`,
- * `1 Apr 2026`, `04/01/2026`...). Used only when converting a property to a date.
+ * `1 Apr 2026`, `04/01/2026`...). ISO text keeps a time of day it carries. Used only when
+ * converting a property to a date.
  */
 export function parseLooseDay(text: string, locale?: string): string | null {
   if (typeof text !== 'string') return null
   const trimmed = text.trim()
   // ISO-like text is either a real day or nothing: Date.parse would read it as UTC
   // (shifting the day west of Greenwich) and roll `02-30` over into March.
-  if (/^\d{4}-/.test(trimmed)) return normalizeDay(trimmed)
+  if (/^\d{4}-/.test(trimmed)) return normalizeMoment(trimmed)
   const numeric = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(trimmed)
   if (numeric) {
     const [first, second] = [Number(numeric[1]), Number(numeric[2])]
@@ -124,20 +169,34 @@ export function dayKey(v: unknown): string | null {
   return null
 }
 
-/** A clean date value: canonical start, end kept only when it is a later day. */
+/**
+ * A clean date value: canonical start, end kept only when it comes later. Both ends keep
+ * their time of day, but an end has one only when the start has one too (a span of whole
+ * days that ends at 17:00 means nothing).
+ */
 export function normalizeDateValue(v: unknown): DateValue | null {
-  const start = typeof v === 'string' ? normalizeDay(v) : isDateValue(v) ? normalizeDay(v.start) : null
+  const start = typeof v === 'string' ? normalizeMoment(v) : isDateValue(v) ? normalizeMoment(v.start) : null
   if (!start) return null
-  const end = isDateValue(v) ? normalizeDay(v.end) : null
+  let end = isDateValue(v) ? normalizeMoment(v.end) : null
+  if (end && timeOf(start) === null) end = end.slice(0, 10)
   return end && end > start ? { start, end } : { start }
 }
 
+/** What a date is sorted on: its canonical start (time order, a day without a time first). */
+export function momentKey(v: unknown): string | null {
+  if (typeof v === 'number') return dayKey(v)
+  if (typeof v === 'string') return normalizeMoment(v)
+  if (isDateValue(v)) return normalizeMoment(v.start)
+  return null
+}
+
+/** The day `days` days away; a time of day comes along unchanged. */
 export function addDays(iso: string, days: number): string {
   const ms = parseDayMs(iso)
   if (ms === null || !isFinite(days)) return iso
   const next = ms + Math.trunc(days) * MS_PER_DAY
   const year = new Date(next).getUTCFullYear()
-  return isFinite(next) && year >= 1 && year <= 9999 ? isoFromUtc(next) : iso
+  return isFinite(next) && year >= 1 && year <= 9999 ? withTime(isoFromUtc(next), timeOf(iso)) : iso
 }
 
 export function diffDays(fromIso: string, toIso: string): number {
@@ -147,15 +206,65 @@ export function diffDays(fromIso: string, toIso: string): number {
   return Math.round((b - a) / MS_PER_DAY)
 }
 
-/** Moves a date value so that it starts on `newStart`, keeping its duration. */
+/** Moves a date value so that it starts on the day `newStart`, keeping its duration and its times of day. */
 export function shiftDateValue(value: DateValue, newStart: string): DateValue {
   const from = dayKey(value.start)
-  if (!from) return { start: newStart }
-  const delta = diffDays(from, newStart)
-  const out: DateValue = { start: newStart }
-  const end = value.end ? normalizeDay(value.end) : null
-  if (end && end > from) out.end = addDays(end, delta)
+  const day = dayKey(newStart) ?? newStart
+  if (!from) return { start: day }
+  const delta = diffDays(from, day)
+  const start = normalizeMoment(value.start) ?? from
+  const out: DateValue = { start: addDays(start, delta) }
+  let end = value.end ? normalizeMoment(value.end) : null
+  if (end && timeOf(start) === null) end = end.slice(0, 10)
+  if (end && end > start) out.end = addDays(end, delta)
   return out
+}
+
+/**
+ * The days a relative date names, counted from `today` (`YYYY-MM-DD`). A missing bound is
+ * open. `whole` asks for a value that lies entirely inside (overdue: it ended before today),
+ * otherwise touching one day of the span is enough. Null for anything that is not a name.
+ * Weeks start on `weekStart` (0 = Sunday), as the calendars do.
+ */
+export function relativeSpan(name: unknown, today: string, weekStart = 0): { from?: string; to?: string; whole?: boolean } | null {
+  if (!normalizeDay(today)) return null
+  switch (name) {
+    case 'today':
+      return { from: today, to: today }
+    case 'tomorrow':
+      return { from: addDays(today, 1), to: addDays(today, 1) }
+    case 'yesterday':
+      return { from: addDays(today, -1), to: addDays(today, -1) }
+    case 'overdue':
+      return { to: addDays(today, -1), whole: true }
+    case 'by_today':
+      return { to: today }
+    case 'next_7_days':
+      return { from: today, to: addDays(today, 6) }
+    case 'past_7_days':
+      return { from: addDays(today, -6), to: today }
+    case 'this_week': {
+      const week = weekOf(today, weekStart)
+      return { from: week[0], to: week[6] }
+    }
+    case 'next_week': {
+      const week = weekOf(addDays(today, 7), weekStart)
+      return { from: week[0], to: week[6] }
+    }
+    case 'this_month': {
+      const first = `${today.slice(0, 8)}01`
+      const { year, month } = monthOf(today)
+      return { from: first, to: isoFromUtc(utcMs(year, month + 1, daysInMonth(year, month + 1))) }
+    }
+    default:
+      return null
+  }
+}
+
+/** Whether the days `start` to `end` fall in a relative span (see `relativeSpan`). */
+export function inSpan(start: string, end: string, span: { from?: string; to?: string; whole?: boolean }): boolean {
+  if (span.whole) return (span.from === undefined || start >= span.from) && (span.to === undefined || end <= span.to)
+  return (span.from === undefined || end >= span.from) && (span.to === undefined || start <= span.to)
 }
 
 export interface MonthCursor {
@@ -251,11 +360,32 @@ export function formatDay(iso: string, opts: FormatOptions = {}): string {
   return formatCivil(ms, opts.locale, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+/** A wall-clock `HH:mm` the way the locale writes times ("09:30", "9:30 AM"). */
+export function formatTime(time: string, opts: FormatOptions = {}): string {
+  const clean = normalizeTime(time)
+  if (!clean) return ''
+  const ms = utcMs(2000, 1, 1) + (Number(clean.slice(0, 2)) * 60 + Number(clean.slice(3))) * 60_000
+  return formatCivil(ms, opts.locale, { hour: 'numeric', minute: '2-digit' })
+}
+
+/** A day, with its time of day when it has one. */
+export function formatMoment(iso: string, opts: FormatOptions = {}): string {
+  const day = formatDay(iso, opts)
+  const time = timeOf(iso)
+  return day && time ? `${day}, ${formatTime(time, opts)}` : day
+}
+
 export function formatDate(v: DateValue, opts: FormatOptions = {}): string {
-  const start = formatDay(v.start, opts)
-  if (!start) return ''
-  const end = v.end ? formatDay(v.end, opts) : ''
-  return end && dayKey(v.end) !== dayKey(v.start) ? `${start} → ${end}` : start
+  const start = formatMoment(v.start, opts)
+  if (!start || !v.end) return start
+  // A span within one day names the day once: "Oct 15, 2026, 09:00 → 10:30".
+  if (dayKey(v.end) === dayKey(v.start)) {
+    const from = timeOf(v.start)
+    const to = timeOf(v.end)
+    return from && to && to !== from ? `${start} → ${formatTime(to, opts)}` : start
+  }
+  const end = formatMoment(v.end, opts)
+  return end ? `${start} → ${end}` : start
 }
 
 export function formatTimestamp(ms: number, opts: FormatOptions = {}): string {

@@ -2037,6 +2037,22 @@ button.db-formula-item:hover {
   color: var(--text-tertiary);
 }
 
+/* With times: one row per end, the day and its time side by side. */
+.db-datepicker-value.has-time {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px;
+}
+
+.db-datepicker-value.has-time .db-date-arrow {
+  display: none;
+}
+
+.db-date-time {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .db-datepicker-nav {
   display: flex;
   align-items: center;

@@ -1,5 +1,7 @@
 import { Suspense, useRef, useState } from 'react'
 import type { JSX } from 'react'
+import { systemKindOf } from '@shared/system'
+import { isTaskCoreProperty } from '@shared/tasks'
 import type { DatabaseView, PropertySchema, PropertyType } from '@shared/types'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import type { PopoverAnchor, PopoverPlacement } from '@/ui/Popover'
@@ -223,6 +225,8 @@ export function PropertyMenu({
 }): JSX.Element {
   const [name, setName] = useState(prop.name)
   const isTitle = prop.type === 'title'
+  // A property the built-in Tasks database is read by keeps its type and stays (the repository refuses too).
+  const locked = isTitle || (isTaskCoreProperty(prop.id) && systemKindOf(actions.snapshot(databaseId).source) === 'tasks')
   const { cells } = useRelated()
   /**
    * The database picker replaces the menu: to point a relation elsewhere, or to turn the
@@ -266,8 +270,8 @@ export function PropertyMenu({
       id: 'type',
       label: `Type: ${L.TYPE_LABELS[prop.type]}`,
       icon: <TypeIcon type={prop.type} />,
-      disabled: isTitle,
-      submenu: isTitle ? undefined : typeItems
+      disabled: locked,
+      submenu: locked ? undefined : typeItems
     }
   ]
   if (prop.type === 'number') {
@@ -320,7 +324,7 @@ export function PropertyMenu({
       label: 'Delete property',
       icon: <Trash size={14} />,
       danger: true,
-      disabled: isTitle,
+      disabled: locked,
       onSelect: () => actions.deleteProperty(databaseId, prop.id)
     }
   )

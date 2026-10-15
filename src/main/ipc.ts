@@ -3,9 +3,13 @@ import { INVOKE, IPC, type InvokeChannel } from '../shared/api'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
+import { registerExternalIpc, type ExternalHooks } from './external/register'
 import { registerFeedbackIpc } from './feedback/register'
+import { registerTasksIpc } from './tasks/register'
 import { registerHermanIpc, type HermanHooks } from './herman/register'
+import { registerAlarmsIpc, type AlarmsHooks } from './alarms/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
+import { registerNotebookIpc } from './notebook/register'
 import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
@@ -50,10 +54,13 @@ export interface SyncHooks {
   beforeQuit(): Promise<void> | null
   /** What the windows and the quit sequence need to know about a recording in progress. */
   meetings: MeetingsHooks
+  /** Whether sel waits in the notification area, rather than quitting, when its windows close (alarms). */
+  alarms: Pick<AlarmsHooks, 'keepRunning' | 'startHidden'>
 }
 
 const SYNC_URL_KEY = 'sync.remoteUrl'
 const APPEARANCE_SETTING = 'appearance'
+const BRIEFING_DATABASES_SETTING = 'briefing.databases'
 
 export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHooks {
   const changes = new ChangeFeed((change: ChangeEvent) => {
@@ -175,6 +182,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
 
   // ---- app
   let updates: UpdatesHooks | null = null
+  let external: ExternalHooks | null = null
+  let alarms: AlarmsHooks | null = null
   const appHandlers: Handlers<'app'> = {
     'app:getTheme': () => readTheme(repo),
     'app:setTheme': ([a]) => applyTheme(repo, a),
@@ -188,10 +197,19 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
         repo.setSetting('sync.appearanceAt', Date.now())
         syncBridge?.noteLocalChange()
       }
+      // So are the databases Today takes its tasks from, with the calendars.
+      if (key === BRIEFING_DATABASES_SETTING) {
+        repo.setSetting('sync.briefingAt', Date.now())
+        syncBridge?.noteLocalChange()
+      }
       // Which program runs, and whether any does, is decided by these: the cached answer is stale.
       if (key.startsWith('ai.')) aiBridge?.service.invalidate()
       // The update check was turned on or off: its timer follows.
       if (key.startsWith('updates.')) updates?.settingChanged()
+      // Other apps were let in or shut out: the endpoint for them opens or closes.
+      if (key.startsWith('mcp.')) external?.settingChanged()
+      // A briefing time, a reminder switch or the notification-area icon: the alarms' clock follows.
+      alarms?.settingChanged(key)
     },
     'app:openExternal': async ([a]) => {
       const url = toExternalUrl(a)
@@ -229,7 +247,11 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // `sync` that no window has.
   let syncBridge: SyncBridge | null = null
   const sync = async (): Promise<SyncBridge> =>
-    (syncBridge ??= new (await import('./sync')).SyncBridge(repo, () => changes.add('sync', repo.drainChanges(), repo.drainResets())))
+    (syncBridge ??= new (await import('./sync')).SyncBridge(
+      repo,
+      () => changes.add('sync', repo.drainChanges(), repo.drainResets()),
+      () => briefing.calendarSync()
+    ))
   app.on('will-quit', () => syncBridge?.dispose())
   const syncHandlers: Handlers<'sync'> = {
     'sync:status': async () => (await sync()).status(),
@@ -249,7 +271,9 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     repo,
     ai,
     onTaskCompleted: (sender) => herman?.taskCompleted(sender),
-    onTaskUncompleted: () => herman?.taskUncompleted()
+    onTaskUncompleted: () => herman?.taskUncompleted(),
+    // Calendars are synced (into an encrypted repository only): a change here is one to upload.
+    onCalendarsChanged: () => syncBridge?.noteLocalChange()
   })
 
   // ---- meetings (recording, local transcription; see ./meetings). What a transcription writes
@@ -276,13 +300,46 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   })
   herman = hermanIpc
 
+  // ---- notebook (the ink notebook and the closing of the day; see ./notebook). Its days are
+  // blocks: the repository keeps the rule that a day that has ended stays as it is.
+  const notebookHandlers = registerNotebookIpc({ repo })
+
+  // ---- alarms (the briefing at the times the user chose, and the reminders of tasks; see ./alarms).
+  // The one clock in sel that runs at times the user set: it starts with the app, a few seconds in.
+  const alarmsIpc = registerAlarmsIpc({
+    repo,
+    briefing: () => briefing.stored(),
+    promptData: () => briefing.promptData(),
+    ai,
+    recording: () => meetings.recordingWindow() !== null,
+    createWindow: () => createWindow()
+  })
+  alarms = alarmsIpc
+
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
+
+  // ---- tasks (Todoist import, the system-wide quick-add shortcut; see ./tasks)
+  const tasksIpc = registerTasksIpc({ repo })
 
   // ---- updates (opt-in, from GitHub Releases; see ./updates). Off by default: until the user
   // turns the check on or presses Check now, nothing of it goes on the network.
   const updatesIpc = registerUpdatesIpc({ repo, recording: () => meetings.recordingWindow() !== null })
   updates = updatesIpc
+
+  // ---- mcp (other apps connected to the notes over MCP, when the user turned that on; see
+  // ./external). Off by default: until then no pipe is opened. What a connected app writes
+  // reaches the windows like any other change, from the origin `mcp` that no window has.
+  const externalIpc = registerExternalIpc({
+    repo,
+    ready,
+    changed: () => {
+      const ids = repo.drainChanges()
+      changes.add('mcp', ids, repo.drainResets())
+      if (ids.length) syncBridge?.noteLocalChange()
+    }
+  })
+  external = externalIpc
 
   // Every channel declared in INVOKE (src/shared/api.ts) gets its handler here, and nothing else
   // is registered: a channel without a handler, or a handler without a channel, fails typecheck.
@@ -299,8 +356,12 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...briefing.handlers,
     ...meetings.handlers,
     ...hermanIpc.handlers,
+    ...notebookHandlers,
     ...feedbackHandlers,
-    ...updatesIpc.handlers
+    ...tasksIpc.handlers,
+    ...updatesIpc.handlers,
+    ...externalIpc.handlers,
+    ...alarmsIpc.handlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 
@@ -315,6 +376,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
 
   return {
     meetings,
+    alarms: alarmsIpc,
     start() {
       if (typeof repo.getSetting(SYNC_URL_KEY) !== 'string') return
       sync().then(

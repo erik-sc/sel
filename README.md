@@ -20,6 +20,10 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Start the day.** Today shows your calendar, the tasks that are open and a phrase worth reading: Marcus Aurelius, the Dhammapada, Thoreau, or one of your own. Calendar shows the month, or the week hour by hour: your events and the tasks that are due, day by day.
 
+**Keep a line a day.** The ink notebook holds one line for each day, a short paragraph at most. Today's can be rewritten until midnight; after that it stays as it was, and nothing in the app can change it. Under today's line, the same date in earlier years: "1 year ago you wrote…". Its days sync between your devices like any page. `Ctrl+Alt+N` opens it.
+
+**Close the day.** In the evening Herman may offer to close the day, or you can from the sidebar. One quiet screen, in four steps: what happened (the tasks you finished, the pages you wrote in), what is worth keeping (it becomes today's line in the notebook), up to three things for tomorrow (they wait at the top of Today in the morning), and the close: the window dims to "Until tomorrow" with a soft bell, and any key brings it back. No streaks, no scores. Settings → Today turns the bell off.
+
 **Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. The audio never leaves the computer.
 
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
@@ -49,6 +53,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 Download the installer for Windows from [Releases](https://github.com/erik-sc/sel/releases). It is not code-signed, so Windows asks before running it the first time.
 
 To hear of new versions, turn on Settings → General → Check for updates. sel then asks GitHub once a day, never while a meeting is recorded, and tells you when there is one. It downloads only when you say so, and installs when you restart or quit. Off, it asks nothing; Check now asks once.
+
+To use your notes from Claude Desktop, Claude Code or another MCP app, turn on Settings → MCP → Connect other apps and copy the setup shown there. The app can then search and read your pages and databases, create pages, add to a page, and add or change database rows, but never delete anything. It talks to sel on this computer only, while sel is open; Settings lists which tools it called and when.
 
 ## Run it
 
@@ -113,6 +119,7 @@ sel 0.2.0 and earlier have no update check: install the first version that has o
 | `Ctrl+J` | Herman, the assistant |
 | `Ctrl+Alt+T` | Today |
 | `Ctrl+Alt+C` | Calendar |
+| `Ctrl+Alt+N` | Ink notebook |
 | `Ctrl+Alt+M` | New meeting |
 | `Ctrl+Shift+L` | Light / dark |
 | `/` | Insert a block |

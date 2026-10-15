@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import type { DatabaseView, FilterOperator, PropertySchema, PropertyValue, ViewFilter, ViewSort } from '@shared/types'
+import { RELATIVE_DATES } from '@shared/types'
 import { Close, DragHandle, Plus } from '@/ui/icons'
 import * as L from './logic'
 import * as actions from './actions'
@@ -87,6 +88,23 @@ function FilterValueEditor({
   const { cells } = useRelated()
   if (!L.operatorNeedsValue(filter.operator)) return <span className="db-rule-value is-empty" />
   const value = filter.value
+  if (filter.operator === 'date_is') {
+    return (
+      <select
+        className="db-select db-rule-value"
+        value={L.isRelativeDate(value) ? value : ''}
+        aria-label="Span of days"
+        onChange={(event) => onChange(L.isRelativeDate(event.target.value) ? event.target.value : undefined)}
+      >
+        {!L.isRelativeDate(value) && <option value="">Choose…</option>}
+        {RELATIVE_DATES.map((name) => (
+          <option key={name} value={name}>
+            {L.relativeDateLabel(name)}
+          </option>
+        ))}
+      </select>
+    )
+  }
   switch (L.filterTypeOf(prop, schema)) {
     case 'relation': {
       const current = Array.isArray(value) ? (value[0] ?? '') : typeof value === 'string' ? value : ''
@@ -231,7 +249,9 @@ export function FilterPanel({ databaseId, schema, view }: PanelProps): JSX.Eleme
                 const operator = event.target.value as FilterOperator
                 replace(index, prop.id, (rule) => {
                   const next: ViewFilter = { propertyId: rule.propertyId, operator }
-                  if (L.operatorNeedsValue(operator) && rule.value !== undefined) next.value = rule.value
+                  // A day and a span of days relative to today do not stand for one another.
+                  if (operator === 'date_is') next.value = L.isRelativeDate(rule.value) ? rule.value : 'today'
+                  else if (L.operatorNeedsValue(operator) && rule.value !== undefined && rule.operator !== 'date_is') next.value = rule.value
                   return next
                 })
               }}

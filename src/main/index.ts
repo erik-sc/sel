@@ -1,9 +1,11 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, nativeTheme, screen, session, shell, type Session } from 'electron'
+import { isQuickAddUrl } from './alarms/windows'
 import { APPEARANCE_KEY, windowBackground } from './background'
 import { DEFAULT_SIZE, fitBounds, MIN_SIZE, type SavedBounds } from './bounds'
 import { openDatabase, type Repository } from './db'
 import { isValidId } from './db/blocks'
+import { ensureTasksDatabase } from './db/tasks'
 import { handleFileProtocol, registerFileScheme } from './files'
 import { readTheme, registerIpc, type SyncHooks } from './ipc'
 import { recordingGrants } from './meetings/grant'
@@ -252,7 +254,8 @@ function hardenSession(ses: Session): void {
 }
 
 function focusExisting(): void {
-  const win = BrowserWindow.getAllWindows()[0]
+  // The small quick-add window is not the workspace: a second launch opens one when only it is left.
+  const win = BrowserWindow.getAllWindows().find((w) => !isQuickAddUrl(w.webContents.getURL()))
   if (!win) {
     if (repo) createWindow()
     return
@@ -320,15 +323,22 @@ function openStore(): Repository | null {
  * First run only: the welcome content. Kept off the path to the first window
  * (the module is not even loaded on later runs); ipc handlers wait for it, so
  * the renderer can never observe the workspace half-seeded or still empty.
+ * Then, on every run, the built-in Tasks database (one read when it is there).
  */
 async function seedWorkspace(store: Repository): Promise<void> {
-  if (!store.isEmpty()) return
+  if (store.isEmpty()) {
+    try {
+      const { seedIfEmpty } = await import('./db/seed')
+      seedIfEmpty(store)
+      mark('workspace seeded')
+    } catch (err) {
+      console.error('[main] could not create the welcome page', err)
+    }
+  }
   try {
-    const { seedIfEmpty } = await import('./db/seed')
-    seedIfEmpty(store)
-    mark('workspace seeded')
+    ensureTasksDatabase(store)
   } catch (err) {
-    console.error('[main] could not create the welcome page', err)
+    console.error('[main] could not create the Tasks database', err)
   }
 }
 
@@ -352,9 +362,14 @@ function start(store: Repository): void {
       handleFileProtocol()
       const hooks = registerIpc({ repo: store, ready: seedWorkspace(store), createWindow: (pageId) => void createWindow(pageId) })
       syncHooks = hooks
-      const first = createWindow()
-      // Sync never competes with the first paint: it starts once the window is on screen.
-      first.once('show', () => setTimeout(() => hooks.start(), SYNC_START_DELAY_MS).unref())
+      if (hooks.alarms.startHidden(process.argv)) {
+        // Started by the system at login to wait in the notification area: no window until asked.
+        setTimeout(() => hooks.start(), SYNC_START_DELAY_MS).unref()
+      } else {
+        const first = createWindow()
+        // Sync never competes with the first paint: it starts once the window is on screen.
+        first.once('show', () => setTimeout(() => hooks.start(), SYNC_START_DELAY_MS).unref())
+      }
       mark('window created')
       scheduleHistoryMaintenance(store)
       hooks.meetings.prune()
@@ -375,7 +390,8 @@ function start(store: Repository): void {
     })
 
   app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit()
+    // With the notification-area icon on, sel keeps running so that its alarms still ring.
+    if (process.platform !== 'darwin' && !syncHooks?.alarms.keepRunning()) app.quit()
   })
 
   // What is still to upload goes out on the way out, when that takes a few seconds at most.

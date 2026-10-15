@@ -2,7 +2,7 @@
 // current, and the rows an event and a task are drawn as. Styled by today.css.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import type { BriefingCalendar, BriefingEvent, BriefingTask } from '@shared/briefing'
+import { localDay, type BriefingCalendar, type BriefingEvent, type BriefingTask } from '@shared/briefing'
 import { newMeeting } from '@/meetings/gate'
 import { openPage } from '@/store/tabs'
 import { setSettingsOpen, useUi } from '@/store/ui'
@@ -182,8 +182,9 @@ export function useCompleteTask(): { done: ReadonlySet<string>; complete: (task:
         return next
       })
     window.api.briefing.completeTask(task.id).then(
-      ({ token }) => {
-        toast('Marked as done.', {
+      ({ token, next }) => {
+        // A repeating task stays open with a later date: it is off today's list all the same.
+        toast(next ? `Done. Next: ${dueLabel(next.slice(0, 10), localDay())}.` : 'Marked as done.', {
           action: {
             label: 'Undo',
             run: () => {
