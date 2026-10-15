@@ -261,18 +261,22 @@
   color: var(--text-tertiary);
 }
 
-/* ---- add ---- */
+/* ---- quick add ---- */
 
-.task-add {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.qa {
+  position: relative;
   margin-bottom: 8px;
-  padding: 4px 0;
+  padding: 4px 0 6px;
   border-bottom: var(--hairline) solid var(--border);
 }
 
-.task-add-plus {
+.qa-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qa-plus {
   width: 18px;
   color: var(--accent);
   font-size: var(--text-h3);
@@ -280,20 +284,121 @@
   text-align: center;
 }
 
-.task-add-input {
+/* The input and its mirror share one box, font and padding: the mirror draws the text (with the
+   highlights), the input above it only the caret and the selection. */
+.qa-field {
+  position: relative;
   flex: 1;
   min-width: 0;
+}
+
+.qa-input,
+.qa-mirror {
+  box-sizing: border-box;
+  width: 100%;
   padding: 6px 0;
   border: 0;
-  background: transparent;
-  color: var(--text);
   font: inherit;
   font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  letter-spacing: normal;
+  white-space: pre;
+}
+
+.qa-input {
+  position: relative;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
   outline: none;
 }
 
-.task-add-input::placeholder {
+.qa-input::placeholder {
   color: var(--text-tertiary);
+}
+
+.qa-input::selection {
+  background: var(--accent-soft);
+  color: transparent;
+}
+
+.qa-mirror {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.qa-token {
+  border-radius: var(--radius-xs);
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.qa-token.is-priority {
+  background: var(--c-red-bg);
+  color: var(--c-red);
+}
+
+.qa-token.is-project {
+  background: var(--c-green-bg);
+  color: var(--c-green);
+}
+
+.qa-token.is-label {
+  background: var(--c-blue-bg);
+  color: var(--c-blue);
+}
+
+.qa-token.is-recurrence,
+.qa-token.is-remind {
+  background: var(--c-purple-bg);
+  color: var(--c-purple);
+}
+
+.qa-summary {
+  margin: 0 0 0 28px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.qa-suggestions {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% - 2px);
+  left: 28px;
+  min-width: 220px;
+  max-width: 360px;
+  margin: 0;
+  padding: 4px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  list-style: none;
+}
+
+.qa-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-s);
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+
+.qa-suggestion.is-active {
+  background: var(--bg-active);
+}
+
+.qa-suggestion-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
 }
 
 /* ---- a view of the database ---- */

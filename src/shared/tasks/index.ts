@@ -1,4 +1,4 @@
-import type { BlockProps, DatabaseView, PropertySchema, PropertyType } from './types'
+import type { BlockProps, DatabaseView, PropertySchema, PropertyType } from '../types'
 
 /**
  * The built-in Tasks database (docs/plans/tasks.md). One per workspace, always the same block:
@@ -22,7 +22,9 @@ export const TASK_PROPS = {
   /** Hidden; filled in by phase 3 (recurrence). */
   recurrence: 'tasks.recurrence',
   /** Hidden: when the task was last completed, a `YYYY-MM-DDTHH:mm` wall-clock moment. */
-  completedAt: 'tasks.completedAt'
+  completedAt: 'tasks.completedAt',
+  /** When to remind about the task, a wall-clock moment (the reminders fire from the briefing side). */
+  remind: 'tasks.remind'
 } as const
 
 /** P1 (most urgent) to P4 (no priority), in that order. */
@@ -42,7 +44,8 @@ export const TASK_CORE_TYPES: Readonly<Record<string, PropertyType>> = {
   [TASK_PROPS.project]: 'select',
   [TASK_PROPS.labels]: 'multi_select',
   [TASK_PROPS.recurrence]: 'text',
-  [TASK_PROPS.completedAt]: 'date'
+  [TASK_PROPS.completedAt]: 'date',
+  [TASK_PROPS.remind]: 'date'
 }
 
 export function isTaskCoreProperty(id: string): boolean {
@@ -77,7 +80,8 @@ export function tasksDatabaseProps(): BlockProps {
     [TASK_PROPS.project]: { id: TASK_PROPS.project, name: 'Project', type: 'select', options: [] },
     [TASK_PROPS.labels]: { id: TASK_PROPS.labels, name: 'Labels', type: 'multi_select', options: [] },
     [TASK_PROPS.recurrence]: { id: TASK_PROPS.recurrence, name: 'Recurrence', type: 'text' },
-    [TASK_PROPS.completedAt]: { id: TASK_PROPS.completedAt, name: 'Completed at', type: 'date' }
+    [TASK_PROPS.completedAt]: { id: TASK_PROPS.completedAt, name: 'Completed at', type: 'date' },
+    [TASK_PROPS.remind]: { id: TASK_PROPS.remind, name: 'Remind', type: 'date' }
   }
   const views: DatabaseView[] = [
     { id: 'tasks.view.table', name: 'All tasks', type: 'table', visibleProperties: [...VISIBLE], filters: [], sorts: [] },

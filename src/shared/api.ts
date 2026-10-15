@@ -263,6 +263,9 @@ export type MenuCommand =
   | 'toggle-assistant'
   | 'open-today'
   | 'open-calendar'
+  | 'open-tasks'
+  /** Opens Tasks with the quick-add input focused. */
+  | 'add-task'
   | 'new-meeting'
   | 'send-feedback'
   | 'command-palette'

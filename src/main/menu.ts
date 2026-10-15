@@ -94,6 +94,8 @@ export function buildMenu(): void {
         { type: 'separator' },
         item('Today', 'open-today'),
         item('Calendar', 'open-calendar'),
+        item('Tasks', 'open-tasks'),
+        item('Add a Task…', 'add-task'),
         { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar'),
         item('Toggle Assistant', 'toggle-assistant'),

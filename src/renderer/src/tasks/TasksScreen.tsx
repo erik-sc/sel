@@ -2,8 +2,8 @@
 // left (the fixed ones, then projects and labels from the select options, then the database's
 // own views), the tasks of the chosen one on the right. Rows are pages of the database: a click
 // opens one, the round checkbox completes it through the same path as the Today screen.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { JSX, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { JSX } from 'react'
 import type { Block, PropertyValue } from '@shared/types'
 import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
 import { getBlock, useBlocks } from '@/store/blocks'
@@ -14,8 +14,9 @@ import * as actions from '@/database/actions'
 import { useResolvedDatabase } from '@/database/resolved'
 import { chooseView, DatabaseView } from '@/database/DatabaseView'
 import { tagStyle } from '@/database/common'
-import { showTaskList, useTasksGate, type TaskListKey } from './gate'
+import { focusQuickAdd, showTaskList, useTasksGate, type TaskListKey } from './gate'
 import { dueLabel, listCounts, listTasks, readTasks, type TaskItem } from './lists'
+import { QuickAdd } from './QuickAdd'
 import './tasks.css'
 
 const EMPTY: string[] = []
@@ -139,51 +140,6 @@ function TaskRow(props: { task: TaskItem; today: string; heading?: string; onTog
   )
 }
 
-/** "Add a task" at the top of a list: Enter adds it with what the list implies (today's date, the project…). */
-function AddTask(props: { list: TaskListKey; today: string }): JSX.Element | null {
-  const { list, today } = props
-  const [text, setText] = useState('')
-  const input = useRef<HTMLInputElement>(null)
-  if (list.kind === 'completed' || list.kind === 'view') return null
-
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === 'Escape') {
-      setText('')
-      input.current?.blur()
-      return
-    }
-    if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
-    event.preventDefault()
-    const title = text.trim()
-    if (!title) return
-    const values: L.Values = {}
-    if (list.kind === 'today') values[TASK_PROPS.due] = { start: today }
-    if (list.kind === 'upcoming') values[TASK_PROPS.due] = { start: L.addDays(today, 1) }
-    if (list.kind === 'project') values[TASK_PROPS.project] = list.id
-    if (list.kind === 'label') values[TASK_PROPS.labels] = [list.id]
-    actions.createRow(TASKS_DATABASE_ID, { title, values })
-    setText('')
-  }
-
-  return (
-    <div className="task-add">
-      <span className="task-add-plus" aria-hidden="true">
-        +
-      </span>
-      <input
-        ref={input}
-        className="task-add-input"
-        value={text}
-        placeholder="Add a task"
-        aria-label="Add a task"
-        maxLength={500}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={onKeyDown}
-      />
-    </div>
-  )
-}
-
 const EMPTY_TEXT: Record<TaskListKey['kind'], string> = {
   inbox: 'Nothing in the inbox. Tasks without a project land here.',
   today: 'Nothing due today.',
@@ -226,6 +182,26 @@ export function TasksScreen(): JSX.Element {
   useEffect(() => {
     if (db && listMissing) showTaskList({ kind: 'today' })
   }, [db, listMissing])
+
+  // Asked to add a task while a list without the input is shown: the Inbox has one.
+  const focus = useTasksGate((state) => state.focus)
+  useEffect(() => {
+    const { list: current } = useTasksGate.getState()
+    if (focus && (current.kind === 'completed' || current.kind === 'view')) showTaskList({ kind: 'inbox' })
+  }, [focus])
+
+  // Q (outside a text field) puts the caret in the quick-add input.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key.toLowerCase() !== 'q' || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return
+      const target = event.target
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [contenteditable]'))) return
+      event.preventDefault()
+      focusQuickAdd()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   if (!resolved || resolved.status === 'loading') return <div className="tasks is-loading" />
   if (!db || db.type !== 'database' || resolved.status !== 'ok') {
@@ -306,7 +282,7 @@ export function TasksScreen(): JSX.Element {
         ) : (
           <div className="tasks-list">
             <h1 className="tasks-heading">{heading}</h1>
-            <AddTask key={`${list.kind}:${'id' in list ? list.id : ''}`} list={list} today={today} />
+            {list.kind !== 'completed' && <QuickAdd key={`${list.kind}:${'id' in list ? list.id : ''}`} list={list} today={today} projects={projects} labels={labels} />}
             {empty ? (
               <p className="tasks-empty">{EMPTY_TEXT[list.kind]}</p>
             ) : (

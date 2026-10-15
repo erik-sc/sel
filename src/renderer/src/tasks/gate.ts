@@ -14,10 +14,21 @@ export type TaskListKey =
   | { kind: 'project' | 'label'; id: string }
   | { kind: 'view'; id: string }
 
-export const useTasksGate = create<{ list: TaskListKey }>(() => ({ list: { kind: 'today' } }))
+interface TasksGate {
+  list: TaskListKey
+  /** Bumped to ask the quick-add input for focus. */
+  focus: number
+}
+
+export const useTasksGate = create<TasksGate>(() => ({ list: { kind: 'today' }, focus: 0 }))
 
 export function showTaskList(list: TaskListKey): void {
   useTasksGate.setState({ list })
+}
+
+/** Puts the caret in the quick-add input (once the screen is there). */
+export function focusQuickAdd(): void {
+  useTasksGate.setState((state) => ({ focus: state.focus + 1 }))
 }
 
 export function isTasksRoute(pageId: string | null | undefined): boolean {

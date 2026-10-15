@@ -73,6 +73,8 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('find-in-page', 'Find in this page…', ['search', 'word', 'text']),
   menu('open-today', 'Today', ['briefing', 'agenda', 'tasks']),
   menu('open-calendar', 'Calendar', ['events', 'schedule', 'agenda']),
+  menu('open-tasks', 'Tasks', ['todo', 'to-do', 'inbox', 'todoist']),
+  menu('add-task', 'Add a task…', ['new task', 'quick add', 'todo']),
   menu('new-meeting', 'New meeting', ['record', 'transcribe', 'call']),
   menu('toggle-assistant', 'Herman, the assistant', ['ai', 'ask', 'chat', 'claude'], aiEnabled),
   menu('new-tab', 'New tab'),
