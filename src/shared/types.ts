@@ -1,5 +1,7 @@
 // Data model shared by main, preload and renderer. Everything is a block.
 
+import type { SystemKind } from './system'
+
 export type BlockType =
   | 'page'
   | 'text'
@@ -55,6 +57,11 @@ export interface BlockProps {
    * its schema and rows are always those of the source, its own `content` stays empty.
    */
   sourceId?: string
+  /**
+   * page / database: makes the block part of the app (the Tasks database). Such a block lives
+   * at the workspace root and cannot be deleted, moved or retyped (see shared/system.ts).
+   */
+  system?: SystemKind
   /** page that is a database row: propertyId -> value */
   values?: Record<string, PropertyValue>
   /** database: drawn in one row with the database block before it (see editor/layout.ts) */
@@ -162,7 +169,8 @@ export interface FormulaConfig {
  * title -> stored in block.props.title, not in values.
  * text/url -> string, number -> number, checkbox -> boolean,
  * select -> option id, multi_select -> option ids,
- * date -> { start: ISO date, end?: ISO date }, relation -> ids of the linked rows.
+ * date -> { start, end? }: each `YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm` (a local wall-clock time, no zone);
+ * relation -> ids of the linked rows.
  * A rollup or a formula stores nothing: its value is computed whenever it is read.
  */
 export type PropertyValue = string | number | boolean | string[] | { start: string; end?: string } | null
@@ -227,6 +235,26 @@ export type FilterOperator =
   | 'lt'
   | 'checked'
   | 'unchecked'
+  /** date-like properties: the value falls in a span named relative to today (`RelativeDate`). */
+  | 'date_is'
+
+/**
+ * Spans of days counted from today, for the `date_is` operator. A value that covers several
+ * days is in a span when any of its days is; `overdue` is before today, `by_today` today or before.
+ */
+export const RELATIVE_DATES = [
+  'today',
+  'tomorrow',
+  'yesterday',
+  'overdue',
+  'by_today',
+  'next_7_days',
+  'past_7_days',
+  'this_week',
+  'next_week',
+  'this_month'
+] as const
+export type RelativeDate = (typeof RELATIVE_DATES)[number]
 
 export interface ViewFilter {
   propertyId: string

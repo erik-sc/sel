@@ -6,6 +6,7 @@ import { IS_MAC } from '@/ui/platform'
 import { openPage } from '@/store/tabs'
 import { setHistoryPage, setRenaming } from '@/store/ui'
 import { preloadVersionHistory } from '@/versions/VersionHistory'
+import { isSystemBlock } from '@shared/system'
 import { sourceIdOf } from './linked'
 import {
   createPage,
@@ -20,7 +21,12 @@ import {
 /**
  * The last item of both menus. A linked view is not moved to the Trash: it holds no
  * data, so it is simply removed (its source database and rows stay where they are).
+ * A built-in database has none: it is part of the app.
  */
+function removeItems(block: Block): MenuItem[] {
+  return isSystemBlock(block) ? [] : [{ separator: true }, removeItem(block)]
+}
+
 function removeItem(block: Block): MenuItem {
   const linked = sourceIdOf(block) !== null
   return {
@@ -74,7 +80,7 @@ export function sidebarPageMenu(block: Block): MenuItem[] {
       onSelect: () => void createPage(id).catch(reportError('create the page'))
     })
   }
-  items.push({ separator: true }, removeItem(block))
+  items.push(...removeItems(block))
   return items
 }
 
@@ -136,8 +142,7 @@ export function topBarPageMenu(block: Block, ai = false): MenuItem[] {
       icon: <ArrowUpRight />,
       onSelect: () => void window.api.app.newWindow(id).catch(reportError('open a new window'))
     },
-    { separator: true },
-    removeItem(block)
+    ...removeItems(block)
   )
   return items
 }

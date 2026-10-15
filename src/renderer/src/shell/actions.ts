@@ -1,5 +1,6 @@
 import type { Block } from '@shared/types'
 import { plainText, toRichText } from '@shared/richtext'
+import { isSystemBlock } from '@shared/system'
 import { applyOps, getBlock, newId, putBlocks, refreshBlocks } from '@/store/blocks'
 import { notifyError, toast } from '@/ui/toast'
 import { openPage } from '@/store/tabs'
@@ -122,7 +123,8 @@ export type DropPosition = 'before' | 'after' | 'inside'
 /** Sidebar drag & drop: re-parent or reorder `dragId` relative to `targetId`. */
 export async function dropPage(dragId: string, targetId: string, position: DropPosition): Promise<void> {
   const target = getBlock(targetId)
-  if (!target || !getBlock(dragId) || isAncestorOrSelf(dragId, targetId)) return
+  const dragged = getBlock(dragId)
+  if (!target || !dragged || isAncestorOrSelf(dragId, targetId)) return
   let parentId: string | null
   let afterId: string | null | undefined
   if (position === 'inside') {
@@ -143,6 +145,8 @@ export async function dropPage(dragId: string, targetId: string, position: DropP
       afterId = index > 0 ? withoutDragged[index - 1] : null
     }
   }
+  // A built-in database stays at the workspace root; it may only be reordered there.
+  if (parentId !== null && isSystemBlock(dragged)) return
   await applyOps([{ op: 'move', id: dragId, parentId, afterId }])
   if (position === 'inside') setExpanded(targetId, true)
   await refreshTree()
