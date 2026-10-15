@@ -1,0 +1,216 @@
+/*
+ * The ink notebook. One column at the page measure, like the Today screen, with more air: a
+ * date, one ruled line to write on, and the days before set like a printed page. Every colour,
+ * type size, weight, radius and duration is a token from styles/tokens.css; the only motion is
+ * a soft fade when the screen appears (shortened to nothing under prefers-reduced-motion, see
+ * styles/global.css).
+ */
+
+.notebook {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--page-width) + var(--page-padding-x) * 2);
+  margin: 0 auto;
+  padding: 96px var(--page-padding-x) 140px;
+  color: var(--text);
+  animation: ui-fade var(--duration) var(--ease);
+}
+
+/* ---- head ---- */
+
+.notebook-head {
+  margin-bottom: 48px;
+}
+
+.notebook-kicker {
+  margin: 0 0 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-ui);
+}
+
+.notebook-date {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+}
+
+.notebook-date::first-letter {
+  text-transform: uppercase;
+}
+
+/* ---- today's line: one ruled line to write on ---- */
+
+.notebook-line {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(var(--text-h3) * var(--leading-body) + 14px);
+  padding: 0 0 12px;
+  border: 0;
+  border-bottom: var(--hairline) solid var(--border-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  caret-color: var(--accent);
+  font-family: var(--font-serif);
+  font-size: var(--text-h3);
+  line-height: var(--leading-body);
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.notebook-line::placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.notebook-line:focus {
+  border-bottom-color: var(--accent);
+}
+
+.notebook-line:read-only {
+  color: var(--text-secondary);
+}
+
+.notebook-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  min-height: calc(var(--text-sm) * var(--leading-body));
+}
+
+.notebook-note {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.notebook-note.is-alert {
+  color: var(--text-secondary);
+}
+
+.notebook-status {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  animation: ui-fade var(--duration) var(--ease);
+}
+
+/* ---- sections ---- */
+
+.notebook-section {
+  margin-top: 64px;
+}
+
+.notebook-label {
+  margin: 0 0 20px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-ui);
+}
+
+.notebook-quiet {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.notebook-link {
+  margin-top: 24px;
+  padding: 2px 0;
+  border-radius: var(--radius-xs);
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.notebook-link:hover,
+.notebook-link:focus-visible {
+  color: var(--accent);
+}
+
+/* ---- on this day ---- */
+
+.notebook-echo-list,
+.notebook-days {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notebook-echo + .notebook-echo {
+  margin-top: 28px;
+}
+
+.notebook-echo-when {
+  margin: 0 0 6px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.notebook-echo-when::after {
+  content: '…';
+}
+
+.notebook-echo-line {
+  margin: 0;
+  padding-left: 18px;
+  border-left: var(--hairline) solid var(--border-strong);
+  color: var(--text-secondary);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-style: italic;
+  line-height: var(--leading-body);
+  white-space: pre-line;
+}
+
+/* ---- earlier days: a printed page ---- */
+
+.notebook-day {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 4px 24px;
+  padding: 18px 0;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.notebook-day:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.notebook-day-date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.notebook-day-weekday {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.notebook-day-line {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-body);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}

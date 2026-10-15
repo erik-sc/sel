@@ -159,6 +159,8 @@ const INVOKE_CHANNELS = [
   'herman:nudge.next',
   'herman:reset',
   'herman:state',
+  'notebook:get',
+  'notebook:write',
   'meetings:audio.delete',
   'meetings:audio.info',
   'meetings:cancelTranscribe',

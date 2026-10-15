@@ -94,6 +94,7 @@ export function buildMenu(): void {
         { type: 'separator' },
         item('Today', 'open-today'),
         item('Calendar', 'open-calendar'),
+        item('Ink Notebook', 'open-notebook'),
         { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar'),
         item('Toggle Assistant', 'toggle-assistant'),

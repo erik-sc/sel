@@ -20,6 +20,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Start the day.** Today shows your calendar, the tasks that are open and a phrase worth reading: Marcus Aurelius, the Dhammapada, Thoreau, or one of your own. Calendar shows the month, or the week hour by hour: your events and the tasks that are due, day by day.
 
+**Keep a line a day.** The ink notebook holds one line for each day, a short paragraph at most. Today's can be rewritten until midnight; after that it stays as it was, and nothing in the app can change it. Under today's line, the same date in earlier years: "1 year ago you wrote…". Its days sync between your devices like any page. `Ctrl+Alt+N` opens it.
+
 **Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. The audio never leaves the computer.
 
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
@@ -113,6 +115,7 @@ sel 0.2.0 and earlier have no update check: install the first version that has o
 | `Ctrl+J` | Herman, the assistant |
 | `Ctrl+Alt+T` | Today |
 | `Ctrl+Alt+C` | Calendar |
+| `Ctrl+Alt+N` | Ink notebook |
 | `Ctrl+Alt+M` | New meeting |
 | `Ctrl+Shift+L` | Light / dark |
 | `/` | Insert a block |

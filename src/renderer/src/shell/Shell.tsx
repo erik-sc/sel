@@ -11,6 +11,8 @@ import { HermanHost } from '@/herman/Host'
 import { FeedbackHost } from '@/feedback/Host'
 import { MeetingSetup, RecordingIndicator } from '@/meetings/slot'
 import { isCalendarRoute, isTodayRoute } from '@/briefing/route'
+import { NotebookHost } from '@/notebook/Host'
+import { isNotebookRoute } from '@/notebook/route'
 import { UpdateNotice } from '@/updates/Notice'
 import { CommandPalette } from '@/commands/Palette'
 import { ShortcutsHost } from '@/shortcuts/Host'
@@ -72,6 +74,8 @@ export function Shell() {
               <TodayHost />
             ) : isCalendarRoute(pageId) ? (
               <CalendarHost />
+            ) : isNotebookRoute(pageId) ? (
+              <NotebookHost />
             ) : pageId && tab ? (
               <PageHost key={`${tab.id}:${pageId}`} pageId={pageId} />
             ) : (

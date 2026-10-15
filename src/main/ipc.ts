@@ -6,6 +6,7 @@ import { registerBriefingIpc } from './briefing/register'
 import { registerFeedbackIpc } from './feedback/register'
 import { registerHermanIpc, type HermanHooks } from './herman/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
+import { registerNotebookIpc } from './notebook/register'
 import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
@@ -276,6 +277,10 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   })
   herman = hermanIpc
 
+  // ---- notebook (the ink notebook and the closing of the day; see ./notebook). Its days are
+  // blocks: the repository keeps the rule that a day that has ended stays as it is.
+  const notebookHandlers = registerNotebookIpc({ repo })
+
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
 
@@ -299,6 +304,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...briefing.handlers,
     ...meetings.handlers,
     ...hermanIpc.handlers,
+    ...notebookHandlers,
     ...feedbackHandlers,
     ...updatesIpc.handlers
   }

@@ -68,6 +68,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { id: 'open-in-tab', label: 'Open a page in a new tab, from the sidebar', keys: ['CmdOrCtrl+Click', 'CmdOrCtrl+Enter'] },
       { id: 'open-today', label: 'Today', command: 'open-today', keywords: ['briefing', 'agenda'] },
       { id: 'open-calendar', label: 'Calendar', command: 'open-calendar', keywords: ['events'] },
+      { id: 'open-notebook', label: 'Ink notebook', command: 'open-notebook', keywords: ['journal', 'diary', 'caderno'] },
       { id: 'calendar-day', label: 'A day earlier or later, in the calendar', keys: ['Left', 'Right'] },
       { id: 'calendar-week', label: 'A week earlier or later, in the calendar', keys: ['Up', 'Down'] }
     ]

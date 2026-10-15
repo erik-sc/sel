@@ -218,6 +218,9 @@ export const Mic = make(
   </>
 )
 
+/** A dip pen's nib: the ink notebook. */
+export const Pen = make(<path d="M8 1.8 11.6 6 8 14.2 4.4 6zM8 6.2v3.4M4.4 6h7.2" />)
+
 /** A speech bubble: bug reports and suggestions. */
 export const Feedback = make(<path d="M3.2 3h9.6c.7 0 1.2.5 1.2 1.2v5.6c0 .7-.5 1.2-1.2 1.2H8.2L5 13.4V11H3.2C2.5 11 2 10.5 2 9.8V4.2C2 3.5 2.5 3 3.2 3zM8 5v2.6M8 9.2v.01" />)
 
