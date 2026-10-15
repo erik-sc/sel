@@ -1,9 +1,11 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, nativeTheme, screen, session, shell, type Session } from 'electron'
+import { isQuickAddUrl } from './alarms/windows'
 import { APPEARANCE_KEY, windowBackground } from './background'
 import { DEFAULT_SIZE, fitBounds, MIN_SIZE, type SavedBounds } from './bounds'
 import { openDatabase, type Repository } from './db'
 import { isValidId } from './db/blocks'
+import { ensureTasksDatabase } from './db/tasks'
 import { handleFileProtocol, registerFileScheme } from './files'
 import { readTheme, registerIpc, type SyncHooks } from './ipc'
 import { recordingGrants } from './meetings/grant'
@@ -252,7 +254,8 @@ function hardenSession(ses: Session): void {
 }
 
 function focusExisting(): void {
-  const win = BrowserWindow.getAllWindows()[0]
+  // The small quick-add window is not the workspace: a second launch opens one when only it is left.
+  const win = BrowserWindow.getAllWindows().find((w) => !isQuickAddUrl(w.webContents.getURL()))
   if (!win) {
     if (repo) createWindow()
     return
@@ -320,15 +323,22 @@ function openStore(): Repository | null {
  * First run only: the welcome content. Kept off the path to the first window
  * (the module is not even loaded on later runs); ipc handlers wait for it, so
  * the renderer can never observe the workspace half-seeded or still empty.
+ * Then, on every run, the built-in Tasks database (one read when it is there).
  */
 async function seedWorkspace(store: Repository): Promise<void> {
-  if (!store.isEmpty()) return
+  if (store.isEmpty()) {
+    try {
+      const { seedIfEmpty } = await import('./db/seed')
+      seedIfEmpty(store)
+      mark('workspace seeded')
+    } catch (err) {
+      console.error('[main] could not create the welcome page', err)
+    }
+  }
   try {
-    const { seedIfEmpty } = await import('./db/seed')
-    seedIfEmpty(store)
-    mark('workspace seeded')
+    ensureTasksDatabase(store)
   } catch (err) {
-    console.error('[main] could not create the welcome page', err)
+    console.error('[main] could not create the Tasks database', err)
   }
 }
 

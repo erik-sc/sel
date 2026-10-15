@@ -4,7 +4,7 @@ import { sourceIdOf } from '../../shared/linked'
 import { relinkDuplicate } from '../../shared/relation'
 import { plainText } from '../../shared/richtext'
 import { dayOfEntryId, isDayWritable, NOTEBOOK_ENTRY_TYPE, NOTEBOOK_ID } from '../../shared/notebook'
-import { isSystemKind } from '../../shared/system'
+import { isSystemKind, systemSchemaProblem } from '../../shared/system'
 import type { Block, BlockProps, CreateBlockInput, DatabaseLocation, Op, SearchResult, UpdateBlockInput } from '../../shared/types'
 import {
   canonicalJson,
@@ -697,6 +697,11 @@ export class Repository {
     const systemBefore = isPageLike(oldType) && isSystemKind(before.system) ? before.system : null
     if (systemBefore !== null && type !== oldType) throw new Error('A built-in database cannot change its type')
     this.checkSystem(props, type, r.parent_id, systemBefore, false, id)
+    // The properties a built-in database is read by stay (deleting one or changing its type is refused).
+    if (systemBefore !== null && patch.props && Object.hasOwn(patch.props, 'schema')) {
+      const problem = systemSchemaProblem(systemBefore, props.schema)
+      if (problem) throw new Error(problem)
+    }
     // A block that becomes a database, or stops being a linked view, needs a schema of its own.
     if (type === 'database' && props.sourceId === undefined && (oldType !== 'database' || linkedBefore !== null)) {
       props = defaultDatabaseProps(props)

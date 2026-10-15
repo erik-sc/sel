@@ -74,6 +74,8 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('find-in-page', 'Find in this page…', ['search', 'word', 'text']),
   menu('open-today', 'Today', ['briefing', 'agenda', 'tasks']),
   menu('open-calendar', 'Calendar', ['events', 'schedule', 'agenda']),
+  menu('open-tasks', 'Tasks', ['todo', 'to-do', 'inbox', 'todoist']),
+  menu('add-task', 'Add a task…', ['new task', 'quick add', 'todo']),
   menu('open-notebook', 'Ink notebook', ['journal', 'diary', 'line a day', 'caderno de tinta', 'diário', 'on this day']),
   menu('close-day', 'Close the day', ['evening', 'end', 'review', 'tomorrow', 'shutdown', 'fechar o dia', 'até amanhã']),
   menu('new-meeting', 'New meeting', ['record', 'transcribe', 'call']),

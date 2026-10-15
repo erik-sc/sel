@@ -47,6 +47,8 @@ export const APP_SHORTCUTS: readonly AppShortcut[] = [
   { command: 'toggle-assistant', accelerator: 'CmdOrCtrl+J', key: 'j', ctrl: true },
   { command: 'open-today', accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true },
   { command: 'open-calendar', accelerator: 'CmdOrCtrl+Alt+C', key: 'c', ctrl: true, alt: true },
+  { command: 'open-tasks', accelerator: 'CmdOrCtrl+Alt+K', key: 'k', ctrl: true, alt: true },
+  { command: 'add-task', accelerator: 'CmdOrCtrl+Alt+A', key: 'a', ctrl: true, alt: true },
   // N for notebook. Ctrl+N is a new page, Ctrl+Shift+N a new window.
   { command: 'open-notebook', accelerator: 'CmdOrCtrl+Alt+N', key: 'n', ctrl: true, alt: true },
   { command: 'new-meeting', accelerator: 'CmdOrCtrl+Alt+M', key: 'm', ctrl: true, alt: true },

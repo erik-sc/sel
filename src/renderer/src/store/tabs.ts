@@ -30,6 +30,8 @@ const PERSIST_DELAY = 250
 export const TODAY_ROUTE = '_today'
 /** The calendar screen, likewise. */
 export const CALENDAR_ROUTE = '_calendar'
+/** The Tasks screen (tasks/gate.ts). */
+export const TASKS_ROUTE = '_tasks'
 /** The ink notebook (see notebook/route.ts). */
 export const NOTEBOOK_ROUTE = '_notebook'
 /** The ritual that closes the day, likewise. */
@@ -274,6 +276,7 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
       const alive = new Set(blocks.filter((b) => !b.trashedAt).map((b) => b.id))
       alive.add(TODAY_ROUTE)
       alive.add(CALENDAR_ROUTE)
+      alive.add(TASKS_ROUTE)
       alive.add(NOTEBOOK_ROUTE)
       alive.add(CLOSE_ROUTE)
       restored.tabs = restored.tabs.filter((t) => {

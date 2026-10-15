@@ -5,6 +5,7 @@ import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
 import { registerExternalIpc, type ExternalHooks } from './external/register'
 import { registerFeedbackIpc } from './feedback/register'
+import { registerTasksIpc } from './tasks/register'
 import { registerHermanIpc, type HermanHooks } from './herman/register'
 import { registerAlarmsIpc, type AlarmsHooks } from './alarms/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
@@ -318,6 +319,9 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
 
+  // ---- tasks (Todoist import, the system-wide quick-add shortcut; see ./tasks)
+  const tasksIpc = registerTasksIpc({ repo })
+
   // ---- updates (opt-in, from GitHub Releases; see ./updates). Off by default: until the user
   // turns the check on or presses Check now, nothing of it goes on the network.
   const updatesIpc = registerUpdatesIpc({ repo, recording: () => meetings.recordingWindow() !== null })
@@ -354,6 +358,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...hermanIpc.handlers,
     ...notebookHandlers,
     ...feedbackHandlers,
+    ...tasksIpc.handlers,
     ...updatesIpc.handlers,
     ...externalIpc.handlers,
     ...alarmsIpc.handlers

@@ -4,6 +4,7 @@ import type { SyncSetup, SyncStatus } from './sync'
 import type { BriefingApi } from './briefing'
 import type { AgentKind, AiAgentInfo } from './council'
 import type { FeedbackApi } from './feedback'
+import type { TasksApi } from './tasks/api'
 import type { HermanApi } from './herman'
 import type { InvokeChannels } from './ipc'
 import type { McpApi } from './mcp'
@@ -220,6 +221,9 @@ export interface Api {
    */
   feedback: FeedbackApi
 
+  /** The Tasks feature's calls beyond block edits: Todoist import, the system-wide quick add. See shared/tasks/api.ts. */
+  tasks: TasksApi
+
   /**
    * New versions from the project's GitHub Releases: looked for once a day only when the user
    * turned that on, downloaded and installed only when they say so. See shared/updates.ts.
@@ -284,6 +288,9 @@ export type MenuCommand =
   | 'toggle-assistant'
   | 'open-today'
   | 'open-calendar'
+  | 'open-tasks'
+  /** Opens Tasks with the quick-add input focused. */
+  | 'add-task'
   | 'open-notebook'
   | 'close-day'
   | 'new-meeting'
@@ -422,6 +429,9 @@ export const INVOKE = {
   'feedback:create': true,
   'feedback:withdraw': true,
   'feedback:openFolder': true,
+  'tasks:importTodoist': true,
+  'tasks:globalShortcut': true,
+  'tasks:setGlobalShortcut': true,
 
   'updates:status': true,
   'updates:check': true,

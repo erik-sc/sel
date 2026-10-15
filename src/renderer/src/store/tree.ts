@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { systemKindOf } from '../../../shared/system'
+import { isSystemBlock } from '../../../shared/system'
 import { notifyError } from '../ui/toast'
 import { addCacheRoots, fetchBlocks, getBlock } from './blocks'
 
@@ -32,8 +32,9 @@ function sameIds(a: string[] | undefined, b: string[]): boolean {
 
 async function fetchChildren(key: string): Promise<string[]> {
   const blocks = await fetchBlocks(() => (key === ROOT ? window.api.pages.listRoot() : window.api.pages.listChildren(key)))
-  // The notebook lives at the root but has a place of its own in the sidebar, above the tree.
-  return blocks.filter((b) => key !== ROOT || systemKindOf(b) !== 'notebook').map((b) => b.id)
+  // Built-in blocks at the root (the Tasks database, the ink notebook) have places of their own in
+  // the sidebar, above the tree.
+  return blocks.filter((b) => key !== ROOT || !isSystemBlock(b)).map((b) => b.id)
 }
 
 export async function loadTreeChildren(key: string): Promise<void> {

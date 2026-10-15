@@ -1,0 +1,520 @@
+/*
+ * The Tasks screen: a column of lists, then the tasks of the chosen one at the page measure.
+ * Every colour, size and duration is a token from styles/tokens.css, as on the Today screen.
+ */
+
+.tasks {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  color: var(--text);
+  animation: ui-fade var(--duration) var(--ease);
+}
+
+.tasks.is-loading,
+.tasks.is-unavailable {
+  display: block;
+  padding: 88px var(--page-padding-x);
+  color: var(--text-secondary);
+}
+
+/* ---- lists ---- */
+
+.tasks-nav {
+  min-height: 0;
+  overflow: auto;
+  padding: 72px 12px 40px 16px;
+  border-right: var(--hairline) solid var(--border);
+}
+
+.tasks-nav-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tasks-nav-section {
+  margin-top: 24px;
+}
+
+.tasks-nav-title {
+  margin: 0 0 6px;
+  padding: 0 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-ui);
+}
+
+.tasks-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: var(--radius-s);
+  color: var(--text-secondary);
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.tasks-nav-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.tasks-nav-item.is-active {
+  background-color: var(--bg-active);
+  color: var(--text);
+}
+
+.tasks-nav-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tasks-nav-count {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.tasks-nav-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+}
+
+.tasks-nav-at {
+  flex: none;
+  width: 8px;
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* ---- tasks ---- */
+
+.tasks-main {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.tasks-list {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--page-width) + var(--page-padding-x) * 2);
+  margin: 0 auto;
+  padding: 72px var(--page-padding-x) 120px;
+}
+
+.tasks-heading {
+  margin: 0 0 24px;
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+}
+
+.tasks-empty {
+  margin: 24px 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-ui);
+}
+
+.tasks-group + .tasks-group {
+  margin-top: 28px;
+}
+
+.tasks-group-title {
+  margin: 20px 0 4px;
+  padding-bottom: 6px;
+  border-bottom: var(--hairline) solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-ui);
+}
+
+.tasks-group-title.is-overdue {
+  color: var(--danger);
+}
+
+.tasks-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 2px 0 2px calc(var(--depth, 0) * 28px);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+/* The checkbox: a ring in the colour of the priority, filled when hovered or done. */
+.task-check {
+  --task-colour: var(--border-strong);
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin-top: 9px;
+  border: 1.5px solid var(--task-colour);
+  border-radius: var(--radius-pill);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    background-color var(--duration-fast) var(--ease);
+}
+
+.task-check.is-p1 {
+  --task-colour: var(--c-red);
+  border-width: 2px;
+}
+
+.task-check.is-p2 {
+  --task-colour: var(--c-orange);
+  border-width: 2px;
+}
+
+.task-check.is-p3 {
+  --task-colour: var(--c-blue);
+  border-width: 2px;
+}
+
+.task-check:hover,
+.task-check:focus-visible {
+  background-color: color-mix(in srgb, var(--task-colour) 18%, transparent);
+}
+
+.task-check:active,
+.task-row.is-done .task-check {
+  background-color: var(--task-colour);
+}
+
+.task-open {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 6px 8px;
+  margin-left: -8px;
+  border-radius: var(--radius-s);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.task-open:hover {
+  background-color: var(--bg-hover);
+}
+
+.task-title {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.task-row.is-done .task-title {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.task-meta {
+  display: flex;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.task-due.is-overdue {
+  color: var(--danger);
+}
+
+.task-side {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Indent and outdent: there when the row is hovered or has focus. */
+.task-moves {
+  display: flex;
+  gap: 2px;
+  padding-top: 6px;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.task-row:hover .task-moves,
+.task-row:focus-within .task-moves {
+  opacity: 1;
+}
+
+.task-move {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-s);
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.task-move:hover,
+.task-move:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding-top: 8px;
+  font-size: var(--text-sm);
+}
+
+.task-label {
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+  line-height: 1.6;
+}
+
+.task-project {
+  color: var(--text-tertiary);
+}
+
+/* ---- quick add ---- */
+
+.qa {
+  position: relative;
+  margin-bottom: 8px;
+  padding: 4px 0 6px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.qa-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qa-plus {
+  width: 18px;
+  color: var(--accent);
+  font-size: var(--text-h3);
+  line-height: 1;
+  text-align: center;
+}
+
+/* The input and its mirror share one box, font and padding: the mirror draws the text (with the
+   highlights), the input above it only the caret and the selection. */
+.qa-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.qa-input,
+.qa-mirror {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  font: inherit;
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  letter-spacing: normal;
+  white-space: pre;
+}
+
+.qa-input {
+  position: relative;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+  outline: none;
+}
+
+.qa-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.qa-input::selection {
+  background: var(--accent-soft);
+  color: transparent;
+}
+
+.qa-mirror {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.qa-token {
+  border-radius: var(--radius-xs);
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.qa-token.is-priority {
+  background: var(--c-red-bg);
+  color: var(--c-red);
+}
+
+.qa-token.is-project {
+  background: var(--c-green-bg);
+  color: var(--c-green);
+}
+
+.qa-token.is-label {
+  background: var(--c-blue-bg);
+  color: var(--c-blue);
+}
+
+.qa-token.is-recurrence,
+.qa-token.is-remind {
+  background: var(--c-purple-bg);
+  color: var(--c-purple);
+}
+
+.qa-summary {
+  margin: 0 0 0 28px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.qa-suggestions {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% - 2px);
+  left: 28px;
+  min-width: 220px;
+  max-width: 360px;
+  margin: 0;
+  padding: 4px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  list-style: none;
+}
+
+.qa-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-s);
+  font-size: var(--text-ui);
+  cursor: pointer;
+}
+
+.qa-suggestion.is-active {
+  background: var(--bg-active);
+}
+
+.qa-suggestion-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+}
+
+/* ---- a view of the database ---- */
+
+.tasks-view {
+  min-height: 100%;
+}
+
+@media (max-width: 720px) {
+  .tasks {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .tasks-nav {
+    padding: 16px;
+    border-right: 0;
+    border-bottom: var(--hairline) solid var(--border);
+  }
+}
+
+/* ---- the system-wide quick-add window ---- */
+
+body.is-quick-add {
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.qa-window {
+  box-sizing: border-box;
+  height: 100vh;
+  padding: 16px 20px;
+  color: var(--text);
+  -webkit-app-region: drag;
+}
+
+.qa-window .qa {
+  border-bottom: 0;
+  -webkit-app-region: no-drag;
+}
+
+.qa-window-note {
+  margin: 8px 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-ui);
+}
+
+/* ---- tools at the foot of the lists ---- */
+
+.tasks-tools .tasks-nav-item:disabled {
+  opacity: 0.6;
+}
+
+.tasks-shortcut {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  color: var(--text-secondary);
+  font-size: var(--text-ui);
+}
+
+.tasks-shortcut-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tasks-shortcut-keys {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px 8px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.tasks-shortcut-note {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}

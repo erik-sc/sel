@@ -1,3 +1,4 @@
+import { taskSchemaProblem } from './tasks'
 import type { Block } from './types'
 
 /**
@@ -30,4 +31,12 @@ export function systemKindOf(block: BlockLike | null | undefined): SystemKind | 
 /** A built-in block: it stays where it is, as what it is. */
 export function isSystemBlock(block: BlockLike | null | undefined): boolean {
   return systemKindOf(block) !== null
+}
+
+/**
+ * Why `schema` cannot be stored on a built-in database of this kind, or null when it can: the
+ * properties the app relies on stay, with their types (the user may add, rename and reorder).
+ */
+export function systemSchemaProblem(kind: SystemKind, schema: unknown): string | null {
+  return kind === 'tasks' ? taskSchemaProblem(schema) : null
 }
