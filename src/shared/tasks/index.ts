@@ -24,7 +24,9 @@ export const TASK_PROPS = {
   /** Hidden: when the task was last completed, a `YYYY-MM-DDTHH:mm` wall-clock moment. */
   completedAt: 'tasks.completedAt',
   /** When to remind about the task, a wall-clock moment (the reminders fire from the briefing side). */
-  remind: 'tasks.remind'
+  remind: 'tasks.remind',
+  /** The task this one is a subtask of: a relation to one row of the same database. */
+  parent: 'tasks.parent'
 } as const
 
 /** P1 (most urgent) to P4 (no priority), in that order. */
@@ -45,7 +47,8 @@ export const TASK_CORE_TYPES: Readonly<Record<string, PropertyType>> = {
   [TASK_PROPS.labels]: 'multi_select',
   [TASK_PROPS.recurrence]: 'text',
   [TASK_PROPS.completedAt]: 'date',
-  [TASK_PROPS.remind]: 'date'
+  [TASK_PROPS.remind]: 'date',
+  [TASK_PROPS.parent]: 'relation'
 }
 
 export function isTaskCoreProperty(id: string): boolean {
@@ -81,7 +84,8 @@ export function tasksDatabaseProps(): BlockProps {
     [TASK_PROPS.labels]: { id: TASK_PROPS.labels, name: 'Labels', type: 'multi_select', options: [] },
     [TASK_PROPS.recurrence]: { id: TASK_PROPS.recurrence, name: 'Recurrence', type: 'text' },
     [TASK_PROPS.completedAt]: { id: TASK_PROPS.completedAt, name: 'Completed at', type: 'date' },
-    [TASK_PROPS.remind]: { id: TASK_PROPS.remind, name: 'Remind', type: 'date' }
+    [TASK_PROPS.remind]: { id: TASK_PROPS.remind, name: 'Remind', type: 'date' },
+    [TASK_PROPS.parent]: { id: TASK_PROPS.parent, name: 'Parent task', type: 'relation', relation: { databaseId: TASKS_DATABASE_ID, limit: 'one' } }
   }
   const views: DatabaseView[] = [
     { id: 'tasks.view.table', name: 'All tasks', type: 'table', visibleProperties: [...VISIBLE], filters: [], sorts: [] },

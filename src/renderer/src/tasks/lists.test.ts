@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Block, BlockProps, PropertyValue } from '@shared/types'
 import { TASK_PROPS, TASKS_DATABASE_ID, tasksDatabaseProps } from '@shared/tasks'
 import * as L from '@/database/logic'
-import { dueLabel, listCounts, listTasks, readTasks, relativeDay } from './lists'
+import { dueLabel, listCounts, listTasks, openDescendants, readTasks, relativeDay } from './lists'
 
 const TODAY = '2026-10-15'
 
@@ -104,6 +104,54 @@ describe('the lists', () => {
     expect(counts.get('inbox')).toBe(5)
     expect(counts.get('project:home')).toBe(2)
     expect(counts.get('label:calls')).toBe(1)
+  })
+})
+
+describe('subtasks', () => {
+  const child = (title: string, parent: Block, values: Record<string, PropertyValue> = {}): Block => row(title, { ...values, [TASK_PROPS.parent]: [parent.id] })
+
+  it('sit right under their parent, indented, in the list order', () => {
+    const plan = row('Plan trip')
+    const tickets = child('Buy tickets', plan)
+    const visa = child('Get visa', plan)
+    const photos = child('Photos for the visa', visa)
+    const other = row('Other')
+    const groups = listTasks(readTasks([photos, other, tickets, plan, visa], schema), schema, { kind: 'inbox' }, TODAY)
+    expect(titles(groups)).toEqual([['Other', 'Plan trip', 'Buy tickets', 'Get visa', 'Photos for the visa']])
+    expect(groups[0].items.map((task) => groups[0].depth.get(task.id))).toEqual([0, 0, 1, 1, 2])
+  })
+
+  it('stand on their own when the parent is in another list', () => {
+    const parent = row('Parent', { [TASK_PROPS.due]: { start: '2026-10-20' } })
+    const due = child('Due today', parent, { [TASK_PROPS.due]: { start: TODAY } })
+    const groups = listTasks(readTasks([parent, due], schema), schema, { kind: 'today' }, TODAY)
+    expect(titles(groups)).toEqual([['Due today']])
+    expect(groups[0].depth.get(due.id)).toBe(0)
+  })
+
+  it('survive a cycle (damaged data) without looping', () => {
+    const a = row('A')
+    const b = child('B', a)
+    a.props.values = { [TASK_PROPS.parent]: [b.id] }
+    const groups = listTasks(readTasks([a, b], schema), schema, { kind: 'inbox' }, TODAY)
+    expect(groups[0].items.map((task) => task.title).sort()).toEqual(['A', 'B'])
+  })
+
+  it('are found under a task, however deep, open ones only', () => {
+    const top = row('Top')
+    const one = child('One', top)
+    const two = child('Two', one)
+    const done = child('Done', top, { [TASK_PROPS.done]: true })
+    const deep = child('Under done', done)
+    const tasks = readTasks([top, one, two, done, deep], schema)
+    expect(openDescendants(tasks, top.id).map((task) => task.title).sort()).toEqual(['One', 'Two', 'Under done'])
+    expect(openDescendants(tasks, two.id)).toEqual([])
+  })
+
+  it('cannot be their own parent', () => {
+    const self = row('Self')
+    self.props.values = { [TASK_PROPS.parent]: [self.id] }
+    expect(readTasks([self], schema)[0].parent).toBeNull()
   })
 })
 

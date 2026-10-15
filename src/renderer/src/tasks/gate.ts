@@ -31,6 +31,11 @@ export function focusQuickAdd(): void {
   useTasksGate.setState((state) => ({ focus: state.focus + 1 }))
 }
 
+/** True in the small window the system-wide quick-add shortcut opens (`?quickadd=1`, see main/tasks/window.ts). */
+export function isQuickAddWindow(): boolean {
+  return new URLSearchParams(window.location.search).get('quickadd') === '1'
+}
+
 export function isTasksRoute(pageId: string | null | undefined): boolean {
   return pageId === TASKS_ROUTE
 }

@@ -1,6 +1,6 @@
 # Plano: Tasks (estilo Todoist) sobre as databases do sel
 
-Status: fases 0–3 implementadas (datas com hora, `date_is`, `props.system`; DB de sistema, tela Tasks; parser e quick add; recorrência) · 2026-10-15
+Status: fases 0–3 e o lado de tasks da 5 implementados (subtarefas, importar CSV do Todoist, atalho global de quick add); fase 4 e o lado do briefing da 5 em outra sessão · 2026-10-15
 
 ## O que já existe e vamos reaproveitar
 

@@ -18,6 +18,8 @@ export interface TaskItem {
   labels: SelectOption[]
   completedAt: string | null
   recurring: boolean
+  /** The task this is a subtask of, when there is one. */
+  parent: string | null
   row: Block
   /** Position in the database: the manual order. */
   order: number
@@ -27,7 +29,10 @@ export interface TaskGroup {
   /** A day (`YYYY-MM-DD`), `overdue`, or `all`. */
   id: string
   title: string | null
+  /** In display order: a subtask right after its parent (when both are in the group). */
   items: TaskItem[]
+  /** How far each item is indented: 0 for a task, 1 for a subtask shown under its parent… */
+  depth: ReadonlyMap<string, number>
 }
 
 function optionMap(schema: L.Schema, propertyId: string): Map<string, SelectOption> {
@@ -48,6 +53,8 @@ export function readTasks(rows: readonly Block[], schema: L.Schema): TaskItem[] 
     const project = get(TASK_PROPS.project)
     const tagged = get(TASK_PROPS.labels)
     const recurrence = get(TASK_PROPS.recurrence)
+    const parent = get(TASK_PROPS.parent)
+    const parentId = Array.isArray(parent) && typeof parent[0] === 'string' && parent[0] !== row.id ? parent[0] : null
     return {
       id: row.id,
       title: L.titleOf(row),
@@ -58,6 +65,7 @@ export function readTasks(rows: readonly Block[], schema: L.Schema): TaskItem[] 
       labels: Array.isArray(tagged) ? tagged.map((id) => (typeof id === 'string' ? labels.get(id) : undefined)).filter((option): option is SelectOption => !!option) : [],
       completedAt: completed?.start ?? null,
       recurring: typeof recurrence === 'string' && recurrence.trim() !== '',
+      parent: parentId,
       row,
       order
     }
@@ -77,11 +85,70 @@ const byOrder = (a: TaskItem, b: TaskItem): number => a.order - b.order
 /** The rule the Today list is: due today or before (the same `date_is` rule a view can hold). */
 const BY_TODAY: ViewFilter = { propertyId: TASK_PROPS.due, operator: 'date_is', value: 'by_today' }
 
+/** Subtasks nest at most this deep on screen; deeper ones line up at the last level. */
+const MAX_DEPTH = 4
+
 /**
- * The tasks of one of the screen's lists, in groups. `today` is the local day; the Today list
- * reads it from the clock through the `date_is` rule, as views do.
+ * Puts each subtask right after its parent when both are in `items`, keeping the order of
+ * `items` among siblings. A subtask whose parent is elsewhere stands on its own. Cycles (only
+ * possible through damaged data) are broken.
+ */
+export function nestTasks(items: readonly TaskItem[]): { items: TaskItem[]; depth: Map<string, number> } {
+  const present = new Set(items.map((task) => task.id))
+  const children = new Map<string, TaskItem[]>()
+  const roots: TaskItem[] = []
+  for (const task of items) {
+    if (task.parent && present.has(task.parent)) {
+      const list = children.get(task.parent)
+      if (list) list.push(task)
+      else children.set(task.parent, [task])
+    } else roots.push(task)
+  }
+  const out: TaskItem[] = []
+  const depth = new Map<string, number>()
+  const visit = (task: TaskItem, level: number): void => {
+    if (depth.has(task.id)) return
+    depth.set(task.id, Math.min(level, MAX_DEPTH))
+    out.push(task)
+    for (const child of children.get(task.id) ?? []) visit(child, level + 1)
+  }
+  for (const task of roots) visit(task, 0)
+  // What is left sits in a cycle: shown flat at the end.
+  for (const task of items) visit(task, 0)
+  return { items: out, depth }
+}
+
+/** Every open subtask under `id`, however deep. */
+export function openDescendants(tasks: readonly TaskItem[], id: string): TaskItem[] {
+  const byParent = new Map<string, TaskItem[]>()
+  for (const task of tasks) {
+    if (!task.parent) continue
+    const list = byParent.get(task.parent)
+    if (list) list.push(task)
+    else byParent.set(task.parent, [task])
+  }
+  const out: TaskItem[] = []
+  const seen = new Set<string>([id])
+  const stack = [...(byParent.get(id) ?? [])]
+  while (stack.length) {
+    const task = stack.pop() as TaskItem
+    if (seen.has(task.id)) continue
+    seen.add(task.id)
+    if (!task.done) out.push(task)
+    stack.push(...(byParent.get(task.id) ?? []))
+  }
+  return out
+}
+
+/**
+ * The tasks of one of the screen's lists, in groups, subtasks under their parents. `today` is
+ * the local day; the Today list reads it from the clock through the `date_is` rule, as views do.
  */
 export function listTasks(tasks: readonly TaskItem[], schema: L.Schema, key: TaskListKey, today: string): TaskGroup[] {
+  return groupTasks(tasks, schema, key, today).map((group) => ({ ...group, ...nestTasks(group.items) }))
+}
+
+function groupTasks(tasks: readonly TaskItem[], schema: L.Schema, key: TaskListKey, today: string): { id: string; title: string | null; items: TaskItem[] }[] {
   const open = tasks.filter((task) => !task.done)
   switch (key.kind) {
     case 'inbox':
@@ -90,7 +157,7 @@ export function listTasks(tasks: readonly TaskItem[], schema: L.Schema, key: Tas
       const due = L.propOf(schema, TASK_PROPS.due)
       const matching = due ? open.filter((task) => L.matchesFilter(task.row, due, BY_TODAY)).sort(byDue) : []
       const overdue = matching.filter((task) => (L.dayKey(task.due) ?? today) < today)
-      const groups: TaskGroup[] = []
+      const groups: { id: string; title: string | null; items: TaskItem[] }[] = []
       if (overdue.length) groups.push({ id: 'overdue', title: 'Overdue', items: overdue })
       groups.push({ id: today, title: overdue.length ? dayTitle(today, today) : null, items: matching.filter((task) => !overdue.includes(task)) })
       return groups

@@ -3,7 +3,7 @@
 // own views), the tasks of the chosen one on the right. Rows are pages of the database: a click
 // opens one, the round checkbox completes it through the same path as the Today screen.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { JSX } from 'react'
+import type { CSSProperties, JSX, KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Block } from '@shared/types'
 import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
 import { getBlock, useBlocks } from '@/store/blocks'
@@ -15,8 +15,9 @@ import { useResolvedDatabase } from '@/database/resolved'
 import { chooseView, DatabaseView } from '@/database/DatabaseView'
 import { tagStyle } from '@/database/common'
 import { focusQuickAdd, showTaskList, useTasksGate, type TaskListKey } from './gate'
-import { dueLabel, listCounts, listTasks, readTasks, type TaskItem } from './lists'
+import { dueLabel, listCounts, listTasks, openDescendants, readTasks, type TaskGroup, type TaskItem } from './lists'
 import { QuickAdd } from './QuickAdd'
+import { TasksTools } from './TasksTools'
 import './tasks.css'
 
 const EMPTY: string[] = []
@@ -56,51 +57,67 @@ function isPending(entry: Pending | undefined, task: TaskItem): boolean {
  */
 function useCompletion(today: string): {
   pending: ReadonlyMap<string, Pending>
-  complete: (task: TaskItem) => void
+  complete: (task: TaskItem, subtasks?: readonly TaskItem[]) => void
   reopen: (task: TaskItem) => void
 } {
   const [pending, setPending] = useState<ReadonlyMap<string, Pending>>(() => new Map())
-  const forget = useCallback((id: string) => {
+  const update = useCallback((change: (map: Map<string, Pending>) => void) => {
     setPending((current) => {
-      if (!current.has(id)) return current
       const next = new Map(current)
-      next.delete(id)
+      change(next)
       return next
     })
   }, [])
+  const forget = useCallback((ids: readonly string[]) => update((map) => ids.forEach((id) => map.delete(id))), [update])
 
+  /** Completes a task, and with it the open subtasks under it (they go first). */
   const complete = useCallback(
-    (task: TaskItem): void => {
-      setPending((current) => new Map(current).set(task.id, {}))
-      window.api.briefing.completeTask(task.id).then(
-        ({ token, next }) => {
-          if (next) setPending((current) => (current.has(task.id) ? new Map(current).set(task.id, { next }) : current))
-          const title = task.title || 'Untitled'
-          toast(next ? `Completed "${title}". Next: ${dueLabel(next, today).text}.` : `Completed "${title}".`, {
-            action: {
-              label: 'Undo',
-              run: () => {
-                window.api.briefing.undoCompleteTask(token).then(
-                  () => forget(task.id),
-                  (error: unknown) => notifyError('Could not undo that.', error)
-                )
-              }
-            }
-          })
-        },
-        (error: unknown) => {
-          forget(task.id)
-          notifyError('Could not complete the task.', error)
+    (task: TaskItem, subtasks: readonly TaskItem[] = []): void => {
+      const all = [...subtasks, task]
+      update((map) => all.forEach((item) => map.set(item.id, {})))
+      void Promise.allSettled(all.map((item) => window.api.briefing.completeTask(item.id))).then((results) => {
+        const tokens: string[] = []
+        let next: string | undefined
+        results.forEach((result, index) => {
+          const item = all[index]
+          if (result.status === 'rejected') {
+            forget([item.id])
+            return
+          }
+          tokens.push(result.value.token)
+          const moved = result.value.next
+          if (moved) update((map) => void (map.has(item.id) && map.set(item.id, { next: moved })))
+          if (item === task) next = moved
+        })
+        const failed = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+        if (!tokens.length) {
+          notifyError('Could not complete the task.', failed?.reason)
+          return
         }
-      )
+        if (failed) notifyError('Some subtasks could not be completed.', failed.reason)
+        const title = task.title || 'Untitled'
+        const count = tokens.length - (results[results.length - 1].status === 'fulfilled' ? 1 : 0)
+        const also = count > 0 ? ` and ${count} subtask${count === 1 ? '' : 's'}` : ''
+        toast(next ? `Completed "${title}"${also}. Next: ${dueLabel(next, today).text}.` : `Completed "${title}"${also}.`, {
+          action: {
+            label: 'Undo',
+            run: () => {
+              Promise.all(tokens.map((token) => window.api.briefing.undoCompleteTask(token))).then(
+                () => forget(all.map((item) => item.id)),
+                (error: unknown) => notifyError('Could not undo that.', error)
+              )
+            }
+          }
+        })
+      })
     },
-    [forget, today]
+    [forget, update, today]
   )
 
   // Back to open: unticked, and no longer counted as completed.
   const reopen = useCallback(
     (task: TaskItem): void => {
-      forget(task.id)
+      forget([task.id])
       const row = getBlock(task.id)
       if (row) actions.runOps([actions.reopenTaskOp(row)])
     },
@@ -110,13 +127,46 @@ function useCompletion(today: string): {
   return { pending, complete, reopen }
 }
 
-function TaskRow(props: { task: TaskItem; today: string; heading?: string; onToggle: (task: TaskItem) => void }): JSX.Element {
-  const { task, today, heading, onToggle } = props
+/**
+ * Makes `task` a subtask of `parent` (null: a task of its own again). A new subtask joins its
+ * parent's project, as in Todoist.
+ */
+function setParent(task: TaskItem, parent: TaskItem | null): void {
+  const row = getBlock(task.id)
+  if (!row) return
+  const values: L.Values = { ...(L.isPlainObject(row.props.values) ? (row.props.values as L.Values) : {}) }
+  if (parent) {
+    values[TASK_PROPS.parent] = [parent.id]
+    if (parent.project) values[TASK_PROPS.project] = parent.project.id
+  } else delete values[TASK_PROPS.parent]
+  actions.runOps([{ op: 'update', id: task.id, patch: { props: { values } } }])
+}
+
+interface RowProps {
+  task: TaskItem
+  today: string
+  heading?: string
+  depth: number
+  onToggle: (task: TaskItem) => void
+  /** Absent when the task cannot go further in (no task above it at its level) or out. */
+  onIndent?: () => void
+  onOutdent?: () => void
+}
+
+function TaskRow(props: RowProps): JSX.Element {
+  const { task, today, heading, depth, onToggle, onIndent, onOutdent } = props
   const label = task.due ? dueLabel(task.due, today, heading) : null
   const due = label?.text ? label : null
   const title = task.title || 'Untitled'
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLLIElement>): void => {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+    if (event.key === ']' && onIndent) onIndent()
+    else if (event.key === '[' && onOutdent) onOutdent()
+    else return
+    event.preventDefault()
+  }
   return (
-    <li className={task.done ? 'task-row is-done' : 'task-row'}>
+    <li className={task.done ? 'task-row is-done' : 'task-row'} style={{ '--depth': depth } as CSSProperties} onKeyDown={onKeyDown}>
       <button
         type="button"
         className={`task-check is-p${task.priority}`}
@@ -138,16 +188,32 @@ function TaskRow(props: { task: TaskItem; today: string; heading?: string; onTog
           </span>
         )}
       </button>
-      {(task.project || task.labels.length > 0) && (
-        <span className="task-tags">
-          {task.labels.map((label) => (
-            <span key={label.id} className="task-label" style={tagStyle(label.color)}>
-              @{label.name}
-            </span>
-          ))}
-          {task.project && <span className="task-project">#{task.project.name}</span>}
-        </span>
-      )}
+      <span className="task-side">
+        {(onIndent || onOutdent) && (
+          <span className="task-moves">
+            {onOutdent && (
+              <button type="button" className="task-move" title="Move out of its parent (Ctrl+[)" aria-label={`Move "${title}" out of its parent`} onClick={onOutdent}>
+                ←
+              </button>
+            )}
+            {onIndent && (
+              <button type="button" className="task-move" title="Make it a subtask of the task above (Ctrl+])" aria-label={`Make "${title}" a subtask of the task above`} onClick={onIndent}>
+                →
+              </button>
+            )}
+          </span>
+        )}
+        {(task.project || task.labels.length > 0) && (
+          <span className="task-tags">
+            {task.labels.map((label) => (
+              <span key={label.id} className="task-label" style={tagStyle(label.color)}>
+                @{label.name}
+              </span>
+            ))}
+            {task.project && <span className="task-project">#{task.project.name}</span>}
+          </span>
+        )}
+      </span>
     </li>
   )
 }
@@ -256,6 +322,29 @@ export function TasksScreen(): JSX.Element {
 
   const empty = groups.every((group) => group.items.length === 0)
 
+  /** Indent: under the nearest task above at the same level. Outdent: next to its parent. Not for completed tasks. */
+  const moves = (group: TaskGroup, index: number): Pick<RowProps, 'onIndent' | 'onOutdent'> => {
+    const task = group.items[index]
+    if (task.done) return {}
+    const level = group.depth.get(task.id) ?? 0
+    let above: TaskItem | undefined
+    for (let i = index - 1; i >= 0; i--) {
+      const candidate = group.items[i]
+      const candidateLevel = group.depth.get(candidate.id) ?? 0
+      if (candidateLevel < level) break
+      if (candidateLevel === level) {
+        above = candidate
+        break
+      }
+    }
+    const parent = task.parent ? tasks.find((item) => item.id === task.parent) : undefined
+    const grandparent = parent?.parent ? (tasks.find((item) => item.id === parent.parent) ?? null) : null
+    return {
+      onIndent: above ? () => setParent(task, above) : undefined,
+      onOutdent: task.parent ? () => setParent(task, grandparent) : undefined
+    }
+  }
+
   return (
     <div className="tasks">
       <nav className="tasks-nav" aria-label="Task lists">
@@ -284,6 +373,7 @@ export function TasksScreen(): JSX.Element {
           <h3 className="tasks-nav-title">Views</h3>
           <ul className="tasks-nav-list">{views.map((view) => navItem({ kind: 'view', id: view.id }, view.name, undefined))}</ul>
         </section>
+        <TasksTools />
       </nav>
 
       <div className="tasks-main">
@@ -303,8 +393,16 @@ export function TasksScreen(): JSX.Element {
                   <section key={group.id} className="tasks-group">
                     {group.title && <h2 className={group.id === 'overdue' ? 'tasks-group-title is-overdue' : 'tasks-group-title'}>{group.title}</h2>}
                     <ul className="tasks-rows">
-                      {group.items.map((task) => (
-                        <TaskRow key={task.id} task={task} today={today} heading={group.id} onToggle={task.done ? reopen : complete} />
+                      {group.items.map((task, index) => (
+                        <TaskRow
+                          key={task.id}
+                          task={task}
+                          today={today}
+                          heading={group.id}
+                          depth={group.depth.get(task.id) ?? 0}
+                          onToggle={task.done ? reopen : (item) => complete(item, openDescendants(tasks, item.id))}
+                          {...moves(group, index)}
+                        />
                       ))}
                     </ul>
                   </section>
