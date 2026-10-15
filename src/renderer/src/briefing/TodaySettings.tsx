@@ -16,6 +16,7 @@ import {
   type Tradition
 } from '@shared/briefing'
 import { plainText } from '@shared/richtext'
+import { bellOn, NOTEBOOK_BELL_KEY } from '@shared/notebook'
 import { ConfirmButton, Segmented } from '@/appearance/controls'
 import { openPage } from '@/store/tabs'
 import { refreshTree } from '@/store/tree'
@@ -308,6 +309,46 @@ function count(n: number, word: string): string {
 
 // ---- the section --------------------------------------------------------------
 
+// ---- closing the day --------------------------------------------------------------
+
+/** Whether closing the day rings its soft bell (notebook/bell.ts). */
+function CloseDaySettings(): JSX.Element {
+  const [bell, setBell] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    window.api.app.getSetting(NOTEBOOK_BELL_KEY).then(
+      (stored) => alive && setBell(bellOn(stored)),
+      (error: unknown) => console.error('the bell setting failed to load', error)
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const choose = (value: 'on' | 'off'): void => {
+    const next = value === 'on'
+    setBell(next)
+    window.api.app.setSetting(NOTEBOOK_BELL_KEY, next).catch((error: unknown) => {
+      setBell(!next)
+      failed(error)
+    })
+  }
+
+  return (
+    <section className="ap-group">
+      <div className="ap-group-head">
+        <h3 className="ap-group-title">Closing the day</h3>
+      </div>
+      <div className="ap-list">
+        <Row label="Bell" help="A soft bell when the window rests at the end of Close the day.">
+          <Segmented label="Bell" value={bell ? 'on' : 'off'} options={ON_OFF} onChange={choose} />
+        </Row>
+      </div>
+    </section>
+  )
+}
+
 export function TodaySection(): JSX.Element {
   const [values, setValues] = useState<Values>(DEFAULTS)
   const [loaded, setLoaded] = useState(false)
@@ -522,6 +563,8 @@ export function TodaySection(): JSX.Element {
           you love to your own phrases, where they are yours alone.
         </p>
       </section>
+
+      <CloseDaySettings />
     </div>
   )
 }

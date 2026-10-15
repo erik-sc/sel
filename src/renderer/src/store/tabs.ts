@@ -30,6 +30,10 @@ const PERSIST_DELAY = 250
 export const TODAY_ROUTE = '_today'
 /** The calendar screen, likewise. */
 export const CALENDAR_ROUTE = '_calendar'
+/** The ink notebook (see notebook/route.ts). */
+export const NOTEBOOK_ROUTE = '_notebook'
+/** The ritual that closes the day, likewise. */
+export const CLOSE_ROUTE = '_close'
 /** The shape of every block id (the backend enforces the same). */
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 
@@ -102,6 +106,15 @@ export function openPage(pageId: string, opts?: { newTab?: boolean }): void {
   const history = [...current.history.slice(0, current.index + 1), pageId].slice(-MAX_HISTORY)
   const next: Tab = { ...current, history, index: history.length - 1 }
   useTabs.setState({ tabs: state.tabs.map((t) => (t.id === current.id ? next : t)) })
+}
+
+/** Shows a built-in screen: the tab that already has it, the blank tab in front, or a new tab. */
+export function openScreen(route: string): void {
+  const state = useTabs.getState()
+  const existing = state.tabs.find((tab) => tabPage(tab) === route)
+  if (existing) activateTab(existing.id)
+  else if (activeTab(state) && !tabPage(activeTab(state))) openPage(route)
+  else newTab(route)
 }
 
 export function activateTab(id: string): void {
@@ -261,6 +274,8 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
       const alive = new Set(blocks.filter((b) => !b.trashedAt).map((b) => b.id))
       alive.add(TODAY_ROUTE)
       alive.add(CALENDAR_ROUTE)
+      alive.add(NOTEBOOK_ROUTE)
+      alive.add(CLOSE_ROUTE)
       restored.tabs = restored.tabs.filter((t) => {
         const page = tabPage(t)
         return page !== null && alive.has(page)

@@ -3,6 +3,7 @@ import { BRIEFING_KEYS, cleanBriefingSetting } from '../shared/briefing'
 import { cleanHermanSetting, HERMAN_KEYS } from '../shared/herman'
 import { cleanMcpSetting, MCP_KEYS } from '../shared/mcp'
 import { cleanMeetingsSetting, MEETINGS_KEYS } from '../shared/meetings'
+import { cleanNotebookSetting, NOTEBOOK_KEYS } from '../shared/notebook'
 import { cleanUpdatesSetting, UPDATES_KEYS } from '../shared/updates'
 import { cleanHistorySetting, HISTORY_KEYS, MAX_VERSION_LABEL } from '../shared/versions'
 import { isValidId, MAX_SETTING_CHARS } from './db/blocks'
@@ -35,7 +36,7 @@ const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
  * the seats of his council among them (what he remembers, `herman.memory`, is not); `updates.check`
  * (not `updates.lastCheck`); `mcp.enabled`; nothing else in those namespaces.
  */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS])
+const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS, ...NOTEBOOK_KEYS])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
 const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
 
@@ -168,6 +169,7 @@ export function settingValueFor(key: string, value: unknown): unknown {
   if (key.startsWith('herman.')) return hermanSettingValue(key, value)
   if (key.startsWith('updates.')) return updatesSettingValue(key, value)
   if (key.startsWith('mcp.')) return mcpSettingValue(key, value)
+  if (key.startsWith('notebook.')) return notebookSettingValue(key, value)
   if (!key.startsWith('history.')) return settingValue(value)
   if (value === undefined || value === null) return null
   const clean = cleanHistorySetting(key, value)
@@ -232,6 +234,14 @@ function updatesSettingValue(key: string, value: unknown): unknown {
 function mcpSettingValue(key: string, value: unknown): unknown {
   if (value === undefined || value === null) return null
   const clean = cleanMcpSetting(key, value)
+  if (clean === undefined) throw new Error('Invalid setting value')
+  return clean
+}
+
+/** Whether closing the day rings a bell: a boolean. Null resets it (on). */
+function notebookSettingValue(key: string, value: unknown): unknown {
+  if (value === undefined || value === null) return null
+  const clean = cleanNotebookSetting(key, value)
   if (clean === undefined) throw new Error('Invalid setting value')
   return clean
 }

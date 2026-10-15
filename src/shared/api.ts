@@ -7,6 +7,7 @@ import type { HermanApi } from './herman'
 import type { InvokeChannels } from './ipc'
 import type { McpApi } from './mcp'
 import type { MeetingsApi } from './meetings'
+import type { NotebookApi } from './notebook'
 import type {
   Block,
   ChangeEvent,
@@ -207,6 +208,12 @@ export interface Api {
   herman: HermanApi
 
   /**
+   * The ink notebook: one line a day, written while the day lasts and kept as it is after, and
+   * the ritual that closes the day. Stored as blocks, so it syncs. See shared/notebook.ts.
+   */
+  notebook: NotebookApi
+
+  /**
    * Bug reports and suggestions the user writes in the app, kept as files on this computer for
    * the nightly development agent to pick up. See shared/feedback.ts.
    */
@@ -270,6 +277,8 @@ export type MenuCommand =
   | 'toggle-assistant'
   | 'open-today'
   | 'open-calendar'
+  | 'open-notebook'
+  | 'close-day'
   | 'new-meeting'
   | 'send-feedback'
   | 'command-palette'
@@ -395,6 +404,12 @@ export const INVOKE = {
   'herman:nudge.dismiss': true,
   'herman:met': true,
   'herman:reset': true,
+
+  'notebook:get': true,
+  'notebook:write': true,
+  'notebook:plan': true,
+  'notebook:dismissPlans': true,
+  'notebook:review': true,
 
   'feedback:list': true,
   'feedback:create': true,
