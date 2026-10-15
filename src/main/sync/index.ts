@@ -6,6 +6,7 @@ import { cleanBranch, isPassphrase, SYNC_CHANNEL, SYNC_LIMITS, type SyncErrorCod
 import type { Repository } from '../db/repository'
 import { filesDir, sniffImage } from '../files'
 import { SyncEngine, type SecretStore } from './engine'
+import type { CalendarSync } from './format'
 import { inspectGit } from './git'
 
 /**
@@ -106,7 +107,9 @@ export class SyncBridge {
   constructor(
     private readonly repo: Repository,
     /** Tells the windows about blocks a sync changed. */
-    broadcast: () => void
+    broadcast: () => void,
+    /** This device's connected calendars (the briefing's store), for an encrypted repository. */
+    calendars?: () => Promise<CalendarSync>
   ) {
     const dir = join(app.getPath('userData'), 'sync')
     mkdirSync(dir, { recursive: true })
@@ -119,6 +122,7 @@ export class SyncBridge {
       secrets: keychainStore(join(dir, 'keys.bin')),
       acceptImage: (bytes) => sniffImage(bytes) !== null,
       onApplied: broadcast,
+      calendars,
       onStatus: (status) => {
         for (const win of BrowserWindow.getAllWindows()) {
           if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send(SYNC_CHANNEL, status)
