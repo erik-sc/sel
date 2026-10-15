@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, nativeTheme, screen, session, shell, type Session } from 'electron'
+import { isQuickAddUrl } from './alarms/windows'
 import { APPEARANCE_KEY, windowBackground } from './background'
 import { DEFAULT_SIZE, fitBounds, MIN_SIZE, type SavedBounds } from './bounds'
 import { openDatabase, type Repository } from './db'
@@ -253,7 +254,8 @@ function hardenSession(ses: Session): void {
 }
 
 function focusExisting(): void {
-  const win = BrowserWindow.getAllWindows()[0]
+  // The small quick-add window is not the workspace: a second launch opens one when only it is left.
+  const win = BrowserWindow.getAllWindows().find((w) => !isQuickAddUrl(w.webContents.getURL()))
   if (!win) {
     if (repo) createWindow()
     return
