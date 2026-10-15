@@ -2,7 +2,7 @@
 // shows (kept here so it survives switching tabs). The screen itself is a chunk of its own
 // (see Host.tsx).
 import { create } from 'zustand'
-import { openRoute, TASKS_ROUTE } from '@/store/tabs'
+import { openScreen, TASKS_ROUTE } from '@/store/tabs'
 
 export { TASKS_ROUTE }
 
@@ -36,7 +36,7 @@ export function isTasksRoute(pageId: string | null | undefined): boolean {
 }
 
 export function openTasks(): void {
-  openRoute(TASKS_ROUTE)
+  openScreen(TASKS_ROUTE)
 }
 
 export function loadTasksScreen(): Promise<typeof import('./TasksScreen')> {

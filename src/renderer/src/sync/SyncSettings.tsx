@@ -227,7 +227,7 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
             <div className="ap-row">
               <div className="ap-row-text">
                 <span className="ap-row-label">Encrypt with a passphrase</span>
-                <span className="ap-row-help">Optional. The repository then holds nothing anyone can read without the passphrase.</span>
+                <span className="ap-row-help">Optional. The repository then holds nothing anyone can read without the passphrase, and your connected calendars sync too.</span>
               </div>
               <div className="ap-row-control">
                 <Segmented label="Encrypt with a passphrase" value={encrypt ? 'on' : 'off'} options={ON_OFF} onChange={(value) => setEncrypt(value === 'on')} />
@@ -573,7 +573,7 @@ function Encryption({ status, busy, working, onChange }: { status: SyncStatus; b
             ? 'Uploading everything again in its new form…'
             : status.encrypted
               ? `On. ${OPAQUE}`
-              : 'Off. Anyone who can open the repository can read your pages.'}
+              : 'Off. Anyone who can open the repository can read your pages. Connected calendars sync only when it is on.'}
         </span>
       </div>
       {!open && (
@@ -592,8 +592,9 @@ function Encryption({ status, busy, working, onChange }: { status: SyncStatus; b
           }}
         >
           <p className="sync-encrypt-note">
-            Everything is uploaded again{status.encrypted ? ' under the new passphrase' : ', encrypted'}. Your other devices will ask for the passphrase the next time they
-            sync. {LOST_PASSPHRASE}
+            Everything is uploaded again{status.encrypted ? ' under the new passphrase' : ', encrypted, with your connected calendars'}. Your other devices will ask for
+            the passphrase the next time they sync. {status.encrypted ? 'Turning encryption off removes your calendars from the repository. ' : ''}
+            {LOST_PASSPHRASE}
           </p>
           <input
             type="password"

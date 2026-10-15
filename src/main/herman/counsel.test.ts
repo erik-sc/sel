@@ -91,7 +91,7 @@ describe('what he notices', () => {
     expect(compose(base({ now: at(4, 30), firstLaunch: true }))).toBeNull()
     const evening = compose(base({ now: at(18) }))
     expect(evening).toMatchObject({ kind: 'evening', text: 'Enough for today. What is worth keeping?' })
-    expect(evening?.action?.command).toEqual({ type: 'ask', question: 'What is worth carrying over to tomorrow?' })
+    expect(evening?.action).toEqual({ label: 'Close the day', command: { type: 'close-day' } })
     expect(compose(base({ now: at(17, 29) }))).toBeNull()
     expect(compose(base({ now: at(22) }))).toBeNull()
   })

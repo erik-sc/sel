@@ -13,7 +13,22 @@ import { openTestRepository } from '../db/testing'
 import * as arg from '../validate'
 import { createEncryption, exportKeys, hiddenName, importKeys, keysMatch, open, seal, unlockEncryption, WrongKeyError } from './crypto'
 import { SyncEngine } from './engine'
-import { FormatError, mergeAppearance, parseAppearance, parseMeta, parsePage, parseRoot, serializeMeta, serializePage } from './format'
+import {
+  calendarKey,
+  FormatError,
+  mergeAppearance,
+  mergeCalendars,
+  parseAppearance,
+  parseCalendars,
+  parseMeta,
+  parsePage,
+  parseRoot,
+  serializeCalendars,
+  serializeMeta,
+  serializePage,
+  type CalendarsFile,
+  type SyncedCalendar
+} from './format'
 import { classifyGitFailure, configArgs, Git, GIT_FIXED_ENV, gitCandidates, gitEnv, inspectGit, isNonFastForward, locateGit, parseGitVersion, pinnedRepository } from './git'
 
 const ROOT = mkdtempSync(join(tmpdir(), 'sel-sync-sec-'))
@@ -560,5 +575,98 @@ describe('files read from a repository', () => {
     expect(mergeAppearance(base, local, remote)).toEqual(file(9, { light: { a: 'R', b: '2', c: '3' }, dark: { d: '4' }, shared: {}, customCss: 'local' }))
     expect(mergeAppearance(base, { ...local, updatedAt: 10 }, remote).value).toMatchObject({ light: { a: 'L', c: '3' } })
     expect(mergeAppearance(null, file(1, null), remote)).toBe(remote)
+  })
+
+  it('takes from a calendars file only https addresses of public hosts, and nothing else', () => {
+    const ok = 'https://calendar.google.com/calendar/ical/me/private-TOKEN/basic.ics'
+    const text = JSON.stringify({
+      format: 1,
+      calendars: [
+        { url: ok, label: ' Work\u0000 ', color: 'red', enabled: false, updatedAt: 5 },
+        { url: 'webcal://p01-caldav.icloud.com/published/2/abc', label: 'x'.repeat(500), color: 'chartreuse', updatedAt: -3 },
+        // Whatever the file says, these are refused: plain http, loopback (even the address a development build may read), private networks, local names.
+        { url: 'http://example.com/a.ics', label: 'http' },
+        { url: 'http://127.0.0.1:8080/a.ics', label: 'dev loopback' },
+        { url: 'https://127.0.0.1/a.ics', label: 'loopback' },
+        { url: 'https://[::1]/a.ics', label: 'v6 loopback' },
+        { url: 'https://localhost/a.ics', label: 'localhost' },
+        { url: 'https://192.168.1.2/a.ics', label: 'private' },
+        { url: 'https://printer.local/a.ics', label: 'mdns' },
+        { url: 'file:///etc/passwd', label: 'file' },
+        { url: 'https://user:pass@example.com/a.ics', label: 'credentials' },
+        { url: 42 },
+        'not an entry'
+      ],
+      removed: [{ key: 'a'.repeat(64), deletedAt: 9 }, { key: '../x', deletedAt: 1 }, { key: 'A'.repeat(64) }],
+      databases: { updatedAt: 7, value: ['db1', '../db', 'db1'] },
+      constructor: { prototype: { polluted: true } }
+    }).replace('{"url":"https://calendar.google.com', '{"__proto__":{"polluted":true},"url":"https://calendar.google.com')
+    expect(text).toContain('__proto__')
+    const parsed = parseCalendars(text)
+    expect(parsed.calendars).toEqual([
+      { url: ok, label: 'Work', color: 'red', enabled: false, updatedAt: 5 },
+      { url: 'https://p01-caldav.icloud.com/published/2/abc', label: 'x'.repeat(60), color: 'blue', enabled: true, updatedAt: 0 }
+    ])
+    expect(parsed.removed).toEqual([{ key: 'a'.repeat(64), deletedAt: 9 }])
+    // A list with one bad id is not taken at all.
+    expect(parsed.databases).toEqual({ updatedAt: 7, value: null })
+    expect(parseCalendars('{"format":1,"databases":{"updatedAt":3,"value":["db1","db1"]}}').databases).toEqual({ updatedAt: 3, value: ['db1'] })
+    expect(({} as { polluted?: boolean }).polluted).toBeUndefined()
+    for (const entry of parsed.calendars) expect(Object.keys(entry).sort()).toEqual(['color', 'enabled', 'label', 'updatedAt', 'url'])
+    // At most eight calendars, the most recently changed.
+    const many = Array.from({ length: 12 }, (_, i) => ({ url: `https://example.com/${i}.ics`, label: `c${i}`, updatedAt: i }))
+    expect(parseCalendars(JSON.stringify({ format: 1, calendars: many })).calendars.map((entry) => entry.label).sort()).toEqual(['c10', 'c11', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'])
+    for (const bad of ['x', '[]', '{}', '{"format":"1"}']) expect(() => parseCalendars(bad), bad).toThrow(FormatError)
+    expect(() => parseCalendars('{"format":9}')).toThrow(expect.objectContaining({ newer: true }))
+    // Round trip, canonical.
+    expect(parseCalendars(serializeCalendars(parsed))).toEqual(parsed)
+    expect(serializeCalendars(parsed)).toBe(serializeCalendars(parseCalendars(serializeCalendars(parsed))))
+  })
+
+  it('merges calendars three ways by address', () => {
+    const url = (name: string): string => `https://example.com/${name}.ics`
+    const cal = (name: string, updatedAt: number, extra: Partial<SyncedCalendar> = {}): SyncedCalendar => ({ url: url(name), label: name, color: 'blue', enabled: true, updatedAt, ...extra })
+    const gone = (name: string, deletedAt: number): { key: string; deletedAt: number } => ({ key: calendarKey(url(name)), deletedAt })
+    const file = (calendars: SyncedCalendar[], removed: { key: string; deletedAt: number }[] = [], databases: CalendarsFile['databases'] = { updatedAt: 0, value: null }): CalendarsFile => ({
+      calendars,
+      removed,
+      databases
+    })
+    const labels = (merged: CalendarsFile): string[] => merged.calendars.map((entry) => entry.label)
+
+    // No remote file: what is here.
+    const here = file([cal('a', 1)])
+    expect(mergeCalendars(null, here, null)).toBe(here)
+    // No base: the union, the later entry where both have one.
+    expect(labels(mergeCalendars(null, file([cal('a', 1), cal('b', 5, { label: 'mine' })]), file([cal('b', 7, { label: 'theirs' }), cal('c', 2)])))).toEqual(['a', 'theirs', 'c'])
+    expect(labels(mergeCalendars(null, file([cal('b', 9, { label: 'mine' })]), file([cal('b', 7, { label: 'theirs' })])))).toEqual(['mine'])
+    // Each field from the side that changed it.
+    const base = file([cal('a', 1)])
+    const merged = mergeCalendars(base, file([cal('a', 5, { label: 'Renamed here' })]), file([cal('a', 3, { color: 'red', enabled: false })]))
+    expect(merged.calendars).toEqual([{ url: url('a'), label: 'Renamed here', color: 'red', enabled: false, updatedAt: 5 }])
+    // Both changed the same field: the later edit.
+    expect(labels(mergeCalendars(base, file([cal('a', 5, { label: 'L' })]), file([cal('a', 8, { label: 'R' })])))).toEqual(['R'])
+    expect(labels(mergeCalendars(base, file([cal('a', 9, { label: 'L' })]), file([cal('a', 8, { label: 'R' })])))).toEqual(['L'])
+    // A removal wins over an older edit, and loses to a newer one.
+    expect(mergeCalendars(base, file([], [gone('a', 6)]), file([cal('a', 3, { label: 'edited' })]))).toEqual(file([], [gone('a', 6)]))
+    expect(labels(mergeCalendars(base, file([], [gone('a', 6)]), file([cal('a', 8, { label: 'edited later' })])))).toEqual(['edited later'])
+    expect(mergeCalendars(base, file([cal('a', 1)]), file([], [gone('a', 2)])).calendars).toEqual([])
+    // Missing is not removed: a device that lost its calendars takes them back, it does not delete them.
+    expect(labels(mergeCalendars(base, file([]), file([cal('a', 1)])))).toEqual(['a'])
+    expect(labels(mergeCalendars(base, file([cal('a', 1)]), file([])))).toEqual(['a'])
+    // Removed on both: one tombstone, the later.
+    expect(mergeCalendars(base, file([], [gone('a', 3)]), file([], [gone('a', 4)])).removed).toEqual([gone('a', 4)])
+    // Added again after a removal elsewhere.
+    expect(labels(mergeCalendars(file([], [gone('a', 3)]), file([cal('a', 5)]), file([], [gone('a', 3)])))).toEqual(['a'])
+    // Never more than the limit.
+    const nine = Array.from({ length: 9 }, (_, i) => cal(`n${i}`, i + 1))
+    expect(mergeCalendars(null, file(nine.slice(0, 5)), file(nine.slice(5))).calendars).toHaveLength(8)
+    // The task databases: the side that changed them, or the later change.
+    const dbs = (updatedAt: number, value: string[] | null): CalendarsFile['databases'] => ({ updatedAt, value })
+    const withDbs = (databases: CalendarsFile['databases']): CalendarsFile => file([], [], databases)
+    expect(mergeCalendars(withDbs(dbs(1, ['x'])), withDbs(dbs(1, ['x'])), withDbs(dbs(4, ['y']))).databases).toEqual(dbs(4, ['y']))
+    expect(mergeCalendars(withDbs(dbs(1, ['x'])), withDbs(dbs(3, ['z'])), withDbs(dbs(1, ['x']))).databases).toEqual(dbs(3, ['z']))
+    expect(mergeCalendars(withDbs(dbs(1, ['x'])), withDbs(dbs(6, ['z'])), withDbs(dbs(4, ['y']))).databases).toEqual(dbs(6, ['z']))
+    expect(mergeCalendars(null, withDbs(dbs(0, null)), withDbs(dbs(4, ['y']))).databases).toEqual(dbs(4, ['y']))
   })
 })

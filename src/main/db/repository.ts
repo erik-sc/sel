@@ -3,6 +3,7 @@ import { sanitizeViewCharts } from '../../shared/chart'
 import { sourceIdOf } from '../../shared/linked'
 import { relinkDuplicate } from '../../shared/relation'
 import { plainText } from '../../shared/richtext'
+import { dayOfEntryId, isDayWritable, NOTEBOOK_ENTRY_TYPE, NOTEBOOK_ID } from '../../shared/notebook'
 import { isSystemKind, systemSchemaProblem } from '../../shared/system'
 import type { Block, BlockProps, CreateBlockInput, DatabaseLocation, Op, SearchResult, UpdateBlockInput } from '../../shared/types'
 import {
@@ -307,7 +308,7 @@ export class Repository {
    * Checks `props.system` as it will be written. A built-in block is born at the workspace
    * root as a page or database and keeps its kind for good; ordinary blocks never become one.
    */
-  private checkSystem(props: BlockProps, type: string, parentId: string | null, before: string | null, isNew: boolean): void {
+  private checkSystem(props: BlockProps, type: string, parentId: string | null, before: string | null, isNew: boolean, id: string): void {
     const kind: unknown = props.system
     if (kind === undefined) {
       if (before !== null) throw new Error('A built-in database cannot stop being one')
@@ -318,6 +319,41 @@ export class Repository {
     if (!isNew && kind !== before) throw new Error('A built-in database cannot change its kind')
     if (!isPageLike(type)) throw new Error('A built-in block must be a page or database')
     if (parentId !== null) throw new Error('A built-in database lives at the workspace root')
+    // There is one notebook, the same block on every device (shared/notebook.ts).
+    if (kind === 'notebook' && (id !== NOTEBOOK_ID || type !== 'page')) throw new Error('The notebook is a page of its own')
+  }
+
+  // -------------------------------------------------------- the ink notebook
+  //
+  // Each day of the notebook is a block under its page, written while the day lasts and kept
+  // as it is afterwards (shared/notebook.ts). Like the rule above, this one lives here so that
+  // every writer keeps it; only applySync goes around it, to bring what another device wrote.
+
+  /** True when the block `parentId` is the notebook page. Costs a lookup only for its fixed id. */
+  private isNotebookPage(parentId: string | null): boolean {
+    if (parentId !== NOTEBOOK_ID) return false
+    const h = this.head(parentId)
+    return !!h && h.type === 'page' && this.systemOf(h.rid) === 'notebook'
+  }
+
+  /**
+   * Refuses a change to a day of the notebook that has ended, or to a block in the notebook
+   * that is not a day at all (nothing makes one but a damaged sync).
+   */
+  private assertDayOpen(id: string): void {
+    const day = dayOfEntryId(id)
+    if (day === null) throw new Error('The notebook holds one line a day and nothing else')
+    if (!isDayWritable(day, this.clock())) throw new Error('That day has ended: what it holds was written in ink and stays as it is')
+  }
+
+  /** A new block under `parentId`: in the notebook, only the block of a day that is still open. */
+  private checkNotebookChild(parent: Head, parentId: string, id: string, type: string): void {
+    if (this.isNotebookPage(parentId)) {
+      if (type !== NOTEBOOK_ENTRY_TYPE) throw new Error('The notebook holds one line a day and nothing else')
+      this.assertDayOpen(id)
+    } else if (this.isNotebookPage(parent.parent_id)) {
+      throw new Error('A day of the notebook holds its line and nothing else')
+    }
   }
 
   /** True for a database row that is a linked view (it owns no rows and is never trashed). */
@@ -616,9 +652,10 @@ export class Repository {
       const parent = this.head(parentId)
       if (!parent) throw new Error(`Block not found: ${parentId}`)
       this.assertHoldsChildren(parent)
+      this.checkNotebookChild(parent, parentId, id, input.type)
     }
     let props = chartProps(this.linkProps(id, input.type, mergeProps({}, input.props ?? {}), null, true))
-    this.checkSystem(props, input.type, parentId, null, true)
+    this.checkSystem(props, input.type, parentId, null, true, id)
     if (input.type === 'database' && props.sourceId === undefined) props = defaultDatabaseProps(props)
     const page = this.dirty(parentId)
     if (page !== null && !isPageLike(input.type)) this.versions.noteText(page, '', searchText(props))
@@ -651,11 +688,15 @@ export class Repository {
     if (r.parent_id === null && !isPageLike(type)) {
       throw new Error('A workspace-root block must stay a page or database')
     }
+    if (this.isNotebookPage(r.parent_id)) {
+      this.assertDayOpen(id)
+      if (type !== oldType) throw new Error('A day of the notebook stays a line')
+    }
     const linkedBefore = oldType === 'database' && typeof before.sourceId === 'string' ? before.sourceId : null
     let props = chartProps(this.linkProps(id, type, mergeProps(before, patch.props), linkedBefore, false))
     const systemBefore = isPageLike(oldType) && isSystemKind(before.system) ? before.system : null
     if (systemBefore !== null && type !== oldType) throw new Error('A built-in database cannot change its type')
-    this.checkSystem(props, type, r.parent_id, systemBefore, false)
+    this.checkSystem(props, type, r.parent_id, systemBefore, false, id)
     // The properties a built-in database is read by stay (deleting one or changing its type is refused).
     if (systemBefore !== null && patch.props && Object.hasOwn(patch.props, 'schema')) {
       const problem = systemSchemaProblem(systemBefore, props.schema)
@@ -712,6 +753,11 @@ export class Repository {
     if (b.trashed_at != null) throw new Error('Cannot move a block that is in the trash')
     // Reordering among the root pages is fine; leaving the root is not.
     if (parentId !== null && isPageLike(b.type)) this.assertNotSystem(b, 'moved into a page')
+    // The days of the notebook stay where they were written, and nothing joins them.
+    if (this.isNotebookPage(b.parent_id)) throw new Error('A day of the notebook stays where it was written')
+    if (parentId !== null && (this.isNotebookPage(parentId) || this.isNotebookPage(this.head(parentId)?.parent_id ?? null))) {
+      throw new Error('Nothing can be moved into the notebook')
+    }
     if (parentId === null) {
       if (!isPageLike(b.type)) throw new Error('Only pages and databases can live at the workspace root')
     } else {
@@ -749,6 +795,7 @@ export class Repository {
     const b = this.head(id)
     if (!b) return
     if (isPageLike(b.type)) this.assertNotSystem(b, 'deleted')
+    if (this.isNotebookPage(b.parent_id)) this.assertDayOpen(id)
     const page = this.dirty(b.parent_id)
     // A linked view holds no data: it is removed like an ordinary block, and its source is not touched.
     if (isPageLike(b.type) && !this.isLinked(b)) {
@@ -835,6 +882,8 @@ export class Repository {
         const parent = this.head(parentId)
         if (!parent) throw new Error(`Block not found: ${parentId}`)
         this.assertHoldsChildren(parent)
+        // A tree has new ids: it is never a day of the notebook.
+        if (this.isNotebookPage(parentId) || this.isNotebookPage(parent.parent_id)) throw new Error('Nothing can be added to the notebook but the line of a day')
       }
       this.dirty(parentId)
       const rootId = randomUUID()
@@ -929,6 +978,7 @@ export class Repository {
       const b = this.head(id)
       if (!b) return
       if (isPageLike(b.type)) this.assertNotSystem(b, 'deleted')
+      if (this.isNotebookPage(b.parent_id)) this.assertDayOpen(id)
       if (b.trashed_at == null) {
         this.dirty(b.parent_id)
         this.detach(b.parent_id, id)
@@ -1221,6 +1271,8 @@ export class Repository {
       const root = this.row(version.rootId)
       if (!root || !isPageLike(root.type)) throw new Error('The page of this version no longer exists')
       if (root.trashedAt !== null) throw new Error('This page is in the Trash. Restore it first.')
+      // Going back would rewrite days that have ended; a copy would be an ordinary page.
+      if (mode === 'replace' && this.isNotebookPage(root.id)) throw new Error('The notebook is written in ink: it cannot go back to an earlier version')
       const was = version.blocks[0]
       if (was.type !== root.type || (sourceIdOf(was) === null) !== (sourceIdOf(root) === null)) {
         throw new Error('This version was saved when the page was a different kind of block')
