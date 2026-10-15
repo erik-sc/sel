@@ -3,6 +3,7 @@ import { sanitizeViewCharts } from '../../shared/chart'
 import { sourceIdOf } from '../../shared/linked'
 import { relinkDuplicate } from '../../shared/relation'
 import { plainText } from '../../shared/richtext'
+import { isSystemKind } from '../../shared/system'
 import type { Block, BlockProps, CreateBlockInput, DatabaseLocation, Op, SearchResult, UpdateBlockInput } from '../../shared/types'
 import {
   canonicalJson,
@@ -285,6 +286,38 @@ export class Repository {
       | { source: unknown }
       | undefined
     return typeof r?.source === 'string' ? r.source : null
+  }
+
+  // ---------------------------------------------------------- built-in blocks
+
+  /** The `props.system` stored on the row `rid` when it names a built-in kind (shared/system.ts). */
+  private systemOf(rid: number): string | null {
+    const r = this.stmt("SELECT json_extract(props, '$.system') AS kind FROM blocks WHERE rid = ?").get(rid) as
+      | { kind: unknown }
+      | undefined
+    return isSystemKind(r?.kind) ? r.kind : null
+  }
+
+  /** Refuses to let a built-in block go: it is part of the app, not of the user's notes. */
+  private assertNotSystem(b: { rid: number }, action: string): void {
+    if (this.systemOf(b.rid) !== null) throw new Error(`A built-in database cannot be ${action}`)
+  }
+
+  /**
+   * Checks `props.system` as it will be written. A built-in block is born at the workspace
+   * root as a page or database and keeps its kind for good; ordinary blocks never become one.
+   */
+  private checkSystem(props: BlockProps, type: string, parentId: string | null, before: string | null, isNew: boolean): void {
+    const kind: unknown = props.system
+    if (kind === undefined) {
+      if (before !== null) throw new Error('A built-in database cannot stop being one')
+      return
+    }
+    if (!isSystemKind(kind)) throw new Error('Invalid built-in kind')
+    if (!isNew && before === null) throw new Error('An existing block cannot become a built-in database')
+    if (!isNew && kind !== before) throw new Error('A built-in database cannot change its kind')
+    if (!isPageLike(type)) throw new Error('A built-in block must be a page or database')
+    if (parentId !== null) throw new Error('A built-in database lives at the workspace root')
   }
 
   /** True for a database row that is a linked view (it owns no rows and is never trashed). */
@@ -585,6 +618,7 @@ export class Repository {
       this.assertHoldsChildren(parent)
     }
     let props = chartProps(this.linkProps(id, input.type, mergeProps({}, input.props ?? {}), null, true))
+    this.checkSystem(props, input.type, parentId, null, true)
     if (input.type === 'database' && props.sourceId === undefined) props = defaultDatabaseProps(props)
     const page = this.dirty(parentId)
     if (page !== null && !isPageLike(input.type)) this.versions.noteText(page, '', searchText(props))
@@ -619,6 +653,9 @@ export class Repository {
     }
     const linkedBefore = oldType === 'database' && typeof before.sourceId === 'string' ? before.sourceId : null
     let props = chartProps(this.linkProps(id, type, mergeProps(before, patch.props), linkedBefore, false))
+    const systemBefore = isPageLike(oldType) && isSystemKind(before.system) ? before.system : null
+    if (systemBefore !== null && type !== oldType) throw new Error('A built-in database cannot change its type')
+    this.checkSystem(props, type, r.parent_id, systemBefore, false)
     // A block that becomes a database, or stops being a linked view, needs a schema of its own.
     if (type === 'database' && props.sourceId === undefined && (oldType !== 'database' || linkedBefore !== null)) {
       props = defaultDatabaseProps(props)
@@ -668,6 +705,8 @@ export class Repository {
     const b = this.head(id)
     if (!b) throw new Error(`Block not found: ${id}`)
     if (b.trashed_at != null) throw new Error('Cannot move a block that is in the trash')
+    // Reordering among the root pages is fine; leaving the root is not.
+    if (parentId !== null && isPageLike(b.type)) this.assertNotSystem(b, 'moved into a page')
     if (parentId === null) {
       if (!isPageLike(b.type)) throw new Error('Only pages and databases can live at the workspace root')
     } else {
@@ -704,6 +743,7 @@ export class Repository {
     assertId(id)
     const b = this.head(id)
     if (!b) return
+    if (isPageLike(b.type)) this.assertNotSystem(b, 'deleted')
     const page = this.dirty(b.parent_id)
     // A linked view holds no data: it is removed like an ordinary block, and its source is not touched.
     if (isPageLike(b.type) && !this.isLinked(b)) {
@@ -807,6 +847,11 @@ export class Repository {
         stack.pop()
         assertType(frame.node.type)
         let props = chartProps(this.linkProps(frame.id, frame.node.type, mergeProps({}, frame.node.props ?? {}), null, true))
+        // Trees are imports, AI proposals and restored copies: none of them is the built-in block itself.
+        if (props.system !== undefined) {
+          props = { ...props }
+          delete props.system
+        }
         if (frame.node.type === 'database' && props.sourceId === undefined) props = defaultDatabaseProps(props)
         const now = this.now()
         this.insertRow({
@@ -878,6 +923,7 @@ export class Repository {
     this.transaction(() => {
       const b = this.head(id)
       if (!b) return
+      if (isPageLike(b.type)) this.assertNotSystem(b, 'deleted')
       if (b.trashed_at == null) {
         this.dirty(b.parent_id)
         this.detach(b.parent_id, id)
@@ -933,6 +979,8 @@ export class Repository {
           if (title.length || typeof props.sourceId !== 'string') props.title = [...title, [' (copy)']]
           delete props.favorite
         }
+        // A copy of a built-in database is an ordinary one: there is only ever one of each.
+        delete props.system
         const now = this.now()
         copies.push({
           id: frame.id,

@@ -152,7 +152,7 @@ function normalizeFilters(raw: unknown, schema: Schema): ViewFilter[] {
     if (!prop || !ruleOperatorsOf(prop, schema).includes(operator)) continue
     const filter: ViewFilter = { propertyId: prop.id, operator }
     if (operatorNeedsValue(operator)) {
-      const value = ruleValueOf(prop, f.value, schema)
+      const value = ruleValueOf(prop, f.value, schema, operator)
       // Keep the stored shape (e.g. a single option id) when it is already fine.
       if (value !== undefined) filter.value = sameValue(value, f.value) || sameValue([f.value], value) ? (f.value as ViewFilter['value']) : value
     }

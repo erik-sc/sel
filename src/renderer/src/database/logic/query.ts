@@ -6,13 +6,15 @@ import type {
   PropertySchema,
   PropertyType,
   PropertyValue,
+  RelativeDate,
   SelectOption,
   ViewFilter,
   ViewSort
 } from '../../../../shared/types'
+import { RELATIVE_DATES } from '../../../../shared/types'
 import { relationIds } from '../../../../shared/relation'
 import { cellText, filterTypeOf, readCell } from './cell'
-import { MAX_RANGE_DAYS, addDays, dayKey, formatDay, isDateValue } from './dates'
+import { MAX_RANGE_DAYS, addDays, dayKey, formatDay, inSpan, isDateValue, momentKey, relativeSpan, todayISO } from './dates'
 import type { CellContext } from './relation'
 import {
   findOption,
@@ -38,10 +40,10 @@ const OPERATORS: Record<PropertyType, FilterOperator[]> = {
   number: ['equals', 'not_equals', 'gt', 'lt', 'is_empty', 'is_not_empty'],
   select: ['equals', 'not_equals', 'is_empty', 'is_not_empty'],
   multi_select: ['contains', 'not_contains', 'is_empty', 'is_not_empty'],
-  date: ['equals', 'lt', 'gt', 'is_empty', 'is_not_empty'],
+  date: ['equals', 'date_is', 'lt', 'gt', 'is_empty', 'is_not_empty'],
   checkbox: ['checked', 'unchecked'],
-  created_time: ['equals', 'lt', 'gt'],
-  last_edited_time: ['equals', 'lt', 'gt'],
+  created_time: ['equals', 'date_is', 'lt', 'gt'],
+  last_edited_time: ['equals', 'date_is', 'lt', 'gt'],
   relation: ['contains', 'not_contains', 'is_empty', 'is_not_empty'],
   // A rollup filters as what it gives (`filterTypeOf`); these are the operators of a count.
   rollup: ['equals', 'not_equals', 'gt', 'lt', 'is_empty', 'is_not_empty'],
@@ -72,8 +74,31 @@ const FORMULA_RULE_OPERATORS: FilterOperator[] = [
   ...new Set([...OPERATORS.number, ...OPERATORS.text, ...OPERATORS.checkbox, ...OPERATORS.date])
 ]
 
+/** True for the name of a span of days `date_is` understands. */
+export function isRelativeDate(value: unknown): value is RelativeDate {
+  return typeof value === 'string' && (RELATIVE_DATES as readonly string[]).includes(value)
+}
+
+const RELATIVE_LABELS: Record<RelativeDate, string> = {
+  today: 'Today',
+  tomorrow: 'Tomorrow',
+  yesterday: 'Yesterday',
+  overdue: 'Before today',
+  by_today: 'Today or before',
+  next_7_days: 'Next 7 days',
+  past_7_days: 'Past 7 days',
+  this_week: 'This week',
+  next_week: 'Next week',
+  this_month: 'This month'
+}
+
+export function relativeDateLabel(name: RelativeDate): string {
+  return RELATIVE_LABELS[name]
+}
+
 /** The value a stored rule keeps: for a formula any text or number (what it means depends on what the formula gives). */
-export function ruleValueOf(prop: PropertySchema, value: unknown, schema?: Schema): PropertyValue | undefined {
+export function ruleValueOf(prop: PropertySchema, value: unknown, schema?: Schema, operator?: FilterOperator): PropertyValue | undefined {
+  if (operator === 'date_is') return isRelativeDate(value) ? value : undefined
   if (prop.type !== 'formula') return filterValueFor(prop, value, schema)
   if (typeof value === 'number') return isFinite(value) ? value : undefined
   return typeof value === 'string' && value.trim() !== '' ? value : undefined
@@ -111,6 +136,8 @@ export function operatorLabel(op: FilterOperator, type: PropertyType): string {
       return 'is checked'
     case 'unchecked':
       return 'is not checked'
+    case 'date_is':
+      return 'is within'
   }
 }
 
@@ -174,6 +201,15 @@ export function matchesFilter(row: Block, prop: PropertySchema, filter: ViewFilt
       return v === true
     case 'unchecked':
       return v !== true
+    case 'date_is': {
+      // A span relative to today; an unknown name is an incomplete rule and filters nothing out.
+      const span = relativeSpan(filter.value, todayISO())
+      if (!span) return true
+      const start = dayKey(v)
+      if (!start) return false
+      const end = isDateValue(v) && v.end ? (dayKey(v.end) ?? start) : start
+      return inSpan(start, end < start ? start : end, span)
+    }
   }
   const fv = filterValueFor(prop, filter.value, schema)
   // An incomplete rule (no value typed yet) does not filter anything out.
@@ -273,6 +309,12 @@ export function defaultsFromFilters(schema: Schema, filters: ViewFilter[] | unde
       else if (f.operator === 'unchecked') delete out.values[prop.id]
       continue
     }
+    if (f.operator === 'date_is') {
+      // A row added under "Due is within this week" is due today: the first day that is in it, from today on.
+      const day = prop.type === 'date' ? firstDayFrom(relativeSpan(f.value, todayISO()), todayISO()) : null
+      if (day) out.values[prop.id] = { start: day }
+      continue
+    }
     const fv = filterValueFor(prop, f.value, schema)
     if (fv === undefined) continue
     switch (prop.type) {
@@ -314,6 +356,13 @@ export function defaultsFromFilters(schema: Schema, filters: ViewFilter[] | unde
   return out
 }
 
+/** Today when a span holds it, else the span's first day when that is still to come; null otherwise. */
+function firstDayFrom(span: { from?: string; to?: string; whole?: boolean } | null, today: string): string | null {
+  if (!span) return null
+  if (inSpan(today, today, span)) return today
+  return span.from !== undefined && span.from > today ? span.from : null
+}
+
 // ---------------------------------------------------------------------------
 // Sorts
 // ---------------------------------------------------------------------------
@@ -340,7 +389,8 @@ function sortKey(row: Block, prop: PropertySchema, ctx?: CellContext): SortKey {
       return idx.length ? idx : null
     }
     case 'date':
-      return dayKey(v)
+      // Time order: a day without a time first, then that day's times.
+      return momentKey(v)
     case 'number':
     case 'created_time':
     case 'last_edited_time':
