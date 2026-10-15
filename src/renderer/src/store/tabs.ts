@@ -32,6 +32,8 @@ export const TODAY_ROUTE = '_today'
 export const CALENDAR_ROUTE = '_calendar'
 /** The ink notebook (see notebook/route.ts). */
 export const NOTEBOOK_ROUTE = '_notebook'
+/** The ritual that closes the day, likewise. */
+export const CLOSE_ROUTE = '_close'
 /** The shape of every block id (the backend enforces the same). */
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 
@@ -273,6 +275,7 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
       alive.add(TODAY_ROUTE)
       alive.add(CALENDAR_ROUTE)
       alive.add(NOTEBOOK_ROUTE)
+      alive.add(CLOSE_ROUTE)
       restored.tabs = restored.tabs.filter((t) => {
         const page = tabPage(t)
         return page !== null && alive.has(page)

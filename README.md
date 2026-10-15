@@ -22,6 +22,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Keep a line a day.** The ink notebook holds one line for each day, a short paragraph at most. Today's can be rewritten until midnight; after that it stays as it was, and nothing in the app can change it. Under today's line, the same date in earlier years: "1 year ago you wrote…". Its days sync between your devices like any page. `Ctrl+Alt+N` opens it.
 
+**Close the day.** In the evening Herman may offer to close the day, or you can from the sidebar. One quiet screen, in four steps: what happened (the tasks you finished, the pages you wrote in), what is worth keeping (it becomes today's line in the notebook), up to three things for tomorrow (they wait at the top of Today in the morning), and the close: the window dims to "Until tomorrow" with a soft bell, and any key brings it back. No streaks, no scores. Settings → Today turns the bell off.
+
 **Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. The audio never leaves the computer.
 
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.

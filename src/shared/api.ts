@@ -207,8 +207,8 @@ export interface Api {
   herman: HermanApi
 
   /**
-   * The ink notebook: one line a day, written while the day lasts and kept as it is after.
-   * Stored as blocks, so it syncs. See shared/notebook.ts.
+   * The ink notebook: one line a day, written while the day lasts and kept as it is after, and
+   * the ritual that closes the day. Stored as blocks, so it syncs. See shared/notebook.ts.
    */
   notebook: NotebookApi
 
@@ -271,6 +271,7 @@ export type MenuCommand =
   | 'open-today'
   | 'open-calendar'
   | 'open-notebook'
+  | 'close-day'
   | 'new-meeting'
   | 'send-feedback'
   | 'command-palette'
@@ -399,6 +400,9 @@ export const INVOKE = {
 
   'notebook:get': true,
   'notebook:write': true,
+  'notebook:plan': true,
+  'notebook:dismissPlans': true,
+  'notebook:review': true,
 
   'feedback:list': true,
   'feedback:create': true,

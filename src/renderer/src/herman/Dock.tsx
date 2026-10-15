@@ -9,6 +9,7 @@ import type { HermanCommand, HermanCorner, HermanFeedback, HermanNudge, HermanSt
 import { toggleAssistant, useAiGate } from '@/ai/gate'
 import { openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
+import { openCloseDay } from '@/notebook/route'
 import { getBlock } from '@/store/blocks'
 import { activeTab, isBlockId, openPage, tabPage, useTabs } from '@/store/tabs'
 import { setSettingsOpen, useUi } from '@/store/ui'
@@ -368,6 +369,9 @@ export function Dock(): JSX.Element | null {
     switch (command.type) {
       case 'open-today':
         openToday()
+        break
+      case 'close-day':
+        openCloseDay()
         break
       case 'open-page':
         if (isBlockId(command.pageId)) openPage(command.pageId)

@@ -83,3 +83,107 @@ export function weekdayShort(day: string, locale: NotebookLocale): string {
   if (!year || !month || !date) return ''
   return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(year, month - 1, date))
 }
+
+// ---- closing the day ------------------------------------------------------------
+
+export interface CloseCopy {
+  title: string
+  /** The four steps, as the step marks name them. */
+  steps: [string, string, string, string]
+  stepOf: (step: number, total: number) => string
+  happenedTitle: string
+  done: string
+  edited: string
+  quietDay: string
+  keepTitle: string
+  keepHelp: string
+  keepReplace: string
+  keepPlaceholder: string
+  tomorrowTitle: string
+  tomorrowHelp: string
+  tomorrowPlaceholders: [string, string, string]
+  closeTitle: string
+  closeHelp: string
+  closeButton: string
+  next: string
+  back: string
+  rest: string
+  restHint: string
+  closed: string
+  closedHelp: string
+  openNotebook: string
+  failed: string
+  ended: string
+  loadFailed: string
+  tryAgain: string
+  /** On the Today screen, above what was set aside the evening before. */
+  plansLabel: string
+  plansDismiss: string
+}
+
+export const CLOSE_COPY: Record<NotebookLocale, CloseCopy> = {
+  en: {
+    title: 'Close the day',
+    steps: ['What happened', 'Worth keeping', 'Tomorrow', 'Close'],
+    stepOf: (step, total) => `Step ${step} of ${total}`,
+    happenedTitle: 'What happened today',
+    done: 'Done',
+    edited: 'Written in',
+    quietDay: 'A quiet day: nothing marked done, no page touched. That counts too.',
+    keepTitle: 'What is worth keeping?',
+    keepHelp: 'One line. It goes into the ink notebook as today’s line.',
+    keepReplace: 'Today already has a line. Writing here replaces it, while the day is still open.',
+    keepPlaceholder: 'The thing worth keeping…',
+    tomorrowTitle: 'Up to three things for tomorrow',
+    tomorrowHelp: 'They will wait at the top of Today tomorrow morning.',
+    tomorrowPlaceholders: ['First thing', 'Second', 'Third'],
+    closeTitle: 'Ready to close the day',
+    closeHelp: 'The window will rest. Any key or click brings it back.',
+    closeButton: 'Close the day',
+    next: 'Continue',
+    back: 'Back',
+    rest: 'Until tomorrow',
+    restHint: 'Press any key to come back',
+    closed: 'The day is closed.',
+    closedHelp: 'Nothing more is asked of it.',
+    openNotebook: 'Open the notebook',
+    failed: 'This could not be kept. Try again in a moment.',
+    ended: 'The day ended while you were closing it. Its line stays as it was.',
+    loadFailed: 'The day could not be read.',
+    tryAgain: 'Try again',
+    plansLabel: 'Set aside last night',
+    plansDismiss: 'Put away'
+  },
+  'pt-BR': {
+    title: 'Fechar o dia',
+    steps: ['O que aconteceu', 'O que guardar', 'Amanhã', 'Fechar'],
+    stepOf: (step, total) => `Passo ${step} de ${total}`,
+    happenedTitle: 'O que aconteceu hoje',
+    done: 'Feito',
+    edited: 'Escrito em',
+    quietDay: 'Um dia quieto: nada marcado como feito, nenhuma página mexida. Isso também conta.',
+    keepTitle: 'O que vale guardar?',
+    keepHelp: 'Uma linha. Ela vai para o caderno de tinta como a linha de hoje.',
+    keepReplace: 'Hoje já tem uma linha. Escrever aqui a substitui, enquanto o dia ainda está aberto.',
+    keepPlaceholder: 'O que vale guardar…',
+    tomorrowTitle: 'Até três coisas para amanhã',
+    tomorrowHelp: 'Elas vão esperar no alto de Hoje, amanhã cedo.',
+    tomorrowPlaceholders: ['Primeira coisa', 'Segunda', 'Terceira'],
+    closeTitle: 'Pronto para fechar o dia',
+    closeHelp: 'A janela vai descansar. Qualquer tecla ou clique a traz de volta.',
+    closeButton: 'Fechar o dia',
+    next: 'Continuar',
+    back: 'Voltar',
+    rest: 'Até amanhã',
+    restHint: 'Aperte qualquer tecla para voltar',
+    closed: 'O dia está fechado.',
+    closedHelp: 'Nada mais é pedido dele.',
+    openNotebook: 'Abrir o caderno',
+    failed: 'Não foi possível guardar. Tente de novo daqui a pouco.',
+    ended: 'O dia acabou enquanto você o fechava. A linha dele fica como estava.',
+    loadFailed: 'Não foi possível ler o dia.',
+    tryAgain: 'Tentar de novo',
+    plansLabel: 'Deixado ontem à noite',
+    plansDismiss: 'Dispensar'
+  }
+}

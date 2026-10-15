@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bellOn,
   cleanLine,
+  cleanNotebookSetting,
+  cleanPlans,
   dayOfEntryId,
   entryId,
   isDay,
@@ -12,7 +15,7 @@ import {
   type NotebookEntry
 } from './notebook'
 
-const entry = (day: string, text = `line of ${day}`): NotebookEntry => ({ day, text, updatedAt: 0 })
+const entry = (day: string, text = `line of ${day}`): NotebookEntry => ({ day, text, plans: [], plansDismissed: false, updatedAt: 0 })
 
 describe('days', () => {
   it('are real calendar days written YYYY-MM-DD', () => {
@@ -52,10 +55,19 @@ describe('a line', () => {
     expect(cleanLine(null)).toBe('')
   })
 
-  it('is read back from a day block as plain text', () => {
-    const block = { id: entryId('2026-10-15'), props: { title: [['walked ', [['b']]], ['home']] }, updatedAt: 5 }
-    expect(readEntry(block as never)).toEqual({ day: '2026-10-15', text: 'walked home', updatedAt: 5 })
+  it('is read back from a day block, plans and all', () => {
+    const block = { id: entryId('2026-10-15'), props: { title: [['walked ', [['b']]], ['home']], plans: ['call Ana', '', 7, 'tea'], plansDismissed: true }, updatedAt: 5 }
+    expect(readEntry(block as never)).toEqual({ day: '2026-10-15', text: 'walked home', plans: ['call Ana', 'tea'], plansDismissed: true, updatedAt: 5 })
     expect(readEntry({ id: 'other', props: {}, updatedAt: 0 })).toBeNull()
+  })
+})
+
+describe('plans for tomorrow', () => {
+  it('are at most three short lines, blanks dropped', () => {
+    expect(cleanPlans(['one', '  ', 'two', 'three', 'four'])).toEqual(['one', 'two', 'three'])
+    expect(cleanPlans(['a\nb'])).toEqual(['a b'])
+    expect(cleanPlans(['y'.repeat(400)])[0]).toHaveLength(160)
+    expect(cleanPlans('one')).toEqual([])
   })
 })
 
@@ -81,5 +93,16 @@ describe('on this day', () => {
     // A leap year has its own 29th: the 28th answers only for itself.
     expect(onThisDay(leap, '2028-02-28').map((f) => f.entry.day)).toEqual(['2025-02-28', '2024-02-28'])
     expect(onThisDay(leap, '2028-02-29').map((f) => f.entry.day)).toEqual(['2024-02-29'])
+  })
+})
+
+describe('the bell setting', () => {
+  it('is a boolean, on unless turned off', () => {
+    expect(cleanNotebookSetting('notebook.bell', false)).toBe(false)
+    expect(cleanNotebookSetting('notebook.bell', 'no')).toBeUndefined()
+    expect(cleanNotebookSetting('notebook.other', true)).toBeUndefined()
+    expect(bellOn(null)).toBe(true)
+    expect(bellOn(false)).toBe(false)
+    expect(bellOn('junk')).toBe(true)
   })
 })

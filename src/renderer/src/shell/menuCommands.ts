@@ -18,7 +18,7 @@ import { setFocusMode, setHistoryPage, setQuickFindOpen, setSettingsOpen, toggle
 import { createPage, reportError } from './actions'
 import { toggleAssistant, useAiGate } from '@/ai/gate'
 import { openCalendar, openToday } from '@/briefing/route'
-import { openNotebook } from '@/notebook/route'
+import { openCloseDay, openNotebook } from '@/notebook/route'
 import { newMeeting } from '@/meetings/gate'
 import { openFind } from './findStore'
 import { openFeedback } from '@/feedback/gate'
@@ -95,6 +95,9 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       break
     case 'open-notebook':
       openNotebook()
+      break
+    case 'close-day':
+      openCloseDay()
       break
     case 'new-meeting':
       void newMeeting()

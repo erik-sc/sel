@@ -211,3 +211,67 @@ describe('two devices', () => {
     expect(result.blocks.get(entryId('2026-10-15'))?.props['title']).toEqual([['evening version']])
   })
 })
+
+describe('things set aside for tomorrow', () => {
+  it('go onto tomorrow’s day, come back the next morning and are put away there', () => {
+    notebook.write('2026-10-15', 'closed the day')
+    const planned = notebook.plan('2026-10-16', ['  call Ana ', '', 'buy bread', 'fix the bike', 'a fourth'])
+    expect(planned).toMatchObject({ day: '2026-10-16', text: '', plans: ['call Ana', 'buy bread', 'fix the bike'], plansDismissed: false })
+    // Tomorrow's block holds no line yet: the notebook does not list it.
+    expect(notebook.get().entries.map((e) => e.day)).toEqual(['2026-10-15'])
+    expect(notebook.review().tomorrowPlans).toEqual(['call Ana', 'buy bread', 'fix the bike'])
+
+    clock.t = at(16, 7)
+    const morning = notebook.get()
+    expect(morning.todayEntry).toMatchObject({ day: '2026-10-16', plans: ['call Ana', 'buy bread', 'fix the bike'], plansDismissed: false })
+    notebook.dismissPlans('2026-10-16')
+    expect(notebook.get().todayEntry).toMatchObject({ plans: ['call Ana', 'buy bread', 'fix the bike'], plansDismissed: true })
+    // The day's line is still written on the same block.
+    expect(notebook.write('2026-10-16', 'a new day').plans).toEqual(['call Ana', 'buy bread', 'fix the bike'])
+
+    // Once the 16th has ended, its plans are ink like its line.
+    clock.t = at(17)
+    expect(() => notebook.plan('2026-10-16', ['too late'])).toThrow(/has ended/)
+    expect(() => repo.update(entryId('2026-10-16'), { props: { plansDismissed: null } } as never)).toThrow(/has ended/)
+    expect(() => notebook.dismissPlans('2026-10-16')).not.toThrow()
+  })
+
+  it('are replaced by a second closing and taken back by an empty one', () => {
+    notebook.plan('2026-10-16', ['one', 'two'])
+    expect(notebook.plan('2026-10-16', ['three']).plans).toEqual(['three'])
+    expect(notebook.plan('2026-10-16', ['', ' ']).plans).toEqual([])
+    expect(notebook.review().tomorrowPlans).toEqual([])
+  })
+
+  it('make nothing when there is nothing to set aside', () => {
+    notebook.plan('2026-10-16', [])
+    expect(repo.get(entryId('2026-10-16'))).toBeNull()
+    expect(() => notebook.plan('2026-10-16', 'one' as never)).toThrow(/Invalid plans/)
+    expect(() => notebook.plan('2026-10-14', ['late'])).toThrow(/has ended/)
+  })
+})
+
+describe('the review of the day', () => {
+  it('reads the tasks done and the pages written today from the workspace', () => {
+    clock.t = at(15, 8)
+    const db = repo.create({
+      type: 'database',
+      parentId: null,
+      props: { title: [['Tasks']], schema: { title: { id: 'title', name: 'Name', type: 'title' }, done: { id: 'done', name: 'Done', type: 'checkbox' } } }
+    })
+    const row = repo.create({ type: 'page', parentId: db.id, props: { title: [['Post the letter']], values: { done: false } } })
+    const page = repo.create({ type: 'page', parentId: null, props: { title: [['Garden plan']] } })
+    clock.t = at(15, 18)
+    repo.update(row.id, { props: { values: { done: true } } })
+    repo.create({ type: 'to_do', parentId: page.id, props: { title: [['Buy seeds']], checked: true } })
+    notebook.write('2026-10-15', 'the garden, at last')
+    const review = notebook.review()
+    expect(review).toMatchObject({ locale: 'en', today: '2026-10-15', line: 'the garden, at last', tomorrowPlans: [] })
+    expect(review.completed.map((item) => item.title)).toEqual(['Buy seeds', 'Post the letter'])
+    expect(review.edited.map((item) => item.title)).toEqual(['Garden plan'])
+
+    // The next day, yesterday's work is not today's.
+    clock.t = at(16, 9)
+    expect(notebook.review()).toMatchObject({ completed: [], edited: [], line: '' })
+  })
+})

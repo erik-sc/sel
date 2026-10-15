@@ -55,7 +55,7 @@ const SETTINGS: [SettingsSection, string, string[]][] = [
   ['ai', 'AI', ['claude', 'assistant']],
   ['herman', 'Herman', ['assistant', 'council']],
   ['sync', 'Sync', ['git', 'devices', 'backup']],
-  ['today', 'Today', ['calendar', 'briefing']],
+  ['today', 'Today', ['calendar', 'briefing', 'bell', 'close the day']],
   ['meetings', 'Meetings', ['recording', 'transcription', 'whisper']]
 ]
 
@@ -74,6 +74,7 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('open-today', 'Today', ['briefing', 'agenda', 'tasks']),
   menu('open-calendar', 'Calendar', ['events', 'schedule', 'agenda']),
   menu('open-notebook', 'Ink notebook', ['journal', 'diary', 'line a day', 'caderno de tinta', 'diário', 'on this day']),
+  menu('close-day', 'Close the day', ['evening', 'end', 'review', 'tomorrow', 'shutdown', 'fechar o dia', 'até amanhã']),
   menu('new-meeting', 'New meeting', ['record', 'transcribe', 'call']),
   menu('toggle-assistant', 'Herman, the assistant', ['ai', 'ask', 'chat', 'claude'], aiEnabled),
   menu('new-tab', 'New tab'),

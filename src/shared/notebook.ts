@@ -1,7 +1,7 @@
 /**
- * The ink notebook ("Caderno de tinta"): one line a day. Shared by the main process, which
- * stores the notebook and keeps its rules, and the renderer, which shows it. Pure: no Electron,
- * no DOM, no store.
+ * The ink notebook ("Caderno de tinta"): one line a day, and the ritual that closes the day.
+ * Shared by the main process, which stores the notebook and keeps its rules, and the renderer,
+ * which shows it. Pure: no Electron, no DOM, no store.
  *
  * The notebook is one built-in page (`props.system: 'notebook'`, see ./system.ts) with a fixed
  * id, so that two devices that start it on their own make the same block and sync merges them
@@ -10,6 +10,9 @@
  * again after; the repository refuses every other change (see the notebook section of Repository), so the
  * rule holds for the window, the assistant's tools and anything else that writes, and only a
  * sync, which brings what another device wrote that same day, goes around it.
+ *
+ * A day's block may also carry `plans`: up to three things the day before set aside for it when
+ * it was closed. They show on the Today screen until they are put away (`plansDismissed`).
  */
 
 import { localDay } from './briefing'
@@ -24,12 +27,16 @@ export const NOTEBOOK_ENTRY_TYPE = 'text'
 
 export const NOTEBOOK_LIMITS = {
   /** A line is a short paragraph at most. */
-  line: 600
+  line: 600,
+  plans: 3,
+  plan: 160,
+  /** Pages and completed tasks the closing ritual lists. */
+  review: 8
 } as const
 
 export const NOTEBOOK_TITLES = { en: 'Ink notebook', 'pt-BR': 'Caderno de tinta' } as const
 
-/** The languages the notebook is written in (the same as Herman's). */
+/** The languages the notebook and the ritual are written in (the same as Herman's). */
 export type NotebookLocale = 'en' | 'pt-BR'
 
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -79,8 +86,11 @@ export function dayOfEntryId(id: unknown): string | null {
 /** A day of the notebook as the windows see it. */
 export interface NotebookEntry {
   day: string
-  /** The line, as plain text. */
+  /** The line, as plain text. Empty when the day has only plans. */
   text: string
+  /** What the day before set aside for this one. */
+  plans: string[]
+  plansDismissed: boolean
   updatedAt: number
 }
 
@@ -101,6 +111,25 @@ export function cleanLine(value: unknown): string {
   )
 }
 
+/** Up to three plans, each a short line; blank ones are dropped. */
+export function cleanPlans(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const out: string[] = []
+  for (const item of value.slice(0, 20) as unknown[]) {
+    if (typeof item !== 'string') continue
+    const text = item
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001f\u007f]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, NOTEBOOK_LIMITS.plan)
+      .trim()
+    if (text) out.push(text)
+    if (out.length >= NOTEBOOK_LIMITS.plans) break
+  }
+  return out
+}
+
 function plain(title: unknown): string {
   if (!Array.isArray(title)) return ''
   let out = ''
@@ -117,9 +146,12 @@ export function lineTitle(text: string): RichText {
 export function readEntry(block: { id: string; props: BlockProps; updatedAt: number }): NotebookEntry | null {
   const day = dayOfEntryId(block.id)
   if (day === null) return null
+  const props = block.props as BlockProps & { plans?: unknown; plansDismissed?: unknown }
   return {
     day,
-    text: cleanLine(plain(block.props.title)),
+    text: cleanLine(plain(props.title)),
+    plans: cleanPlans(props.plans),
+    plansDismissed: props.plansDismissed === true,
     updatedAt: typeof block.updatedAt === 'number' ? block.updatedAt : 0
   }
 }
@@ -163,11 +195,31 @@ export interface NotebookView {
   locale: NotebookLocale
   /** The local day of this computer. */
   today: string
-  /** Today's block, when there is one. */
+  /** Today's block, when there is one (it may have plans and no line yet). */
   todayEntry: NotebookEntry | null
   /** Every day with a line, the most recent first. Today's is among them once written. */
   entries: NotebookEntry[]
   onThisDay: OnThisDay[]
+}
+
+/** A completed task as the closing ritual lists it. */
+export interface DayReviewItem {
+  id: string
+  title: string
+  /** The page to open: the row itself, or the page a to-do is on. */
+  pageId: string
+}
+
+/** What happened today, as far as the workspace knows: read-only, and short. */
+export interface DayReview {
+  locale: NotebookLocale
+  today: string
+  completed: DayReviewItem[]
+  /** Pages edited today, the most recent first. */
+  edited: DayReviewItem[]
+  /** Today's line, when it has one, and tomorrow's plans when they were set already. */
+  line: string
+  tomorrowPlans: string[]
 }
 
 export interface NotebookApi {
@@ -178,4 +230,33 @@ export interface NotebookApi {
    * line takes it back. Starts the notebook the first time.
    */
   write(day: string, text: string): Promise<NotebookEntry>
+  /** Sets the things set aside for `day`, a day to come (tomorrow, from the closing ritual). */
+  plan(day: string, items: string[]): Promise<NotebookEntry>
+  /** Puts away today's plans: the Today screen stops showing them. */
+  dismissPlans(day: string): Promise<void>
+  /** What happened today, for the first step of closing the day. */
+  review(): Promise<DayReview>
+}
+
+// ---- settings -----------------------------------------------------------------
+
+/** Whether closing the day rings a soft bell. On unless turned off. */
+export const NOTEBOOK_BELL_KEY = 'notebook.bell'
+/** The keys a renderer may write. */
+export const NOTEBOOK_KEYS = [NOTEBOOK_BELL_KEY] as const
+export type NotebookKey = (typeof NOTEBOOK_KEYS)[number]
+
+/** The value a notebook setting accepts from a renderer, or undefined when it does not. */
+export function cleanNotebookSetting(key: string, value: unknown): unknown {
+  switch (key) {
+    case NOTEBOOK_BELL_KEY:
+      return typeof value === 'boolean' ? value : undefined
+    default:
+      return undefined
+  }
+}
+
+/** The bell rings unless the user turned it off. */
+export function bellOn(stored: unknown): boolean {
+  return cleanNotebookSetting(NOTEBOOK_BELL_KEY, stored) !== false
 }
