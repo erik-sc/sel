@@ -54,6 +54,7 @@ export interface SyncHooks {
 
 const SYNC_URL_KEY = 'sync.remoteUrl'
 const APPEARANCE_SETTING = 'appearance'
+const BRIEFING_DATABASES_SETTING = 'briefing.databases'
 
 export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHooks {
   const changes = new ChangeFeed((change: ChangeEvent) => {
@@ -188,6 +189,11 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
         repo.setSetting('sync.appearanceAt', Date.now())
         syncBridge?.noteLocalChange()
       }
+      // So are the databases Today takes its tasks from, with the calendars.
+      if (key === BRIEFING_DATABASES_SETTING) {
+        repo.setSetting('sync.briefingAt', Date.now())
+        syncBridge?.noteLocalChange()
+      }
       // Which program runs, and whether any does, is decided by these: the cached answer is stale.
       if (key.startsWith('ai.')) aiBridge?.service.invalidate()
       // The update check was turned on or off: its timer follows.
@@ -229,7 +235,11 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // `sync` that no window has.
   let syncBridge: SyncBridge | null = null
   const sync = async (): Promise<SyncBridge> =>
-    (syncBridge ??= new (await import('./sync')).SyncBridge(repo, () => changes.add('sync', repo.drainChanges(), repo.drainResets())))
+    (syncBridge ??= new (await import('./sync')).SyncBridge(
+      repo,
+      () => changes.add('sync', repo.drainChanges(), repo.drainResets()),
+      () => briefing.calendarSync()
+    ))
   app.on('will-quit', () => syncBridge?.dispose())
   const syncHandlers: Handlers<'sync'> = {
     'sync:status': async () => (await sync()).status(),
@@ -249,7 +259,9 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     repo,
     ai,
     onTaskCompleted: (sender) => herman?.taskCompleted(sender),
-    onTaskUncompleted: () => herman?.taskUncompleted()
+    onTaskUncompleted: () => herman?.taskUncompleted(),
+    // Calendars are synced (into an encrypted repository only): a change here is one to upload.
+    onCalendarsChanged: () => syncBridge?.noteLocalChange()
   })
 
   // ---- meetings (recording, local transcription; see ./meetings). What a transcription writes

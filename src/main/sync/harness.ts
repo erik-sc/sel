@@ -11,6 +11,7 @@ import { afterAll, describe, expect, vi } from 'vitest'
 import type { SyncStatus } from '../../shared/sync'
 import type { Block, RichText } from '../../shared/types'
 import type { Repository } from '../db/repository'
+import { calendarSync, CalendarStore, type Cipher } from '../briefing/secrets'
 import { openTestRepository } from '../db/testing'
 import { SyncEngine, type SecretStore, type SyncStep } from './engine'
 import { locateGit } from './git'
@@ -82,6 +83,12 @@ export interface Device {
   spawns: { args: readonly string[]; env: Readonly<Record<string, string>> }[]
   hook: ((step: SyncStep) => void | Promise<void>) | null
   secrets: { value: string | null }
+  /** The device's connected calendars, as the briefing keeps them. */
+  calendars: CalendarStore
+  /** Whether the device has a key store for them (false: like Linux without a keyring). */
+  keyStore: { available: boolean }
+  /** Calendar ids whose events a sync told the reader to forget. */
+  forgotten: string[]
   setup(remote: string, extra?: Record<string, unknown>): Promise<SyncStatus>
   page(title: string, parentId?: string | null): Block
   text(parentId: string, text: string): Block
@@ -102,6 +109,15 @@ export function device(name: string, start: number): Device {
   const repo = openTestRepository(':memory:', { clock: () => ++clock.t })
   const secrets: { value: string | null } = { value: null }
   const store: SecretStore = { load: () => secrets.value, save: (value) => void (secrets.value = value) }
+  const keyStore = { available: true }
+  // A stand-in for the OS key store: reversible, and nothing like the plain text.
+  const cipher: Cipher = {
+    isAvailable: () => keyStore.available,
+    encrypt: (text) => Buffer.from(Buffer.from(text, 'utf8').map((byte) => byte ^ 0x5a)),
+    decrypt: (data) => Buffer.from(data.map((byte) => byte ^ 0x5a)).toString('utf8')
+  }
+  const calendars = new CalendarStore(join(dir, 'briefing', 'calendars.bin'), cipher, () => ({}), () => ++clock.t)
+  const forgotten: string[] = []
   const self: Device = {
     name,
     repo,
@@ -113,6 +129,9 @@ export function device(name: string, start: number): Device {
     spawns: [],
     hook: null,
     secrets,
+    calendars,
+    keyStore,
+    forgotten,
     engine: null as unknown as SyncEngine,
     setup: (remote, extra = {}) => self.engine.setup({ remoteUrl: remote, deviceName: name, ...extra }),
     page: (title, parentId = null) => repo.create({ type: 'page', parentId, props: { title: [[title]] } }),
@@ -138,6 +157,7 @@ export function device(name: string, start: number): Device {
       repo.drainChanges()
     },
     onStatus: (status) => self.statuses.push(status),
+    calendars: async () => calendarSync(calendars, { forget: (id) => void forgotten.push(id) }, () => undefined),
     onSpawn: (args, env) => self.spawns.push({ args, env }),
     beforeStep: (step) => self.hook?.(step),
     backoffMs: 5,

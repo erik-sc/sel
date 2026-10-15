@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
+import { BRIEFING_LIMITS, cleanBriefingSetting, cleanCalendarLabel, isCalendarColor, type CalendarColor } from '../../shared/briefing'
 import { LEGACY_NAME, modernizeUrls } from '../../shared/legacy'
 import { canonicalJson } from '../../shared/versions'
+import { hostOf, validateCalendarUrl } from '../briefing/net'
 import { isBlockType, isValidId, type Row } from '../db/blocks'
 import { isPageLike, normalizeWorkspace, type SyncBlock, type Workspace } from './merge'
 
@@ -13,6 +15,8 @@ import { isPageLike, normalizeWorkspace, type SyncBlock, type Workspace } from '
  *   pages/<pageId>.json       one page or database with its own blocks, one block per line
  *   files/<name>              images the pages show
  *   settings/appearance.json  the appearance overrides
+ *   settings/calendars.json   the connected calendars with their secret addresses, and the task
+ *                             databases of Today: in an encrypted repository only
  *
  * Everything read from a repository is checked like any other outside data before it is used.
  */
@@ -27,6 +31,8 @@ export const PATHS = {
   readmeAlt: 'SEL.md',
   workspace: 'workspace.json',
   appearance: 'settings/appearance.json',
+  /** Written only when the repository is encrypted: it holds credentials. */
+  calendars: 'settings/calendars.json',
   pages: 'pages/',
   files: 'files/'
 } as const
@@ -58,10 +64,12 @@ and a change made here can be overwritten or can keep a device from syncing.
 - \`workspace.json\`: the order of the top-level pages.
 - \`pages/\`: one file per page or database.
 - \`files/\`: images used in pages.
-- \`settings/\`: appearance settings shared between devices.
+- \`settings/\`: appearance settings shared between devices; in an encrypted workspace, also
+  the connected calendars and which databases hold the tasks of Today.
 
 If the workspace is encrypted, the files under \`pages/\`, \`files/\` and \`settings/\` are not readable
-without the passphrase, and their history shows no meaningful differences.
+without the passphrase, and their history shows no meaningful differences. A calendar's address
+is a password to that calendar, so calendars are only ever written into an encrypted workspace.
 `
 
 const MAX_PAGE_CHARS = 256 * 1024 * 1024
@@ -475,6 +483,208 @@ export function mergeAppearance(base: AppearanceFile | null, local: AppearanceFi
     if (value !== undefined) out[key] = value
   }
   return { updatedAt: Math.max(local.updatedAt, remote.updatedAt), value: out }
+}
+
+// ----------------------------------------------------------------- calendars
+
+/**
+ * A connected calendar as the repository carries it, its secret address included. The address
+ * is a credential: this file is only ever written into, or read from, an encrypted repository
+ * (see engine.ts).
+ */
+export interface SyncedCalendar {
+  url: string
+  label: string
+  color: CalendarColor
+  enabled: boolean
+  updatedAt: number
+}
+
+/**
+ * A calendar that was removed, kept so that the removal reaches the other devices. It names the
+ * calendar by a hash of its address: a removed address is not kept anywhere.
+ */
+export interface CalendarTombstone {
+  key: string
+  deletedAt: number
+}
+
+export interface CalendarsFile {
+  calendars: SyncedCalendar[]
+  removed: CalendarTombstone[]
+  /** `briefing.databases`: the databases whose rows are the tasks of Today (null: all of them). */
+  databases: { updatedAt: number; value: string[] | null }
+}
+
+/** True when there is nothing to carry: no file needs to be written for it. */
+export function noCalendars(file: CalendarsFile): boolean {
+  return file.calendars.length === 0 && file.removed.length === 0 && file.databases.value === null && file.databases.updatedAt === 0
+}
+
+/**
+ * How the sync engine reaches this device's calendars without depending on Electron (the app
+ * wires it to the briefing's store, see ../briefing/index.ts). Both calls are synchronous: the
+ * engine reads, merges and writes back in one step, so no edit made meanwhile is lost.
+ */
+export interface CalendarSync {
+  /** The calendars with their addresses, and the removals remembered. Null when this device cannot read them (no key store). */
+  export(): Pick<CalendarsFile, 'calendars' | 'removed'> | null
+  /** Takes the merged calendars. Throws when they could not be stored. */
+  import(merged: Pick<CalendarsFile, 'calendars' | 'removed'>): void
+  /** What Today shows may have changed (its task databases came from another device). */
+  changed(): void
+}
+
+/** Removals remembered: a device that missed more than these may bring an old calendar back. */
+export const CALENDAR_TOMBSTONES = 32
+const KEY_RE = /^[0-9a-f]{64}$/
+
+/** What a calendar is known by across devices: its normalised address, hashed. */
+export function calendarKey(url: string): string {
+  return createHash('sha256').update(url).digest('hex')
+}
+
+const byUrl = (a: SyncedCalendar, b: SyncedCalendar): number => (a.url < b.url ? -1 : a.url > b.url ? 1 : 0)
+const byKey = (a: CalendarTombstone, b: CalendarTombstone): number => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+
+/** The most recent calendars and removals within the limits, sorted: the same lists make the same file. */
+function capCalendars(calendars: SyncedCalendar[], removed: CalendarTombstone[]): Pick<CalendarsFile, 'calendars' | 'removed'> {
+  return {
+    calendars: [...calendars]
+      .sort((a, b) => b.updatedAt - a.updatedAt || byUrl(a, b))
+      .slice(0, BRIEFING_LIMITS.calendars)
+      .sort(byUrl),
+    removed: [...removed]
+      .sort((a, b) => b.deletedAt - a.deletedAt || byKey(a, b))
+      .slice(0, CALENDAR_TOMBSTONES)
+      .sort(byKey)
+  }
+}
+
+/**
+ * Calendars from outside (the repository, or this device's store on its way there), checked
+ * like an address typed into the app: https only, a public host, at most
+ * `BRIEFING_LIMITS.calendars` of them. What does not pass is dropped.
+ */
+export function cleanCalendars(calendars: readonly unknown[], removed: readonly unknown[] = []): Pick<CalendarsFile, 'calendars' | 'removed'> {
+  const live = new Map<string, SyncedCalendar>()
+  for (const item of calendars.slice(0, 1000)) {
+    if (!isPlain(item)) continue
+    let url: URL
+    try {
+      // Never the loopback exception of a development build: a repository is outside data.
+      url = validateCalendarUrl(item['url'])
+    } catch {
+      continue
+    }
+    const entry: SyncedCalendar = {
+      url: url.href,
+      label: cleanCalendarLabel(item['label'], hostOf(url)),
+      color: isCalendarColor(item['color']) ? item['color'] : 'blue',
+      enabled: item['enabled'] !== false,
+      updatedAt: stamp(item['updatedAt'])
+    }
+    const seen = live.get(entry.url)
+    if (!seen || entry.updatedAt > seen.updatedAt) live.set(entry.url, entry)
+  }
+  const gone = new Map<string, CalendarTombstone>()
+  for (const item of removed.slice(0, 1000)) {
+    if (!isPlain(item) || typeof item['key'] !== 'string' || !KEY_RE.test(item['key'])) continue
+    const entry: CalendarTombstone = { key: item['key'], deletedAt: stamp(item['deletedAt']) }
+    const seen = gone.get(entry.key)
+    if (!seen || entry.deletedAt > seen.deletedAt) gone.set(entry.key, entry)
+  }
+  return capCalendars([...live.values()], [...gone.values()])
+}
+
+function cleanDatabases(value: unknown): string[] | null {
+  const clean = cleanBriefingSetting('briefing.databases', value)
+  return Array.isArray(clean) ? (clean as string[]) : null
+}
+
+export function serializeCalendars(file: CalendarsFile): string {
+  return `${canonicalJson({ format: FORMAT, calendars: file.calendars, removed: file.removed, databases: { updatedAt: file.databases.updatedAt, value: file.databases.value } })}\n`
+}
+
+export function parseCalendars(text: string): CalendarsFile {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    throw new FormatError('The calendars cannot be read')
+  }
+  if (!isPlain(raw) || typeof raw['format'] !== 'number') throw new FormatError('The calendars are damaged')
+  if (raw['format'] > FORMAT) throw new FormatError('newer format', true)
+  const databases = isPlain(raw['databases']) ? raw['databases'] : {}
+  return {
+    ...cleanCalendars(Array.isArray(raw['calendars']) ? raw['calendars'] : [], Array.isArray(raw['removed']) ? raw['removed'] : []),
+    databases: { updatedAt: stamp(databases['updatedAt']), value: cleanDatabases(databases['value']) }
+  }
+}
+
+/**
+ * Three-way merge of the calendars, keyed by address (an id is made by each device, an address
+ * is the same everywhere). Where both devices have a calendar, each field takes the side that
+ * changed it, or the later edit when both did; with no base, the later entry as a whole. A
+ * removal wins only over an edit older than itself. A calendar one side does not have is kept:
+ * only a tombstone removes one, so a device that lost its calendars cannot remove them elsewhere.
+ * The task databases merge as one value, the later change winning.
+ */
+export function mergeCalendars(base: CalendarsFile | null, local: CalendarsFile, remote: CalendarsFile | null): CalendarsFile {
+  if (!remote) return local
+  type Entry = { live: SyncedCalendar } | { gone: CalendarTombstone }
+  const index = (file: CalendarsFile | null): Map<string, Entry> => {
+    const out = new Map<string, Entry>()
+    for (const gone of file?.removed ?? []) out.set(gone.key, { gone })
+    // A calendar added again after it was removed: the newer of the two counts.
+    for (const live of file?.calendars ?? []) {
+      const key = calendarKey(live.url)
+      const was = out.get(key)
+      if (!was || !('gone' in was) || live.updatedAt >= was.gone.deletedAt) out.set(key, { live })
+    }
+    return out
+  }
+  const b = index(base)
+  const l = index(local)
+  const r = index(remote)
+  const calendars: SyncedCalendar[] = []
+  const removed: CalendarTombstone[] = []
+  const put = (entry: Entry): void => void ('live' in entry ? calendars.push(entry.live) : removed.push(entry.gone))
+  for (const key of new Set([...l.keys(), ...r.keys()])) {
+    const le = l.get(key)
+    const re = r.get(key)
+    if (!le || !re) {
+      put((le ?? re) as Entry)
+      continue
+    }
+    if ('gone' in le && 'gone' in re) put(le.gone.deletedAt > re.gone.deletedAt ? le : re)
+    else if ('gone' in le) put(le.gone.deletedAt > (re as { live: SyncedCalendar }).live.updatedAt ? le : re)
+    else if ('gone' in re) put(re.gone.deletedAt > le.live.updatedAt ? re : le)
+    else {
+      const lx = le.live
+      const rx = re.live
+      const be = b.get(key)
+      const localLater = lx.updatedAt > rx.updatedAt
+      if (!be || !('live' in be)) put(localLater ? le : re)
+      else {
+        const bx = be.live
+        const pick = <T>(bv: T, lv: T, rv: T): T => (lv === rv ? lv : lv === bv ? rv : rv === bv ? lv : localLater ? lv : rv)
+        calendars.push({
+          url: rx.url,
+          label: pick(bx.label, lx.label, rx.label),
+          color: pick(bx.color, lx.color, rx.color),
+          enabled: pick(bx.enabled, lx.enabled, rx.enabled),
+          updatedAt: Math.max(lx.updatedAt, rx.updatedAt)
+        })
+      }
+    }
+  }
+  const same = (x: unknown, y: unknown): boolean => canonicalJson(x ?? null) === canonicalJson(y ?? null)
+  const bd = base?.databases.value ?? null
+  const ld = local.databases
+  const rd = remote.databases
+  const databases = same(rd.value, bd) ? ld : same(ld.value, bd) || same(ld.value, rd.value) ? rd : ld.updatedAt > rd.updatedAt ? ld : rd
+  return { ...capCalendars(calendars, removed), databases }
 }
 
 export function sha1(text: string | Uint8Array): string {
