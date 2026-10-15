@@ -50,6 +50,8 @@ Download the installer for Windows from [Releases](https://github.com/erik-sc/se
 
 To hear of new versions, turn on Settings → General → Check for updates. sel then asks GitHub once a day, never while a meeting is recorded, and tells you when there is one. It downloads only when you say so, and installs when you restart or quit. Off, it asks nothing; Check now asks once.
 
+To use your notes from Claude Desktop, Claude Code or another MCP app, turn on Settings → MCP → Connect other apps and copy the setup shown there. The app can then search and read your pages and databases, create pages, add to a page, and add or change database rows, but never delete anything. It talks to sel on this computer only, while sel is open; Settings lists which tools it called and when.
+
 ## Run it
 
 You need [Node.js](https://nodejs.org) 24 or newer.

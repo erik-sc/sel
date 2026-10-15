@@ -56,7 +56,8 @@ const SETTINGS: [SettingsSection, string, string[]][] = [
   ['herman', 'Herman', ['assistant', 'council']],
   ['sync', 'Sync', ['git', 'devices', 'backup']],
   ['today', 'Today', ['calendar', 'briefing']],
-  ['meetings', 'Meetings', ['recording', 'transcription', 'whisper']]
+  ['meetings', 'Meetings', ['recording', 'transcription', 'whisper']],
+  ['mcp', 'MCP', ['connect', 'other apps', 'claude desktop', 'claude code', 'token']]
 ]
 
 const FOCUS_WORDS = ['zen', 'distraction free', 'writing', 'hide']
