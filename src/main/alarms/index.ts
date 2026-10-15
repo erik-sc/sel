@@ -8,6 +8,7 @@ import type { Repository } from '../db/repository'
 import { hermanLocale } from '../herman/service'
 import { tasksDatabase } from './reminders'
 import { AlarmsService } from './service'
+import { isQuickAddUrl } from './windows'
 
 /**
  * The alarms wired to the app: the settings store, the windows, the system's notifications and
@@ -78,8 +79,9 @@ export class AlarmsBridge {
 
   /** The window that speaks: the one in front, else the last one; a new one when none is open. */
   private deliver(announcement: Announcement): void {
-    const windows = BrowserWindow.getAllWindows().filter((win) => !win.isDestroyed() && !win.webContents.isDestroyed())
-    const win = BrowserWindow.getFocusedWindow() ?? windows[windows.length - 1]
+    const windows = appWindows()
+    const focused = BrowserWindow.getFocusedWindow()
+    const win = focused && windows.includes(focused) ? focused : windows[windows.length - 1]
     if (!win) {
       // The new window asks for what is pending once it has loaded (alarms.pending).
       this.ctx.createWindow()
@@ -166,7 +168,7 @@ export class AlarmsBridge {
     const tray = new Tray(this.icon)
     tray.setToolTip('sel')
     const open = (): void => {
-      const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed())
+      const win = appWindows()[0]
       if (!win) return this.ctx.createWindow()
       if (win.isMinimized()) win.restore()
       win.show()
@@ -183,5 +185,10 @@ export class AlarmsBridge {
     )
     this.tray = tray
   }
+}
+
+/** The windows that show the workspace, in the order they were opened (not the quick-add window: ./windows.ts). */
+export function appWindows(): BrowserWindow[] {
+  return BrowserWindow.getAllWindows().filter((win) => !win.isDestroyed() && !win.webContents.isDestroyed() && !isQuickAddUrl(win.webContents.getURL()))
 }
 
