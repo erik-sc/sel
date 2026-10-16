@@ -231,8 +231,17 @@ export interface TaskGroup {
 }
 
 /**
+ * What a task ticked on the Today or the calendar screen is remembered by, to hide it at once:
+ * its id and its due date. A repeating task stays open with a later date, and shows again there.
+ */
+export function tickedKey(task: Pick<BriefingTask, 'id' | 'due'>): string {
+  return `${task.id} ${task.due ?? ''}`
+}
+
+/**
  * The task groups as shown: all of them when expanded, otherwise cut after the first
  * `total - more` tasks, counted across the groups in order. `hidden` is what was left out.
+ * `done` holds the `tickedKey` of the tasks ticked here.
  */
 export function taskGroups(tasks: BriefingTasks, expanded: boolean, done: ReadonlySet<string> = new Set()): { groups: TaskGroup[]; hidden: number } {
   const all: TaskGroup[] = [
@@ -245,7 +254,7 @@ export function taskGroups(tasks: BriefingTasks, expanded: boolean, done: Readon
   let hidden = 0
   const groups: TaskGroup[] = []
   for (const group of all) {
-    const open = group.tasks.filter((task) => !done.has(task.id))
+    const open = group.tasks.filter((task) => !done.has(tickedKey(task)))
     const shown = open.slice(0, room)
     room -= shown.length
     hidden += open.length - shown.length

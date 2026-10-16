@@ -7,6 +7,7 @@ import { registerBriefingIpc } from './briefing/register'
 import { registerExternalIpc, type ExternalHooks } from './external/register'
 import { registerFeedbackIpc } from './feedback/register'
 import { registerTasksIpc } from './tasks/register'
+import { completionChanges, completionsBefore } from './tasks/completions'
 import { registerHermanIpc, type HermanHooks } from './herman/register'
 import { registerAlarmsIpc, type AlarmsHooks } from './alarms/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
@@ -122,7 +123,18 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     'blocks:update': ([a, b]) => repo.update(arg.id(a), arg.plainObject(b, 'patch') as UpdateBlockInput),
     'blocks:move': ([a, b, c]) => repo.move(arg.id(a), arg.nullableId(b, 'parentId'), arg.afterId(c)),
     'blocks:delete': ([a]) => repo.delete(arg.id(a)),
-    'blocks:apply': ([a]) => repo.apply(arg.ops(a) as Op[])
+    'blocks:apply': ([a], event) => {
+      const ops = arg.ops(a) as Op[]
+      // Done ticked in a view of the Tasks database (or taken back there) reaches Herman as from the Tasks screen.
+      const before = completionsBefore(ops, (id) => repo.get(id))
+      const blocks = repo.apply(ops)
+      if (before.size) {
+        const { completed, uncompleted } = completionChanges(before, (id) => repo.get(id))
+        for (let i = 0; i < completed; i++) herman?.taskCompleted(event.sender)
+        for (let i = 0; i < uncompleted; i++) herman?.taskUncompleted()
+      }
+      return blocks
+    }
   }
 
   // ---- pages
