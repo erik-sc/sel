@@ -320,7 +320,7 @@ export class Repository {
     if (!isPageLike(type)) throw new Error('A built-in block must be a page or database')
     if (parentId !== null) throw new Error('A built-in database lives at the workspace root')
     // There is one notebook, the same block on every device (shared/notebook.ts).
-    if (kind === 'notebook' && (id !== NOTEBOOK_ID || type !== 'page')) throw new Error('The notebook is a page of its own')
+    if (kind === 'notebook' && (id !== NOTEBOOK_ID || type !== 'page')) throw new Error('Meditations is a page of its own')
   }
 
   // -------------------------------------------------------- the ink notebook
@@ -342,17 +342,17 @@ export class Repository {
    */
   private assertDayOpen(id: string): void {
     const day = dayOfEntryId(id)
-    if (day === null) throw new Error('The notebook holds one line a day and nothing else')
-    if (!isDayWritable(day, this.clock())) throw new Error('That day has ended: what it holds was written in ink and stays as it is')
+    if (day === null) throw new Error('Meditations holds one line a day and nothing else')
+    if (!isDayWritable(day, this.clock())) throw new Error('That day has ended: what it holds stays as it was written')
   }
 
   /** A new block under `parentId`: in the notebook, only the block of a day that is still open. */
   private checkNotebookChild(parent: Head, parentId: string, id: string, type: string): void {
     if (this.isNotebookPage(parentId)) {
-      if (type !== NOTEBOOK_ENTRY_TYPE) throw new Error('The notebook holds one line a day and nothing else')
+      if (type !== NOTEBOOK_ENTRY_TYPE) throw new Error('Meditations holds one line a day and nothing else')
       this.assertDayOpen(id)
     } else if (this.isNotebookPage(parent.parent_id)) {
-      throw new Error('A day of the notebook holds its line and nothing else')
+      throw new Error('A day of Meditations holds its line and nothing else')
     }
   }
 
@@ -690,7 +690,7 @@ export class Repository {
     }
     if (this.isNotebookPage(r.parent_id)) {
       this.assertDayOpen(id)
-      if (type !== oldType) throw new Error('A day of the notebook stays a line')
+      if (type !== oldType) throw new Error('A day of Meditations stays a line')
     }
     const linkedBefore = oldType === 'database' && typeof before.sourceId === 'string' ? before.sourceId : null
     let props = chartProps(this.linkProps(id, type, mergeProps(before, patch.props), linkedBefore, false))
@@ -754,9 +754,9 @@ export class Repository {
     // Reordering among the root pages is fine; leaving the root is not.
     if (parentId !== null && isPageLike(b.type)) this.assertNotSystem(b, 'moved into a page')
     // The days of the notebook stay where they were written, and nothing joins them.
-    if (this.isNotebookPage(b.parent_id)) throw new Error('A day of the notebook stays where it was written')
+    if (this.isNotebookPage(b.parent_id)) throw new Error('A day of Meditations stays where it was written')
     if (parentId !== null && (this.isNotebookPage(parentId) || this.isNotebookPage(this.head(parentId)?.parent_id ?? null))) {
-      throw new Error('Nothing can be moved into the notebook')
+      throw new Error('Nothing can be moved into Meditations')
     }
     if (parentId === null) {
       if (!isPageLike(b.type)) throw new Error('Only pages and databases can live at the workspace root')
@@ -883,7 +883,7 @@ export class Repository {
         if (!parent) throw new Error(`Block not found: ${parentId}`)
         this.assertHoldsChildren(parent)
         // A tree has new ids: it is never a day of the notebook.
-        if (this.isNotebookPage(parentId) || this.isNotebookPage(parent.parent_id)) throw new Error('Nothing can be added to the notebook but the line of a day')
+        if (this.isNotebookPage(parentId) || this.isNotebookPage(parent.parent_id)) throw new Error('Nothing can be added to Meditations but the line of a day')
       }
       this.dirty(parentId)
       const rootId = randomUUID()
@@ -1272,7 +1272,7 @@ export class Repository {
       if (!root || !isPageLike(root.type)) throw new Error('The page of this version no longer exists')
       if (root.trashedAt !== null) throw new Error('This page is in the Trash. Restore it first.')
       // Going back would rewrite days that have ended; a copy would be an ordinary page.
-      if (mode === 'replace' && this.isNotebookPage(root.id)) throw new Error('The notebook is written in ink: it cannot go back to an earlier version')
+      if (mode === 'replace' && this.isNotebookPage(root.id)) throw new Error('Past days of Meditations never change: the page cannot go back to an earlier version')
       const was = version.blocks[0]
       if (was.type !== root.type || (sourceIdOf(was) === null) !== (sourceIdOf(root) === null)) {
         throw new Error('This version was saved when the page was a different kind of block')

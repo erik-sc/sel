@@ -138,7 +138,7 @@ export const Sidebar = memo(function Sidebar() {
           </button>
           <button type="button" className="sidebar-action" onClick={openNotebook}>
             <Pen />
-            <span>Ink notebook</span>
+            <span>Meditations</span>
           </button>
           <button type="button" className="sidebar-action" onClick={openCloseDay}>
             <Moon />
