@@ -1,7 +1,8 @@
 # Release 0.6.0 — specs
 
-Status: **onda 1 decidida** (1–5) · Jardim em design numa sessão própria · 2026-10-15 ·
-branch `release/0.6.0` (de main @ 5591a5a, v0.5.0)
+Status: **tudo decidido** · onda 1 integrada (PRs #39–#44) · onda 2 despachada · 2026-10-15 ·
+branch `release/0.6.0` (de main @ 5591a5a, v0.5.0). Features 7–10 decididas pelo orquestrador com a
+aprovação do Érik para tocar a release inteira.
 
 Cada feature vira uma branch própria, cortada de `release/0.6.0`, com PR para `release/0.6.0`.
 Cada seção abaixo é o brief do agente que vai implementá-la: tem que se sustentar sozinha.
@@ -11,9 +12,9 @@ Marcadores: **❓** = decisão pendente do Érik · **✅** = decidido.
 
 | Onda | Features | Por quê |
 |---|---|---|
-| 1 (paralelo) | 1 Arquivar · 2 Home · 3 Notificações · 4 Meditações · 5 Pomodoro | independentes entre si |
-| 2 | 6 Jardim | lê Meditações (4) e escuta o fim de pomodoro (5) |
-| 3 | 7 README | descreve o app depois de tudo integrado |
+| 1 (integrada) | 1 Arquivar · 2 Home · 3 Notificações · 4 Meditações · 5 Pomodoro | independentes entre si |
+| 2 (paralelo) | 6 Céu · 7 Barra lateral · 8 Templates · 9 LaTeX · 10a–10f Melhorias pragmáticas | dependem só da onda 1 |
+| 3 | 11 README | descreve o app depois de tudo integrado |
 
 **Registros compartilhados** (conflitos esperados, resolver mantendo os dois lados):
 `src/shared/api.ts` (INVOKE, MenuCommand), `src/preload/index.test.ts` (INVOKE_CHANNELS),
@@ -21,7 +22,8 @@ Marcadores: **❓** = decisão pendente do Érik · **✅** = decidido.
 comandos), `src/shared/shortcuts.ts`, `src/main/menu.ts`, `src/renderer/src/shell/menuCommands.ts`,
 `src/renderer/src/shell/Sidebar.tsx`, `src/renderer/src/store/tabs.ts` (rotas), `src/renderer/src/shell/SettingsDialog.tsx`.
 
-**Atalhos livres reservados:** Ctrl+Alt+H (home), Ctrl+Alt+P (pomodoro), Ctrl+Alt+G (jardim).
+**Atalhos:** Ctrl+Alt+H (home), Ctrl+Alt+P (pomodoro), Ctrl+Alt+G (céu) já tomados; novos atalhos devem
+conferir `src/shared/shortcuts.ts` e o teste de colisão.
 
 **Regras gerais para todos os agentes**
 - Textos visíveis em pt-BR e en no padrão de tabela de cópia por feature (como `src/renderer/src/notebook/copy.ts`);
@@ -235,54 +237,167 @@ Herman desligado), visível no modo foco, aviso ao fim.
 
 ---
 
-## 6. Jardim — EM REFINAMENTO
+## 6. Céu / Sky (era "Jardim") — ✅ decidido
 
-**Em andamento:** sessão própria desenhando o layout com o Érik (protótipos visuais primeiro). O resultado dela
-substitui as perguntas abaixo por um Escopo decidido, em `docs/plans/garden.md`, antes da implementação (onda 2).
+Spec completo e decidido com o Érik em **`docs/plans/sky.md`** (referência visual em `docs/plans/sky/animations.html`,
+dados das 45 figuras em `docs/plans/sky/figures.js`). Resumo: cada dia com linha nas Meditações acende uma estrela;
+as estrelas de um mês desenham uma constelação; cada ano é um céu em roda com a lua de verdade no meio. Tasks viram
+poeira na Via Láctea, pomodoros viram halo. Nunca apaga, nenhum número. Tela própria `_sky` (Ctrl+Alt+G) e o céu no
+fim do Fechar o dia.
 
-**Hoje / material disponível.**
-- **Tensão de princípio:** o README diz que Fechar o dia tem "No streaks, no scores" (README.md:25) e o cabeçalho de
-  CloseDayScreen.tsx:4 diz "No streaks, no scores, no counts". Um jardim que cresce por ações contadas precisa
-  respeitar isso — proposta: **cresce, nunca murcha, nunca mostra números**.
-- **Estilo pronto:** Herman é SVG de linha única animado por CSS (src/renderer/src/herman/poses.ts, Figure.tsx);
-  `ui/lineIcons.ts:29-39` já tem um grupo "the garden" (enso, pedras, folha, broto, lótus, bambu, árvore) no mesmo
-  traço. Sem libs de canvas/animação; tudo SVG à mão.
-- **Eventos de conclusão hoje:**
-
-| Evento | Tem data? | Sincroniza? | Dá para preencher o passado? |
-|---|---|---|---|
-| Linha das Meditações | sim (id do bloco = dia) | sim | **sim, histórico completo** |
-| Task concluída (DB de Tasks) | `tasks.completedAt`, mas recorrente sobrescreve | sim | parcial |
-| Checkbox de outras DBs / to-do em página | só `updatedAt` | sim | não |
-| Fechar o dia | não é gravado | — | não (só a linha que ele escreve) |
-| Reunião gravada | manifesto local | não | parcial (linha da DB) |
-| Pomodoro (5) | novo | — | não |
-
-- Duas formas de guardar: **derivar** dos dados existentes (zero armazenamento novo, sincroniza de graça, histórico
-  das Meditações vem junto) ou um **diário de eventos** como página de sistema `sel-garden` (molde do notebook:
-  sincroniza como blocos, sem mexer no engine).
-
-**Perguntas para refinar** (respondidas na conversa, depois viram Escopo):
-1. **Metáfora:** (a) um jardim único que evolui como cena; (b) cada dia com Meditação planta algo e o jardim é o
-   histórico em canteiros; (c) uma árvore/bonsai que ganha galhos e folhas.
-2. **O que faz crescer:** Meditação, task concluída, Fechar o dia, pomodoro, reunião registrada… quais e com que peso?
-3. **Pode murchar?** (proposta: nunca; dias vazios deixam só terra/pedras)
-4. **Números visíveis?** (proposta: nenhum)
-5. **Interação:** só contemplar, ou o usuário escolhe/planta/arranja?
-6. **Estações:** seguir o calendário real (folhas no outono etc.)?
-7. **Onde vive:** tela própria `_garden` (Ctrl+Alt+G), vislumbre no fim do Fechar o dia, rodapé do Today, ao lado do Herman?
-8. **Passado:** o jardim nasce já com o histórico das Meditações ou começa vazio hoje?
-9. **Herman:** comenta o jardim?
+**Relação com a feature 7 (barra lateral):** o botão "Céu" entra como item `sky` do registro de itens da barra
+lateral, logo depois de `meditations`. `sky.enabled` desliga a feature inteira; esconder o item na barra lateral só
+esconde o botão.
 
 ---
 
-## 7. README
+## 7. Reorganizar e esconder qualquer item da barra lateral — ✅ decidido pelo orquestrador
 
-**Escopo.** Último passo da release, depois de 1–6 integradas na `release/0.6.0`. Nesta versão, revisão completa:
-o README tem que descrever o app inteiro como ele é na 0.6.0 (Today, Tasks, Calendar, Meditações, Fechar o dia,
-Reuniões, Herman, MCP, sync, arquivo, home, notificações, pomodoro, jardim, atalhos, princípios). Conferir cada
-afirmação contra o código; atualizar capturas de tela em `docs/` se a UI mudou. A partir daqui, toda release
-atualiza o README com o que mudou.
+**Hoje.** A barra lateral é montada à mão em `src/renderer/src/shell/Sidebar.tsx` (~:115-215): Busca, Home,
+Hoje, Calendário, Tasks, Meditações, Fechar o dia, Nova página, Nova reunião, Favoritos, Páginas (árvore),
+Lixeira, Arquivo, Feedback, Sync, Settings. A ordem é fixa e nada pode ser escondido.
+
+**Escopo.**
+- **Registro de itens** (`src/renderer/src/shell/sidebarItems.ts` ou similar): cada item tem id estável
+  (`search`, `home`, `today`, `calendar`, `tasks`, `meditations`, `sky`, `close-day`, `new-page`, `new-meeting`,
+  `favorites`, `pages`, `archive`, `trash`, `feedback`, `sync`, `settings`), rótulo pt-BR/en, ícone, zona
+  (topo / meio rolável / rodapé) e um render. O Sidebar passa a desenhar a partir do registro.
+- **Setting `sidebar`**: `{ order: string[], hidden: string[] }`, validado em validate.ts (ids desconhecidos
+  ignorados; item novo que não está em `order` aparece na posição padrão). **Sincroniza** entre dispositivos por
+  `settings/sidebar.json`, no mesmo molde de `settings/home.json` (feature 2, já integrada: ver
+  src/main/sync/format.ts e engine.ts).
+- **Editar**: Settings → nova seção "Barra lateral" com a lista de itens, arrastar para reordenar (e
+  Alt+↑/↓ pelo teclado), interruptor de mostrar/esconder por item, "Restaurar padrão". Clique direito num item da
+  barra lateral: "Esconder da barra lateral" e "Personalizar barra lateral…". Comando na paleta.
+- Reordenar dentro da zona e entre zonas (topo ↔ rodapé); o meio rolável é onde ficam Favoritos e Páginas.
+- **Qualquer item pode ser escondido**, inclusive Settings: o que some da barra lateral continua acessível pela
+  paleta e pelos atalhos (Ctrl+, abre Settings). Se tudo estiver escondido, a barra mostra só uma dica discreta
+  "Barra lateral vazia · Personalizar".
+- Itens que dependem de uma feature desligada (ex.: `sky.enabled` falso, Herman) somem pela regra da feature,
+  independente do `hidden`.
+
+**Fora do escopo.** Itens personalizados (atalhos para páginas fora de Favoritos); várias barras laterais.
+
+**Toca em.** Sidebar.tsx (reescrita para o registro), novo registro, SettingsDialog.tsx, store/ui.ts
+(SettingsSection), builtin.ts, validate.ts, sync format/engine, api.ts se houver IPC.
+**Atenção:** a feature 6 (Céu) adiciona o item `sky` em paralelo; deixe o registro pronto para ele (posição padrão
+depois de `meditations`) e o orquestrador junta.
+
+**Pronto quando.** Testes puros: ordem resolvida com ids desconhecidos, itens novos e `hidden`; validador.
+Testes de sync (A reordena → B recebe; mais nova ganha). Checagem na tela: arrastar, esconder, restaurar, menu de
+contexto, tudo escondido, claro/escuro.
+
+---
+
+## 8. Templates de páginas e databases — ✅ decidido pelo orquestrador
+
+**Hoje.** Não existe nenhum sistema de templates. Databases já têm: propriedades (incluindo relation, rollup,
+formula), views (tabela, board, calendário, gráfico…), filtros, linked views (`props.sourceId`).
+
+**Escopo.**
+- **Templates como dados puros** em `src/shared/templates/` (um arquivo por template + índice), em pt-BR e en:
+  árvore de páginas com blocos, databases com propriedades, views, filtros, linhas de exemplo e linked views. Ids
+  são locais ao template e trocados por ids novos ao instanciar.
+- **Instanciar** no main em **uma transação** (repositório), criando tudo sob a raiz ou sob a página escolhida;
+  relations/rollups/linked views remapeados para os ids novos. Opção "com exemplos" / "vazio" (linhas de exemplo).
+- **Galeria** "Templates": modal com cartões (nome, descrição de uma linha, ícone de traço), prévia da estrutura;
+  acessível por "Nova página ▸ A partir de template", pela paleta ("Templates") e pelo EmptyState.
+- **Templates bem elaborados** (usar o melhor de cada recurso de database, com linked views e gráficos onde fizer
+  sentido; nomes e exemplos naturais em pt-BR e en; moeda e formato de data seguindo o idioma):
+  1. **Finanças pessoais** — Lançamentos (data, descrição, valor, entrada/saída, categoria, conta, recorrente),
+     Categorias com orçamento mensal (relation + rollup do gasto do mês, fórmula do saldo), Contas, painel com
+     visão do mês, gastos por categoria (gráfico) e assinaturas.
+  2. **Casa** — Tarefas da casa por cômodo/frequência, Manutenção (equipamento, última/próxima revisão, garantia),
+     Inventário, Contatos de serviços, Compras.
+  3. **Viagem** — Roteiro dia a dia (view calendário/linha do tempo), Reservas e documentos, Checklist de mala,
+     Orçamento da viagem (relation com a moeda), Lugares para conhecer (status, mapa por cidade como agrupamento).
+  4. **Projeto** — Tarefas (board por status, prioridade, responsável, prazo), Marcos, Notas de reunião, página de
+     visão geral com linked views.
+  5. **Biblioteca** — Livros/filmes/séries (status quero/em andamento/terminado, nota sem números visíveis no
+     painel — use select), citações ligadas ao item.
+  6. **Estudos** — Disciplinas, Aulas/anotações (relation), Leituras, Provas e entregas (calendário).
+     Se a feature 9 (LaTeX) estiver integrada, um documento LaTeX de exemplo; senão, deixar o gancho.
+  7. **Cozinha** — Receitas (ingredientes, tempo, tags), Cardápio da semana (relation com receitas), Lista de
+     compras.
+- Os templates **não** usam a DB de sistema de Tasks nem as Meditações.
+
+**Fora do escopo.** Salvar página como template do usuário; baixar templates da internet (princípio Still).
+
+**Toca em.** novo src/shared/templates/*, novo src/main/templates/* (instanciar + IPC), novo
+renderer/src/templates/* (galeria), menu "Nova página", builtin.ts, EmptyState, api.ts/INVOKE_CHANNELS.
+
+**Pronto quando.** Teste puro por template: estrutura válida (toda relation/rollup/linked view aponta para algo do
+próprio template; propriedades de views existem; pt e en com as mesmas chaves). Teste do main: instanciar cria tudo
+com ids novos, em uma transação, duas vezes sem colisão; "vazio" não cria linhas. Checagem na tela de cada template
+nas duas línguas e nos dois temas.
+
+---
+
+## 9. Documentos LaTeX estilo Overleaf — ✅ decidido pelo orquestrador
+
+**Hoje.** Não existe suporte a LaTeX nem a matemática (nenhum KaTeX/LaTeX no projeto). Princípios: sem rede
+(Still), poucas dependências (Light), interface em sandbox (Careful).
+
+**Escopo.**
+- **Documento LaTeX** como página especial (`props.kind: 'latex'` numa página, ou tipo de bloco próprio — o agente
+  escolhe o que encaixa melhor no modelo e justifica no PR). O código-fonte fica guardado nos blocos, então
+  sincroniza como qualquer página.
+- **Tela dividida estilo Overleaf**: à esquerda o editor de código-fonte (monoespaçado, realce de sintaxe LaTeX,
+  números de linha, auto-fechar chaves/ambientes, busca), à direita a **prévia ao vivo** (re-renderiza com debounce
+  ~300 ms), com divisor arrastável e alternância só-código / só-prévia. Rolar um lado acompanha o outro por seção.
+- **Renderização offline e embutida**: avaliar `latex.js` (LaTeX → HTML, cobre classe article) e KaTeX
+  (matemática). Requisitos: tudo empacotado (sem CDN), carregado sob demanda só quando um documento LaTeX abre,
+  compatível com a CSP do app (fontes locais). Suporte mínimo: `\documentclass{article}`, preâmbulo com pacotes
+  comuns ignorados com aviso, `\title/\author/\date/\maketitle`, `\section`… `\subsubsection`, listas,
+  ênfases, `\begin{equation|align}`, matemática inline e display, `tabular` simples, `\label/\ref`, notas de rodapé,
+  `verbatim`. Comando não suportado não quebra: aparece marcado na prévia e listado num painel de avisos.
+- **Erros** de sintaxe mostram linha e mensagem num painel embaixo do editor; clicar leva à linha.
+- **Exportar**: `.tex` e **PDF** (via `printToPDF` da prévia, em página A4/Letter conforme o idioma).
+- **Criar**: "Nova página ▸ Documento LaTeX", comando na paleta; documento novo vem com um esqueleto `article`
+  pt-BR/en.
+- **Bloco de equação** nas páginas comuns (mesmo motor KaTeX): `/equação` ou `$$` cria um bloco que mostra a
+  fórmula renderizada e edita o LaTeX ao clicar.
+
+**Fora do escopo.** Compilar com um TeX de verdade (pdflatex/WASM), bibliografia/BibTeX, multi-arquivo, colaboração.
+
+**Toca em.** novo renderer/src/latex/*, editor (bloco de equação: registro de tipos de bloco, slash menu,
+markdown export), shared/types.ts (tipo de bloco), PageHost.tsx (abrir a tela LaTeX), menu "Nova página",
+builtin.ts, package.json (dependências novas, justificar tamanho no PR), CSP se precisar de `font-src` local.
+
+**Pronto quando.** Testes: o esqueleto renderiza sem avisos; comandos não suportados viram aviso e não exceção;
+erros apontam a linha certa; bloco de equação faz ida e volta no markdown export/import. Checagem na tela: digitar e
+ver a prévia, exportar PDF, claro/escuro, bundle principal não cresce (o motor fica num chunk à parte).
+
+---
+
+## 10. Melhorias pragmáticas — seis frentes — ✅ mandato do Érik
+
+O Érik pediu seis agentes com funcionalidades **alinhadas com a cultura do app** (quieto, local, leve, cuidadoso,
+pt-BR e en) mas **com enfoque pragmático: melhorar o que já existe**, não abrir frentes novas. Cada agente recebe
+uma área, investiga o atrito real no código e no app rodando, escolhe **de 2 a 4 melhorias pequenas e
+independentes**, escreve o mini-spec (Hoje / Escopo / Fora do escopo / Pronto quando) **no topo da descrição do
+PR antes de codar**, implementa e testa. Regras: nada de dependência nova de runtime, nada de rede, não mexer nas
+áreas das features 6–9 (Céu, barra lateral, templates, LaTeX), não mudar a semântica de `tasks.completedAt`
+(o Céu depende dela).
+
+| # | Área | Pontos de partida conhecidos |
+|---|---|---|
+| 10a | Editor e escrita | colar markdown/HTML, menu de barra, arrastar blocos, desfazer, contagem de palavras |
+| 10b | Databases e views | filtros relativos de data (hoje/atrasado/próximos 7 dias) se ainda faltarem, ordenação/agrupamento, edição em massa, desempenho com muitas linhas |
+| 10c | Tasks, Hoje e Calendário | Herman não é avisado ao marcar Done na grade (database/actions.ts:631-641), recorrentes, quick-add, agenda do Hoje |
+| 10d | Busca e navegação | ranking do QuickFind, recentes, voltar/avançar, paleta, links entre páginas e backlinks |
+| 10e | Reuniões e transcrição | participantes do evento não preenchem a propriedade Attendees (meetings/service.ts:255), página da reunião ↔ evento, revisão do transcript |
+| 10f | Dados e confiança | backup/exportação/importação, clareza do status do sync, recuperação de erros, tempo de abertura |
+
+---
+
+## 11. README
+
+**Escopo.** Último passo da release, depois de 1–10 integradas na `release/0.6.0`. Nesta versão, revisão completa:
+o README tem que descrever o app inteiro como ele é na 0.6.0 (Today, Tasks, Calendar, Meditações, Céu, Fechar o dia,
+Reuniões, Herman, MCP, sync, arquivo, home, barra lateral personalizável, notificações, pomodoro, templates,
+documentos LaTeX, atalhos, princípios). Conferir cada afirmação contra o código; atualizar capturas de tela em
+`docs/` se a UI mudou. A partir daqui, toda release atualiza o README com o que mudou.
 
 **Pronto quando.** Nenhuma afirmação desatualizada (ex.: "Ink notebook" em README.md:23, :25, :122); seções novas
 para as features desta release.
