@@ -248,6 +248,23 @@ describe('mergeWorkspace: fields', () => {
     expect(out.conflicts).toEqual([])
   })
 
+  it('merges archiving a page on one side with editing it on the other', () => {
+    const { base, a, b } = scene()
+    a.edit('p', { archivedAt: 2500 })
+    b.edit('p', { title: [['Renamed on B']] })
+    b.edit('t1', { title: [['edited on B']] })
+    const out = merge(base, a.ws, b.ws)
+    expect(out.result.blocks.get('p')?.props).toEqual({ title: [['Renamed on B']], archivedAt: 2500 })
+    expect(text(out.result, 't1')).toBe('edited on B')
+    expect(out.conflicts).toEqual([])
+    // And back: unarchiving on one side while the other edits keeps both too.
+    const again = new Device(out.result, 4000).edit('p', { archivedAt: null }).ws
+    const other = new Device(out.result, 5000).edit('t2', { title: [['edited later']] }).ws
+    const back = merge(out.result, again, other)
+    expect(back.result.blocks.get('p')?.props).toEqual({ title: [['Renamed on B']] })
+    expect(text(back.result, 't2')).toBe('edited later')
+  })
+
   it('lets the later edit win when both changed the same key, and reports it', () => {
     const { base, a, b } = scene()
     a.edit('t1', { title: [['A says']] })

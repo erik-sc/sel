@@ -63,6 +63,8 @@ export interface Api {
     listFavorites(): Promise<Block[]>
     listRecent(limit?: number): Promise<Block[]>
     listTrash(): Promise<Block[]>
+    /** Pages and databases archived by themselves, outside the trash, the most recently archived first. */
+    listArchived(): Promise<Block[]>
     restore(id: string): Promise<void>
     deleteForever(id: string): Promise<void>
     /** Ancestor pages of a block, root first, excluding the block itself. */
@@ -332,6 +334,7 @@ export const INVOKE = {
   'pages:listFavorites': true,
   'pages:listRecent': true,
   'pages:listTrash': true,
+  'pages:listArchived': true,
   'pages:restore': true,
   'pages:deleteForever': true,
   'pages:ancestors': true,

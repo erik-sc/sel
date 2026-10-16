@@ -130,6 +130,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     'pages:listFavorites': () => repo.listFavorites(),
     'pages:listRecent': ([a]) => repo.listRecent(arg.limit(a)),
     'pages:listTrash': () => repo.listTrash(),
+    'pages:listArchived': () => repo.listArchived(),
     'pages:restore': ([a]) => repo.restore(arg.id(a)),
     'pages:deleteForever': ([a]) => repo.deleteForever(arg.id(a)),
     'pages:ancestors': ([a]) => repo.ancestors(arg.id(a)),

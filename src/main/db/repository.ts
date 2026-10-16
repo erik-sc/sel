@@ -41,7 +41,7 @@ import { configure, migrate } from './schema'
 import { searchBlocks } from './search'
 import { searchText } from './text'
 import { buildSnapshot, BulkChange, formatStamp, RESTORE_LABEL_PREFIX, VersionStore } from './versions'
-import { byIdsSql, LINEAGE_SQL, liveFilter, pagesAbove, pick, subtreeSql, walk, type Link, type TreeNode } from './tree'
+import { archivedFilter, byIdsSql, LINEAGE_SQL, liveFilter, pagesAbove, pick, subtreeSql, walk, type Link, type TreeNode } from './tree'
 
 export { BLOCK_TYPES, isBlockType, isPageLike, isValidId, MAX_SETTING_CHARS } from './blocks'
 export type { TreeInput } from './blocks'
@@ -92,6 +92,9 @@ function chartProps(props: BlockProps): BlockProps {
   const clean = sanitizeViewCharts(views)
   return clean === views ? props : { ...props, views: clean as BlockProps['views'] }
 }
+
+/** False for a page or database that is archived by itself (see BlockProps.archivedAt). */
+const notArchived = (b: Block): boolean => typeof b.props.archivedAt !== 'number'
 
 /** A child list changed inside the open transaction, not yet written back (see flushOrders). */
 interface PendingOrder {
@@ -419,6 +422,20 @@ export class Repository {
     return rest
   }
 
+  /**
+   * Archiving (setting `archivedAt`) is for the pages and databases of the tree: a database
+   * row lives in its database, a linked view is simply removed, a built-in block is part of
+   * the app. Unarchiving (removing it) is always allowed.
+   */
+  private checkArchive(r: { type: string; parent_id: string | null }, type: string, props: BlockProps, systemBefore: string | null): void {
+    const at: unknown = props.archivedAt
+    if (typeof at !== 'number' || !Number.isFinite(at) || at <= 0) throw new Error('Invalid archivedAt')
+    if (!isPageLike(type) || !isPageLike(r.type)) throw new Error('Only pages and databases can be archived')
+    if (systemBefore !== null) throw new Error('A built-in database cannot be archived')
+    if (type === 'database' && typeof props.sourceId === 'string') throw new Error('A linked view cannot be archived: remove it instead')
+    if (r.parent_id !== null && this.head(r.parent_id)?.type === 'database') throw new Error('A database row cannot be archived')
+  }
+
   /** Rows live in the source: nothing may be created in, or moved into, a linked view. */
   private assertHoldsChildren(parent: Head): void {
     if (this.isLinked(parent)) throw new Error('A linked view has no rows of its own: add them to its source database')
@@ -655,6 +672,8 @@ export class Repository {
       this.checkNotebookChild(parent, parentId, id, input.type)
     }
     let props = chartProps(this.linkProps(id, input.type, mergeProps({}, input.props ?? {}), null, true))
+    // A block is archived by the user, never born so.
+    delete props.archivedAt
     this.checkSystem(props, input.type, parentId, null, true, id)
     if (input.type === 'database' && props.sourceId === undefined) props = defaultDatabaseProps(props)
     const page = this.dirty(parentId)
@@ -697,6 +716,7 @@ export class Repository {
     const systemBefore = isPageLike(oldType) && isSystemKind(before.system) ? before.system : null
     if (systemBefore !== null && type !== oldType) throw new Error('A built-in database cannot change its type')
     this.checkSystem(props, type, r.parent_id, systemBefore, false, id)
+    if (props.archivedAt !== undefined && props.archivedAt !== before.archivedAt) this.checkArchive(r, type, props, systemBefore)
     // The properties a built-in database is read by stay (deleting one or changing its type is refused).
     if (systemBefore !== null && patch.props && Object.hasOwn(patch.props, 'schema')) {
       const problem = systemSchemaProblem(systemBefore, props.schema)
@@ -1033,6 +1053,7 @@ export class Repository {
           // A linked view without a title of its own keeps showing its source's.
           if (title.length || typeof props.sourceId !== 'string') props.title = [...title, [' (copy)']]
           delete props.favorite
+          delete props.archivedAt
         }
         // A copy of a built-in database is an ordinary one: there is only ever one of each.
         delete props.system
@@ -1066,11 +1087,12 @@ export class Repository {
 
   // ------------------------------------------------------------------- pages
 
+  /** Pages and databases at the workspace root, in workspace order; archived ones are left out. */
   listRoot(): Block[] {
-    return this.getMany(this.order(null))
+    return this.getMany(this.order(null)).filter(notArchived)
   }
 
-  /** Sub-pages and databases shown under `pageId` in the sidebar, in document order. */
+  /** Sub-pages and databases shown under `pageId` in the sidebar, in document order (archived ones are not). */
   listChildren(pageId: string): Block[] {
     if (!isValidId(pageId)) return []
     // The walk needs every block's child list but nobody's props: only the pages found are loaded in full.
@@ -1085,7 +1107,7 @@ export class Repository {
     const load = (ids: string[]): TreeNode[] =>
       (this.stmt(byIdsSql(columns)).all(JSON.stringify(ids)) as Outline[]).map(node)
     const pages = walk(root, nodes, load).filter((b) => b.id !== pageId && isPageLike(b.type))
-    return this.getMany(pages.map((b) => b.id))
+    return this.getMany(pages.map((b) => b.id)).filter(notArchived)
   }
 
   listFavorites(): Block[] {
@@ -1096,10 +1118,13 @@ export class Repository {
          AND instr(props, '"favorite":') > 0 AND json_extract(props, '$.favorite') = 1
        ORDER BY created_at, rid`
     ).all() as Row[]
-    const live = liveFilter(this.lineage(rows.map((r) => r.id)))
-    return rows.filter((r) => live(r.id)).map(toBlock)
+    const links = this.lineage(rows.map((r) => r.id))
+    const live = liveFilter(links)
+    const archived = archivedFilter(links)
+    return rows.filter((r) => live(r.id) && !archived(r.id)).map(toBlock)
   }
 
+  /** Recently edited pages and databases, the latest first; archived ones (and what they hold) are not among them. */
   listRecent(limit = 20): Block[] {
     const n = Math.max(1, Math.min(200, Math.floor(Number(limit)) || 20))
     const out: Block[] = []
@@ -1111,13 +1136,37 @@ export class Repository {
     // Page through so pages hidden inside trashed subtrees cannot starve the result.
     for (let offset = 0; out.length < n; offset += n * 2) {
       const rows = s.all(n * 2, offset) as Row[]
-      const live = liveFilter(this.lineage(rows.map((r) => r.id)))
+      const links = this.lineage(rows.map((r) => r.id))
+      const live = liveFilter(links)
+      const archived = archivedFilter(links)
       for (const r of rows) {
-        if (out.length < n && live(r.id)) out.push(toBlock(r))
+        if (out.length < n && live(r.id) && !archived(r.id)) out.push(toBlock(r))
       }
       if (rows.length < n * 2) break
     }
     return out
+  }
+
+  /**
+   * Pages and databases archived by themselves (not those that are only inside an archived
+   * one), outside the trash, the most recently archived first.
+   */
+  listArchived(): Block[] {
+    const rows = this.stmt(
+      `SELECT ${COLS} FROM blocks
+       WHERE type IN ('page', 'database') AND trashed_at IS NULL
+         AND instr(props, '"archivedAt":') > 0 AND json_type(props, '$.archivedAt') IN ('integer', 'real')
+       ORDER BY json_extract(props, '$.archivedAt') DESC, rid DESC`
+    ).all() as Row[]
+    const live = liveFilter(this.lineage(rows.map((r) => r.id)))
+    return rows.filter((r) => live(r.id)).map(toBlock)
+  }
+
+  /** Those of `ids` that are archived, by themselves or because a page above them is. */
+  archivedAmong(ids: readonly string[]): Set<string> {
+    const valid = ids.filter(isValidId)
+    const archived = archivedFilter(this.lineage(valid))
+    return new Set(valid.filter((id) => archived(id)))
   }
 
   listTrash(): Block[] {
@@ -1131,17 +1180,20 @@ export class Repository {
 
   /**
    * Databases a linked view can point at: not in the trash (nor inside something
-   * that is), not themselves linked views; most recently edited first.
+   * that is), not themselves linked views; most recently edited first. With `archived: false`,
+   * not archived either (nor inside an archived page).
    */
-  listDatabases(): Block[] {
+  listDatabases(options: { archived?: boolean } = {}): Block[] {
     const rows = this.stmt(
       `SELECT ${COLS} FROM blocks
        WHERE type IN ('page', 'database') AND trashed_at IS NULL
          AND type = 'database' AND json_extract(props, '$.sourceId') IS NULL
        ORDER BY updated_at DESC, rid DESC`
     ).all() as Row[]
-    const live = liveFilter(this.lineage(rows.map((r) => r.id)))
-    return rows.filter((r) => live(r.id)).map(toBlock)
+    const links = this.lineage(rows.map((r) => r.id))
+    const live = liveFilter(links)
+    const archived = options.archived === false ? archivedFilter(links) : () => false
+    return rows.filter((r) => live(r.id) && !archived(r.id)).map(toBlock)
   }
 
   /**
@@ -1451,6 +1503,8 @@ export class Repository {
 
     const props: BlockProps = { ...snapRoot.props }
     if (root.props.favorite !== undefined) props.favorite = root.props.favorite
+    if (root.props.archivedAt !== undefined) props.archivedAt = root.props.archivedAt
+    else delete props.archivedAt
     const rootNow = this.need(pageId)
     this.putBlock(
       {
@@ -1512,6 +1566,7 @@ export class Repository {
     // A linked view without a title of its own keeps showing its source's.
     if (title.length || sourceIdOf(root) === null) props.title = [...title, [` (restored ${stamp})`]]
     delete props.favorite
+    delete props.archivedAt
     tree.props = props
     const copy = this.createTree(tree, root.parentId, root.id)
     if (pages) notes.push(`${pages} ${pages === 1 ? 'sub-page was not copied and stays' : 'sub-pages were not copied and stay'} in the original page.`)

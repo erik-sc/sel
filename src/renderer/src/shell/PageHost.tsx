@@ -8,7 +8,9 @@ import { fetchBlocks, useBlock, useBlockStatus } from '@/store/blocks'
 import { closeTab, openPage } from '@/store/tabs'
 import { setQuickFindOpen } from '@/store/ui'
 import { Button } from '@/ui/Button'
-import { Plus, Search, Trash, Undo } from '@/ui/icons'
+import { Archive, Plus, Search, Trash, Undo } from '@/ui/icons'
+import { isArchived, unarchivePage } from '@/archive/actions'
+import { useArchiveCopy } from '@/archive/locale'
 import { PageSkeleton } from '@/ui/Skeleton'
 import { createPage, deletePageForever, logError, pageTitle, reportError, restorePage } from './actions'
 import { isLinkedView } from './linked'
@@ -63,6 +65,20 @@ function TrashBanner({ block }: { block: Block }) {
         }}
       >
         {confirming ? 'Click again to delete forever' : 'Delete forever'}
+      </Button>
+    </div>
+  )
+}
+
+/** Over an archived page: only a notice, the page stays editable (the Trash banner wins when both apply). */
+function ArchiveBanner({ block }: { block: Block }) {
+  const copy = useArchiveCopy()
+  return (
+    <div className="archive-banner" role="status">
+      <Archive />
+      <span>{copy.banner}</span>
+      <Button icon={<Undo />} onClick={() => void unarchivePage(block.id)}>
+        {copy.unarchive}
       </Button>
     </div>
   )
@@ -171,7 +187,7 @@ export const PageHost = memo(function PageHost({ pageId }: { pageId: string }) {
 
   return (
     <div className="page-host">
-      {block.trashedAt && <TrashBanner block={block} />}
+      {block.trashedAt ? <TrashBanner block={block} /> : isArchived(block) && <ArchiveBanner block={block} />}
       <div className="page-scroll" key={pageId}>
         <ErrorBoundary>
           {block.type === 'database' ? (

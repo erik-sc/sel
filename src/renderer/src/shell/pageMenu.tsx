@@ -1,6 +1,8 @@
 import type { Block } from '@shared/types'
 import type { MenuItem } from '@/ui/Menu'
-import { ArrowUpRight, Check, Clock, Copy, Page, Plus, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { Archive, ArrowUpRight, Check, Clock, Copy, Page, Plus, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/actions'
+import { archiveCopy } from '@/archive/locale'
 import { requestPageAi } from '@/ai/gate'
 import { IS_MAC } from '@/ui/platform'
 import { openPage } from '@/store/tabs'
@@ -37,6 +39,21 @@ function removeItem(block: Block): MenuItem {
     disabled: !!block.trashedAt,
     onSelect: () => void trashPage(block.id).catch(reportError(linked ? 'remove the linked view' : 'move the page to the Trash'))
   }
+}
+
+/** "Archive" for a page of the tree, "Unarchive" once it is archived; nothing for what cannot be archived. */
+function archiveItems(block: Block): MenuItem[] {
+  if (!canArchive(block)) return []
+  const copy = archiveCopy()
+  const archived = isArchived(block)
+  return [
+    {
+      id: archived ? 'unarchive' : 'archive',
+      label: archived ? copy.unarchive : copy.archive,
+      icon: <Archive />,
+      onSelect: () => void (archived ? unarchivePage(block.id) : archivePage(block.id))
+    }
+  ]
 }
 
 function openSourceItems(block: Block): MenuItem[] {
@@ -80,7 +97,7 @@ export function sidebarPageMenu(block: Block): MenuItem[] {
       onSelect: () => void createPage(id).catch(reportError('create the page'))
     })
   }
-  items.push(...removeItems(block))
+  items.push(...archiveItems(block), ...removeItems(block))
   return items
 }
 
@@ -142,6 +159,7 @@ export function topBarPageMenu(block: Block, ai = false): MenuItem[] {
       icon: <ArrowUpRight />,
       onSelect: () => void window.api.app.newWindow(id).catch(reportError('open a new window'))
     },
+    ...archiveItems(block),
     ...removeItems(block)
   )
   return items

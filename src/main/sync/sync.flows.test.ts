@@ -119,6 +119,27 @@ suite('sync with real git: flows', () => {
     }
   })
 
+  it('merges a page archived on one device with edits made to it on the other', async () => {
+    const { a, b, pageId, blocks } = await pair()
+    // Both offline: A archives the page, B renames it and edits a paragraph in it.
+    a.repo.update(pageId, { props: { archivedAt: 1_500_000 } })
+    b.repo.update(pageId, { props: { title: [['Shared page, renamed on B']] } })
+    b.repo.update(blocks[1], { props: { title: [['two, edited on B']] } })
+    await sync(a, b, a)
+    for (const d of [a, b]) {
+      expect(d.repo.get(pageId)?.props).toMatchObject({ archivedAt: 1_500_000, title: [['Shared page, renamed on B']] })
+      expect(d.texts(pageId)).toEqual(['one', 'two, edited on B', 'three'])
+      expect(d.repo.listRoot().map((p) => p.id)).toEqual([])
+      expect(d.repo.listArchived().map((p) => p.id)).toEqual([pageId])
+      expect(d.engine.status().activity.flatMap((entry) => entry.conflicts)).toEqual([])
+    }
+    // Unarchiving travels too, and the page is back at the root on the other device.
+    b.repo.update(pageId, { props: { archivedAt: null } })
+    await sync(b, a)
+    expect(a.repo.listRoot().map((p) => p.id)).toEqual([pageId])
+    expect(a.repo.listArchived()).toEqual([])
+  })
+
   it('keeps the losing local state in version history when both devices changed the same block', async () => {
     const { a, b, pageId, blocks } = await pair()
     // B edits first (its clock is ahead, so its edit is the later one), A edits and syncs first.

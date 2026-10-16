@@ -24,6 +24,7 @@ import { PageRow, PageTree } from './PageTree'
 import { preloadSettings } from './SettingsModal'
 import { TrashPopover, preloadTrash } from './TrashPopover'
 import { SyncIndicator } from '@/sync/SyncIndicator'
+import { ArchiveButton } from '@/archive/ArchiveButton'
 
 /** Pixels the divider moves per arrow key press. */
 const RESIZE_STEP = 16
@@ -190,6 +191,7 @@ export const Sidebar = memo(function Sidebar() {
             <Trash />
             <span>Trash</span>
           </button>
+          <ArchiveButton />
           <button
             type="button"
             className="sidebar-action"

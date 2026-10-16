@@ -201,6 +201,7 @@ const INVOKE_CHANNELS = [
   'pages:duplicate',
   'pages:exportMarkdown',
   'pages:importMarkdown',
+  'pages:listArchived',
   'pages:listChildren',
   'pages:listFavorites',
   'pages:listRecent',
