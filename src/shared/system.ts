@@ -9,7 +9,7 @@ import type { Block } from './types'
  * leaves out the commands that would be refused.
  */
 
-export const SYSTEM_KINDS = ['tasks', 'notebook'] as const
+export const SYSTEM_KINDS = ['tasks', 'notebook', 'sky'] as const
 export type SystemKind = (typeof SYSTEM_KINDS)[number]
 
 type BlockLike = Pick<Block, 'type'> & { props?: unknown }

@@ -18,6 +18,7 @@ import { archiveCopy } from '@/archive/locale'
 import { customizeSidebar, sidebarCopy } from '@/shell/sidebarLayout'
 import { SIDEBAR_KEYWORDS } from '@/shell/sidebarCopy'
 import { openSidebarPanel } from '@/shell/sidebarPanels'
+import { skyIsEnabled } from '@/sky/route'
 import { registerCommands, type Command } from './registry'
 
 /** The page (or database) in the active tab, if it is one and not in the Trash. */
@@ -63,7 +64,7 @@ const SETTINGS: [SettingsSection, string, string[]][] = [
   ['herman', 'Herman', ['assistant', 'council']],
   ['notifications', 'Notifications', ['notificações', 'reminders', 'lembretes', 'alarms', 'events', 'tray', 'bandeja']],
   ['sync', 'Sync', ['git', 'devices', 'backup']],
-  ['today', 'Today', ['calendar', 'briefing', 'bell', 'close the day']],
+  ['today', 'Today', ['calendar', 'briefing', 'bell', 'close the day', 'sky', 'céu', 'hemisphere', 'rare nights']],
   ['meetings', 'Meetings', ['recording', 'transcription', 'whisper']],
   ['pomodoro', 'Pomodoro', ['timer', 'focus', 'break', 'tomato']],
   ['mcp', 'MCP', ['connect', 'other apps', 'claude desktop', 'claude code', 'token']]
@@ -106,6 +107,7 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('open-tasks', 'Tasks', ['todo', 'to-do', 'inbox', 'todoist']),
   menu('add-task', 'Add a task…', ['new task', 'quick add', 'todo']),
   menu('open-notebook', 'Meditations', ['meditações', 'journal', 'diary', 'line a day', 'on this day', 'notebook', 'ink', 'ink notebook', 'caderno', 'caderno de tinta', 'diário']),
+  menu('open-sky', 'Sky', ['céu', 'sky', 'estrelas', 'stars', 'constelações', 'constellations', 'jardim', 'garden', 'carta celeste', 'star chart', 'moon', 'lua'], skyIsEnabled),
   menu('close-day', 'Close the day', ['evening', 'end', 'review', 'tomorrow', 'shutdown', 'fechar o dia', 'até amanhã']),
   menu('new-meeting', 'New meeting', ['record', 'transcribe', 'call']),
   menu('toggle-assistant', 'Herman, the assistant', ['ai', 'ask', 'chat', 'claude'], aiEnabled),

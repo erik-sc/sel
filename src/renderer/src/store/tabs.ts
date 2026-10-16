@@ -37,6 +37,8 @@ export const TASKS_ROUTE = '_tasks'
 export const NOTEBOOK_ROUTE = '_notebook'
 /** The ritual that closes the day, likewise. */
 export const CLOSE_ROUTE = '_close'
+/** The Sky (see sky/route.ts). */
+export const SKY_ROUTE = '_sky'
 /** The shape of every block id (the backend enforces the same). */
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 
@@ -291,6 +293,7 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
     alive.add(TASKS_ROUTE)
     alive.add(NOTEBOOK_ROUTE)
     alive.add(CLOSE_ROUTE)
+    alive.add(SKY_ROUTE)
     if (restored) {
       restored.tabs = restored.tabs.filter((t) => {
         const page = tabPage(t)

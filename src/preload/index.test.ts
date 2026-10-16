@@ -37,6 +37,7 @@ vi.mock('@shared/types', () => import('../shared/types'))
 vi.mock('@shared/updates', () => import('../shared/updates'))
 vi.mock('@shared/alarms', () => import('../shared/alarms'))
 vi.mock('@shared/pomodoro', () => import('../shared/pomodoro'))
+vi.mock('@shared/sky', () => import('../shared/sky'))
 
 import { INVOKE } from '../shared/api'
 
@@ -101,6 +102,7 @@ describe('the preload', () => {
       'pomodoro.onChanged': 'on pomodoro:changed',
       'pomodoro.onEnded': 'on pomodoro:ended',
       'pomodoro.onCompleted': 'on pomodoro:completed',
+      'sky.onChanged': 'on sky:changed',
       'app.platform': 'string',
       'app.window.minimize': 'send window:minimize',
       'app.window.toggleMaximize': 'send window:toggleMaximize',
@@ -134,6 +136,9 @@ const INVOKE_CHANNELS = [
   'pomodoro:start',
   'pomodoro:state',
   'pomodoro:stop',
+  'sky:moment',
+  'sky:name',
+  'sky:view',
   'app:newWindow',
   'app:openExternal',
   'app:setSetting',

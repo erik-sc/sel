@@ -230,6 +230,8 @@ export const Mic = make(
 
 /** A dip pen's nib: the ink notebook. */
 export const Pen = make(<path d="M8 1.8 11.6 6 8 14.2 4.4 6zM8 6.2v3.4M4.4 6h7.2" />)
+/** A four-pointed star, drawn like the glint in the Sky: the Sky. */
+export const Sky = make(<path d="M8 1.6Q8.8 7.2 14.4 8Q8.8 8.8 8 14.4Q7.2 8.8 1.6 8Q7.2 7.2 8 1.6Z" />)
 
 /** A crescent moon: closing the day. */
 export const Moon = make(<path d="M12.8 10.2A5.4 5.4 0 0 1 5.8 3.2a5.4 5.4 0 1 0 7 7z" />)

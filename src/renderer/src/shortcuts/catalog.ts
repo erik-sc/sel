@@ -73,6 +73,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { id: 'add-task', label: 'Add a task', command: 'add-task', keywords: ['quick add', 'todo'] },
       { id: 'add-task-here', label: 'Add a task, on the Tasks screen', keys: ['Q'], keywords: ['quick add'] },
       { id: 'open-notebook', label: 'Meditations', command: 'open-notebook', keywords: ['meditações', 'journal', 'diary', 'notebook', 'ink', 'caderno'] },
+      { id: 'open-sky', label: 'Sky', command: 'open-sky', keywords: ['céu', 'stars', 'estrelas', 'constellations', 'garden', 'jardim'] },
       { id: 'calendar-day', label: 'A day earlier or later, in the calendar', keys: ['Left', 'Right'] },
       { id: 'calendar-week', label: 'A week earlier or later, in the calendar', keys: ['Up', 'Down'] },
       { id: 'start-pomodoro', label: 'Start a pomodoro, or show its controls', command: 'start-pomodoro', keywords: ['timer', 'focus', 'break'] }

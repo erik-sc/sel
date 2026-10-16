@@ -6,11 +6,12 @@ import type { ComponentType, ReactNode } from 'react'
 import type { SidebarItemId } from '@shared/sidebar'
 import { setQuickFindOpen, setSettingsOpen } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
-import { Archive, Calendar, Check, Clock, Feedback, Home, Mic, Moon, Pen, Plus, Search, Settings, Sparkle, Star, Page, Trash } from '@/ui/icons'
+import { Archive, Calendar, Check, Clock, Feedback, Home, Mic, Moon, Pen, Plus, Search, Settings, Sky, Star, Page, Trash } from '@/ui/icons'
 import { openFeedback } from '@/feedback/gate'
 import { preloadFeedback } from '@/feedback/Host'
 import { openCalendar, openToday } from '@/briefing/route'
 import { openCloseDay, openNotebook } from '@/notebook/route'
+import { openSky, useSkyEnabled } from '@/sky/route'
 import { openTasks, preloadTasks } from '@/tasks/gate'
 import { newMeeting } from '@/meetings/gate'
 import { MOD_KEY } from '@/ui/platform'
@@ -125,9 +126,8 @@ export const SIDEBAR_ITEM_DEFS: Record<SidebarItemId, SidebarItemDef> = {
   calendar: { id: 'calendar', icon: <Calendar />, Render: () => <Action id="calendar" icon={<Calendar />} onClick={openCalendar} /> },
   tasks: { id: 'tasks', icon: <Check />, Render: () => <Action id="tasks" icon={<Check />} onClick={openTasks} preload={preloadTasks} /> },
   meditations: { id: 'meditations', icon: <Pen />, Render: () => <Action id="meditations" icon={<Pen />} onClick={openNotebook} /> },
-  // Reserved for the Sky (feature 6), which brings its button: until then it draws nothing and
-  // `useAvailableItem` keeps it out of the sidebar and its settings.
-  sky: { id: 'sky', icon: <Sparkle />, Render: () => null },
+  // Gone while the Sky is turned off (see useAvailableItem).
+  sky: { id: 'sky', icon: <Sky />, Render: () => <Action id="sky" icon={<Sky />} onClick={openSky} /> },
   'close-day': { id: 'close-day', icon: <Moon />, Render: () => <Action id="close-day" icon={<Moon />} onClick={openCloseDay} /> },
   'new-page': { id: 'new-page', icon: <Plus />, Render: () => <Action id="new-page" icon={<Plus />} onClick={newRootPage} /> },
   'new-meeting': { id: 'new-meeting', icon: <Mic />, Render: () => <Action id="new-meeting" icon={<Mic />} onClick={() => void newMeeting()} /> },

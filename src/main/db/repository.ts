@@ -4,6 +4,7 @@ import { sourceIdOf } from '../../shared/linked'
 import { relinkDuplicate } from '../../shared/relation'
 import { plainText } from '../../shared/richtext'
 import { dayOfEntryId, isDayWritable, NOTEBOOK_ENTRY_TYPE, NOTEBOOK_ID } from '../../shared/notebook'
+import { SKY_ID } from '../../shared/sky'
 import { isSystemKind, systemSchemaProblem } from '../../shared/system'
 import type { Block, BlockProps, CreateBlockInput, DatabaseLocation, Op, SearchResult, UpdateBlockInput } from '../../shared/types'
 import {
@@ -128,6 +129,9 @@ export class Repository {
   private touched = new Set<string>()
   /** Child lists read or changed inside the currently open transaction, by parent id. */
   private orders = new Map<string, PendingOrder>()
+  /** To-dos checked inside the open transaction, announced once it commits (see onTodoChecked). */
+  private pendingChecked: string[] = []
+  private readonly todoListeners = new Set<(id: string) => void>()
 
   constructor(
     private readonly db: SqlDriver,
@@ -197,6 +201,8 @@ export class Repository {
     this.containers = new Map()
     this.pendingResets = new Set()
     this.versions.begin()
+    this.pendingChecked = []
+    let checked: string[] = []
     try {
       const result = fn()
       this.versions.beforeCommit(this.bulkCheck)
@@ -205,6 +211,7 @@ export class Repository {
       this.versions.commit()
       for (const id of this.pending) this.committed.add(id)
       for (const id of this.pendingResets) this.resets.add(id)
+      checked = this.pendingChecked
       return result
     } catch (err) {
       try {
@@ -221,6 +228,9 @@ export class Repository {
       this.orders = new Map()
       this.containers = new Map()
       this.pendingResets = new Set()
+      this.pendingChecked = []
+      // Outside the transaction: a listener may write.
+      if (checked.length > 0) this.announceChecked(checked)
     }
   }
 
@@ -324,6 +334,31 @@ export class Repository {
     if (parentId !== null) throw new Error('A built-in database lives at the workspace root')
     // There is one notebook, the same block on every device (shared/notebook.ts).
     if (kind === 'notebook' && (id !== NOTEBOOK_ID || type !== 'page')) throw new Error('Meditations is a page of its own')
+    if (kind === 'sky' && (id !== SKY_ID || type !== 'page')) throw new Error('The Sky is a page of its own')
+  }
+
+  // ----------------------------------------------------------- checked to-dos
+  //
+  // The Sky keeps a grain of dust for each to-do checked on a page (shared/sky). The repository
+  // only says when one was checked, after the change is committed; what to do with it is the
+  // listener's. Sync (applySync) brings other devices' checks along with their own grains.
+
+  /** Calls `listener` with the id of each `to_do` block that goes from unchecked to checked. */
+  onTodoChecked(listener: (id: string) => void): () => void {
+    this.todoListeners.add(listener)
+    return () => this.todoListeners.delete(listener)
+  }
+
+  private announceChecked(ids: readonly string[]): void {
+    for (const id of ids) {
+      for (const listener of this.todoListeners) {
+        try {
+          listener(id)
+        } catch (err) {
+          console.error('a checked to-do listener failed', err)
+        }
+      }
+    }
   }
 
   // -------------------------------------------------------- the ink notebook
@@ -755,6 +790,7 @@ export class Repository {
     // The block's own updated_at was just bumped; only non-pages bubble up to their page.
     this.touched.add(id)
     if (!isPageLike(type)) this.touchPage(r.parent_id)
+    if (type === 'to_do' && oldType === 'to_do' && before.checked !== true && props.checked === true) this.pendingChecked.push(id)
   }
 
   move(id: string, parentId: string | null, afterId?: string | null): Block {
