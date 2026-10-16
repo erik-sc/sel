@@ -10,6 +10,7 @@ import type { InvokeChannels } from './ipc'
 import type { McpApi } from './mcp'
 import type { MeetingsApi } from './meetings'
 import type { NotebookApi } from './notebook'
+import type { PomodoroApi } from './pomodoro'
 import type {
   Block,
   ChangeEvent,
@@ -242,6 +243,12 @@ export interface Api {
    */
   alarms: AlarmsApi
 
+  /**
+   * The pomodoro timer: kept by the main process, so it outlives a reload and every window shows
+   * the same; a phase never starts by itself. See shared/pomodoro.ts.
+   */
+  pomodoro: PomodoroApi
+
   app: {
     getTheme(): Promise<Theme>
     setTheme(theme: Theme): Promise<void>
@@ -297,6 +304,8 @@ export type MenuCommand =
   | 'send-feedback'
   | 'command-palette'
   | 'keyboard-shortcuts'
+  /** Starts a pomodoro; with one on, shows its controls. */
+  | 'start-pomodoro'
 
 /** Event and fire-and-forget channel names. Invoke channels are declared in `INVOKE` below. */
 export const IPC = {
@@ -444,6 +453,14 @@ export const INVOKE = {
   'alarms:pending': true,
   'alarms:heard': true,
   'alarms:test': true,
+
+  'pomodoro:state': true,
+  'pomodoro:start': true,
+  'pomodoro:pause': true,
+  'pomodoro:resume': true,
+  'pomodoro:skip': true,
+  'pomodoro:next': true,
+  'pomodoro:stop': true,
 
   'app:getTheme': true,
   'app:setTheme': true,

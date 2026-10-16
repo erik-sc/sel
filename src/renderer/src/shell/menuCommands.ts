@@ -25,6 +25,7 @@ import { openFind } from './findStore'
 import { openFeedback } from '@/feedback/gate'
 import { openPalette } from '@/commands/store'
 import { openShortcuts } from '@/shortcuts/gate'
+import { startOrShowPomodoro } from '@/pomodoro/gate'
 
 export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
   switch (command) {
@@ -112,6 +113,9 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       break
     case 'send-feedback':
       openFeedback()
+      break
+    case 'start-pomodoro':
+      startOrShowPomodoro()
       break
     case 'version-history': {
       // The shortcut toggles: the history of the page in the active tab.

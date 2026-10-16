@@ -52,6 +52,7 @@ export const APP_SHORTCUTS: readonly AppShortcut[] = [
   // N for notebook. Ctrl+N is a new page, Ctrl+Shift+N a new window.
   { command: 'open-notebook', accelerator: 'CmdOrCtrl+Alt+N', key: 'n', ctrl: true, alt: true },
   { command: 'new-meeting', accelerator: 'CmdOrCtrl+Alt+M', key: 'm', ctrl: true, alt: true },
+  { command: 'start-pomodoro', accelerator: 'CmdOrCtrl+Alt+P', key: 'p', ctrl: true, alt: true },
   { command: 'keyboard-shortcuts', accelerator: 'CmdOrCtrl+/', key: '/', ctrl: true }
 ]
 

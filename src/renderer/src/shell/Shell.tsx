@@ -8,6 +8,7 @@ import { AiSetup, AssistantDock } from '@/ai/Host'
 import { useAiGate } from '@/ai/gate'
 import { CalendarHost, TodayHost } from '@/briefing/Host'
 import { HermanHost } from '@/herman/Host'
+import { PomodoroHost } from '@/pomodoro/Host'
 import { FeedbackHost } from '@/feedback/Host'
 import { MeetingSetup, RecordingIndicator } from '@/meetings/slot'
 import { isCalendarRoute, isTodayRoute } from '@/briefing/route'
@@ -88,6 +89,7 @@ export function Shell() {
               <EmptyState />
             )}
             <HermanHost />
+            <PomodoroHost />
             <FindBar />
             <UpdateNotice />
           </main>
