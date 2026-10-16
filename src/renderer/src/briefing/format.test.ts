@@ -2,7 +2,7 @@ process.env.TZ = 'America/Sao_Paulo'
 
 import { describe, expect, it } from 'vitest'
 import type { BriefingEvent, BriefingTask, BriefingTasks } from '../../../shared/briefing'
-import { agendaByDay, calendarNotes, clock, dayStart, dayTimeline, dueLabel, eventMoments, eventTime, longDate, phraseSource, phraseText, shortClock, taskGroups, untilMidnight, updatedLabel } from './format'
+import { agendaByDay, calendarNotes, clock, dayStart, dayTimeline, dueLabel, eventMoments, eventTime, longDate, phraseSource, phraseText, shortClock, taskGroups, tickedKey, untilMidnight, updatedLabel } from './format'
 
 const at = (hour: number, minute = 0, day = 13): number => new Date(2026, 9, day, hour, minute).getTime()
 const event = (start: number, end: number, allDay = false): { start: number; end: number; allDay: boolean } => ({ start, end, allDay })
@@ -123,7 +123,7 @@ describe('the source of a phrase', () => {
 describe('folding the task list', () => {
   const task = (id: string): BriefingTask => ({ id, kind: 'row', title: id, pageId: id, source: 'Tasks' })
   const tasks: BriefingTasks = { overdue: [task('o1'), task('o2')], today: [task('t1'), task('t2'), task('t3')], noDate: [task('n1')], more: 2 }
-  const ids = (expanded: boolean, done: string[] = []): string[][] => taskGroups(tasks, expanded, new Set(done)).groups.map((group) => group.tasks.map((item) => item.id))
+  const ids = (expanded: boolean, done: string[] = []): string[][] => taskGroups(tasks, expanded, new Set(done.map((id) => tickedKey(task(id))))).groups.map((group) => group.tasks.map((item) => item.id))
 
   it('shows the first tasks across the groups and counts the rest', () => {
     const folded = taskGroups(tasks, false)
@@ -135,8 +135,16 @@ describe('folding the task list', () => {
 
   it('lets a ticked task go at once, and the next one move up', () => {
     expect(ids(false, ['o1'])).toEqual([['o2'], ['t1', 't2', 't3']])
-    expect(taskGroups(tasks, false, new Set(['o1'])).hidden).toBe(1)
+    expect(taskGroups(tasks, false, new Set([tickedKey(task('o1'))])).hidden).toBe(1)
     expect(ids(true, ['o1', 'o2', 'n1'])).toEqual([['t1', 't2', 't3']])
+  })
+
+  it('shows a repeating task again on its next date', () => {
+    const daily: BriefingTask = { ...task('r'), due: '2026-10-15' }
+    const done = new Set([tickedKey(daily)])
+    expect(taskGroups({ overdue: [], today: [daily], more: 0 }, false, done).groups).toEqual([])
+    const moved = { ...daily, due: '2026-10-16' }
+    expect(taskGroups({ overdue: [], today: [moved], more: 0 }, false, done).groups).toEqual([{ key: 'today', label: 'Today', tasks: [moved] }])
   })
 
   it('handles a briefing without the optional group, and an empty one', () => {

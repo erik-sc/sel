@@ -7,7 +7,7 @@ import { newMeeting } from '@/meetings/gate'
 import { openPage } from '@/store/tabs'
 import { setSettingsOpen, useUi } from '@/store/ui'
 import { notifyError, toast } from '@/ui/toast'
-import { dueLabel, untilMidnight, type EventMoment } from './format'
+import { dueLabel, tickedKey, untilMidnight, type EventMoment } from './format'
 import { requestTodaySettings } from './route'
 
 /** Data older than this is fetched again when the window gets the focus back. */
@@ -167,18 +167,20 @@ export function TaskRow({ task, day, onComplete }: { task: BriefingTask; day: st
 }
 
 /**
- * Marking tasks done from a list. `done` holds those ticked here, to hide at once; the next
- * load no longer has them. A toast offers to take it back.
+ * Marking tasks done from a list. `done` holds the `tickedKey` of those ticked here, to hide at
+ * once; the next load no longer has them, or has a repeating one on its next date. A toast
+ * offers to take it back.
  */
 export function useCompleteTask(): { done: ReadonlySet<string>; complete: (task: BriefingTask) => void } {
   const [done, setDone] = useState<ReadonlySet<string>>(() => new Set())
 
   const complete = useCallback((task: BriefingTask): void => {
-    setDone((current) => new Set(current).add(task.id))
+    const key = tickedKey(task)
+    setDone((current) => new Set(current).add(key))
     const restore = (): void =>
       setDone((current) => {
         const next = new Set(current)
-        next.delete(task.id)
+        next.delete(key)
         return next
       })
     window.api.briefing.completeTask(task.id).then(
