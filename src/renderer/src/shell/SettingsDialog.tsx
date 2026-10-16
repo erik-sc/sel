@@ -32,6 +32,7 @@ type Section = SettingsSection
 const SECTIONS: { value: Section; label: string }[] = [
   { value: 'general', label: 'General' },
   { value: 'appearance', label: 'Appearance' },
+  { value: 'sidebar', label: 'Sidebar' },
   { value: 'history', label: 'History' },
   { value: 'ai', label: 'AI' },
   { value: 'herman', label: 'Herman' },
@@ -54,6 +55,8 @@ const NotificationsSection = lazy(() => import('@/alarms/NotificationSettings').
 const MeetingsSection = lazy(() => import('@/meetings/MeetingsSettings').then((module) => ({ default: module.MeetingsSection })))
 // And so are the pomodoro's.
 const PomodoroSection = lazy(() => import('@/pomodoro/PomodoroSettings').then((module) => ({ default: module.PomodoroSection })))
+// And so is the sidebar's layout.
+const SidebarSection = lazy(() => import('./SidebarSettings').then((module) => ({ default: module.SidebarSection })))
 // And so are the settings for connecting other apps.
 const McpSection = lazy(() => import('@/external/McpSettings').then((module) => ({ default: module.McpSection })))
 
@@ -131,6 +134,10 @@ function SettingsBody() {
           ) : section === 'pomodoro' ? (
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
               <PomodoroSection />
+            </Suspense>
+          ) : section === 'sidebar' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <SidebarSection />
             </Suspense>
           ) : section === 'today' ? (
             <TodaySection />
