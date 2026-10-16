@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from 'react'
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react'
+import type { JSX, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react'
 import { useTree } from '@/store/tree'
 import {
   SIDEBAR_MAX,
@@ -11,11 +11,12 @@ import {
   useUi
 } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
-import { Calendar, Check, ChevronLeft, Clock, Feedback, Mic, Moon, Pen, Plus, Search, Settings, Trash } from '@/ui/icons'
+import { Calendar, Check, ChevronLeft, Clock, Feedback, Mic, Moon, Pen, Plus, Search, Settings, Sky, Trash } from '@/ui/icons'
 import { openFeedback } from '@/feedback/gate'
 import { preloadFeedback } from '@/feedback/Host'
 import { openCalendar, openToday } from '@/briefing/route'
 import { openCloseDay, openNotebook } from '@/notebook/route'
+import { openSky, useSkyEnabled } from '@/sky/route'
 import { openTasks, preloadTasks } from '@/tasks/gate'
 import { newMeeting } from '@/meetings/gate'
 import { MOD_KEY } from '@/ui/platform'
@@ -97,6 +98,18 @@ function Resizer() {
   )
 }
 
+/** The sidebar item `sky`, right after `meditations`; gone while the Sky is turned off. */
+function SkyButton(): JSX.Element | null {
+  const enabled = useSkyEnabled((state) => state.enabled)
+  if (!enabled) return null
+  return (
+    <button type="button" className="sidebar-action" onClick={openSky}>
+      <Sky />
+      <span>Sky</span>
+    </button>
+  )
+}
+
 // Memoised: the shell re-renders on every frame of a sidebar resize; its panels need not.
 export const Sidebar = memo(function Sidebar() {
   // Focus mode hides it the way collapsing does, without changing whether it is collapsed.
@@ -143,6 +156,7 @@ export const Sidebar = memo(function Sidebar() {
             <Pen />
             <span>Meditations</span>
           </button>
+          <SkyButton />
           <button type="button" className="sidebar-action" onClick={openCloseDay}>
             <Moon />
             <span>Close the day</span>

@@ -98,6 +98,7 @@ export function buildMenu(): void {
         item('Tasks', 'open-tasks'),
         item('Add a Task…', 'add-task'),
         item('Meditations', 'open-notebook'),
+        item('Sky', 'open-sky'),
         item('Close the Day', 'close-day'),
         item('Start a Pomodoro', 'start-pomodoro'),
         { type: 'separator' },

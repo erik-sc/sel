@@ -1,4 +1,5 @@
 import { NOTEBOOK_ID, NOTEBOOK_LIMITS, type DayReviewItem } from '../../shared/notebook'
+import { SKY_ID } from '../../shared/sky'
 import { plainText } from '../../shared/richtext'
 import type { BlockProps } from '../../shared/types'
 import { detectSignal, type TaskBlock, type TaskSignal } from '../briefing/tasks'
@@ -107,7 +108,7 @@ export function collectDay(blocks: Iterable<TaskBlock>, bounds: DayBounds): DayC
     if (block.trashedAt !== null && block.trashedAt !== undefined) continue
     if (!within(block.updatedAt)) continue
     const parentId = typeof block.parentId === 'string' ? block.parentId : null
-    if (block.id === NOTEBOOK_ID || parentId === NOTEBOOK_ID) continue
+    if (block.id === NOTEBOOK_ID || parentId === NOTEBOOK_ID || block.id === SKY_ID || parentId === SKY_ID) continue
     const title = heads.get(block.id)?.title ?? ''
     if (block.type === 'page') {
       const signal = signalOf(parentId)

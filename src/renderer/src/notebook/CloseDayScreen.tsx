@@ -8,7 +8,10 @@ import { createPortal } from 'react-dom'
 import type { JSX } from 'react'
 import { localDay } from '@shared/briefing'
 import { bellOn, nextDay, NOTEBOOK_BELL_KEY, NOTEBOOK_LIMITS, type DayReview, type DayReviewItem } from '@shared/notebook'
+import { capitalise, cleanSkyName, figureOfMonth, SKY_NAME_MAX, type SkyView } from '@shared/sky'
 import { Button } from '@/ui/Button'
+import { COPY as SKY_COPY } from '@/sky/copy'
+import { RestSky } from '@/sky/RestSky'
 import { ringBell } from './bell'
 import { CLOSE_COPY, dayHeading, type CloseCopy } from './copy'
 import { openNotebook } from './route'
@@ -33,8 +36,11 @@ function ReviewList({ label, items }: { label: string; items: DayReviewItem[] })
   )
 }
 
-/** The window at rest: dimmed, two words, until a key or a click. */
-function Rest({ copy, onWake }: { copy: CloseCopy; onWake: () => void }): JSX.Element {
+/**
+ * The window at rest: dimmed, two words, until a key or a click. With the Sky on, the year's sky
+ * appears first and the line just written lights its star; the words come after.
+ */
+function Rest({ copy, onWake, day, sky }: { copy: CloseCopy; onWake: () => void; day: string; sky: boolean }): JSX.Element {
   const [waking, setWaking] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -60,8 +66,9 @@ function Rest({ copy, onWake }: { copy: CloseCopy; onWake: () => void }): JSX.El
   }, [onWake])
 
   return createPortal(
-    <div ref={ref} className={waking ? 'close-rest is-waking' : 'close-rest'} role="dialog" aria-modal="true" aria-label={copy.rest} tabIndex={-1}>
+    <div ref={ref} className={['close-rest', sky ? 'has-sky' : '', waking ? 'is-waking' : ''].join(' ').trim()} role="dialog" aria-modal="true" aria-label={copy.rest} tabIndex={-1}>
       <div className="close-rest-inner">
+        {sky && <RestSky day={day} />}
         <p className="close-rest-words">{copy.rest}</p>
         <p className="close-rest-hint">{copy.restHint}</p>
       </div>
@@ -80,6 +87,17 @@ export function CloseDayScreen(): JSX.Element {
   const [problem, setProblem] = useState<Problem>(null)
   const [phase, setPhase] = useState<'steps' | 'rest' | 'closed'>('steps')
   const heading = useRef<HTMLHeadingElement>(null)
+  // The Sky: whether the rest shows it, and the month's name on its last day.
+  const [sky, setSky] = useState<SkyView | null>(null)
+  const [naming, setNaming] = useState(false)
+  const [skyName, setSkyName] = useState('')
+
+  useEffect(() => {
+    window.api.sky.view().then(
+      (view) => setSky(view),
+      (error: unknown) => console.error('the sky could not be read', error)
+    )
+  }, [])
 
   const load = useCallback((): void => {
     setFailed(false)
@@ -101,7 +119,7 @@ export function CloseDayScreen(): JSX.Element {
   // Each step's title takes the focus, so the screen reader and the keyboard follow the steps.
   useEffect(() => {
     if (review && phase === 'steps') heading.current?.focus()
-  }, [step, review, phase])
+  }, [step, review, phase, naming])
 
   const wake = useCallback(() => setPhase('closed'), [])
 
@@ -152,8 +170,46 @@ export function CloseDayScreen(): JSX.Element {
     }
   }
 
+  const month = day.slice(0, 7)
+  // On the last day of a month with at least one star, the line is followed by a name for it.
+  const nameable =
+    !!sky &&
+    sky.enabled &&
+    nextDay(day).slice(0, 7) !== month &&
+    (sky.meditations.some((m) => m.day.startsWith(month) && m.day !== day && m.text) || !!review.line.trim() || !!line.trim())
+  const figureName = capitalise(review.locale === 'pt-BR' ? figureOfMonth(month).pt : figureOfMonth(month).en)
+
   const next = async (): Promise<void> => {
-    if (await save()) setStep((s) => Math.min(STEPS - 1, s + 1))
+    if (naming) {
+      const text = cleanSkyName(skyName)
+      if (text && text !== (sky?.names[month] ?? '')) {
+        setBusy(true)
+        try {
+          await window.api.sky.name(month, text)
+        } catch (error) {
+          console.error('the constellation could not be named', error)
+          setProblem('failed')
+          setBusy(false)
+          return
+        }
+        setBusy(false)
+      }
+      setNaming(false)
+      setStep(2)
+      return
+    }
+    if (!(await save())) return
+    if (step === 1 && nameable && (review.line.trim() || line.trim())) {
+      setSkyName(sky?.names[month] ?? '')
+      setNaming(true)
+      return
+    }
+    setStep((s) => Math.min(STEPS - 1, s + 1))
+  }
+
+  const back = (): void => {
+    if (naming) setNaming(false)
+    else setStep((s) => Math.max(0, s - 1))
   }
 
   const close = async (): Promise<void> => {
@@ -165,7 +221,8 @@ export function CloseDayScreen(): JSX.Element {
     }
   }
 
-  const stepTitle = [copy.happenedTitle, copy.keepTitle, copy.tomorrowTitle, copy.closeTitle][step]
+  const skyCopy = SKY_COPY[review.locale]
+  const stepTitle = naming ? skyCopy.nameStepTitle(month) : [copy.happenedTitle, copy.keepTitle, copy.tomorrowTitle, copy.closeTitle][step]
 
   if (phase === 'closed') {
     return (
@@ -203,7 +260,7 @@ export function CloseDayScreen(): JSX.Element {
       </ol>
 
       {/* Keyed by the step: each one fades in on its own. */}
-      <section key={step} className="close-body" aria-labelledby="close-step-title">
+      <section key={naming ? 'name' : step} className="close-body" aria-labelledby="close-step-title">
         <h2 className="close-title" id="close-step-title" ref={heading} tabIndex={-1}>
           {stepTitle}
         </h2>
@@ -218,7 +275,28 @@ export function CloseDayScreen(): JSX.Element {
             <p className="notebook-quiet">{copy.quietDay}</p>
           ))}
 
-        {step === 1 && (
+        {step === 1 && naming && (
+          <>
+            <p className="close-help">{skyCopy.nameStepAsk}</p>
+            <input
+              className="close-plan close-sky-name"
+              value={skyName}
+              maxLength={SKY_NAME_MAX}
+              placeholder={figureName}
+              aria-label={skyCopy.nameStepAsk}
+              onChange={(event) => setSkyName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                  event.preventDefault()
+                  void next()
+                }
+              }}
+            />
+            <p className="close-help close-sky-hint">{skyCopy.nameStepHint}</p>
+          </>
+        )}
+
+        {step === 1 && !naming && (
           <>
             <p className="close-help">{review.line ? copy.keepReplace : copy.keepHelp}</p>
             <textarea
@@ -275,7 +353,7 @@ export function CloseDayScreen(): JSX.Element {
 
         <div className="close-actions">
           {step > 0 && (
-            <Button variant="ghost" disabled={busy} onClick={() => setStep((s) => Math.max(0, s - 1))}>
+            <Button variant="ghost" disabled={busy} onClick={back}>
               {copy.back}
             </Button>
           )}
@@ -291,7 +369,7 @@ export function CloseDayScreen(): JSX.Element {
         </div>
       </section>
 
-      {phase === 'rest' && <Rest copy={copy} onWake={wake} />}
+      {phase === 'rest' && <Rest copy={copy} onWake={wake} day={day} sky={!!sky?.enabled} />}
     </article>
   )
 }

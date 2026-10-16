@@ -7,6 +7,7 @@ import { cleanMcpSetting, MCP_KEYS } from '../shared/mcp'
 import { cleanMeetingsSetting, MEETINGS_KEYS } from '../shared/meetings'
 import { cleanNotebookSetting, NOTEBOOK_KEYS } from '../shared/notebook'
 import { cleanPomodoroSetting, POMODORO_KEYS } from '../shared/pomodoro'
+import { cleanSkySetting, SKY_KEYS } from '../shared/sky'
 import { cleanUpdatesSetting, UPDATES_KEYS } from '../shared/updates'
 import { cleanHistorySetting, HISTORY_KEYS, MAX_VERSION_LABEL } from '../shared/versions'
 import { isValidId, MAX_SETTING_CHARS } from './db/blocks'
@@ -39,7 +40,7 @@ const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
  * the seats of his council among them (what he remembers, `herman.memory`, is not); `updates.check`
  * (not `updates.lastCheck`); `mcp.enabled`; nothing else in those namespaces.
  */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', HOME_SETTING, ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS, ...NOTEBOOK_KEYS, ...ALARMS_KEYS, ...POMODORO_KEYS])
+const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', HOME_SETTING, ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS, ...NOTEBOOK_KEYS, ...ALARMS_KEYS, ...POMODORO_KEYS, ...SKY_KEYS])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
 const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
 
@@ -177,6 +178,7 @@ export function settingValueFor(key: string, value: unknown): unknown {
   if (key === HOME_SETTING) return homeSettingValue(value)
   if (key === STARTUP_SETTING) return startupSettingValue(value)
   if (key.startsWith('pomodoro.')) return pomodoroSettingValue(key, value)
+  if (key.startsWith('sky.')) return skySettingValue(key, value)
   if (!key.startsWith('history.')) return settingValue(value)
   if (value === undefined || value === null) return null
   const clean = cleanHistorySetting(key, value)
@@ -265,6 +267,14 @@ function mcpSettingValue(key: string, value: unknown): unknown {
 function notebookSettingValue(key: string, value: unknown): unknown {
   if (value === undefined || value === null) return null
   const clean = cleanNotebookSetting(key, value)
+  if (clean === undefined) throw new Error('Invalid setting value')
+  return clean
+}
+
+/** The Sky's switches and this computer's memory of what it already showed. Null resets one. */
+function skySettingValue(key: string, value: unknown): unknown {
+  if (value === undefined || value === null) return null
+  const clean = cleanSkySetting(key, value)
   if (clean === undefined) throw new Error('Invalid setting value')
   return clean
 }

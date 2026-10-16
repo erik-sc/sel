@@ -17,6 +17,7 @@ import {
   type NotebookLocale,
   type NotebookView
 } from '../../shared/notebook'
+import { SKY_ID } from '../../shared/sky'
 import { systemKindOf } from '../../shared/system'
 import type { Block, BlockProps } from '../../shared/types'
 import type { Repository } from '../db/repository'
@@ -180,7 +181,7 @@ export class NotebookService {
     // The pages edited today, with what is on them (their to-dos).
     for (const page of this.repo.listRecent(RECENT_PAGES)) {
       if (page.updatedAt < from) break
-      if (page.type !== 'page' || page.id === NOTEBOOK_ID) continue
+      if (page.type !== 'page' || page.id === NOTEBOOK_ID || page.id === SKY_ID) continue
       if (page.parentId !== null && !seen.has(page.id)) {
         // A row's database decides whether it is a task: it is handed over too.
         const parent = this.repo.get(page.parentId)

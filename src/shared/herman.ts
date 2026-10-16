@@ -80,7 +80,8 @@ export type HermanCommand =
 
 export interface HermanNudge {
   id: string
-  kind: HermanNudgeKind
+  /** `sky`: a line of the Sky's (main/herman/lines.ts SKY_LINES), outside the counsel. */
+  kind: HermanNudgeKind | 'sky'
   text: string
   action?: { label: string; command: HermanCommand }
 }

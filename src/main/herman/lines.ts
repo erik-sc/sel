@@ -326,3 +326,57 @@ export function spanWords(minutes: number, locale: HermanLocale): string {
   if (pt) return `${count} horas${half ? ' e meia' : ''}`
   return half ? `${count} and a half hours` : `${count} hours`
 }
+
+// ---- the Sky ------------------------------------------------------------------------
+//
+// What he says about the Sky (shared/sky): rarely, once a day at most, and only about something
+// that happened there. Never about what is missing, never with a count. Outside the counsel: the
+// Sky decides the moment and these lines say it.
+
+export type SkyLineMoment =
+  | { kind: 'named'; month: string; name: string; given: boolean }
+  | { kind: 'meteors'; shower: string }
+  | { kind: 'eclipse' }
+  | { kind: 'comet' }
+  | { kind: 'anniversary' }
+  | { kind: 'longest-night' }
+  | { kind: 'new-year'; year: number }
+
+export const SKY_LINES: Record<HermanLocale, (moment: SkyLineMoment) => string> = {
+  en: (m) => {
+    switch (m.kind) {
+      case 'named':
+        return m.given ? `${m.month} became “${m.name}”.` : `${m.month} became ${m.name}.`
+      case 'meteors':
+        return `Tonight is the night of the ${m.shower}.`
+      case 'eclipse':
+        return 'An eclipse tonight. The moon turns copper.'
+      case 'comet':
+        return 'A comet is passing. It stays a few days.'
+      case 'anniversary':
+        return 'The first star has its birthday today.'
+      case 'longest-night':
+        return 'The longest night of the year.'
+      case 'new-year':
+        return `Happy new year. The sky of ${m.year} begins empty, like a page.`
+    }
+  },
+  'pt-BR': (m) => {
+    switch (m.kind) {
+      case 'named':
+        return m.given ? `${m.month} virou “${m.name}”.` : `${m.month} virou ${m.name}.`
+      case 'meteors':
+        return `Hoje é noite das ${m.shower}.`
+      case 'eclipse':
+        return 'Eclipse esta noite. A lua fica cor de cobre.'
+      case 'comet':
+        return 'Tem um cometa passando. Fica alguns dias.'
+      case 'anniversary':
+        return 'A primeira estrela faz aniversário hoje.'
+      case 'longest-night':
+        return 'A noite mais longa do ano.'
+      case 'new-year':
+        return `Feliz ano novo. O céu de ${m.year} começa vazio, como uma página.`
+    }
+  }
+}

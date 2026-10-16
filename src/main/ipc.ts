@@ -12,6 +12,7 @@ import { registerAlarmsIpc, type AlarmsHooks } from './alarms/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
 import { registerNotebookIpc } from './notebook/register'
 import { registerPomodoroIpc, type PomodoroHooks } from './pomodoro/register'
+import { registerSkyIpc } from './sky/register'
 import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
@@ -333,6 +334,19 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   const pomodoroIpc = registerPomodoroIpc({ repo, recording: () => meetings.recordingWindow() !== null })
   pomodoro = pomodoroIpc
 
+  // ---- sky (stars from Meditations, dust from tasks, halos from pomodoros; see ./sky). It writes a
+  // checked to-do and a finished pomodoro as they happen, so the sky is right whenever it is opened.
+  const skyIpc = registerSkyIpc({
+    repo,
+    onPomodoroCompleted: (listener) => pomodoroIpc.onCompleted(listener),
+    flushChanges: () => {
+      const ids = repo.drainChanges()
+      changes.add('sky', ids, repo.drainResets())
+      if (ids.length) syncBridge?.noteLocalChange()
+    },
+    herman: (sender, line) => hermanIpc.sky(sender, line)
+  })
+
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
 
@@ -379,7 +393,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...updatesIpc.handlers,
     ...externalIpc.handlers,
     ...alarmsIpc.handlers,
-    ...pomodoroIpc.handlers
+    ...pomodoroIpc.handlers,
+    ...skyIpc.handlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 

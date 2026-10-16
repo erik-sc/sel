@@ -16,6 +16,8 @@ import { isTasksRoute } from '@/tasks/gate'
 import { TasksHost } from '@/tasks/Host'
 import { CloseDayHost, NotebookHost } from '@/notebook/Host'
 import { isCloseRoute, isNotebookRoute } from '@/notebook/route'
+import { SkyHost } from '@/sky/Host'
+import { isSkyRoute } from '@/sky/route'
 import { UpdateNotice } from '@/updates/Notice'
 import { CommandPalette } from '@/commands/Palette'
 import { ShortcutsHost } from '@/shortcuts/Host'
@@ -83,6 +85,8 @@ export function Shell() {
               <NotebookHost />
             ) : isCloseRoute(pageId) ? (
               <CloseDayHost />
+            ) : isSkyRoute(pageId) ? (
+              <SkyHost />
             ) : pageId && tab ? (
               <PageHost key={`${tab.id}:${pageId}`} pageId={pageId} />
             ) : (

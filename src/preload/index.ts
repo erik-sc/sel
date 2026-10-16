@@ -7,6 +7,7 @@ import { HERMAN_NUDGE_CHANNEL } from '@shared/herman'
 import { buildInvokers, type Invokers } from '@shared/ipc'
 import { MEETINGS_CHANNELS } from '@shared/meetings'
 import { POMODORO_CHANNELS } from '@shared/pomodoro'
+import { SKY_CHANGED_CHANNEL } from '@shared/sky'
 import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
 import type { ChangeEvent } from '@shared/types'
 import { UPDATES_CHANNEL } from '@shared/updates'
@@ -103,6 +104,10 @@ const api: Api = {
     onChanged: subscribe(POMODORO_CHANNELS.changed),
     onEnded: subscribe(POMODORO_CHANNELS.ended),
     onCompleted: subscribe(POMODORO_CHANNELS.completed)
+  },
+  sky: {
+    ...invoke.sky,
+    onChanged: subscribe(SKY_CHANGED_CHANNEL)
   },
   app: {
     ...invoke.app,

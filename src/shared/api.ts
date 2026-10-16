@@ -11,6 +11,7 @@ import type { McpApi } from './mcp'
 import type { MeetingsApi } from './meetings'
 import type { NotebookApi } from './notebook'
 import type { PomodoroApi } from './pomodoro'
+import type { SkyApi } from './sky'
 import type {
   Block,
   ChangeEvent,
@@ -250,6 +251,11 @@ export interface Api {
    * the same; a phase never starts by itself. See shared/pomodoro.ts.
    */
   pomodoro: PomodoroApi
+  /**
+   * The Sky: each day written in Meditations lights a star, a month draws a constellation, a year
+   * is a sky. Derived from the notes, plus a few happenings written under `sel-sky`. See shared/sky.
+   */
+  sky: SkyApi
 
   app: {
     getTheme(): Promise<Theme>
@@ -309,6 +315,7 @@ export type MenuCommand =
   | 'keyboard-shortcuts'
   /** Starts a pomodoro; with one on, shows its controls. */
   | 'start-pomodoro'
+  | 'open-sky'
 
 /** Event and fire-and-forget channel names. Invoke channels are declared in `INVOKE` below. */
 export const IPC = {
@@ -466,6 +473,9 @@ export const INVOKE = {
   'pomodoro:skip': true,
   'pomodoro:next': true,
   'pomodoro:stop': true,
+  'sky:view': true,
+  'sky:name': true,
+  'sky:moment': true,
 
   'app:getTheme': true,
   'app:setTheme': true,

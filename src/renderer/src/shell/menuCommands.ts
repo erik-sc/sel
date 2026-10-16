@@ -27,6 +27,7 @@ import { openPalette } from '@/commands/store'
 import { goHome } from '@/home/store'
 import { openShortcuts } from '@/shortcuts/gate'
 import { startOrShowPomodoro } from '@/pomodoro/gate'
+import { openSky } from '@/sky/route'
 
 export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
   switch (command) {
@@ -120,6 +121,10 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       break
     case 'start-pomodoro':
       startOrShowPomodoro()
+      break
+    case 'open-sky':
+      // Turned off, the shortcut does nothing.
+      openSky()
       break
     case 'version-history': {
       // The shortcut toggles: the history of the page in the active tab.

@@ -54,6 +54,8 @@ export const APP_SHORTCUTS: readonly AppShortcut[] = [
   { command: 'open-notebook', accelerator: 'CmdOrCtrl+Alt+N', key: 'n', ctrl: true, alt: true },
   { command: 'new-meeting', accelerator: 'CmdOrCtrl+Alt+M', key: 'm', ctrl: true, alt: true },
   { command: 'start-pomodoro', accelerator: 'CmdOrCtrl+Alt+P', key: 'p', ctrl: true, alt: true },
+  // G, kept from when the Sky was going to be a garden.
+  { command: 'open-sky', accelerator: 'CmdOrCtrl+Alt+G', key: 'g', ctrl: true, alt: true },
   { command: 'keyboard-shortcuts', accelerator: 'CmdOrCtrl+/', key: '/', ctrl: true }
 ]
 
