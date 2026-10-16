@@ -283,6 +283,14 @@ describe('the bank of lines', () => {
     expect(Object.keys(LINES.en).sort()).toEqual([...HERMAN_NUDGE_KINDS].sort())
   })
 
+  it('calls the notebook by its name, Meditations / Meditações', () => {
+    for (const locale of locales) {
+      const texts = HERMAN_NUDGE_KINDS.flatMap((kind) => LINES[locale][kind].map((line) => line.text(sample(locale, false))))
+      for (const text of texts) expect(text).not.toMatch(/notebook|caderno|tinta|\bink\b/i)
+      expect(texts.some((text) => text.includes(locale === 'en' ? 'Meditations' : 'Meditações'))).toBe(true)
+    }
+  })
+
   it('holds short, finished sentences: no blanks left unfilled, no emoji, no exclamation, nothing quoted', () => {
     for (const locale of locales) {
       const seen = new Set<string>()

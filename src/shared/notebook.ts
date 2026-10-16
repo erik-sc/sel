@@ -1,5 +1,7 @@
 /**
- * The ink notebook ("Caderno de tinta"): one line a day, and the ritual that closes the day.
+ * The notebook: one line a day, and the ritual that closes the day.
+ * notebook = Meditations / Meditações in the UI (named "Ink notebook" before 0.6.0); the code,
+ * the ids, the IPC channels and the settings kept the old name.
  * Shared by the main process, which stores the notebook and keeps its rules, and the renderer,
  * which shows it. Pure: no Electron, no DOM, no store.
  *
@@ -34,7 +36,27 @@ export const NOTEBOOK_LIMITS = {
   review: 8
 } as const
 
-export const NOTEBOOK_TITLES = { en: 'Ink notebook', 'pt-BR': 'Caderno de tinta' } as const
+export const NOTEBOOK_TITLES = { en: 'Meditations', 'pt-BR': 'Meditações' } as const
+
+/** The titles the notebook page was given before 0.6.0, each with the one that replaces it. */
+const LEGACY_TITLES: Readonly<Record<string, string>> = {
+  'Ink notebook': NOTEBOOK_TITLES.en,
+  'Caderno de tinta': NOTEBOOK_TITLES['pt-BR']
+}
+
+/**
+ * The title the notebook page takes when it still has its old default one, exactly as it was
+ * made (one run, no marks), or null to leave it alone: a title the user wrote is theirs. The
+ * new title follows from the old one only, never from this device's language, so that every
+ * device renames it to the same value and sync has nothing to merge.
+ */
+export function renamedNotebookTitle(title: unknown): RichText | null {
+  if (!Array.isArray(title) || title.length !== 1) return null
+  const span: unknown = title[0]
+  if (!Array.isArray(span) || span.length !== 1 || typeof span[0] !== 'string') return null
+  const renamed = Object.hasOwn(LEGACY_TITLES, span[0]) ? LEGACY_TITLES[span[0]] : undefined
+  return renamed ? [[renamed]] : null
+}
 
 /** The languages the notebook and the ritual are written in (the same as Herman's). */
 export type NotebookLocale = 'en' | 'pt-BR'

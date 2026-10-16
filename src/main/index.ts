@@ -12,6 +12,7 @@ import { recordingGrants } from './meetings/grant'
 import { handleDisplayMedia } from './meetings/register'
 import { adoptLegacyProfile, DB_FILE } from './legacy'
 import { attachShortcuts, buildMenu } from './menu'
+import { migrateNotebookTitle } from './notebook/title'
 import { DEV_URL, isAllowedRequest, isAppUrl, isDevServerUrl, RENDERER_FILE, toExternalUrl } from './security'
 import { flushTrace, mark } from './trace'
 
@@ -323,7 +324,8 @@ function openStore(): Repository | null {
  * First run only: the welcome content. Kept off the path to the first window
  * (the module is not even loaded on later runs); ipc handlers wait for it, so
  * the renderer can never observe the workspace half-seeded or still empty.
- * Then, on every run, the built-in Tasks database (one read when it is there).
+ * Then, on every run, the built-in Tasks database (one read when it is there) and the
+ * new name of the notebook page, Meditations, when it still has its old default one.
  */
 async function seedWorkspace(store: Repository): Promise<void> {
   if (store.isEmpty()) {
@@ -339,6 +341,11 @@ async function seedWorkspace(store: Repository): Promise<void> {
     ensureTasksDatabase(store)
   } catch (err) {
     console.error('[main] could not create the Tasks database', err)
+  }
+  try {
+    migrateNotebookTitle(store)
+  } catch (err) {
+    console.error('[main] could not rename the notebook page', err)
   }
 }
 

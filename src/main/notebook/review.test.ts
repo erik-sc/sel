@@ -63,7 +63,7 @@ describe('what happened today', () => {
       block('inside', 'page', 'gone', { title: [['In the trash']] }, today(14)),
       row('book', notesDb, {}, today(9), 'A book I read'),
       row('task', statusDb, { status: 'todo' }, today(9)),
-      block(NOTEBOOK_ID, 'page', null, { title: [['Ink notebook']], system: 'notebook' }, today(20)),
+      block(NOTEBOOK_ID, 'page', null, { title: [['Meditations']], system: 'notebook' }, today(20)),
       block(`${NOTEBOOK_ID}-2026-10-15`, 'text', NOTEBOOK_ID, { title: [['a line']] }, today(20)),
       block('untitled', 'page', null, {}, today(7))
     ]
