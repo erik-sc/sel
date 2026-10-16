@@ -124,7 +124,8 @@ export class AiBridge {
         listRoot: () => repo.listRoot(),
         listChildren: (id) => repo.listChildren(id),
         listRecent: (limit) => repo.listRecent(limit),
-        listDatabases: () => repo.listDatabases(),
+        // What the assistant is shown by itself leaves archived pages out; it finds them when it searches.
+        listDatabases: () => repo.listDatabases({ archived: false }),
         search: (text, limit) => repo.search(text, limit),
         pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id)
       },

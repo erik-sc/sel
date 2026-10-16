@@ -178,9 +178,11 @@ export class BriefingService {
   /** The task databases the settings allow, each followed by its rows. */
   private taskBlocks(databases: Block[], phrasesDb: Block | null, chosen: readonly string[] | null): TaskBlock[] {
     const wanted = chosen ? new Set(chosen) : null
+    // An archived database (or one inside an archived page) is put away: its tasks are not due anywhere.
+    const archived = this.repo.archivedAmong(databases.map((database) => database.id))
     const blocks: TaskBlock[] = []
     for (const database of databases) {
-      if (database.id === phrasesDb?.id || (wanted && !wanted.has(database.id))) continue
+      if (database.id === phrasesDb?.id || (wanted && !wanted.has(database.id)) || archived.has(database.id)) continue
       // Only databases that can say "done" have their rows loaded.
       if (!detectSignal(database.props)) continue
       blocks.push(database)

@@ -48,6 +48,12 @@ export interface BlockProps {
   /** page */
   favorite?: boolean
   fullWidth?: boolean
+  /**
+   * page / database of the tree: when it was archived. An archived page stays where it is
+   * (parent and position kept) but leaves the sidebar, the recent pages and what the AI is
+   * shown by itself; search still finds it (see Repository.listArchived).
+   */
+  archivedAt?: number
   /** database only */
   schema?: Record<string, PropertySchema>
   views?: DatabaseView[]
@@ -317,6 +323,8 @@ export interface SearchResult {
   snippet?: string
   /** Titles of ancestor pages, root first. */
   path: string[]
+  /** The page that contains the hit is archived, or lies inside one that is. */
+  archived?: true
 }
 
 export interface ChangeEvent {

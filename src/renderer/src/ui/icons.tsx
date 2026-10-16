@@ -33,6 +33,9 @@ export const Trash = make(
   </>
 )
 
+/** A box with its lid: the archive. */
+export const Archive = make(<path d="M2.5 3.5h11v2.8h-11zM3.4 6.3v6.2h9.2V6.3M6.5 8.8h3" />)
+
 export const Search = make(
   <>
     <circle cx="7" cy="7" r="4.2" />

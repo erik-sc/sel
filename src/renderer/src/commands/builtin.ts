@@ -12,6 +12,9 @@ import { IS_MAC } from '@/ui/platform'
 import { preloadVersionHistory } from '@/versions/VersionHistory'
 import { duplicatePage, exportMarkdown, importMarkdown, reportError, toggleFavorite, toggleFullWidth } from '@/shell/actions'
 import { runMenuCommand } from '@/shell/menuCommands'
+import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/actions'
+import { ARCHIVE_KEYWORDS } from '@/archive/copy'
+import { archiveCopy } from '@/archive/locale'
 import { registerCommands, type Command } from './registry'
 
 /** The page (or database) in the active tab, if it is one and not in the Trash. */
@@ -61,6 +64,25 @@ const SETTINGS: [SettingsSection, string, string[]][] = [
 ]
 
 const FOCUS_WORDS = ['zen', 'distraction free', 'writing', 'hide']
+
+/** Archive or unarchive the current page; the title is read when the palette lists it, in the archive's language. */
+function archiveCommand(id: string, archived: boolean, title: () => string): Command {
+  return {
+    id,
+    get title() {
+      return title()
+    },
+    keywords: ARCHIVE_KEYWORDS,
+    when: () => {
+      const page = currentPage()
+      return canArchive(page) && isArchived(page) === archived
+    },
+    run: () => {
+      const page = currentPage()
+      if (page) void (archived ? unarchivePage(page.id) : archivePage(page.id))
+    }
+  }
+}
 
 const THEMES: [Theme, string][] = [
   ['light', 'Use the light theme'],
@@ -156,6 +178,8 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
     when: (page) => !!page.props.favorite,
     run: (page) => void toggleFavorite(page.id).catch(reportError('update Favorites'))
   }),
+  archiveCommand('page-archive', false, () => archiveCopy().archiveThisPage),
+  archiveCommand('page-unarchive', true, () => archiveCopy().unarchiveThisPage),
   onPage({
     id: 'page-full-width',
     title: 'Full width',

@@ -26,7 +26,8 @@ export class HermanBridge {
       day,
       pageExists: (id) => {
         const block = repo.get(id)
-        return !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database')
+        // An archived page was put away on purpose: he does not suggest going back to it.
+        return !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database') && !repo.archivedAmong([id]).has(id)
       },
       systemLocale: () => app.getLocale(),
       fast
