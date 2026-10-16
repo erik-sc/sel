@@ -52,7 +52,7 @@ function openSettings(section: SettingsSection): void {
 }
 
 const SETTINGS: [SettingsSection, string, string[]][] = [
-  ['general', 'General', ['import', 'theme']],
+  ['general', 'General', ['import', 'theme', 'home', 'startup']],
   ['appearance', 'Appearance', ['colours', 'colors', 'font', 'look']],
   ['history', 'History', ['versions', 'snapshots']],
   ['ai', 'AI', ['claude', 'assistant']],
@@ -94,6 +94,7 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('new-page', 'New page', ['create', 'add', 'note']),
   menu('quick-find', 'Find a page…', ['search', 'open', 'go to', 'jump']),
   menu('find-in-page', 'Find in this page…', ['search', 'word', 'text']),
+  menu('go-home', 'Home', ['start', 'home page', 'início', 'página inicial']),
   menu('open-today', 'Today', ['briefing', 'agenda', 'tasks']),
   menu('open-calendar', 'Calendar', ['events', 'schedule', 'agenda']),
   menu('open-tasks', 'Tasks', ['todo', 'to-do', 'inbox', 'todoist']),

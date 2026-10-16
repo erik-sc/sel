@@ -13,6 +13,7 @@ import { AiSection } from '@/ai/AiSettings'
 import { takeSettingsSection } from '@/briefing/route'
 import { TodaySection } from '@/briefing/TodaySettings'
 import { UpdatesGroup } from '@/updates/UpdatesSettings'
+import { HomeSettingsRows } from '@/home/HomeSettings'
 import { importMarkdown } from './actions'
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -185,6 +186,7 @@ function GeneralSection() {
               />
             </div>
           </div>
+          <HomeSettingsRows />
         </div>
       </section>
 

@@ -1,8 +1,10 @@
 import type { Block } from '@shared/types'
 import type { MenuItem } from '@/ui/Menu'
-import { Archive, ArrowUpRight, Check, Clock, Copy, Page, Plus, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { Archive, ArrowUpRight, Check, Clock, Copy, Home, Page, Plus, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
 import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/actions'
 import { archiveCopy } from '@/archive/locale'
+import { HOME_COPY } from '@/home/copy'
+import { setHome, useHome } from '@/home/store'
 import { requestPageAi } from '@/ai/gate'
 import { IS_MAC } from '@/ui/platform'
 import { openPage } from '@/store/tabs'
@@ -56,6 +58,20 @@ function archiveItems(block: Block): MenuItem[] {
   ]
 }
 
+/** "Set as home", or, on the page that is the home, the way back. */
+function homeItem(block: Block): MenuItem {
+  const { home, locale } = useHome.getState()
+  const copy = HOME_COPY[locale]
+  const isHome = home?.kind === 'page' && home.id === block.id
+  return {
+    id: 'home',
+    label: isHome ? copy.removeAsHome : copy.setAsHome,
+    icon: <Home />,
+    disabled: !isHome && !!block.trashedAt,
+    onSelect: () => void setHome(isHome ? null : { kind: 'page', id: block.id })
+  }
+}
+
 function openSourceItems(block: Block): MenuItem[] {
   const sourceId = sourceIdOf(block)
   if (sourceId === null) return []
@@ -87,7 +103,8 @@ export function sidebarPageMenu(block: Block): MenuItem[] {
       label: block.props.favorite ? 'Remove from Favorites' : 'Add to Favorites',
       icon: block.props.favorite ? <StarFilled /> : <Star />,
       onSelect: () => void toggleFavorite(id).catch(reportError('update Favorites'))
-    }
+    },
+    homeItem(block)
   ]
   if (block.type === 'page') {
     items.push({
@@ -131,6 +148,7 @@ export function topBarPageMenu(block: Block, ai = false): MenuItem[] {
       icon: block.props.favorite ? <StarFilled /> : <Star />,
       onSelect: () => void toggleFavorite(id).catch(reportError('update Favorites'))
     },
+    homeItem(block),
     {
       id: 'duplicate',
       label: 'Duplicate',

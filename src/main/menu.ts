@@ -92,6 +92,7 @@ export function buildMenu(): void {
       submenu: [
         item('Command Palette…', 'command-palette'),
         { type: 'separator' },
+        item('Home', 'go-home'),
         item('Today', 'open-today'),
         item('Calendar', 'open-calendar'),
         item('Tasks', 'open-tasks'),

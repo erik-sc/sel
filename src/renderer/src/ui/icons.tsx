@@ -214,6 +214,13 @@ export const Clock = make(
   </>
 )
 
+export const Home = make(
+  <>
+    <path d="M2.5 7.3 8 2.8l5.5 4.5" />
+    <path d="M4 6.2v6.8h3v-3.2h2V13h3V6.2" />
+  </>
+)
+
 export const Mic = make(
   <>
     <rect x="6" y="2" width="4" height="7.5" rx="2" />

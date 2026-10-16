@@ -24,6 +24,7 @@ import { newMeeting } from '@/meetings/gate'
 import { openFind } from './findStore'
 import { openFeedback } from '@/feedback/gate'
 import { openPalette } from '@/commands/store'
+import { goHome } from '@/home/store'
 import { openShortcuts } from '@/shortcuts/gate'
 
 export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
@@ -87,6 +88,9 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       break
     case 'toggle-assistant':
       showOrHideAssistant()
+      break
+    case 'go-home':
+      goHome()
       break
     case 'open-today':
       openToday()

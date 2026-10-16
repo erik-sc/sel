@@ -5,12 +5,13 @@ import { bootMark } from '@/boot'
 import { DatabaseView } from '@/database/lazy'
 import { PageEditor } from '@/editor/lazy'
 import { fetchBlocks, useBlock, useBlockStatus } from '@/store/blocks'
-import { closeTab, openPage } from '@/store/tabs'
+import { closeTab, openPage, useTabs } from '@/store/tabs'
 import { setQuickFindOpen } from '@/store/ui'
 import { Button } from '@/ui/Button'
-import { Archive, Plus, Search, Trash, Undo } from '@/ui/icons'
+import { Archive, Home, Plus, Search, Trash, Undo } from '@/ui/icons'
 import { isArchived, unarchivePage } from '@/archive/actions'
 import { useArchiveCopy } from '@/archive/locale'
+import { goHome, useHomeCopy, useHomeStatus } from '@/home/store'
 import { PageSkeleton } from '@/ui/Skeleton'
 import { createPage, deletePageForever, logError, pageTitle, reportError, restorePage } from './actions'
 import { isLinkedView } from './linked'
@@ -104,6 +105,14 @@ const RECENT_PAGES = 6
 
 export function EmptyState() {
   const [recent, setRecent] = useState<Block[]>([])
+  const homeCopy = useHomeCopy()
+  const home = useHomeStatus()
+  const noTabs = useTabs((state) => state.tabs.length === 0)
+
+  // A window with nothing open shows the home, when there is one it can open.
+  useEffect(() => {
+    if (noTabs && home.status === 'ready') goHome()
+  }, [noTabs, home.status])
 
   useEffect(() => {
     let alive = true
@@ -136,6 +145,11 @@ export function EmptyState() {
           >
             New page
           </Button>
+          {home.home !== null && (
+            <Button icon={<Home />} disabled={home.status !== 'ready'} onClick={goHome}>
+              {homeCopy.openHome}
+            </Button>
+          )}
           <Button icon={<Search />} onClick={() => setQuickFindOpen(true)}>
             Search
           </Button>
