@@ -431,6 +431,27 @@ describe('the calendar service', () => {
     })
   })
 
+  it('keeps what the alarms need, and reads in full a calendar cached before it did', async () => {
+    const meeting = ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:standup@x', 'SUMMARY:Standup', 'DTSTART:20261013T120000Z', 'DTEND:20261013T130000Z', 'ATTENDEE:mailto:a@x.com', 'ATTENDEE:mailto:b@x.com', 'ORGANIZER:mailto:a@x.com', 'LOCATION:https://meet.google.com/abc-defg-hij', 'TRANSP:TRANSPARENT', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
+    const t = setup(() => ({ status: 'ok', text: meeting, etag: '"v2"' }))
+    const added = t.store.add({ label: 'A', url: SECRET, color: 'blue' })
+    writeFileSync(
+      join(dir, 'briefing', 'calendar-cache.json'),
+      JSON.stringify({ version: 1, calendars: { [added.id]: { etag: '"v1"', fetchedAt: NOW, checkedAt: NOW, from: day(-1), to: day(15), events: [{ id: 'old', title: 'Standup', start: day(0) + 1000, end: day(0) + 2000 }] } } })
+    )
+    const service = t.make()
+    // The old cache still answers at once, and is due for a read that asks for the whole file.
+    expect(service.events(day(0), day(1)).map((event) => event.id)).toEqual(['old'])
+    expect(service.stale()).toBe(true)
+    await service.refresh()
+    expect(t.seen[0].options.etag).toBeUndefined()
+    const [event] = service.events(day(0), day(1))
+    expect(event).toMatchObject({ uid: 'standup@x', attendees: 1, meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
+    // And so does the next session, from the file.
+    expect(t.make().events(day(0), day(1))[0]).toMatchObject({ uid: 'standup@x', attendees: 1, meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
+    expect(JSON.parse(readFileSync(join(dir, 'briefing', 'calendar-cache.json'), 'utf8')).version).toBe(2)
+  })
+
   it('reads a damaged cache as empty', () => {
     const t = setup(() => ({ status: 'ok', text: ICS('x') }))
     const added = t.store.add({ label: 'A', url: SECRET, color: 'blue' })

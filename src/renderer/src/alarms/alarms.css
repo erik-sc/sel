@@ -1,4 +1,4 @@
-/* Settings → Herman → Briefing and reminders. */
+/* Settings → Herman → Briefing, and Settings → Notifications. */
 
 /* The times sit under their label: a row of controls per time is too wide to share a line. */
 .ap-row.alarm-times-row {
@@ -65,4 +65,11 @@
 .alarm-actions {
   display: flex;
   gap: 8px;
+}
+
+/* Settings → Notifications: with the window closed nothing rings. */
+.ap-row-help.alarm-warning {
+  margin-top: 4px;
+  color: var(--text);
+  font-weight: var(--weight-semibold);
 }

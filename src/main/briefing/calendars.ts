@@ -31,11 +31,15 @@ export const CALENDAR_TIMING = {
   refetchDays: 3
 } as const
 
-const CACHE_VERSION = 1
+/** 2 keeps what the alarms need of an event (its UID, who is invited, the call's link). */
+const CACHE_VERSION = 2
+/** A cache written before that is still read, and each of its calendars is read again in full. */
+const OLD_CACHE_VERSION = 1
 const DAY_MS = 86_400_000
 
 interface CachedEvent {
   id: string
+  uid?: string
   title: string
   allDay: boolean
   /** Timed events: epoch ms. */
@@ -47,6 +51,9 @@ interface CachedEvent {
   location?: string
   description?: string
   recurring: boolean
+  transparent?: boolean
+  attendees?: number
+  meetingUrl?: string
 }
 
 interface CachedCalendar {
@@ -105,6 +112,10 @@ function toCached(occurrence: CalendarOccurrence): CachedEvent {
   }
   if (occurrence.location) event.location = occurrence.location
   if (occurrence.description) event.description = occurrence.description
+  if (occurrence.uid) event.uid = occurrence.uid
+  if (occurrence.transparent) event.transparent = true
+  if (occurrence.attendees) event.attendees = occurrence.attendees
+  if (occurrence.meetingUrl) event.meetingUrl = occurrence.meetingUrl
   return event
 }
 
@@ -119,6 +130,10 @@ function fromCached(calendarId: string, cached: CachedEvent): BriefingEvent | nu
   const event: BriefingEvent = { id: cached.id, calendarId, title: cached.title, start, end, allDay: cached.allDay, recurring: cached.recurring }
   if (cached.location) event.location = cached.location
   if (cached.description) event.description = cached.description
+  if (cached.uid) event.uid = cached.uid
+  if (cached.transparent) event.transparent = true
+  if (cached.attendees) event.attendees = cached.attendees
+  if (cached.meetingUrl) event.meetingUrl = cached.meetingUrl
   return event
 }
 
@@ -133,6 +148,10 @@ function readCachedEvent(value: unknown): CachedEvent | null {
   if (typeof raw['endDay'] === 'string') event.endDay = raw['endDay'].slice(0, 10)
   if (typeof raw['location'] === 'string') event.location = raw['location'].slice(0, 400)
   if (typeof raw['description'] === 'string') event.description = raw['description'].slice(0, 600)
+  if (typeof raw['uid'] === 'string') event.uid = raw['uid'].slice(0, 400)
+  if (raw['transparent'] === true) event.transparent = true
+  if (typeof raw['attendees'] === 'number' && Number.isInteger(raw['attendees']) && raw['attendees'] > 0) event.attendees = Math.min(raw['attendees'], 1000)
+  if (typeof raw['meetingUrl'] === 'string' && raw['meetingUrl'].startsWith('https://') && raw['meetingUrl'].length <= 1000) event.meetingUrl = raw['meetingUrl']
   return event
 }
 
@@ -168,15 +187,18 @@ export class CalendarService {
     const cache: CacheFile = { version: CACHE_VERSION, calendars: {} }
     try {
       const parsed = JSON.parse(readFileSync(this.options.cacheFile, 'utf8')) as { version?: unknown; calendars?: unknown }
-      if (parsed && parsed.version === CACHE_VERSION && parsed.calendars && typeof parsed.calendars === 'object') {
+      const old = parsed?.version === OLD_CACHE_VERSION
+      if (parsed && (parsed.version === CACHE_VERSION || old) && parsed.calendars && typeof parsed.calendars === 'object') {
         for (const [id, value] of Object.entries(parsed.calendars as Record<string, unknown>)) {
           if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || !value || typeof value !== 'object') continue
           const raw = value as Record<string, unknown>
           const entry: CachedCalendar = { events: [] }
-          if (typeof raw['etag'] === 'string') entry.etag = raw['etag'].slice(0, 512)
-          if (typeof raw['lastModified'] === 'string') entry.lastModified = raw['lastModified'].slice(0, 64)
+          // An older cache lacks what the alarms read: without its validators and the time it was
+          // asked, the calendar is due at once and is read in full.
+          if (typeof raw['etag'] === 'string' && !old) entry.etag = raw['etag'].slice(0, 512)
+          if (typeof raw['lastModified'] === 'string' && !old) entry.lastModified = raw['lastModified'].slice(0, 64)
           if (typeof raw['fetchedAt'] === 'number') entry.fetchedAt = raw['fetchedAt']
-          if (typeof raw['checkedAt'] === 'number') entry.checkedAt = raw['checkedAt']
+          if (typeof raw['checkedAt'] === 'number' && !old) entry.checkedAt = raw['checkedAt']
           if (typeof raw['error'] === 'string' && ERROR_CODES.has(raw['error'])) entry.error = raw['error'] as CalendarErrorCode
           if (typeof raw['from'] === 'number') entry.from = raw['from']
           if (typeof raw['to'] === 'number') entry.to = raw['to']

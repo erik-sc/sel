@@ -34,6 +34,7 @@ const SECTIONS: { value: Section; label: string }[] = [
   { value: 'history', label: 'History' },
   { value: 'ai', label: 'AI' },
   { value: 'herman', label: 'Herman' },
+  { value: 'notifications', label: 'Notifications' },
   { value: 'sync', label: 'Sync' }
 ,
   { value: 'today', label: 'Today' },
@@ -45,6 +46,8 @@ const SECTIONS: { value: Section; label: string }[] = [
 const SyncSection = lazy(() => import('@/sync/SyncSettings').then((module) => ({ default: module.SyncSection })))
 // Herman's settings bring his figure and his stylesheet with them.
 const HermanSection = lazy(() => import('@/herman/HermanSettings').then((module) => ({ default: module.HermanSection })))
+// And so are the notifications (reminders, events, the tray).
+const NotificationsSection = lazy(() => import('@/alarms/NotificationSettings').then((module) => ({ default: module.NotificationsSection })))
 // And so are the meetings settings.
 const MeetingsSection = lazy(() => import('@/meetings/MeetingsSettings').then((module) => ({ default: module.MeetingsSection })))
 // And so are the settings for connecting other apps.
@@ -104,6 +107,10 @@ function SettingsBody() {
           ) : section === 'herman' ? (
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
               <HermanSection />
+            </Suspense>
+          ) : section === 'notifications' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <NotificationsSection />
             </Suspense>
           ) : section === 'sync' ? (
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>

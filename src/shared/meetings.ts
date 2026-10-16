@@ -48,6 +48,11 @@ export interface MeetingEventContext {
   end: number
   location?: string
   description?: string
+  /**
+   * The calendar event's UID. The page remembers it with the start (`props.meetingEvent`), and
+   * a second `create` for the same occurrence opens that page instead of making another.
+   */
+  uid?: string
 }
 
 export interface MeetingCreateInput {
@@ -186,8 +191,8 @@ export interface MeetingsApi {
     /** Deletes sel's own copy of the program and its models, and forgets chosen paths. */
     remove(): Promise<EngineStatus>
   }
-  /** Creates a page in the "Meetings" database (made on first use). */
-  create(input?: MeetingCreateInput): Promise<{ pageId: string }>
+  /** Creates a page in the "Meetings" database (made on first use), or finds the one already made for the event (`existing`). */
+  create(input?: MeetingCreateInput): Promise<{ pageId: string; existing?: boolean }>
   recording: {
     /** A short grant to list microphones (labels need the microphone open for a moment). */
     probe(): Promise<void>

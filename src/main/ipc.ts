@@ -310,6 +310,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     repo,
     briefing: () => briefing.stored(),
     promptData: () => briefing.promptData(),
+    calendar: (from, to) => briefing.upcoming(from, to),
     ai,
     recording: () => meetings.recordingWindow() !== null,
     createWindow: () => createWindow()

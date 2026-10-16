@@ -144,7 +144,7 @@ export function EventRow({ event, calendar, moment, time }: { event: BriefingEve
         <button
           type="button"
           className="today-event-notes"
-          onClick={() => void newMeeting({ event: { title: event.title, start: event.start, end: event.end, ...(event.location ? { location: event.location } : {}), ...(event.description ? { description: event.description } : {}) } })}
+          onClick={() => void newMeeting({ event: { title: event.title, start: event.start, end: event.end, ...(event.uid ? { uid: event.uid } : {}), ...(event.location ? { location: event.location } : {}), ...(event.description ? { description: event.description } : {}) } })}
         >
           Take notes
         </button>

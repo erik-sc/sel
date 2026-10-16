@@ -117,6 +117,17 @@ export class BriefingService {
     return this.build()
   }
 
+  /**
+   * The stored events of the enabled calendars that overlap [from, to), for the alarms. A
+   * calendar that is due (the same 15 minutes as for the briefing) is read in the background, so
+   * the alarms keep it fresh while no window looks at Today; with none connected nothing is fetched.
+   */
+  upcoming(from: number, to: number): BriefingEvent[] {
+    const { calendars } = this.deps
+    if (calendars.stale()) void calendars.refresh(false)
+    return calendars.events(from, to)
+  }
+
   build(): Briefing {
     const nowMs = this.now()
     const now = new Date(nowMs)

@@ -54,6 +54,7 @@ const SETTINGS: [SettingsSection, string, string[]][] = [
   ['history', 'History', ['versions', 'snapshots']],
   ['ai', 'AI', ['claude', 'assistant']],
   ['herman', 'Herman', ['assistant', 'council']],
+  ['notifications', 'Notifications', ['notificações', 'reminders', 'lembretes', 'alarms', 'events', 'tray', 'bandeja']],
   ['sync', 'Sync', ['git', 'devices', 'backup']],
   ['today', 'Today', ['calendar', 'briefing', 'bell', 'close the day']],
   ['meetings', 'Meetings', ['recording', 'transcription', 'whisper']],

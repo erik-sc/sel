@@ -68,16 +68,6 @@ const EN: Record<HermanNudgeKind, Line[]> = {
     line((w) => `${w.N} for today. Just the first ten minutes.`),
     line(() => 'What did you promise yourself today?')
   ],
-  'event-soon': [
-    titled((w) => `“${w.title}” in ${w.minutes} minutes. Close this thought first.`),
-    titled((w) => `${w.Minutes} minutes to “${w.title}”. What do you want from it?`),
-    titled((w) => `“${w.title}” in ${w.minutes} minutes. Water, a breath, go.`),
-    titled((w) => `Nearly time for “${w.title}”. One line on what you need?`),
-    line((w) => `${w.Minutes} minutes to the next thing. Note where you stopped.`),
-    titled((w) => `“${w.title}” is close. Arrive a minute early.`),
-    titled((w) => `${w.Minutes} minutes before “${w.title}”. Start nothing big.`),
-    titled((w) => `Soon: “${w.title}”. A page for the notes?`)
-  ],
   'free-block': [
     line((w) => `Nothing scheduled ${w.until}. What deserves it?`),
     line((w) => `${w.Span} free. Give it to deep work.`),
@@ -165,16 +155,6 @@ const PT: Record<HermanNudgeKind, Line[]> = {
     line((w) => `${w.N} para hoje. Só os primeiros dez minutos.`),
     line(() => 'O que você prometeu a si para hoje?')
   ],
-  'event-soon': [
-    titled((w) => `“${w.title}” em ${w.minutes} minutos. Feche este pensamento antes.`),
-    titled((w) => `${w.Minutes} minutos até “${w.title}”. O que quer de lá?`),
-    titled((w) => `“${w.title}” em ${w.minutes} minutos. Água, um respiro, e vá.`),
-    titled((w) => `Quase hora de “${w.title}”. Uma linha sobre o que precisa?`),
-    line((w) => `${w.Minutes} minutos até a próxima. Anote onde parou.`),
-    titled((w) => `“${w.title}” está perto. Chegue um minuto antes.`),
-    titled((w) => `${w.Minutes} minutos antes de “${w.title}”. Nada grande agora.`),
-    titled((w) => `Daqui a pouco: “${w.title}”. Abro uma página de notas?`)
-  ],
   'free-block': [
     line((w) => `Nada na agenda ${w.until}. O que merece esse tempo?`),
     line((w) => `${w.Span} sem ninguém pedindo nada. Use bem.`),
@@ -248,7 +228,6 @@ export const PHRASES: Record<
     /** The evening invitation's button: it opens the ritual that closes the day. */
     closeDay: string
     openTask: string
-    takeNotes: string
     ask: string
     notNow: string
     fewer: string
@@ -265,7 +244,6 @@ export const PHRASES: Record<
     openToday: 'Open Today',
     closeDay: 'Close the day',
     openTask: 'Open it',
-    takeNotes: 'Take notes',
     ask: 'Ask Herman',
     notNow: 'Not now',
     fewer: 'Fewer like this',
@@ -278,7 +256,6 @@ export const PHRASES: Record<
     openToday: 'Abrir Hoje',
     closeDay: 'Fechar o dia',
     openTask: 'Abrir',
-    takeNotes: 'Fazer anotações',
     ask: 'Perguntar ao Herman',
     notNow: 'Agora não',
     fewer: 'Menos como esta',

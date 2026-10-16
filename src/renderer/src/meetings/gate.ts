@@ -15,9 +15,11 @@ interface MeetingsGate {
   at: number
   /** The engine setup sheet: closed, or open (with the meeting to transcribe once it is ready). */
   setup: { pageId: string | null } | null
+  /** A meeting page whose recording bar starts recording once it is up ("Record" on an event's alarm). */
+  autoStart: string | null
 }
 
-export const useMeetings = create<MeetingsGate>(() => ({ status: null, at: 0, setup: null }))
+export const useMeetings = create<MeetingsGate>(() => ({ status: null, at: 0, setup: null, autoStart: null }))
 
 function take(status: MeetingsStatus): void {
   useMeetings.setState({ status, at: Date.now() })
@@ -41,12 +43,17 @@ export function initMeetings(): void {
   )
 }
 
-/** Creates a meeting page (and the Meetings database the first time) and opens it. */
-export async function newMeeting(input: MeetingCreateInput = {}): Promise<void> {
+/**
+ * Creates a meeting page (and the Meetings database the first time) and opens it; for an event
+ * whose page was already made, opens that one. With `record`, its bar starts recording (the
+ * consent dialog first, unless the user turned it off).
+ */
+export async function newMeeting(input: MeetingCreateInput = {}, options: { record?: boolean } = {}): Promise<void> {
   try {
     const { pageId } = await window.api.meetings.create(input)
     const status = await window.api.meetings.status()
     take(status)
+    if (options.record) useMeetings.setState({ autoStart: pageId })
     await refreshBlocks(status.databaseId ? [pageId, status.databaseId] : [pageId]).catch(() => undefined)
     await refreshTree().catch(() => undefined)
     openPage(pageId)

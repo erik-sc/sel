@@ -121,6 +121,7 @@ const INVOKE_CHANNELS = [
   'app:getTheme',
   'alarms:heard',
   'alarms:pending',
+  'alarms:snooze',
   'alarms:test',
   'app:newWindow',
   'app:openExternal',

@@ -66,6 +66,8 @@ export interface BlockProps {
   values?: Record<string, PropertyValue>
   /** database: drawn in one row with the database block before it (see editor/layout.ts) */
   beside?: boolean
+  /** meeting page: the calendar occurrence it was made for (its UID and start, ms), so it is made once */
+  meetingEvent?: { uid: string; start: number }
 }
 
 export interface Block {
