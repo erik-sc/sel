@@ -13,7 +13,7 @@ import {
   serializeBlocks,
   type ClipNode
 } from './clipboard'
-import { isTextType } from './blockTypes'
+import { isPlainTextType, isTextType } from './blockTypes'
 import { MAX_HTML_LENGTH, htmlToNodes } from './html'
 import { parseMarkdownNodes } from './markdown'
 import { rtLength, textOf } from './richtext-dom'
@@ -51,7 +51,7 @@ export function insertNodes(ctrl: EditorController, nodes: readonly ClipNode[], 
   const { ops, ids } = buildCreateOps(nodes, place.parentId, place.afterId, newId)
   if (place.replace) ops.push({ op: 'delete', id: place.replace })
   const last = nodes[nodes.length - 1]
-  const caret = isTextType(last.type) || last.type === 'code'
+  const caret = isTextType(last.type) || isPlainTextType(last.type)
   ctrl.commit(ops, { after: caret ? textSel(ids[ids.length - 1], END) : { kind: 'blocks', ids } })
 }
 

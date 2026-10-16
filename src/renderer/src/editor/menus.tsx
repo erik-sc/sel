@@ -10,7 +10,7 @@ import type { Block } from '@shared/types'
 import { Columns, Copy, Link as LinkIcon, Trash } from '@/ui/icons'
 import { useEditor } from './context'
 import { besideChoice } from './layout'
-import { TURN_INTO, filterSlashItems, isTextType } from './blockTypes'
+import { TURN_INTO, filterSlashItems, isPlainTextType, isTextType } from './blockTypes'
 import { COLOR_NAMES } from './richtext-dom'
 import { AI_LANGUAGES, AI_LANGUAGE_LABELS, AI_TONES, AI_TONE_LABELS } from '@shared/ai'
 import type { AiAction } from '@shared/ai'
@@ -179,7 +179,7 @@ export function BlockMenu(): JSX.Element | null {
   const ids = ctrl.targetIds(menu.id)
   const convertible = ids.some((id) => {
     const b = getBlock(id)
-    return !!b && (isTextType(b.type) || b.type === 'code')
+    return !!b && (isTextType(b.type) || isPlainTextType(b.type))
   })
   // A single database block can join the row of the one before it, or leave its row.
   const only = ids.length === 1 ? getBlock(ids[0]) : undefined

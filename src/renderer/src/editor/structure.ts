@@ -3,7 +3,7 @@
 // to commit, so the rules can be unit tested without a DOM.
 import type { Block, BlockProps, BlockType, Op, RichText } from '@shared/types'
 import type { GetBlock } from './ops'
-import { DEFAULT_CALLOUT_ICON, continuesOnEnter, isTextType } from './blockTypes'
+import { DEFAULT_CALLOUT_ICON, continuesOnEnter, isPlainTextType, isTextType } from './blockTypes'
 import { concat, rtLength, slice, textOf } from './richtext-dom'
 import { END, textSel, type DropTarget, type Place, type PropsPatch, type Sel } from './types'
 
@@ -29,9 +29,9 @@ function isContainer(b: Block): boolean {
   return b.type === 'page' || b.type === 'database'
 }
 
-/** True for blocks that hold the caret (rich text or code). */
+/** True for blocks that hold the caret (rich text, code or an equation's TeX). */
 export function isEditable(b: Block): boolean {
-  return isTextType(b.type) || b.type === 'code'
+  return isTextType(b.type) || isPlainTextType(b.type)
 }
 
 // ---- navigation ----------------------------------------------------------
@@ -218,7 +218,7 @@ export function backspacePlan(tree: Tree, id: string): Plan {
     return { do: 'commit', ops, after: textSel(prev, rtLength(theirs)) }
   }
   if (empty && b.content.length === 0) {
-    return { do: 'commit', ops: [{ op: 'delete', id }], after: pb.type === 'code' ? textSel(prev, END) : { kind: 'blocks', ids: [prev] } }
+    return { do: 'commit', ops: [{ op: 'delete', id }], after: isPlainTextType(pb.type) ? textSel(prev, END) : { kind: 'blocks', ids: [prev] } }
   }
   return { do: 'focus', id: prev, where: 'end' }
 }
@@ -243,8 +243,8 @@ export function deleteForwardPlan(tree: Tree, id: string): Plan {
 /** Props patch that turns `b` into `type`, optionally replacing its title. */
 export function turnIntoPatch(b: Block, type: BlockType, title?: RichText): PropsPatch {
   const props: PropsPatch = {}
-  if (type === 'code' || b.type === 'code') {
-    // Code holds plain text: marks do not survive the conversion in either direction.
+  if (isPlainTextType(type) || isPlainTextType(b.type)) {
+    // Code and equations hold plain text: marks do not survive the conversion in either direction.
     const plain = textOf(title ?? titleOf(b))
     props.title = plain ? [[plain]] : []
   } else if (title !== undefined) props.title = title

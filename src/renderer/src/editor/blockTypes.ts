@@ -15,10 +15,15 @@ export const TEXT_TYPES: readonly BlockType[] = [
   'callout'
 ]
 
-export const ALL_TYPES: readonly BlockType[] = [...TEXT_TYPES, 'code', 'divider', 'image', 'bookmark', 'page', 'database']
+export const ALL_TYPES: readonly BlockType[] = [...TEXT_TYPES, 'code', 'equation', 'divider', 'image', 'bookmark', 'page', 'database']
 
 export function isTextType(type: BlockType): boolean {
   return TEXT_TYPES.includes(type)
+}
+
+/** Blocks whose `props.title` is plain text edited in a textarea: code, and an equation's TeX. */
+export function isPlainTextType(type: BlockType): boolean {
+  return type === 'code' || type === 'equation'
 }
 
 /** Types that Enter continues on the next line. */
@@ -69,6 +74,15 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'quote', label: 'Quote', hint: 'Capture a quote', glyph: '”', keywords: 'quote blockquote citation', kind: 'turn', type: 'quote' },
   { id: 'callout', label: 'Callout', hint: 'Make text stand out', glyph: '!', keywords: 'callout note info tip', kind: 'turn', type: 'callout' },
   { id: 'code', label: 'Code', hint: 'Code snippet', glyph: '</>', keywords: 'code snippet pre', kind: 'turn', type: 'code' },
+  {
+    id: 'equation',
+    label: 'Equation',
+    hint: 'Display math in LaTeX',
+    glyph: '√x',
+    keywords: 'equation equação equacao math matemática matematica formula fórmula latex tex katex $$',
+    kind: 'turn',
+    type: 'equation'
+  },
   { id: 'divider', label: 'Divider', hint: 'Visually divide blocks', glyph: '—', keywords: 'divider line hr separator ---', kind: 'insert', type: 'divider' },
   { id: 'image', label: 'Image', hint: 'Upload an image', glyph: '▣', keywords: 'image picture photo img', kind: 'insert', type: 'image' },
   { id: 'bookmark', label: 'Bookmark', hint: 'Save a link as a card', glyph: '↗', keywords: 'bookmark link url web', kind: 'insert', type: 'bookmark' },

@@ -1,0 +1,104 @@
+/* Equation blocks: the formula, centred; its TeX opens below it while it is edited. */
+
+.blk-equation-box {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius-m);
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.blk-equation-box:hover,
+.blk-equation-box.is-editing {
+  background: var(--bg-hover);
+}
+
+.blk-equation-view {
+  display: flex;
+  justify-content: center;
+  min-height: 2.4em;
+  padding: 6px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  cursor: text;
+  outline: none;
+}
+
+.blk-equation-math {
+  align-self: center;
+  max-width: 100%;
+}
+
+.blk-equation-math .katex-display {
+  margin: 0.3em 0;
+}
+
+.blk-equation-math .katex-error {
+  color: var(--danger) !important;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+.blk-equation-source {
+  align-self: center;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: calc(1em * var(--code-scale));
+  white-space: pre-wrap;
+}
+
+.blk-equation-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: center;
+  color: var(--text-tertiary);
+  font-size: var(--text-ui);
+}
+
+.blk-equation-glyph {
+  font-family: var(--font-serif);
+  font-style: italic;
+}
+
+/* Out of sight but focusable while closed: arriving with the arrow keys opens it. */
+.blk-equation-box:not(.is-editing) .blk-equation-editor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  opacity: 0;
+}
+
+.blk-equation-editor {
+  padding: 0 10px 8px;
+}
+
+.blk-equation-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2em;
+  padding: 8px 10px;
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-s);
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: calc(var(--text-body) * var(--code-scale));
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.blk-equation-input:focus {
+  border-color: var(--focus-ring);
+}
+
+.blk-equation-problem {
+  margin-top: 6px;
+  color: var(--danger);
+  font-size: var(--text-sm);
+}

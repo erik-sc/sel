@@ -151,6 +151,9 @@ export function cleanProps(type: BlockType, src: UntrustedProps): BlockProps {
     if (plain) props.title = [[plain]]
     const language = typeof src.language === 'string' ? src.language.trim().toLowerCase() : ''
     if (language && language.length <= MAX_LANGUAGE_LENGTH && LANGUAGE_RE.test(language)) props.language = language
+  } else if (type === 'equation') {
+    const plain = textOf(parseRichText(src.title))
+    if (plain) props.title = [[plain]]
   }
   if (type === 'to_do' && typeof src.checked === 'boolean') props.checked = src.checked
   if (type === 'toggle' && typeof src.collapsed === 'boolean') props.collapsed = src.collapsed
@@ -307,6 +310,9 @@ export function nodesToText(nodes: readonly ClipNode[], depth = 0): string[] {
         break
       case 'code':
         lines.push('```' + (node.props.language ?? ''), t, '```')
+        break
+      case 'equation':
+        lines.push(`${pad}$$`, t, `${pad}$$`)
         break
       case 'divider':
         lines.push('---')

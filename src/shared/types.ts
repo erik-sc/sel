@@ -19,6 +19,8 @@ export type BlockType =
   | 'image'
   | 'bookmark'
   | 'database'
+  /** Display math in LaTeX, drawn by KaTeX; the source is `props.title` as plain text, like code. */
+  | 'equation'
 
 /** Inline formatting: bold, italic, underline, strike, code, link(url), color(name). */
 export type Mark = ['b'] | ['i'] | ['u'] | ['s'] | ['c'] | ['a', string] | ['h', string]
@@ -34,6 +36,11 @@ export interface BlockProps {
   checked?: boolean
   /** code */
   language?: string
+  /**
+   * page: a special kind of page. `'latex'`: a LaTeX document, whose source is the plain text of
+   * its first `code` child (language `latex`), shown as source and preview side by side.
+   */
+  kind?: 'latex'
   /** page, callout, database: emoji */
   icon?: string
   /** page: css gradient/colour or image url */

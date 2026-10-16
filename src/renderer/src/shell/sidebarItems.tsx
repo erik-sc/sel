@@ -21,6 +21,7 @@ import { SyncDone } from '@/sync/icons'
 import { ArchiveButton } from '@/archive/ArchiveButton'
 import { HomeButton } from '@/home/HomeButton'
 import { createPage, reportError } from './actions'
+import { NewPageButton } from './NewPageButton'
 import { PageRow, PageTree } from './PageTree'
 import { preloadSettings } from './SettingsModal'
 import { preloadTrash } from './TrashPopover'
@@ -129,7 +130,7 @@ export const SIDEBAR_ITEM_DEFS: Record<SidebarItemId, SidebarItemDef> = {
   // Gone while the Sky is turned off (see useAvailableItem).
   sky: { id: 'sky', icon: <Sky />, Render: () => <Action id="sky" icon={<Sky />} onClick={openSky} /> },
   'close-day': { id: 'close-day', icon: <Moon />, Render: () => <Action id="close-day" icon={<Moon />} onClick={openCloseDay} /> },
-  'new-page': { id: 'new-page', icon: <Plus />, Render: () => <Action id="new-page" icon={<Plus />} onClick={newRootPage} /> },
+  'new-page': { id: 'new-page', icon: <Plus />, Render: NewPageButton },
   'new-meeting': { id: 'new-meeting', icon: <Mic />, Render: () => <Action id="new-meeting" icon={<Mic />} onClick={() => void newMeeting()} /> },
   favorites: { id: 'favorites', icon: <Star />, Render: FavoritesItem },
   pages: { id: 'pages', icon: <Page />, Render: PagesItem },
@@ -146,5 +147,6 @@ export const SIDEBAR_ITEM_DEFS: Record<SidebarItemId, SidebarItemDef> = {
  * its settings, whatever the layout says.
  */
 export function useAvailableItem(): (id: SidebarItemId) => boolean {
-  return (id) => id !== 'sky'
+  const skyEnabled = useSkyEnabled((state) => state.enabled)
+  return (id) => id !== 'sky' || skyEnabled
 }

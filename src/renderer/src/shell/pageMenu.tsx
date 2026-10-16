@@ -1,6 +1,8 @@
 import type { Block } from '@shared/types'
 import type { MenuItem } from '@/ui/Menu'
-import { Archive, ArrowUpRight, Board, Check, Clock, Copy, Home, Page, Plus, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { Archive, ArrowUpRight, Board, Check, Clock, Copy, Home, Page, Plus, Sigma, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { isLatexDocument, newLatexDocument } from '@/latex/gate'
+import { latexShellCopy } from '@/latex/locale'
 import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/actions'
 import { archiveCopy } from '@/archive/locale'
 import { HOME_COPY } from '@/home/copy'
@@ -107,14 +109,23 @@ export function sidebarPageMenu(block: Block): MenuItem[] {
     },
     homeItem(block)
   ]
-  if (block.type === 'page') {
-    items.push({
-      id: 'add-subpage',
-      label: 'Add a page inside',
-      icon: <Page />,
-      onSelect: () => void createPage(id).catch(reportError('create the page'))
-    })
-    items.push({ id: 'add-template', label: templatesCopy().openInside, icon: <Board />, onSelect: () => openTemplates({ pageId: id, inside: true }) })
+  // A LaTeX document's content is its source: nothing goes inside it.
+  if (block.type === 'page' && !isLatexDocument(block)) {
+    items.push(
+      {
+        id: 'add-subpage',
+        label: 'Add a page inside',
+        icon: <Page />,
+        onSelect: () => void createPage(id).catch(reportError('create the page'))
+      },
+      { id: 'add-template', label: templatesCopy().openInside, icon: <Board />, onSelect: () => openTemplates({ pageId: id, inside: true }) },
+      {
+        id: 'add-latex',
+        label: latexShellCopy().addInside,
+        icon: <Sigma />,
+        onSelect: () => newLatexDocument(id)
+      }
+    )
   }
   items.push(...archiveItems(block), ...removeItems(block))
   return items

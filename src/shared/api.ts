@@ -75,6 +75,10 @@ export interface Api {
     duplicate(id: string): Promise<Block>
     exportMarkdown(id: string): Promise<{ saved: boolean; path?: string }>
     importMarkdown(parentId: string | null): Promise<Block | null>
+    /** A LaTeX document (`props.kind: 'latex'`): its source as a .tex file. */
+    exportTex(id: string): Promise<{ saved: boolean; path?: string }>
+    /** A LaTeX document: this window printed to PDF, its print stylesheet showing only the preview. */
+    exportPdf(id: string, pageSize: 'A4' | 'Letter'): Promise<{ saved: boolean; path?: string }>
   }
 
   databases: {
@@ -364,6 +368,8 @@ export const INVOKE = {
   'pages:duplicate': true,
   'pages:exportMarkdown': true,
   'pages:importMarkdown': true,
+  'pages:exportTex': true,
+  'pages:exportPdf': true,
 
   'databases:list': true,
   'databases:locations': true,
