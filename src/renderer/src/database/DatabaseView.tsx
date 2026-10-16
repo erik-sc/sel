@@ -407,7 +407,7 @@ export function DatabaseView(props: {
           label: 'Delete',
           icon: <Trash size={14} />,
           danger: true,
-          onSelect: () => actions.deleteRows([rowMenu.rowId])
+          onSelect: () => actions.trashRows(databaseId, [rowMenu.rowId])
         }
       ]
     : []
@@ -607,8 +607,8 @@ export function DatabaseView(props: {
                 ref={searchRef}
                 autoFocus
                 value={search}
-                placeholder="Search titles…"
-                aria-label="Search titles"
+                placeholder="Search…"
+                aria-label="Search rows"
                 onChange={(event) => setSearch(event.target.value)}
                 onBlur={() => {
                   if (!search) setSearchOpen(false)

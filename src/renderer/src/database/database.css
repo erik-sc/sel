@@ -1406,6 +1406,15 @@ button.db-formula-item:hover {
   font-weight: var(--weight-semibold);
 }
 
+/* an option's colour in the bulk edit menu (tagStyle sets background and color) */
+.db-bulk-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: var(--hairline) solid currentColor;
+  border-radius: 3px;
+}
+
 /* ---- board ---- */
 .db-board {
   display: flex;

@@ -16,9 +16,11 @@ import { relationIds } from '../../../../shared/relation'
 import { cellText, filterTypeOf, readCell } from './cell'
 import { MAX_RANGE_DAYS, addDays, dayKey, formatDay, inSpan, isDateValue, momentKey, relativeSpan, todayISO } from './dates'
 import type { CellContext } from './relation'
+import { visibleProps } from './views'
 import {
   findOption,
   formatValue,
+  getCellValue,
   isDateLikeType,
   isEmptyValue,
   optionsOf,
@@ -289,11 +291,26 @@ export function applyFilters(rows: Block[], schema: Schema, filters: ViewFilter[
   return rows.filter((row) => active.every(({ filter, prop }) => matchesFilter(row, prop, filter, ctx)))
 }
 
-/** Client-side quick search on the row title. */
-export function applySearch(rows: Block[], query: string): Block[] {
+/**
+ * Client-side quick search: the row title, and the stored text of `props` (the ones the
+ * view shows) — text, URLs, numbers as typed, and the names of select options.
+ */
+export function applySearch(rows: Block[], query: string, props: readonly PropertySchema[] = []): Block[] {
   const q = typeof query === 'string' ? query.trim().toLocaleLowerCase() : ''
   if (!q) return rows
-  return rows.filter((r) => titleOf(r).toLocaleLowerCase().includes(q))
+  const searched = props.filter((prop) => SEARCHED_TYPES.has(prop.type))
+  return rows.filter((r) => titleOf(r).toLocaleLowerCase().includes(q) || searched.some((prop) => cellHas(r, prop, q)))
+}
+
+const SEARCHED_TYPES: ReadonlySet<PropertyType> = new Set(['text', 'url', 'number', 'select', 'multi_select'])
+
+function cellHas(row: Block, prop: PropertySchema, q: string): boolean {
+  const v = getCellValue(row, prop)
+  const has = (text: string | undefined): boolean => !!text && text.toLocaleLowerCase().includes(q)
+  if (typeof v === 'string') return prop.type === 'select' ? has(findOption(prop, v)?.name) : has(v)
+  if (typeof v === 'number') return has(String(v))
+  if (Array.isArray(v)) return v.some((id) => has(findOption(prop, id)?.name))
+  return false
 }
 
 /**
@@ -449,7 +466,7 @@ export function applySorts(rows: Block[], schema: Schema, sorts: ViewSort[] | un
  * rollups the related rows; without it they filter and sort as if those were not loaded.
  */
 export function queryRows(rows: Block[], schema: Schema, view: DatabaseView | undefined, search = '', ctx?: CellContext): Block[] {
-  const filtered = applySearch(applyFilters(rows, schema, view?.filters, ctx), search)
+  const filtered = applySearch(applyFilters(rows, schema, view?.filters, ctx), search, search ? visibleProps(view, schema) : [])
   return applySorts(filtered, schema, view?.sorts, ctx)
 }
 
