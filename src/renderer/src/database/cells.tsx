@@ -79,7 +79,7 @@ function FormulaValue({ row, prop }: { row: Block; prop: PropertySchema }): JSX.
       </span>
     )
   }
-  const text = L.formulaText(outcome)
+  const text = L.formulaText(outcome, {}, prop.numberFormat)
   if (!text) return null
   return <span className={outcome.type === 'number' ? 'db-text is-number' : 'db-text'}>{text}</span>
 }

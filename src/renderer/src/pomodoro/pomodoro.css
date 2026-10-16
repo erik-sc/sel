@@ -1,0 +1,166 @@
+/*
+ * The pomodoro widget, in the lower right corner of the content (its exact offsets are set by
+ * Widget.tsx from corner.ts: beside Herman, clear of the toasts). Quiet like Herman at rest:
+ * colours, sizes, radii, shadows and durations from the tokens only.
+ */
+
+.pomodoro {
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  /* Under Herman (40) and every popover and toast; over the update notice (30). */
+  z-index: 38;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+  animation: pomodoro-rise calc(var(--duration) * 1.6) var(--ease);
+  -webkit-app-region: no-drag;
+}
+
+.pomodoro > * {
+  pointer-events: auto;
+}
+
+.pomodoro-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 11px 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-control);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  opacity: 0.82;
+  transition:
+    opacity var(--duration) var(--ease),
+    color var(--duration-fast) var(--ease);
+}
+
+.pomodoro-pill:hover,
+.pomodoro-pill:focus-visible,
+.pomodoro-pill[aria-expanded='true'] {
+  color: var(--text);
+  opacity: 1;
+}
+
+.pomodoro-pill:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.pomodoro-phase {
+  color: var(--text-tertiary);
+}
+
+.pomodoro-clock {
+  color: inherit;
+  font-weight: var(--weight-medium);
+}
+
+.pomodoro-ring {
+  flex: none;
+  color: var(--accent);
+}
+
+.pomodoro.is-short .pomodoro-ring,
+.pomodoro.is-long .pomodoro-ring {
+  color: var(--c-green);
+}
+
+.pomodoro-ring circle {
+  fill: none;
+  stroke-width: 2;
+}
+
+.pomodoro-ring-track {
+  stroke: var(--fill-3);
+}
+
+.pomodoro-ring-done {
+  stroke: currentColor;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--duration) linear;
+}
+
+.pomodoro.is-paused .pomodoro-pill {
+  opacity: 0.66;
+}
+
+.pomodoro.is-paused .pomodoro-ring {
+  color: var(--text-tertiary);
+}
+
+/* ---- the question at the end of a phase ---- */
+
+.pomodoro.is-asking {
+  box-sizing: border-box;
+  max-width: 260px;
+  padding: 10px 13px 8px;
+  border-radius: var(--radius-l);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  color: var(--text);
+  align-items: stretch;
+  pointer-events: auto;
+}
+
+.pomodoro-question {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--leading-ui);
+}
+
+.pomodoro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin-top: 6px;
+}
+
+.pomodoro-actions button {
+  padding: 2px 0;
+  border-radius: var(--radius-xs);
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.pomodoro-actions button.is-primary {
+  color: var(--accent);
+}
+
+.pomodoro-actions button:hover,
+.pomodoro-actions button:focus-visible {
+  color: var(--accent);
+}
+
+.pomodoro-actions button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.pomodoro-menu .ui-menu {
+  min-width: 200px;
+}
+
+@keyframes pomodoro-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pomodoro {
+    animation: none;
+  }
+}

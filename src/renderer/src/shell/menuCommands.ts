@@ -22,15 +22,26 @@ import { focusQuickAdd, openTasks } from '@/tasks/gate'
 import { openCloseDay, openNotebook } from '@/notebook/route'
 import { newMeeting } from '@/meetings/gate'
 import { openFind } from './findStore'
+import { runLatexAction } from '@/latex/gate'
 import { openFeedback } from '@/feedback/gate'
 import { openPalette } from '@/commands/store'
+import { goHome } from '@/home/store'
 import { openShortcuts } from '@/shortcuts/gate'
+import { startOrShowPomodoro } from '@/pomodoro/gate'
+import { openSky } from '@/sky/route'
+import { openTemplates } from '@/templates/gate'
 
 export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
   switch (command) {
     case 'new-page':
       void createPage(null).catch(reportError('create the page'))
       break
+    case 'new-from-template': {
+      // The page in front is offered as a place for it; the workspace root stays the default.
+      const pageId = tabPage(activeTab())
+      openTemplates({ pageId: pageId && isBlockId(pageId) ? pageId : null })
+      break
+    }
     case 'new-tab':
       newTab()
       break
@@ -47,7 +58,8 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       setQuickFindOpen(true)
       break
     case 'find-in-page':
-      openFind(window.getSelection()?.toString())
+      // A LaTeX document searches its source with its own find bar.
+      if (!runLatexAction('find')) openFind(window.getSelection()?.toString())
       break
     case 'command-palette':
       openPalette()
@@ -88,6 +100,9 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
     case 'toggle-assistant':
       showOrHideAssistant()
       break
+    case 'go-home':
+      goHome()
+      break
     case 'open-today':
       openToday()
       break
@@ -112,6 +127,13 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       break
     case 'send-feedback':
       openFeedback()
+      break
+    case 'start-pomodoro':
+      startOrShowPomodoro()
+      break
+    case 'open-sky':
+      // Turned off, the shortcut does nothing.
+      openSky()
       break
     case 'version-history': {
       // The shortcut toggles: the history of the page in the active tab.

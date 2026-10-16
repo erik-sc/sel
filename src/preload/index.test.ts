@@ -36,6 +36,8 @@ vi.mock('@shared/sync', () => import('../shared/sync'))
 vi.mock('@shared/types', () => import('../shared/types'))
 vi.mock('@shared/updates', () => import('../shared/updates'))
 vi.mock('@shared/alarms', () => import('../shared/alarms'))
+vi.mock('@shared/pomodoro', () => import('../shared/pomodoro'))
+vi.mock('@shared/sky', () => import('../shared/sky'))
 
 import { INVOKE } from '../shared/api'
 
@@ -97,6 +99,10 @@ describe('the preload', () => {
       'herman.onNudge': 'on herman:nudge',
       'updates.onStatus': 'on updates:status',
       'alarms.onAnnounce': 'on alarms:announce',
+      'pomodoro.onChanged': 'on pomodoro:changed',
+      'pomodoro.onEnded': 'on pomodoro:ended',
+      'pomodoro.onCompleted': 'on pomodoro:completed',
+      'sky.onChanged': 'on sky:changed',
       'app.platform': 'string',
       'app.window.minimize': 'send window:minimize',
       'app.window.toggleMaximize': 'send window:toggleMaximize',
@@ -121,7 +127,18 @@ const INVOKE_CHANNELS = [
   'app:getTheme',
   'alarms:heard',
   'alarms:pending',
+  'alarms:snooze',
   'alarms:test',
+  'pomodoro:next',
+  'pomodoro:pause',
+  'pomodoro:resume',
+  'pomodoro:skip',
+  'pomodoro:start',
+  'pomodoro:state',
+  'pomodoro:stop',
+  'sky:moment',
+  'sky:name',
+  'sky:view',
   'app:newWindow',
   'app:openExternal',
   'app:setSetting',
@@ -159,6 +176,7 @@ const INVOKE_CHANNELS = [
   'tasks:globalShortcut',
   'tasks:importTodoist',
   'tasks:setGlobalShortcut',
+  'templates:create',
   'files:pickImage',
   'files:saveGeneratedImage',
   'files:saveImage',
@@ -200,7 +218,10 @@ const INVOKE_CHANNELS = [
   'pages:deleteForever',
   'pages:duplicate',
   'pages:exportMarkdown',
+  'pages:exportPdf',
+  'pages:exportTex',
   'pages:importMarkdown',
+  'pages:listArchived',
   'pages:listChildren',
   'pages:listFavorites',
   'pages:listRecent',

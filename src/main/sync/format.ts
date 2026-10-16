@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { BRIEFING_LIMITS, cleanBriefingSetting, cleanCalendarLabel, isCalendarColor, type CalendarColor } from '../../shared/briefing'
 import { LEGACY_NAME, modernizeUrls } from '../../shared/legacy'
+import { cleanHome, type Home } from '../../shared/home'
+import { cleanSidebar, type SidebarLayout } from '../../shared/sidebar'
 import { canonicalJson } from '../../shared/versions'
 import { hostOf, validateCalendarUrl } from '../briefing/net'
 import { isBlockType, isValidId, type Row } from '../db/blocks'
@@ -15,6 +17,8 @@ import { isPageLike, normalizeWorkspace, type SyncBlock, type Workspace } from '
  *   pages/<pageId>.json       one page or database with its own blocks, one block per line
  *   files/<name>              images the pages show
  *   settings/appearance.json  the appearance overrides
+ *   settings/home.json        the home: the page or screen the Home button opens
+ *   settings/sidebar.json     the sidebar's layout: the order of its items, which are hidden
  *   settings/calendars.json   the connected calendars with their secret addresses, and the task
  *                             databases of Today: in an encrypted repository only
  *
@@ -31,6 +35,8 @@ export const PATHS = {
   readmeAlt: 'SEL.md',
   workspace: 'workspace.json',
   appearance: 'settings/appearance.json',
+  home: 'settings/home.json',
+  sidebar: 'settings/sidebar.json',
   /** Written only when the repository is encrypted: it holds credentials. */
   calendars: 'settings/calendars.json',
   pages: 'pages/',
@@ -64,8 +70,8 @@ and a change made here can be overwritten or can keep a device from syncing.
 - \`workspace.json\`: the order of the top-level pages.
 - \`pages/\`: one file per page or database.
 - \`files/\`: images used in pages.
-- \`settings/\`: appearance settings shared between devices; in an encrypted workspace, also
-  the connected calendars and which databases hold the tasks of Today.
+- \`settings/\`: appearance settings and the home shared between devices; in an encrypted
+  workspace, also the connected calendars and which databases hold the tasks of Today.
 
 If the workspace is encrypted, the files under \`pages/\`, \`files/\` and \`settings/\` are not readable
 without the passphrase, and their history shows no meaningful differences. A calendar's address
@@ -483,6 +489,75 @@ export function mergeAppearance(base: AppearanceFile | null, local: AppearanceFi
     if (value !== undefined) out[key] = value
   }
   return { updatedAt: Math.max(local.updatedAt, remote.updatedAt), value: out }
+}
+
+// ---------------------------------------------------------------------- home
+
+export interface HomeFile {
+  updatedAt: number
+  value: Home
+}
+
+/** Written with its value even when that is null: clearing the home is a change other devices take too. */
+export function serializeHome(file: HomeFile): string {
+  return `${canonicalJson({ format: FORMAT, updatedAt: file.updatedAt, value: file.value ?? null })}\n`
+}
+
+export function parseHome(text: string): HomeFile {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    throw new FormatError('The home setting cannot be read')
+  }
+  if (!isPlain(raw) || typeof raw['format'] !== 'number') throw new FormatError('The home setting is damaged')
+  if (raw['format'] > FORMAT) throw new FormatError('newer format', true)
+  // A home this version does not know (a screen added later) counts as none here.
+  return { updatedAt: stamp(raw['updatedAt']), value: cleanHome(raw['value']) ?? null }
+}
+
+/** Three-way merge of the home, which is one value: where both devices changed it, the later change wins. */
+export function mergeHome(base: HomeFile | null, local: HomeFile, remote: HomeFile | null): HomeFile {
+  if (!remote) return local
+  const same = (a: Home | undefined, b: Home | undefined): boolean => canonicalJson(a ?? null) === canonicalJson(b ?? null)
+  if (same(remote.value, base?.value)) return local
+  if (same(local.value, base?.value) || same(local.value, remote.value)) return remote
+  return local.updatedAt > remote.updatedAt ? local : remote
+}
+
+// ------------------------------------------------------------------- sidebar
+
+export interface SidebarFile {
+  updatedAt: number
+  /** Null is the default layout. */
+  value: SidebarLayout | null
+}
+
+/** Written with its value even when that is null: going back to the default is a change other devices take too. */
+export function serializeSidebar(file: SidebarFile): string {
+  return `${canonicalJson({ format: FORMAT, updatedAt: file.updatedAt, value: file.value ?? null })}\n`
+}
+
+export function parseSidebar(text: string): SidebarFile {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    throw new FormatError('The sidebar setting cannot be read')
+  }
+  if (!isPlain(raw) || typeof raw['format'] !== 'number') throw new FormatError('The sidebar setting is damaged')
+  if (raw['format'] > FORMAT) throw new FormatError('newer format', true)
+  // A layout that cannot be read counts as the default here.
+  return { updatedAt: stamp(raw['updatedAt']), value: cleanSidebar(raw['value']) ?? null }
+}
+
+/** Three-way merge of the layout, which is one value: where both devices changed it, the later change wins. */
+export function mergeSidebar(base: SidebarFile | null, local: SidebarFile, remote: SidebarFile | null): SidebarFile {
+  if (!remote) return local
+  const same = (a: SidebarLayout | null | undefined, b: SidebarLayout | null | undefined): boolean => canonicalJson(a ?? null) === canonicalJson(b ?? null)
+  if (same(remote.value, base?.value)) return local
+  if (same(local.value, base?.value) || same(local.value, remote.value)) return remote
+  return local.updatedAt > remote.updatedAt ? local : remote
 }
 
 // ----------------------------------------------------------------- calendars

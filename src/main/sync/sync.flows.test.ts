@@ -119,6 +119,27 @@ suite('sync with real git: flows', () => {
     }
   })
 
+  it('merges a page archived on one device with edits made to it on the other', async () => {
+    const { a, b, pageId, blocks } = await pair()
+    // Both offline: A archives the page, B renames it and edits a paragraph in it.
+    a.repo.update(pageId, { props: { archivedAt: 1_500_000 } })
+    b.repo.update(pageId, { props: { title: [['Shared page, renamed on B']] } })
+    b.repo.update(blocks[1], { props: { title: [['two, edited on B']] } })
+    await sync(a, b, a)
+    for (const d of [a, b]) {
+      expect(d.repo.get(pageId)?.props).toMatchObject({ archivedAt: 1_500_000, title: [['Shared page, renamed on B']] })
+      expect(d.texts(pageId)).toEqual(['one', 'two, edited on B', 'three'])
+      expect(d.repo.listRoot().map((p) => p.id)).toEqual([])
+      expect(d.repo.listArchived().map((p) => p.id)).toEqual([pageId])
+      expect(d.engine.status().activity.flatMap((entry) => entry.conflicts)).toEqual([])
+    }
+    // Unarchiving travels too, and the page is back at the root on the other device.
+    b.repo.update(pageId, { props: { archivedAt: null } })
+    await sync(b, a)
+    expect(a.repo.listRoot().map((p) => p.id)).toEqual([pageId])
+    expect(a.repo.listArchived()).toEqual([])
+  })
+
   it('keeps the losing local state in version history when both devices changed the same block', async () => {
     const { a, b, pageId, blocks } = await pair()
     // B edits first (its clock is ahead, so its edit is the later one), A edits and syncs first.
@@ -266,6 +287,118 @@ suite('sync with real git: flows', () => {
     expect(b.repo.getSetting('ai.model')).toBeNull()
     expect(b.repo.getSetting('windowBounds')).toBeNull()
     expect(b.repo.getSetting('history.enabled')).toBeNull()
+  })
+
+  it('carries the home to the other device', async () => {
+    const { remote, a, b, pageId } = await pair()
+    a.repo.setSetting('home', { kind: 'page', id: pageId })
+    a.repo.setSetting('sync.homeAt', 5000)
+    await sync(a, b)
+    expect(b.repo.getSetting('home')).toEqual({ kind: 'page', id: pageId })
+    expect(b.repo.getSetting('sync.homeAt')).toBe(5000)
+    expect(JSON.parse(remoteFiles(remote).get('settings/home.json')!.toString())).toEqual({ format: 1, updatedAt: 5000, value: { kind: 'page', id: pageId } })
+    // What sel does at start-up is chosen per device: it stays where it was set.
+    a.repo.setSetting('shell.startup', 'home')
+    await sync(a, b)
+    expect(b.repo.getSetting('shell.startup')).toBeNull()
+    // Nothing changed since: nothing more to upload.
+    const commits = commitCount(remote)
+    await sync(a, b)
+    expect(commitCount(remote)).toBe(commits)
+  })
+
+  it('keeps the later home when both devices chose one', async () => {
+    const { a, b, pageId } = await pair()
+    a.repo.setSetting('home', { kind: 'page', id: pageId })
+    a.repo.setSetting('sync.homeAt', 6000)
+    b.repo.setSetting('home', { kind: 'screen', route: '_today' })
+    b.repo.setSetting('sync.homeAt', 7000)
+    await sync(a, b, a)
+    expect(a.repo.getSetting('home')).toEqual({ kind: 'screen', route: '_today' })
+    expect(b.repo.getSetting('home')).toEqual({ kind: 'screen', route: '_today' })
+
+    // The other way round: the device that syncs first has the later choice.
+    a.repo.setSetting('home', { kind: 'screen', route: '_tasks' })
+    a.repo.setSetting('sync.homeAt', 9000)
+    b.repo.setSetting('home', { kind: 'screen', route: '_calendar' })
+    b.repo.setSetting('sync.homeAt', 8000)
+    await sync(b, a, b)
+    expect(a.repo.getSetting('home')).toEqual({ kind: 'screen', route: '_tasks' })
+    expect(b.repo.getSetting('home')).toEqual({ kind: 'screen', route: '_tasks' })
+  })
+
+  it('clears the home on the other device when it is cleared', async () => {
+    const { remote, a, b, pageId } = await pair()
+    a.repo.setSetting('home', { kind: 'page', id: pageId })
+    a.repo.setSetting('sync.homeAt', 5000)
+    await sync(a, b)
+    expect(b.repo.getSetting('home')).toEqual({ kind: 'page', id: pageId })
+    b.repo.setSetting('home', null)
+    b.repo.setSetting('sync.homeAt', 6000)
+    await sync(b, a)
+    expect(a.repo.getSetting('home')).toBeNull()
+    expect(JSON.parse(remoteFiles(remote).get('settings/home.json')!.toString())).toMatchObject({ updatedAt: 6000, value: null })
+    // And set again from there.
+    a.repo.setSetting('home', { kind: 'screen', route: '_notebook' })
+    a.repo.setSetting('sync.homeAt', 7000)
+    await sync(a, b)
+    expect(b.repo.getSetting('home')).toEqual({ kind: 'screen', route: '_notebook' })
+  })
+
+  it('carries the sidebar layout to the other device, and back to the default', async () => {
+    const { remote, a, b } = await pair()
+    const layout = { order: ['pages', 'favorites', 'search', 'settings'], hidden: ['feedback'] }
+    a.repo.setSetting('sidebar', layout)
+    a.repo.setSetting('sync.sidebarAt', 5000)
+    await sync(a, b)
+    expect(b.repo.getSetting('sidebar')).toEqual(layout)
+    expect(b.repo.getSetting('sync.sidebarAt')).toBe(5000)
+    expect(JSON.parse(remoteFiles(remote).get('settings/sidebar.json')!.toString())).toEqual({ format: 1, updatedAt: 5000, value: layout })
+    // Nothing changed since: nothing more to upload.
+    const commits = commitCount(remote)
+    await sync(a, b)
+    expect(commitCount(remote)).toBe(commits)
+    // "Restore default" on B is a change A takes too.
+    b.repo.setSetting('sidebar', null)
+    b.repo.setSetting('sync.sidebarAt', 6000)
+    await sync(b, a)
+    expect(a.repo.getSetting('sidebar')).toBeNull()
+    expect(JSON.parse(remoteFiles(remote).get('settings/sidebar.json')!.toString())).toMatchObject({ updatedAt: 6000, value: null })
+  })
+
+  it('keeps the later sidebar layout when both devices changed it', async () => {
+    const { a, b } = await pair()
+    a.repo.setSetting('sidebar', { order: ['trash'], hidden: [] })
+    a.repo.setSetting('sync.sidebarAt', 6000)
+    b.repo.setSetting('sidebar', { order: [], hidden: ['search'] })
+    b.repo.setSetting('sync.sidebarAt', 7000)
+    await sync(a, b, a)
+    expect(a.repo.getSetting('sidebar')).toEqual({ order: [], hidden: ['search'] })
+    expect(b.repo.getSetting('sidebar')).toEqual({ order: [], hidden: ['search'] })
+
+    // The other way round: the device that syncs first has the later change.
+    a.repo.setSetting('sidebar', { order: ['settings'], hidden: [] })
+    a.repo.setSetting('sync.sidebarAt', 9000)
+    b.repo.setSetting('sidebar', { order: ['sync'], hidden: [] })
+    b.repo.setSetting('sync.sidebarAt', 8000)
+    await sync(b, a, b)
+    expect(a.repo.getSetting('sidebar')).toEqual({ order: ['settings'], hidden: [] })
+    expect(b.repo.getSetting('sidebar')).toEqual({ order: ['settings'], hidden: [] })
+  })
+
+  it('carries the home in an encrypted repository, sealed like the rest', async () => {
+    const remote = bareRemote()
+    const a = device('Device A', 1_000_000)
+    const b = device('Device B', 2_000_000)
+    const page = a.page('Start here')
+    a.repo.setSetting('home', { kind: 'page', id: page.id })
+    a.repo.setSetting('sync.homeAt', 5000)
+    expect((await a.setup(remote, { passphrase: PASSPHRASE })).lastError).toBeUndefined()
+    expect((await b.setup(remote, { passphrase: PASSPHRASE })).lastError).toBeUndefined()
+    expect(b.repo.getSetting('home')).toEqual({ kind: 'page', id: page.id })
+    const file = remoteFiles(remote).get('settings/home.json')
+    expect(file).toBeDefined()
+    expect(file!.toString('latin1')).not.toContain(page.id)
   })
 
   it('never puts the version history table, local settings or calendars in an unencrypted repository', async () => {

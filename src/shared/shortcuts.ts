@@ -45,6 +45,7 @@ export const APP_SHORTCUTS: readonly AppShortcut[] = [
   { command: 'new-window', accelerator: 'CmdOrCtrl+Shift+N', key: 'n', ctrl: true, shift: true },
   { command: 'version-history', accelerator: 'CmdOrCtrl+Alt+Shift+H', key: 'h', ctrl: true, shift: true, alt: true },
   { command: 'toggle-assistant', accelerator: 'CmdOrCtrl+J', key: 'j', ctrl: true },
+  { command: 'go-home', accelerator: 'CmdOrCtrl+Alt+H', key: 'h', ctrl: true, alt: true },
   { command: 'open-today', accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true },
   { command: 'open-calendar', accelerator: 'CmdOrCtrl+Alt+C', key: 'c', ctrl: true, alt: true },
   { command: 'open-tasks', accelerator: 'CmdOrCtrl+Alt+K', key: 'k', ctrl: true, alt: true },
@@ -52,6 +53,9 @@ export const APP_SHORTCUTS: readonly AppShortcut[] = [
   // N for notebook. Ctrl+N is a new page, Ctrl+Shift+N a new window.
   { command: 'open-notebook', accelerator: 'CmdOrCtrl+Alt+N', key: 'n', ctrl: true, alt: true },
   { command: 'new-meeting', accelerator: 'CmdOrCtrl+Alt+M', key: 'm', ctrl: true, alt: true },
+  { command: 'start-pomodoro', accelerator: 'CmdOrCtrl+Alt+P', key: 'p', ctrl: true, alt: true },
+  // G, kept from when the Sky was going to be a garden.
+  { command: 'open-sky', accelerator: 'CmdOrCtrl+Alt+G', key: 'g', ctrl: true, alt: true },
   { command: 'keyboard-shortcuts', accelerator: 'CmdOrCtrl+/', key: '/', ctrl: true }
 ]
 

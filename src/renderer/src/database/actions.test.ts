@@ -1,7 +1,7 @@
 // Store-backed actions against an in-memory store with the real op semantics
 // (`applyOpsToMap`). Each test is about what reaches the store: lost updates,
 // reference clean-up, and the fate of a cancelled new row.
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TASK_PROPS, tasksDatabaseProps } from '../../../shared/tasks'
 import type { Block, DatabaseView, Op, PropertyValue } from '../../../shared/types'
 
@@ -33,9 +33,22 @@ vi.mock('../store/blocks', async () => {
       store.unloaded = []
       return Promise.resolve()
     },
-    loadTree: () => Promise.resolve()
+    loadTree: () => Promise.resolve(),
+    // `pages.restore` (below) already writes to the store.
+    refreshBlocks: () => Promise.resolve()
   }
 })
+
+const toasts = vi.hoisted(() => [] as { message: string; action?: { label: string; run: () => void } }[])
+vi.mock('../ui/toast', () => ({
+  toast: (message: string, options: { action?: { label: string; run: () => void } } = {}) => {
+    toasts.push({ message, action: options.action })
+    return 'toast'
+  },
+  notifyError: (message: string, error: unknown) => {
+    throw new Error(`${message} ${String(error)}`)
+  }
+}))
 
 import * as actions from './actions'
 import * as L from './logic'
@@ -697,5 +710,101 @@ describe('new rows', () => {
     actions.moveRowAfter('db', 'a', 'missing')
     actions.moveRowBefore('db', 'missing', 'a')
     expect(store.batches).toHaveLength(before)
+  })
+})
+
+describe('bulk edits', () => {
+  it('change one property of every selected row in one batch, from the store at commit time', () => {
+    seed([page('a', 'A', { sel: 'todo', tags: ['a'] }), page('b', 'B', { tags: ['b'] }), page('c', 'C', { sel: 'todo' })])
+    // Another window wrote a cell after the menu was rendered.
+    store.blocks.b = page('b', 'B', { tags: ['b'], txt: 'theirs' })
+    actions.editCells(['a', 'b', 'missing'], schema.sel, { kind: 'set', value: 'done' })
+    expect(store.batches).toHaveLength(1)
+    expect(valuesOf('a')).toEqual({ sel: 'done', tags: ['a'] })
+    expect(valuesOf('b')).toEqual({ sel: 'done', tags: ['b'], txt: 'theirs' })
+    expect(valuesOf('c')).toEqual({ sel: 'todo' })
+    actions.editCells(['a', 'b'], schema.tags, { kind: 'add', optionId: 'c' })
+    expect([valuesOf('a').tags, valuesOf('b').tags]).toEqual([['a', 'c'], ['b', 'c']])
+  })
+
+  it('writes nothing when no selected row changes', () => {
+    seed([page('a', 'A', { chk: true }), page('b', 'B', { chk: true })])
+    actions.editCells(['a', 'b'], schema.chk, { kind: 'set', value: true })
+    actions.editCells(['a'], schema.t, { kind: 'clear' })
+    expect(store.batches).toEqual([])
+  })
+
+  it('Done in the built-in Tasks database completes each task the way a click does', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 15, 18, 40))
+    try {
+      const props = tasksDatabaseProps() as Record<string, unknown>
+      const done = (props.schema as L.Schema)[TASK_PROPS.done]
+      const daily = JSON.stringify({ rule: 'FREQ=DAILY', from: 'due', text: 'todo dia' })
+      const finished = { [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-14T09:00' } }
+      seed(
+        [
+          page('rep', 'Water', { [TASK_PROPS.due]: { start: '2026-10-15T08:00' }, [TASK_PROPS.recurrence]: daily }),
+          page('once', 'Call'),
+          page('old', 'Done already', finished)
+        ],
+        props
+      )
+      actions.editCells(['rep', 'once', 'old'], done, { kind: 'set', value: true })
+      expect(store.batches).toHaveLength(1)
+      expect(valuesOf('rep')).toEqual({
+        [TASK_PROPS.due]: { start: '2026-10-16T08:00' },
+        [TASK_PROPS.recurrence]: daily,
+        [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' }
+      })
+      expect(valuesOf('once')).toEqual({ [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' } })
+      // A task that was already done keeps the day it was completed.
+      expect(valuesOf('old')).toEqual(finished)
+      actions.editCells(['once', 'old'], done, { kind: 'set', value: false })
+      expect([valuesOf('once'), valuesOf('old')]).toEqual([{}, {}])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('trashing rows', () => {
+  beforeEach(() => {
+    toasts.length = 0
+    // The backend: a restored row is no longer trashed and is appended to its database.
+    const restore = vi.fn((id: string) => {
+      const row = get(id)
+      store.blocks[id] = { ...row, trashedAt: null }
+      const db = get('db')
+      store.blocks.db = { ...db, content: [...db.content.filter((x) => x !== id), id] }
+      return Promise.resolve()
+    })
+    vi.stubGlobal('window', { api: { pages: { restore } } })
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('offers to undo, and undoing puts the rows back where they were', async () => {
+    seed([page('a', 'A'), page('b', 'B'), page('c', 'C'), page('d', 'D')])
+    actions.trashRows('db', ['b', 'd', 'b'])
+    expect([get('b').trashedAt, get('d').trashedAt].every((t) => t !== null)).toBe(true)
+    expect(toasts.map((t) => t.message)).toEqual(['2 rows moved to the trash'])
+    // Meanwhile the backend dropped them from the order, and a row was added at the end.
+    store.blocks.db = { ...get('db'), content: ['a', 'c', 'e'] }
+    store.blocks.e = page('e', 'E')
+    toasts[0].action!.run()
+    await flush()
+    await flush()
+    expect(get('db').content).toEqual(['a', 'b', 'c', 'd', 'e'])
+    expect(get('b').trashedAt).toBeNull()
+  })
+
+  it('says "row" for one, and does nothing for rows that are gone', () => {
+    seed([page('a', 'A')])
+    actions.trashRows('db', ['missing'])
+    expect(toasts).toEqual([])
+    actions.trashRows('db', ['a'])
+    expect(toasts.map((t) => t.message)).toEqual(['Row moved to the trash'])
   })
 })

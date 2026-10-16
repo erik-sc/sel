@@ -17,6 +17,8 @@ describe('the next occurrence', () => {
     ['monday and wednesday, wednesday to monday', 'FREQ=WEEKLY;BYDAY=MO,WE', 'due', '2026-10-21', '2026-10-21T10:00', '2026-10-26'],
     ['weekdays, friday to monday', 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR', 'due', '2026-10-16', '2026-10-16T18:00', '2026-10-19'],
     ['every 2 weeks', 'FREQ=WEEKLY;INTERVAL=2', 'due', '2026-10-15', '2026-10-15T10:00', '2026-10-29'],
+    ['every other friday', 'FREQ=WEEKLY;INTERVAL=2;BYDAY=FR', 'due', '2026-10-16', '2026-10-16T10:00', '2026-10-30'],
+    ['every other day, overdue, stays on the series', 'FREQ=DAILY;INTERVAL=2', 'due', '2026-10-12', '2026-10-15T10:00', '2026-10-16'],
     ['monthly on the 5th', 'FREQ=MONTHLY;BYMONTHDAY=5', 'due', '2026-11-05', '2026-11-05T10:00', '2026-12-05'],
     ['monthly on the 31st skips short months', 'FREQ=MONTHLY;BYMONTHDAY=31', 'due', '2026-10-31', '2026-10-31T10:00', '2026-12-31'],
     ['monthly on the due date', 'FREQ=MONTHLY', 'due', '2026-01-15', '2026-01-15T10:00', '2026-02-15'],

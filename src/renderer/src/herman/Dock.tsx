@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import type { HermanCommand, HermanCorner, HermanFeedback, HermanNudge, HermanState } from '@shared/herman'
 import { toggleAssistant, useAiGate } from '@/ai/gate'
-import { putAway, useAlarms } from '@/alarms/gate'
+import { announcementActions, putAway, useAlarms, type AnnouncementAction } from '@/alarms/gate'
 import { openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
 import { openCloseDay } from '@/notebook/route'
@@ -41,8 +41,9 @@ interface Bubble {
   greeting?: boolean
   /** Said while AI is turned off: the line offers the settings. */
   settings?: boolean
-  /** Set for a briefing or a reminder (shared/alarms.ts): its id. */
+  /** Set for a briefing, a reminder or an event (shared/alarms.ts): its id, and what can be done about it. */
   announcement?: string
+  choices?: AnnouncementAction[]
 }
 
 function editable(target: EventTarget | null): target is HTMLElement {
@@ -129,20 +130,14 @@ export function Dock(): JSX.Element | null {
     if (current.announcement) putAway(current.announcement)
   }, [])
 
-  // A briefing at one of its times, or a task's reminder: said at once, over anything else he was saying.
+  // A briefing at one of its times, a task's reminder, an event about to start: said at once, over
+  // anything else he was saying, with what can be done about it (open, snooze, record).
   const announcement = useAlarms((alarms) => alarms.current)
   useEffect(() => {
     if (!announcement) return
     if (bubbleRef.current?.announcement === announcement.id) return
     if (bubbleRef.current) dismiss()
-    const portuguese = announcement.locale === 'pt-BR'
-    const action: HermanNudge['action'] =
-      announcement.kind === 'briefing'
-        ? { label: portuguese ? 'Abrir Today' : 'Open Today', command: { type: 'open-today' } }
-        : announcement.pageId
-          ? { label: portuguese ? 'Abrir tarefa' : 'Open task', command: { type: 'open-page', pageId: announcement.pageId } }
-          : undefined
-    setBubble({ text: announcement.text, announcement: announcement.id, ...(action ? { action } : {}) })
+    setBubble({ text: announcement.text, announcement: announcement.id, choices: announcementActions(announcement) })
   }, [announcement, dismiss])
 
   // The first meeting: once he has drawn himself, a hello and his name. Said once.
@@ -477,6 +472,19 @@ export function Dock(): JSX.Element | null {
                 {bubble.action.label}
               </button>
             )}
+            {bubble.choices?.map((choice) => (
+              <button
+                key={choice.label}
+                type="button"
+                className={choice.primary ? 'is-primary' : undefined}
+                onClick={() => {
+                  dismiss()
+                  choice.run()
+                }}
+              >
+                {choice.label}
+              </button>
+            ))}
             {bubble.settings && (
               <button type="button" className="is-primary" onClick={openSettings}>
                 Open settings
@@ -491,7 +499,7 @@ export function Dock(): JSX.Element | null {
                   {state.lines.fewer}
                 </button>
               </>
-            ) : (
+            ) : bubble.choices?.some((choice) => choice.dismiss) ? null : (
               <button type="button" onClick={() => dismiss()}>
                 {bubble.greeting ? 'Hello' : 'Close'}
               </button>

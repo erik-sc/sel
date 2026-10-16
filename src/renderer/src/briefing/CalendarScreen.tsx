@@ -8,7 +8,7 @@ import type { CSSProperties, JSX, KeyboardEvent, Ref } from 'react'
 import { localDay, type BriefingCalendar, type BriefingEvent, type BriefingTask } from '@shared/briefing'
 import { addDays, calendarMatrix, monthLabel, monthOf, monthRangeLabel, shiftMonth, weekOf, weekdayLabels, type CalendarDay, type MonthCursor } from '@/database/logic/dates'
 import { ChevronLeft, ChevronRight } from '@/ui/icons'
-import { agendaByDay, calendarNotes, dayStart, dayTimeline, dueLabel, eventMoments, eventTime, fillsDay, longDate, nextDayStart, shortClock, updatedLabel, type DayAgenda, type EventMoment } from './format'
+import { agendaByDay, calendarNotes, dayStart, dayTimeline, dueLabel, eventMoments, eventTime, fillsDay, longDate, nextDayStart, shortClock, tickedKey, updatedLabel, type DayAgenda, type EventMoment } from './format'
 import { EventRow, TaskRow, openSettings, useCompleteTask, useLive, useNow } from './parts'
 import './today.css'
 import './calendar.css'
@@ -305,7 +305,7 @@ export function CalendarScreen(): JSX.Element {
       agendaByDay(
         days.map((day) => day.date),
         agenda?.events ?? [],
-        (agenda?.tasks ?? []).filter((task) => !done.has(task.id))
+        (agenda?.tasks ?? []).filter((task) => !done.has(tickedKey(task)))
       ),
     [days, agenda, done]
   )

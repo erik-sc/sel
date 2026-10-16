@@ -29,7 +29,8 @@ import { partnerOf } from '../../../shared/relation'
 import { systemKindOf } from '../../../shared/system'
 import { TASK_PROPS } from '../../../shared/tasks'
 import { completeTaskOps } from '../../../shared/tasks/recur'
-import { applyOps, getBlock, loadChildren, loadTree, newId, useBlockStore } from '../store/blocks'
+import { applyOps, getBlock, loadChildren, loadTree, newId, refreshBlocks, useBlockStore } from '../store/blocks'
+import { notifyError, toast } from '../ui/toast'
 import * as L from './logic'
 import { markFreshChart } from './chartFresh'
 
@@ -628,6 +629,32 @@ export function updateCell(rowId: string, prop: PropertySchema, update: (current
   if (op) run([op])
 }
 
+/**
+ * One change to the same property of many rows, as one batch (the table's selection bar).
+ * Each cell is read from the store at commit time. Done in the built-in Tasks database
+ * goes the way a click on it does (`toggleCheckbox`): a repeating task moves on, and
+ * every completion is dated.
+ */
+export function editCells(rowIds: string[], prop: PropertySchema, change: L.BulkChange): void {
+  const ops: Op[] = []
+  const now = new Date()
+  for (const id of new Set(rowIds)) {
+    const row = getBlock(id)
+    if (!row) continue
+    const latest = latestProp(row, prop)
+    const current = L.getCellValue(row, latest)
+    const next = L.bulkValue(latest, current, change)
+    if (latest.id === TASK_PROPS.done && latest.type === 'checkbox' && systemKindOf(getBlock(row.parentId)) === 'tasks') {
+      if (next === true && current !== true) ops.push(...completeTaskOps(row, now))
+      else if (next !== true && current === true) ops.push(reopenTaskOp(row))
+      continue
+    }
+    const op = cellOp(row, latest, next)
+    if (op) ops.push(op)
+  }
+  run(ops)
+}
+
 export function toggleCheckbox(rowId: string, prop: PropertySchema): void {
   if (prop.type !== 'checkbox') return
   // Done in the built-in Tasks database means what it means on the Tasks screen: a repeating
@@ -692,6 +719,34 @@ export function createRow(databaseId: string, input: NewRowInput = {}): string {
 
 export function deleteRows(ids: string[]): void {
   run(ids.filter((id) => getBlock(id)).map((id) => ({ op: 'delete', id })))
+}
+
+/**
+ * Moves rows to the trash, with an "Undo" that puts them back where they were. The
+ * database order is taken before the rows leave it, so that undoing can place them again.
+ */
+export function trashRows(databaseId: string, ids: string[]): void {
+  const ownerId = rowsOwnerId(databaseId)
+  const order = L.contentOf(getBlock(ownerId))
+  const gone = [...new Set(ids)].filter((id) => getBlock(id))
+  if (!gone.length) return
+  deleteRows(gone)
+  toast(gone.length === 1 ? 'Row moved to the trash' : `${gone.length} rows moved to the trash`, {
+    action: { label: 'Undo', run: () => void restoreRows(ownerId, gone, order) }
+  })
+}
+
+/** Brings trashed rows back and places them as they were in `order` (the database order before they left). */
+export async function restoreRows(ownerId: string, ids: string[], order: readonly string[]): Promise<void> {
+  try {
+    for (const id of ids) await window.api.pages.restore(id)
+    // A restored page is appended to its parent; read the new order before placing the rows.
+    await refreshBlocks([ownerId, ...ids])
+    const moves = L.restoreMoves(order, ids, L.contentOf(getBlock(ownerId)))
+    run(moves.map(({ id, afterId }) => ({ op: 'move', id, parentId: ownerId, afterId })))
+  } catch (error) {
+    notifyError('Could not restore the rows.', error)
+  }
 }
 
 /** A row nobody put anything into yet: no title and no body. */

@@ -58,7 +58,17 @@ const WORDS = {
     end: 'That is all.',
     reminder: (title: string) => `Reminder: ${title}.`,
     reminderNow: (title: string, time: string) => `${title}: it is ${time}, the time you gave it.`,
-    reminderDue: (title: string, time: string) => `Reminder: ${title}, due at ${time}.`
+    reminderDue: (title: string, time: string) => `Reminder: ${title}, due at ${time}.`,
+    reminderTitle: 'Reminder',
+    // Events. `in` is the heading of the notification as well.
+    meetingIn: (minutes: number) => `Meeting in ${minutes} min`,
+    eventIn: (minutes: number) => `In ${minutes} min`,
+    meetingNow: 'Meeting now',
+    eventNow: 'Starting now',
+    started: (minutes: number) => `Started ${minutes} min ago`,
+    minutesSpoken: (minutes: number) => (minutes === 1 ? 'one minute' : `${minutes} minutes`),
+    also: (titles: string) => `Also: ${titles}.`,
+    untitled: 'Untitled event'
   },
   'pt-BR': {
     hello: (hour: number, name: string) => `${hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'}${name ? `, ${name}` : ''}.`,
@@ -77,7 +87,16 @@ const WORDS = {
     end: 'É isso.',
     reminder: (title: string) => `Lembrete: ${title}.`,
     reminderNow: (title: string, time: string) => `${title}: são ${time}, a hora que você marcou.`,
-    reminderDue: (title: string, time: string) => `Lembrete: ${title}, para as ${time}.`
+    reminderDue: (title: string, time: string) => `Lembrete: ${title}, para as ${time}.`,
+    reminderTitle: 'Lembrete',
+    meetingIn: (minutes: number) => `Reunião em ${minutes} min`,
+    eventIn: (minutes: number) => `Em ${minutes} min`,
+    meetingNow: 'Reunião agora',
+    eventNow: 'Começando agora',
+    started: (minutes: number) => `Começou há ${minutes} min`,
+    minutesSpoken: (minutes: number) => (minutes === 1 ? 'um minuto' : `${minutes} minutos`),
+    also: (titles: string) => `Também: ${titles}.`,
+    untitled: 'Evento sem título'
   }
 } as const
 
@@ -117,4 +136,33 @@ export function composeReminder(reminder: Reminder, locale: AlarmLocale): Spoken
   const time = storedTime(reminder.due, locale)
   const text = reminder.atDue && time ? w.reminderNow(title, time) : time ? w.reminderDue(title, time) : w.reminder(title)
   return { text, speech: text.replace(/…/g, '') }
+}
+
+export const reminderTitle = (locale: AlarmLocale): string => WORDS[locale].reminderTitle
+
+/**
+ * Events about to start: "Meeting in 5 min: Standup." The first is the one announced (and the
+ * one a meeting page is made from); the others due with it are named after it. `title` heads the
+ * system's notification.
+ */
+export function composeEvents(events: readonly { title: string; start: number; meeting: boolean }[], now: number, locale: AlarmLocale): Spoken & { title: string } {
+  const w = WORDS[locale]
+  const [first, ...rest] = events
+  const name = tidy(first.title) || w.untitled
+  const minutes = Math.round((first.start - now) / 60_000)
+  let head: string
+  let spoken: string
+  if (minutes >= 1) {
+    head = first.meeting ? w.meetingIn(minutes) : w.eventIn(minutes)
+    spoken = head.replace(/\d+ min$/, w.minutesSpoken(minutes))
+  } else if (minutes > -1) {
+    head = first.meeting ? w.meetingNow : w.eventNow
+    spoken = head
+  } else {
+    head = w.started(-minutes)
+    spoken = head.replace(/\d+ min/, w.minutesSpoken(-minutes))
+  }
+  const others = rest.map((event) => tidy(event.title)).filter(Boolean)
+  const tail = others.length ? ` ${w.also(others.join('; '))}` : ''
+  return { title: head, text: `${head}: ${name}.${tail}`, speech: `${spoken}: ${name}.${tail}`.replace(/…/g, '') }
 }

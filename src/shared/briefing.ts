@@ -90,6 +90,19 @@ export interface BriefingEvent {
   /** Plain text, capped. */
   description?: string
   recurring: boolean
+  /** The event's UID in its calendar, the same for every occurrence of a series. */
+  uid?: string
+  /** Shown as free (TRANSP:TRANSPARENT): no alarm is given for it. */
+  transparent?: boolean
+  /** How many people other than the calendar's owner are invited, when any are. */
+  attendees?: number
+  /** The link of the call (Meet, Teams or Zoom), when it has one. https only. */
+  meetingUrl?: string
+}
+
+/** A meeting is an event with someone else invited or a link to a call. */
+export function isMeetingEvent(event: Pick<BriefingEvent, 'attendees' | 'meetingUrl'>): boolean {
+  return (event.attendees ?? 0) >= 1 || !!event.meetingUrl
 }
 
 export interface BriefingPhrase {

@@ -19,6 +19,8 @@ export type BlockType =
   | 'image'
   | 'bookmark'
   | 'database'
+  /** Display math in LaTeX, drawn by KaTeX; the source is `props.title` as plain text, like code. */
+  | 'equation'
 
 /** Inline formatting: bold, italic, underline, strike, code, link(url), color(name). */
 export type Mark = ['b'] | ['i'] | ['u'] | ['s'] | ['c'] | ['a', string] | ['h', string]
@@ -34,6 +36,11 @@ export interface BlockProps {
   checked?: boolean
   /** code */
   language?: string
+  /**
+   * page: a special kind of page. `'latex'`: a LaTeX document, whose source is the plain text of
+   * its first `code` child (language `latex`), shown as source and preview side by side.
+   */
+  kind?: 'latex'
   /** page, callout, database: emoji */
   icon?: string
   /** page: css gradient/colour or image url */
@@ -48,6 +55,12 @@ export interface BlockProps {
   /** page */
   favorite?: boolean
   fullWidth?: boolean
+  /**
+   * page / database of the tree: when it was archived. An archived page stays where it is
+   * (parent and position kept) but leaves the sidebar, the recent pages and what the AI is
+   * shown by itself; search still finds it (see Repository.listArchived).
+   */
+  archivedAt?: number
   /** database only */
   schema?: Record<string, PropertySchema>
   views?: DatabaseView[]
@@ -66,6 +79,8 @@ export interface BlockProps {
   values?: Record<string, PropertyValue>
   /** database: drawn in one row with the database block before it (see editor/layout.ts) */
   beside?: boolean
+  /** meeting page: the calendar occurrence it was made for (its UID and start, ms), so it is made once */
+  meetingEvent?: { uid: string; start: number }
 }
 
 export interface Block {
@@ -317,6 +332,8 @@ export interface SearchResult {
   snippet?: string
   /** Titles of ancestor pages, root first. */
   path: string[]
+  /** The page that contains the hit is archived, or lies inside one that is. */
+  archived?: true
 }
 
 export interface ChangeEvent {

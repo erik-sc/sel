@@ -149,7 +149,8 @@ export function relatedPages(source: WorkspaceSource, question: string, exclude:
       /* a word the index cannot take: the others still count */
     }
     for (const result of results) {
-      if (result.pageId === exclude || seen.has(result.pageId)) continue
+      // Archived pages come up only when the assistant searches for them, not on their own.
+      if (result.pageId === exclude || seen.has(result.pageId) || result.archived) continue
       seen.add(result.pageId)
       // A hit in a title weighs more than one in the text.
       scores.set(result.pageId, (scores.get(result.pageId) ?? 0) + (result.id === result.pageId ? 2 : 1))

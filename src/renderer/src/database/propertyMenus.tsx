@@ -274,7 +274,8 @@ export function PropertyMenu({
       submenu: locked ? undefined : typeItems
     }
   ]
-  if (prop.type === 'number') {
+  // A formula that gives a number is written in a number format too (ignored for other results).
+  if (prop.type === 'number' || prop.type === 'formula') {
     items.push({
       id: 'format',
       label: 'Number format',

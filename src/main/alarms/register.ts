@@ -32,6 +32,7 @@ export function registerAlarmsIpc(ctx: AlarmsContext): AlarmsHooks {
     handlers: {
       'alarms:pending': async () => (await alarms()).service.pendingAnnouncement(),
       'alarms:heard': async ([id]) => (await alarms()).service.heard(id),
+      'alarms:snooze': async ([id]) => (await alarms()).service.snooze(id),
       'alarms:test': async () => (await alarms()).service.test()
     },
     settingChanged(key) {

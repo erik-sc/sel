@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { cleanHermanSetting, HERMAN_DEFAULTS, HERMAN_KEYS, hermanSetting, type HermanSignals } from '../../shared/herman'
 import * as arg from '../validate'
+import { SKY_LINES } from './lines'
 import { EMPTY_MEMORY, readMemory } from './scheduler'
 import { devFastMode, FAST_MODE, hermanFeedback, hermanLocale, HermanService, hermanSignals, MEMORY_KEY, nudgeId, type HermanDay, type HermanDeps } from './service'
 
@@ -399,5 +400,50 @@ describe('his settings', () => {
     expect(hermanSetting('enabled', false)).toBe(false)
     expect(hermanSetting('quietHours', { from: 5, to: 5 })).toEqual({ from: 5, to: 5 })
     expect(hermanSetting('quietHours', 'x')).toEqual(HERMAN_DEFAULTS.quietHours)
+  })
+})
+
+describe('a line about the Sky', () => {
+  const line = (locale: 'en' | 'pt-BR'): string => SKY_LINES[locale]({ kind: 'meteors', shower: locale === 'en' ? 'Orionids' : 'Oriônidas' })
+
+  it('is said once a day, in his language, and counts as something he said', () => {
+    const { service, settings, clock } = world()
+    const nudge = service.sky(line)
+    expect(nudge).toMatchObject({ kind: 'sky', text: 'Tonight is the night of the Orionids.' })
+    expect(readMemory(settings[MEMORY_KEY]).lastAt).toBe(clock.now)
+    // Later the same day: nothing more about the sky.
+    clock.now += 3 * 60 * MIN
+    expect(service.sky(line)).toBeNull()
+    // The next day, again.
+    clock.now = at(15, 14)
+    expect(service.sky(line)?.text).toBe('Tonight is the night of the Orionids.')
+  })
+
+  it('is not said when he may not speak: off, busy, quiet hours, or before he has met the user', () => {
+    expect(world({ settings: { 'herman.nudges': false } }).service.sky(line)).toBeNull()
+    expect(world().service.sky(line, true)).toBeNull()
+    expect(world({ now: at(14, 23) }).service.sky(line)).toBeNull()
+    expect(world({ met: false }).service.sky(line)).toBeNull()
+    expect(world({ settings: { 'ai.language': 'pt-BR' } }).service.sky(line)?.text).toBe('Hoje é noite das Oriônidas.')
+  })
+
+  it('has lines for every moment, short, never with a count', () => {
+    for (const locale of ['en', 'pt-BR'] as const) {
+      const said = [
+        SKY_LINES[locale]({ kind: 'named', month: 'October', name: 'the Boat', given: false }),
+        SKY_LINES[locale]({ kind: 'named', month: 'October', name: 'The move', given: true }),
+        SKY_LINES[locale]({ kind: 'eclipse' }),
+        SKY_LINES[locale]({ kind: 'comet' }),
+        SKY_LINES[locale]({ kind: 'anniversary' }),
+        SKY_LINES[locale]({ kind: 'longest-night' })
+      ]
+      for (const text of said) {
+        expect(text.length).toBeLessThanOrEqual(90)
+        expect(text).toMatch(/[.]$/)
+        expect(text).not.toMatch(/\d|!/)
+      }
+    }
+    expect(SKY_LINES['pt-BR']({ kind: 'named', month: 'Outubro', name: 'o Barco', given: false })).toBe('Outubro virou o Barco.')
+    expect(SKY_LINES.en({ kind: 'new-year', year: 2027 })).toBe('Happy new year. The sky of 2027 begins empty, like a page.')
   })
 })

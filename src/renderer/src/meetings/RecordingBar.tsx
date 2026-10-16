@@ -281,6 +281,15 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
       () => setConsent(true)
     )
   }
+
+  // "Record" on an event's alarm opened this page: start as the button would, consent first.
+  // A meeting that already has its audio, or a recording going on elsewhere, is left as it is.
+  const autoStart = useMeetings((state) => state.autoStart === meetingId)
+  useEffect(() => {
+    if (!autoStart || !loaded) return
+    useMeetings.setState({ autoStart: null })
+    if (role === 'meeting' && info.state === 'none' && session === null && recording === null && !busyElsewhere) start()
+  }, [autoStart, loaded]) // eslint-disable-line react-hooks/exhaustive-deps
   const stop = (): void => {
     stopRecording()
       .then((result) => {

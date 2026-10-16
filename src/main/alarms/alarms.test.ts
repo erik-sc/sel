@@ -1,10 +1,12 @@
 process.env.TZ = 'America/Sao_Paulo'
 
 import { describe, expect, it, vi } from 'vitest'
-import { ALARMS_FIRED_KEY, ALARMS_SETTING, cleanAlarmsSetting, cleanAlarmTimes, readAlarmSettings, type Announcement } from '../../shared/alarms'
+import { ALARMS_FIRED_KEY, ALARMS_SETTING, ALARMS_SNOOZED_KEY, cleanAlarmsSetting, cleanAlarmTimes, readAlarmSettings, SNOOZE_MS, type Announcement } from '../../shared/alarms'
 import type { Briefing, BriefingEvent, BriefingTask } from '../../shared/briefing'
 import type { Block, BlockProps } from '../../shared/types'
-import { composeBriefing, composeReminder } from './compose'
+import { expandCalendar, parseCalendar } from '../briefing/ical'
+import { composeBriefing, composeEvents, composeReminder } from './compose'
+import { asksToRecord, dueEventAlarms, eventAlarmsOf, nextEventAlarmAt, readSnoozed, snoozeOf } from './events'
 import { dueReminders, momentOf, nextReminderAt, remindersOf, tasksDatabase } from './reminders'
 import { AlarmsService, PREPARE_MS, type AlarmsDeps } from './service'
 import { isQuickAddUrl } from './windows'
@@ -26,6 +28,12 @@ describe('alarm settings', () => {
     expect(cleanAlarmsSetting(ALARMS_SETTING.tray, true)).toBe(true)
     expect(cleanAlarmsSetting(ALARMS_SETTING.tray, 'yes')).toBeUndefined()
     expect(cleanAlarmsSetting(ALARMS_FIRED_KEY, {})).toBeUndefined()
+    expect(cleanAlarmsSetting(ALARMS_SNOOZED_KEY, [])).toBeUndefined()
+    expect(cleanAlarmsSetting(ALARMS_SETTING.eventLead, 10)).toBe(10)
+    expect(cleanAlarmsSetting(ALARMS_SETTING.eventLead, 7)).toBeUndefined()
+    expect(cleanAlarmsSetting(ALARMS_SETTING.askRecord, 'all')).toBe('all')
+    expect(cleanAlarmsSetting(ALARMS_SETTING.askRecord, 'always')).toBeUndefined()
+    expect(readAlarmSettings(() => null)).toMatchObject({ events: true, eventLead: 5, askRecord: 'meetings', tray: false })
   })
 
   it('fall back to their defaults', () => {
@@ -146,7 +154,10 @@ const settle = async (): Promise<void> => {
   for (let i = 0; i < 20; i++) await Promise.resolve()
 }
 
-function harness(settings: Record<string, unknown>, options: { now: number; rows?: Block[]; recording?: boolean; write?: AlarmsDeps['writeBriefing'] }) {
+function harness(
+  settings: Record<string, unknown>,
+  options: { now: number; rows?: Block[]; recording?: boolean; write?: AlarmsDeps['writeBriefing']; events?: BriefingEvent[]; locale?: 'en' | 'pt-BR' }
+) {
   const store = new Map<string, unknown>(Object.entries(settings))
   let now = options.now
   let id = 0
@@ -179,7 +190,8 @@ function harness(settings: Record<string, unknown>, options: { now: number; rows
     },
     briefing: async () => day,
     tasks: () => (options.rows ? { database: db, rows: options.rows } : null),
-    locale: () => 'en',
+    ...(options.events ? { calendar: async (from: number, to: number) => options.events!.filter((e) => e.end > from && e.start < to) } : {}),
+    locale: () => options.locale ?? 'en',
     recording: () => options.recording === true,
     deliver: (a) => void said.push(a),
     ...(options.write ? { writeBriefing: options.write } : {}),
@@ -288,6 +300,221 @@ describe('the clock', () => {
     expect(h.said.length).toBe(1)
     expect(h.said[0].sound).toBe(false)
     expect(h.store.get(ALARMS_FIRED_KEY)).toBeUndefined()
+  })
+})
+
+// ---- the calendar's events ----
+
+const ev = (id: string, start: number, extra: Partial<BriefingEvent> = {}): BriefingEvent => ({
+  id: `cal:${id}:${start}`,
+  calendarId: 'cal',
+  uid: id,
+  title: id,
+  start,
+  end: start + 30 * MIN,
+  allDay: false,
+  recurring: false,
+  ...extra
+})
+
+describe('event alarms', () => {
+  const ten = local(2026, 10, 15, 10, 0)
+
+  it('ring each timed event its lead before it starts', () => {
+    const alarms = eventAlarmsOf([ev('Standup', ten), ev('Lunch', ten + 120 * MIN)], 5)
+    expect(alarms.map((a) => [a.event.title, a.at])).toEqual([
+      ['Standup', ten - 5 * MIN],
+      ['Lunch', ten + 115 * MIN]
+    ])
+    expect(eventAlarmsOf([ev('Standup', ten)], 0)[0].at).toBe(ten)
+    expect(eventAlarmsOf([ev('Standup', ten)], 15)[0].at).toBe(ten - 15 * MIN)
+    expect(nextEventAlarmAt(alarms, ten - 10 * MIN)).toBe(ten - 5 * MIN)
+    expect(nextEventAlarmAt(alarms, ten)).toBe(ten + 115 * MIN)
+    // A key short enough for the record, the same for the same occurrence.
+    expect(alarms[0].key).toMatch(/^e:[0-9a-z]{2,14}$/)
+    expect(eventAlarmsOf([ev('Standup', ten, { id: 'x'.repeat(500) })], 5)[0].key.length).toBeLessThanOrEqual(16)
+  })
+
+  it('leave out all-day events, those shown as free, and those declined', () => {
+    const text = [
+      'BEGIN:VCALENDAR',
+      'X-WR-CALNAME:me@example.com',
+      'BEGIN:VEVENT',
+      'UID:review',
+      'SUMMARY:Review',
+      'DTSTART:20261015T130000Z',
+      'DTEND:20261015T140000Z',
+      'ATTENDEE:mailto:ana@example.com',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:holiday',
+      'SUMMARY:Holiday',
+      'DTSTART;VALUE=DATE:20261015',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:focus',
+      'SUMMARY:Focus time',
+      'DTSTART:20261015T150000Z',
+      'DTEND:20261015T160000Z',
+      'TRANSP:TRANSPARENT',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:declined',
+      'SUMMARY:Declined',
+      'DTSTART:20261015T170000Z',
+      'DTEND:20261015T180000Z',
+      'ATTENDEE;PARTSTAT=DECLINED:mailto:me@example.com',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n')
+    const occurrences = expandCalendar(parseCalendar(text), { from: local(2026, 10, 15), to: local(2026, 10, 16) }, { calendarId: 'cal' })
+    expect(occurrences.map((o) => o.title).sort()).toEqual(['Focus time', 'Holiday', 'Review'])
+    const alarms = eventAlarmsOf(occurrences, 5)
+    expect(alarms.map((a) => [a.event.title, a.meeting])).toEqual([['Review', true]])
+  })
+
+  it('are due within their grace period, once, and not once the event is over', () => {
+    const alarms = eventAlarmsOf([ev('Standup', ten, { end: ten + 10 * MIN })], 5)
+    expect(dueEventAlarms(alarms, {}, ten - 6 * MIN)).toEqual([])
+    expect(dueEventAlarms(alarms, {}, ten - 5 * MIN).length).toBe(1)
+    expect(dueEventAlarms(alarms, { [alarms[0].key]: ten - 5 * MIN }, ten - 4 * MIN)).toEqual([])
+    expect(dueEventAlarms(alarms, {}, ten + 9 * MIN).length).toBe(1)
+    expect(dueEventAlarms(alarms, {}, ten + 16 * MIN)).toEqual([])
+  })
+
+  it('say how soon, in his two languages', () => {
+    expect(composeEvents([{ title: 'Standup', start: ten, meeting: true }], ten - 5 * MIN, 'pt-BR')).toEqual({
+      title: 'Reunião em 5 min',
+      text: 'Reunião em 5 min: Standup.',
+      speech: 'Reunião em 5 minutos: Standup.'
+    })
+    expect(composeEvents([{ title: 'Dentist', start: ten, meeting: false }], ten - 10 * MIN, 'en').text).toBe('In 10 min: Dentist.')
+    expect(composeEvents([{ title: 'Standup', start: ten, meeting: true }], ten, 'en').text).toBe('Meeting now: Standup.')
+    expect(composeEvents([{ title: 'Standup', start: ten, meeting: true }], ten + 3 * MIN, 'pt-BR').text).toBe('Começou há 3 min: Standup.')
+    expect(composeEvents([{ title: 'A', start: ten, meeting: true }, { title: 'B', start: ten, meeting: false }], ten - 5 * MIN, 'en').text).toBe('Meeting in 5 min: A. Also: B.')
+  })
+
+  it('ask to record a meeting, or every event, or none', () => {
+    expect(asksToRecord('meetings', true)).toBe(true)
+    expect(asksToRecord('meetings', false)).toBe(false)
+    expect(asksToRecord('all', false)).toBe(true)
+    expect(asksToRecord('never', true)).toBe(false)
+  })
+
+  it('read back what was snoozed, and drop what is malformed or long past', () => {
+    const now = ten
+    const entry = snoozeOf({ kind: 'event', events: [{ id: 'cal:a:1', title: 'A', start: ten, end: ten + MIN, meeting: true, ask: true }] }, now)
+    expect(entry.at).toBe(now + SNOOZE_MS)
+    expect(readSnoozed([entry, { kind: 'event', at: now, events: [{ title: 'no id' }] }, { kind: 'other', at: now }, 'junk'], now)).toEqual([entry])
+    expect(readSnoozed([entry], now + SNOOZE_MS + 16 * MIN)).toEqual([])
+    expect(readSnoozed('junk', now)).toEqual([])
+  })
+})
+
+describe('the clock and the calendar', () => {
+  const ten = local(2026, 10, 15, 10, 0)
+
+  it('announces an event its lead before, as a meeting that asks to be recorded', async () => {
+    const h = harness({}, { now: ten - 30 * MIN, events: [ev('Standup', ten, { attendees: 3, meetingUrl: 'https://meet.google.com/abc-defg-hij' })], locale: 'pt-BR' })
+    h.service.plan()
+    await h.advance(ten - 6 * MIN)
+    expect(h.said).toEqual([])
+    await h.advance(ten - 5 * MIN)
+    expect(h.said.length).toBe(1)
+    expect(h.said[0]).toMatchObject({
+      kind: 'event',
+      title: 'Reunião em 5 min',
+      text: 'Reunião em 5 min: Standup.',
+      snooze: true,
+      at: ten - 5 * MIN,
+      event: { uid: 'Standup', title: 'Standup', start: ten, meeting: true, ask: true, meetingUrl: 'https://meet.google.com/abc-defg-hij' }
+    })
+    await h.advance(ten + 20 * MIN)
+    expect(h.said.length).toBe(1)
+  })
+
+  it('follows the lead and the question in the settings', async () => {
+    const settings = { [ALARMS_SETTING.eventLead]: 15, [ALARMS_SETTING.askRecord]: 'never' }
+    const h = harness(settings, { now: ten - 30 * MIN, events: [ev('Standup', ten, { attendees: 1 })] })
+    h.service.plan()
+    await h.advance(ten - 15 * MIN)
+    expect(h.said.map((a) => [a.text, a.event?.ask])).toEqual([['Meeting in 15 min: Standup.', false]])
+  })
+
+  it('offers a plain event to record only when asked for every event', async () => {
+    const h = harness({ [ALARMS_SETTING.askRecord]: 'all' }, { now: ten - 30 * MIN, events: [ev('Dentist', ten)] })
+    h.service.plan()
+    await h.advance(ten - 5 * MIN)
+    expect(h.said[0]).toMatchObject({ text: 'In 5 min: Dentist.', event: { meeting: false, ask: true } })
+    const quiet = harness({}, { now: ten - 30 * MIN, events: [ev('Dentist', ten)] })
+    quiet.service.plan()
+    await quiet.advance(ten - 5 * MIN)
+    expect(quiet.said[0].event?.ask).toBe(false)
+  })
+
+  it('stays silent with events off, and for all-day and free events', async () => {
+    const off = harness({ [ALARMS_SETTING.events]: false }, { now: ten - 30 * MIN, events: [ev('Standup', ten)] })
+    off.service.plan()
+    await off.advance(ten + 5 * MIN)
+    expect(off.said).toEqual([])
+    const skipped = harness({}, { now: ten - 30 * MIN, events: [ev('Holiday', local(2026, 10, 15), { allDay: true, end: local(2026, 10, 16) }), ev('Focus', ten, { transparent: true })] })
+    skipped.service.plan()
+    await skipped.advance(ten + 5 * MIN)
+    expect(skipped.said).toEqual([])
+  })
+
+  it('waits while a meeting is recorded, then still announces the event', async () => {
+    const h = harness({}, { now: ten - 30 * MIN, events: [ev('Standup', ten)], recording: true })
+    h.service.plan()
+    await h.advance(ten - 2 * MIN)
+    expect(h.said).toEqual([])
+    h.setRecording(false)
+    await h.advance(ten)
+    expect(h.said.length).toBe(1)
+    // Tried again a minute after the recording ended: it says how soon it is then.
+    expect(h.said[0].text).toBe('In 1 min: Standup.')
+  })
+
+  it('snoozes an event ten minutes, and says it again then, also after a restart', async () => {
+    const h = harness({}, { now: ten - 30 * MIN, events: [ev('Standup', ten, { end: ten + 60 * MIN, attendees: 2 })] })
+    h.service.plan()
+    await h.advance(ten - 5 * MIN)
+    const first = h.said[0]
+    h.service.snooze(first.id)
+    expect(h.store.get(ALARMS_SNOOZED_KEY)).toMatchObject([{ kind: 'event', at: ten + 5 * MIN }])
+    // Snoozing twice, or something that cannot be, does nothing more.
+    h.service.snooze(first.id)
+    h.service.snooze('unknown')
+    await h.advance(ten + 4 * MIN)
+    expect(h.said.length).toBe(1)
+    await h.advance(ten + 5 * MIN)
+    expect(h.said.length).toBe(2)
+    expect(h.said[1]).toMatchObject({ kind: 'event', text: 'Started 5 min ago: Standup.', at: ten + 5 * MIN, event: { ask: true } })
+    expect(h.store.get(ALARMS_SNOOZED_KEY)).toBeNull()
+  })
+
+  it('snoozes a reminder, and nothing rings while recording', async () => {
+    const rows = [row('Call the bank', { 'tasks.due': { start: '2026-10-15T10:00' } })]
+    const h = harness({}, { now: ten - MIN, rows })
+    h.service.plan()
+    await h.advance(ten)
+    expect(h.said[0]).toMatchObject({ kind: 'reminder', title: 'Reminder', snooze: true })
+    h.service.snooze(h.said[0].id)
+    h.setRecording(true)
+    await h.advance(ten + 12 * MIN)
+    expect(h.said.length).toBe(1)
+    h.setRecording(false)
+    await h.advance(ten + 13 * MIN)
+    expect(h.said.length).toBe(2)
+    expect(h.said[1]).toMatchObject({ kind: 'reminder', text: 'Call the bank: it is 10:00 AM, the time you gave it.', pageId: 'Call the bank', at: ten + 10 * MIN })
+  })
+
+  it('does not snooze a briefing', async () => {
+    const h = harness({}, { now: ten })
+    await h.service.test()
+    expect(h.said[0].snooze).toBeUndefined()
+    h.service.snooze(h.said[0].id)
+    expect(h.store.get(ALARMS_SNOOZED_KEY)).toBeUndefined()
   })
 })
 

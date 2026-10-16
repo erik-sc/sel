@@ -10,6 +10,9 @@ import type { InvokeChannels } from './ipc'
 import type { McpApi } from './mcp'
 import type { MeetingsApi } from './meetings'
 import type { NotebookApi } from './notebook'
+import type { PomodoroApi } from './pomodoro'
+import type { SkyApi } from './sky'
+import type { TemplatesApi } from './templates/model'
 import type {
   Block,
   ChangeEvent,
@@ -63,6 +66,8 @@ export interface Api {
     listFavorites(): Promise<Block[]>
     listRecent(limit?: number): Promise<Block[]>
     listTrash(): Promise<Block[]>
+    /** Pages and databases archived by themselves, outside the trash, the most recently archived first. */
+    listArchived(): Promise<Block[]>
     restore(id: string): Promise<void>
     deleteForever(id: string): Promise<void>
     /** Ancestor pages of a block, root first, excluding the block itself. */
@@ -70,6 +75,10 @@ export interface Api {
     duplicate(id: string): Promise<Block>
     exportMarkdown(id: string): Promise<{ saved: boolean; path?: string }>
     importMarkdown(parentId: string | null): Promise<Block | null>
+    /** A LaTeX document (`props.kind: 'latex'`): its source as a .tex file. */
+    exportTex(id: string): Promise<{ saved: boolean; path?: string }>
+    /** A LaTeX document: this window printed to PDF, its print stylesheet showing only the preview. */
+    exportPdf(id: string, pageSize: 'A4' | 'Letter'): Promise<{ saved: boolean; path?: string }>
   }
 
   databases: {
@@ -215,6 +224,9 @@ export interface Api {
    */
   notebook: NotebookApi
 
+  /** Templates of pages and databases (see shared/templates): making one is a single transaction. */
+  templates: TemplatesApi
+
   /**
    * Bug reports and suggestions the user writes in the app, kept as files on this computer for
    * the nightly development agent to pick up. See shared/feedback.ts.
@@ -242,6 +254,17 @@ export interface Api {
    */
   alarms: AlarmsApi
 
+  /**
+   * The pomodoro timer: kept by the main process, so it outlives a reload and every window shows
+   * the same; a phase never starts by itself. See shared/pomodoro.ts.
+   */
+  pomodoro: PomodoroApi
+  /**
+   * The Sky: each day written in Meditations lights a star, a month draws a constellation, a year
+   * is a sky. Derived from the notes, plus a few happenings written under `sel-sky`. See shared/sky.
+   */
+  sky: SkyApi
+
   app: {
     getTheme(): Promise<Theme>
     setTheme(theme: Theme): Promise<void>
@@ -267,6 +290,8 @@ export interface Api {
 
 export type MenuCommand =
   | 'new-page'
+  /** Opens the template gallery. */
+  | 'new-from-template'
   | 'new-tab'
   | 'close-tab'
   | 'next-tab'
@@ -286,6 +311,7 @@ export type MenuCommand =
   | 'new-window'
   | 'version-history'
   | 'toggle-assistant'
+  | 'go-home'
   | 'open-today'
   | 'open-calendar'
   | 'open-tasks'
@@ -297,6 +323,9 @@ export type MenuCommand =
   | 'send-feedback'
   | 'command-palette'
   | 'keyboard-shortcuts'
+  /** Starts a pomodoro; with one on, shows its controls. */
+  | 'start-pomodoro'
+  | 'open-sky'
 
 /** Event and fire-and-forget channel names. Invoke channels are declared in `INVOKE` below. */
 export const IPC = {
@@ -332,12 +361,15 @@ export const INVOKE = {
   'pages:listFavorites': true,
   'pages:listRecent': true,
   'pages:listTrash': true,
+  'pages:listArchived': true,
   'pages:restore': true,
   'pages:deleteForever': true,
   'pages:ancestors': true,
   'pages:duplicate': true,
   'pages:exportMarkdown': true,
   'pages:importMarkdown': true,
+  'pages:exportTex': true,
+  'pages:exportPdf': true,
 
   'databases:list': true,
   'databases:locations': true,
@@ -425,6 +457,8 @@ export const INVOKE = {
   'notebook:dismissPlans': true,
   'notebook:review': true,
 
+  'templates:create': true,
+
   'feedback:list': true,
   'feedback:create': true,
   'feedback:withdraw': true,
@@ -443,7 +477,19 @@ export const INVOKE = {
   'mcp:rotateToken': true,
   'alarms:pending': true,
   'alarms:heard': true,
+  'alarms:snooze': true,
   'alarms:test': true,
+
+  'pomodoro:state': true,
+  'pomodoro:start': true,
+  'pomodoro:pause': true,
+  'pomodoro:resume': true,
+  'pomodoro:skip': true,
+  'pomodoro:next': true,
+  'pomodoro:stop': true,
+  'sky:view': true,
+  'sky:name': true,
+  'sky:moment': true,
 
   'app:getTheme': true,
   'app:setTheme': true,

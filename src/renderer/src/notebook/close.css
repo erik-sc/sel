@@ -261,3 +261,49 @@
     opacity: 1;
   }
 }
+
+/* ---- the rest with the Sky (animation 14): the window dims, the sky appears under it, the moon
+   rises, the line just written lights its star, and only then the words (see sky/RestSky.tsx) ---- */
+
+.close-rest.has-sky {
+  animation-duration: calc(var(--duration) * 8);
+}
+
+.close-rest.has-sky.is-waking {
+  animation-duration: calc(var(--duration) * 1.5);
+}
+
+.close-rest.has-sky .close-rest-inner {
+  width: min(760px, 86vw);
+  gap: 14px;
+  animation: none;
+}
+
+.close-rest-sky {
+  width: 100%;
+  margin-bottom: 10px;
+  animation: close-dim calc(var(--duration) * 5) var(--ease) calc(var(--duration) * 4) both;
+}
+
+.close-rest.has-sky .close-rest-words {
+  animation: close-dim calc(var(--duration) * 5) var(--ease) calc(var(--duration) * 18) both;
+}
+
+.close-rest.has-sky .close-rest-hint {
+  animation: close-dim calc(var(--duration) * 4) var(--ease) calc(var(--duration) * 21) both;
+}
+
+/* Less motion: the sky is there at once, and the words follow with a short fade. */
+@media (prefers-reduced-motion: reduce) {
+  .close-rest-sky {
+    animation: none;
+  }
+  .close-rest.has-sky .close-rest-words,
+  .close-rest.has-sky .close-rest-hint {
+    animation: close-dim 0.5s ease 0.6s both;
+  }
+}
+
+.close-sky-hint {
+  margin-top: 10px;
+}

@@ -17,6 +17,7 @@ import {
   type NotebookLocale,
   type NotebookView
 } from '../../shared/notebook'
+import { SKY_ID } from '../../shared/sky'
 import { systemKindOf } from '../../shared/system'
 import type { Block, BlockProps } from '../../shared/types'
 import type { Repository } from '../db/repository'
@@ -82,7 +83,7 @@ export class NotebookService {
    */
   ensure(): void {
     if (this.root()) return
-    if (this.repo.get(NOTEBOOK_ID)) throw new Error('The notebook could not be opened')
+    if (this.repo.get(NOTEBOOK_ID)) throw new Error('Meditations could not be opened')
     this.repo.create({ id: NOTEBOOK_ID, type: 'page', parentId: null, props: { system: 'notebook', title: [[NOTEBOOK_TITLES[this.locale()]]] } })
   }
 
@@ -118,7 +119,7 @@ export class NotebookService {
       ? this.repo.update(id, { props: props as BlockProps })
       : this.repo.create({ id, type: NOTEBOOK_ENTRY_TYPE, parentId: NOTEBOOK_ID, props: Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null)) as BlockProps })
     const entry = readEntry(block)
-    if (!entry) throw new Error('The notebook could not be written')
+    if (!entry) throw new Error('Meditations could not be written')
     return entry
   }
 
@@ -127,7 +128,7 @@ export class NotebookService {
     if (!isDay(rawDay)) throw new Error('Invalid day')
     if (typeof rawText !== 'string' || rawText.length > 20_000) throw new Error('Invalid line')
     const today = this.today()
-    if (rawDay < today) throw new Error('That day has ended: what it holds was written in ink and stays as it is')
+    if (rawDay < today) throw new Error('That day has ended: what it holds stays as it was written')
     if (rawDay > today) throw new Error('A day can be written once it comes')
     const text = cleanLine(rawText)
     // Nothing written on a day with no block yet: nothing to keep.
@@ -139,7 +140,7 @@ export class NotebookService {
   plan(rawDay: unknown, rawItems: unknown): NotebookEntry {
     if (!isDay(rawDay)) throw new Error('Invalid day')
     if (!Array.isArray(rawItems) || rawItems.length > 20) throw new Error('Invalid plans')
-    if (!isDayWritable(rawDay, this.now())) throw new Error('That day has ended: what it holds was written in ink and stays as it is')
+    if (!isDayWritable(rawDay, this.now())) throw new Error('That day has ended: what it holds stays as it was written')
     const items = cleanPlans(rawItems)
     if (!items.length && !this.entry(rawDay)) {
       return { day: rawDay, text: '', plans: [], plansDismissed: false, updatedAt: 0 }
@@ -180,7 +181,7 @@ export class NotebookService {
     // The pages edited today, with what is on them (their to-dos).
     for (const page of this.repo.listRecent(RECENT_PAGES)) {
       if (page.updatedAt < from) break
-      if (page.type !== 'page' || page.id === NOTEBOOK_ID) continue
+      if (page.type !== 'page' || page.id === NOTEBOOK_ID || page.id === SKY_ID) continue
       if (page.parentId !== null && !seen.has(page.id)) {
         // A row's database decides whether it is a task: it is handed over too.
         const parent = this.repo.get(page.parentId)

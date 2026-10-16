@@ -91,6 +91,23 @@ const CASES: [string, Expect, ParseOptions?][] = [
   ['Rent monthly', { title: 'Rent', rule: 'FREQ=MONTHLY' }],
   ['Taxes yearly', { title: 'Taxes', rule: 'FREQ=YEARLY' }],
   ['Haircut every! 4 weeks', { title: 'Haircut', rule: 'FREQ=WEEKLY;INTERVAL=4', from: 'completion' }],
+  // every second one
+  ['Pay rent every other month', { title: 'Pay rent', due: '2026-10-15', rule: 'FREQ=MONTHLY;INTERVAL=2' }],
+  ['Run every other day 7am', { title: 'Run', due: '2026-10-15T07:00', rule: 'FREQ=DAILY;INTERVAL=2' }],
+  ['Team lunch every other friday', { title: 'Team lunch', due: '2026-10-16', rule: 'FREQ=WEEKLY;INTERVAL=2;BYDAY=FR' }],
+  ['Water ferns every! other week', { title: 'Water ferns', rule: 'FREQ=WEEKLY;INTERVAL=2', from: 'completion' }],
+  ['Correr dia sim dia não', { title: 'Correr', due: '2026-10-15', rule: 'FREQ=DAILY;INTERVAL=2' }],
+  ['Correr todo dia sim, dia não 6h', { title: 'Correr', due: '2026-10-15T06:00', rule: 'FREQ=DAILY;INTERVAL=2' }],
+  ['Feira semana sim, semana não', { title: 'Feira', rule: 'FREQ=WEEKLY;INTERVAL=2' }],
+  ['Ligar pra mãe quinzenalmente', { title: 'Ligar pra mãe', due: '2026-10-15', rule: 'FREQ=WEEKLY;INTERVAL=2' }],
+  ['Reunião de equipe toda quinzena', { title: 'Reunião de equipe', rule: 'FREQ=WEEKLY;INTERVAL=2' }],
+  ['Payroll biweekly', { title: 'Payroll', rule: 'FREQ=WEEKLY;INTERVAL=2' }],
+  ['Clean filters fortnightly', { title: 'Clean filters', rule: 'FREQ=WEEKLY;INTERVAL=2' }],
+  // a repeat in one word gives way to one said in full, and stays in the title
+  ['Weekly review every friday p2', { title: 'Weekly review', due: '2026-10-16', rule: 'FREQ=WEEKLY;BYDAY=FR', priority: 2 }],
+  ['Daily standup every weekday 9:30', { title: 'Daily standup', due: '2026-10-15T09:30', rule: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR' }],
+  ['Relatório mensal todo dia 5', { title: 'Relatório mensal', due: '2026-11-05', rule: 'FREQ=MONTHLY;BYMONTHDAY=5' }],
+  ['Weekly review', { title: 'review', due: '2026-10-15', rule: 'FREQ=WEEKLY' }],
   // ---- priority, project, labels
   ['Pagar boleto p1', { title: 'Pagar boleto', priority: 1 }],
   ['Pagar boleto P3', { title: 'Pagar boleto', priority: 3 }],

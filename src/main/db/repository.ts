@@ -4,6 +4,7 @@ import { sourceIdOf } from '../../shared/linked'
 import { relinkDuplicate } from '../../shared/relation'
 import { plainText } from '../../shared/richtext'
 import { dayOfEntryId, isDayWritable, NOTEBOOK_ENTRY_TYPE, NOTEBOOK_ID } from '../../shared/notebook'
+import { SKY_ID } from '../../shared/sky'
 import { isSystemKind, systemSchemaProblem } from '../../shared/system'
 import type { Block, BlockProps, CreateBlockInput, DatabaseLocation, Op, SearchResult, UpdateBlockInput } from '../../shared/types'
 import {
@@ -41,7 +42,7 @@ import { configure, migrate } from './schema'
 import { searchBlocks } from './search'
 import { searchText } from './text'
 import { buildSnapshot, BulkChange, formatStamp, RESTORE_LABEL_PREFIX, VersionStore } from './versions'
-import { byIdsSql, LINEAGE_SQL, liveFilter, pagesAbove, pick, subtreeSql, walk, type Link, type TreeNode } from './tree'
+import { archivedFilter, byIdsSql, LINEAGE_SQL, liveFilter, pagesAbove, pick, subtreeSql, walk, type Link, type TreeNode } from './tree'
 
 export { BLOCK_TYPES, isBlockType, isPageLike, isValidId, MAX_SETTING_CHARS } from './blocks'
 export type { TreeInput } from './blocks'
@@ -93,6 +94,9 @@ function chartProps(props: BlockProps): BlockProps {
   return clean === views ? props : { ...props, views: clean as BlockProps['views'] }
 }
 
+/** False for a page or database that is archived by itself (see BlockProps.archivedAt). */
+const notArchived = (b: Block): boolean => typeof b.props.archivedAt !== 'number'
+
 /** A child list changed inside the open transaction, not yet written back (see flushOrders). */
 interface PendingOrder {
   ids: string[]
@@ -125,6 +129,9 @@ export class Repository {
   private touched = new Set<string>()
   /** Child lists read or changed inside the currently open transaction, by parent id. */
   private orders = new Map<string, PendingOrder>()
+  /** To-dos checked inside the open transaction, announced once it commits (see onTodoChecked). */
+  private pendingChecked: string[] = []
+  private readonly todoListeners = new Set<(id: string) => void>()
 
   constructor(
     private readonly db: SqlDriver,
@@ -194,6 +201,8 @@ export class Repository {
     this.containers = new Map()
     this.pendingResets = new Set()
     this.versions.begin()
+    this.pendingChecked = []
+    let checked: string[] = []
     try {
       const result = fn()
       this.versions.beforeCommit(this.bulkCheck)
@@ -202,6 +211,7 @@ export class Repository {
       this.versions.commit()
       for (const id of this.pending) this.committed.add(id)
       for (const id of this.pendingResets) this.resets.add(id)
+      checked = this.pendingChecked
       return result
     } catch (err) {
       try {
@@ -218,6 +228,9 @@ export class Repository {
       this.orders = new Map()
       this.containers = new Map()
       this.pendingResets = new Set()
+      this.pendingChecked = []
+      // Outside the transaction: a listener may write.
+      if (checked.length > 0) this.announceChecked(checked)
     }
   }
 
@@ -320,7 +333,32 @@ export class Repository {
     if (!isPageLike(type)) throw new Error('A built-in block must be a page or database')
     if (parentId !== null) throw new Error('A built-in database lives at the workspace root')
     // There is one notebook, the same block on every device (shared/notebook.ts).
-    if (kind === 'notebook' && (id !== NOTEBOOK_ID || type !== 'page')) throw new Error('The notebook is a page of its own')
+    if (kind === 'notebook' && (id !== NOTEBOOK_ID || type !== 'page')) throw new Error('Meditations is a page of its own')
+    if (kind === 'sky' && (id !== SKY_ID || type !== 'page')) throw new Error('The Sky is a page of its own')
+  }
+
+  // ----------------------------------------------------------- checked to-dos
+  //
+  // The Sky keeps a grain of dust for each to-do checked on a page (shared/sky). The repository
+  // only says when one was checked, after the change is committed; what to do with it is the
+  // listener's. Sync (applySync) brings other devices' checks along with their own grains.
+
+  /** Calls `listener` with the id of each `to_do` block that goes from unchecked to checked. */
+  onTodoChecked(listener: (id: string) => void): () => void {
+    this.todoListeners.add(listener)
+    return () => this.todoListeners.delete(listener)
+  }
+
+  private announceChecked(ids: readonly string[]): void {
+    for (const id of ids) {
+      for (const listener of this.todoListeners) {
+        try {
+          listener(id)
+        } catch (err) {
+          console.error('a checked to-do listener failed', err)
+        }
+      }
+    }
   }
 
   // -------------------------------------------------------- the ink notebook
@@ -342,17 +380,17 @@ export class Repository {
    */
   private assertDayOpen(id: string): void {
     const day = dayOfEntryId(id)
-    if (day === null) throw new Error('The notebook holds one line a day and nothing else')
-    if (!isDayWritable(day, this.clock())) throw new Error('That day has ended: what it holds was written in ink and stays as it is')
+    if (day === null) throw new Error('Meditations holds one line a day and nothing else')
+    if (!isDayWritable(day, this.clock())) throw new Error('That day has ended: what it holds stays as it was written')
   }
 
   /** A new block under `parentId`: in the notebook, only the block of a day that is still open. */
   private checkNotebookChild(parent: Head, parentId: string, id: string, type: string): void {
     if (this.isNotebookPage(parentId)) {
-      if (type !== NOTEBOOK_ENTRY_TYPE) throw new Error('The notebook holds one line a day and nothing else')
+      if (type !== NOTEBOOK_ENTRY_TYPE) throw new Error('Meditations holds one line a day and nothing else')
       this.assertDayOpen(id)
     } else if (this.isNotebookPage(parent.parent_id)) {
-      throw new Error('A day of the notebook holds its line and nothing else')
+      throw new Error('A day of Meditations holds its line and nothing else')
     }
   }
 
@@ -417,6 +455,20 @@ export class Repository {
     delete rest.schema
     delete rest.values
     return rest
+  }
+
+  /**
+   * Archiving (setting `archivedAt`) is for the pages and databases of the tree: a database
+   * row lives in its database, a linked view is simply removed, a built-in block is part of
+   * the app. Unarchiving (removing it) is always allowed.
+   */
+  private checkArchive(r: { type: string; parent_id: string | null }, type: string, props: BlockProps, systemBefore: string | null): void {
+    const at: unknown = props.archivedAt
+    if (typeof at !== 'number' || !Number.isFinite(at) || at <= 0) throw new Error('Invalid archivedAt')
+    if (!isPageLike(type) || !isPageLike(r.type)) throw new Error('Only pages and databases can be archived')
+    if (systemBefore !== null) throw new Error('A built-in database cannot be archived')
+    if (type === 'database' && typeof props.sourceId === 'string') throw new Error('A linked view cannot be archived: remove it instead')
+    if (r.parent_id !== null && this.head(r.parent_id)?.type === 'database') throw new Error('A database row cannot be archived')
   }
 
   /** Rows live in the source: nothing may be created in, or moved into, a linked view. */
@@ -655,6 +707,8 @@ export class Repository {
       this.checkNotebookChild(parent, parentId, id, input.type)
     }
     let props = chartProps(this.linkProps(id, input.type, mergeProps({}, input.props ?? {}), null, true))
+    // A block is archived by the user, never born so.
+    delete props.archivedAt
     this.checkSystem(props, input.type, parentId, null, true, id)
     if (input.type === 'database' && props.sourceId === undefined) props = defaultDatabaseProps(props)
     const page = this.dirty(parentId)
@@ -690,13 +744,14 @@ export class Repository {
     }
     if (this.isNotebookPage(r.parent_id)) {
       this.assertDayOpen(id)
-      if (type !== oldType) throw new Error('A day of the notebook stays a line')
+      if (type !== oldType) throw new Error('A day of Meditations stays a line')
     }
     const linkedBefore = oldType === 'database' && typeof before.sourceId === 'string' ? before.sourceId : null
     let props = chartProps(this.linkProps(id, type, mergeProps(before, patch.props), linkedBefore, false))
     const systemBefore = isPageLike(oldType) && isSystemKind(before.system) ? before.system : null
     if (systemBefore !== null && type !== oldType) throw new Error('A built-in database cannot change its type')
     this.checkSystem(props, type, r.parent_id, systemBefore, false, id)
+    if (props.archivedAt !== undefined && props.archivedAt !== before.archivedAt) this.checkArchive(r, type, props, systemBefore)
     // The properties a built-in database is read by stay (deleting one or changing its type is refused).
     if (systemBefore !== null && patch.props && Object.hasOwn(patch.props, 'schema')) {
       const problem = systemSchemaProblem(systemBefore, props.schema)
@@ -735,6 +790,7 @@ export class Repository {
     // The block's own updated_at was just bumped; only non-pages bubble up to their page.
     this.touched.add(id)
     if (!isPageLike(type)) this.touchPage(r.parent_id)
+    if (type === 'to_do' && oldType === 'to_do' && before.checked !== true && props.checked === true) this.pendingChecked.push(id)
   }
 
   move(id: string, parentId: string | null, afterId?: string | null): Block {
@@ -754,9 +810,9 @@ export class Repository {
     // Reordering among the root pages is fine; leaving the root is not.
     if (parentId !== null && isPageLike(b.type)) this.assertNotSystem(b, 'moved into a page')
     // The days of the notebook stay where they were written, and nothing joins them.
-    if (this.isNotebookPage(b.parent_id)) throw new Error('A day of the notebook stays where it was written')
+    if (this.isNotebookPage(b.parent_id)) throw new Error('A day of Meditations stays where it was written')
     if (parentId !== null && (this.isNotebookPage(parentId) || this.isNotebookPage(this.head(parentId)?.parent_id ?? null))) {
-      throw new Error('Nothing can be moved into the notebook')
+      throw new Error('Nothing can be moved into Meditations')
     }
     if (parentId === null) {
       if (!isPageLike(b.type)) throw new Error('Only pages and databases can live at the workspace root')
@@ -883,7 +939,7 @@ export class Repository {
         if (!parent) throw new Error(`Block not found: ${parentId}`)
         this.assertHoldsChildren(parent)
         // A tree has new ids: it is never a day of the notebook.
-        if (this.isNotebookPage(parentId) || this.isNotebookPage(parent.parent_id)) throw new Error('Nothing can be added to the notebook but the line of a day')
+        if (this.isNotebookPage(parentId) || this.isNotebookPage(parent.parent_id)) throw new Error('Nothing can be added to Meditations but the line of a day')
       }
       this.dirty(parentId)
       const rootId = randomUUID()
@@ -1033,6 +1089,7 @@ export class Repository {
           // A linked view without a title of its own keeps showing its source's.
           if (title.length || typeof props.sourceId !== 'string') props.title = [...title, [' (copy)']]
           delete props.favorite
+          delete props.archivedAt
         }
         // A copy of a built-in database is an ordinary one: there is only ever one of each.
         delete props.system
@@ -1066,11 +1123,12 @@ export class Repository {
 
   // ------------------------------------------------------------------- pages
 
+  /** Pages and databases at the workspace root, in workspace order; archived ones are left out. */
   listRoot(): Block[] {
-    return this.getMany(this.order(null))
+    return this.getMany(this.order(null)).filter(notArchived)
   }
 
-  /** Sub-pages and databases shown under `pageId` in the sidebar, in document order. */
+  /** Sub-pages and databases shown under `pageId` in the sidebar, in document order (archived ones are not). */
   listChildren(pageId: string): Block[] {
     if (!isValidId(pageId)) return []
     // The walk needs every block's child list but nobody's props: only the pages found are loaded in full.
@@ -1085,7 +1143,7 @@ export class Repository {
     const load = (ids: string[]): TreeNode[] =>
       (this.stmt(byIdsSql(columns)).all(JSON.stringify(ids)) as Outline[]).map(node)
     const pages = walk(root, nodes, load).filter((b) => b.id !== pageId && isPageLike(b.type))
-    return this.getMany(pages.map((b) => b.id))
+    return this.getMany(pages.map((b) => b.id)).filter(notArchived)
   }
 
   listFavorites(): Block[] {
@@ -1096,10 +1154,13 @@ export class Repository {
          AND instr(props, '"favorite":') > 0 AND json_extract(props, '$.favorite') = 1
        ORDER BY created_at, rid`
     ).all() as Row[]
-    const live = liveFilter(this.lineage(rows.map((r) => r.id)))
-    return rows.filter((r) => live(r.id)).map(toBlock)
+    const links = this.lineage(rows.map((r) => r.id))
+    const live = liveFilter(links)
+    const archived = archivedFilter(links)
+    return rows.filter((r) => live(r.id) && !archived(r.id)).map(toBlock)
   }
 
+  /** Recently edited pages and databases, the latest first; archived ones (and what they hold) are not among them. */
   listRecent(limit = 20): Block[] {
     const n = Math.max(1, Math.min(200, Math.floor(Number(limit)) || 20))
     const out: Block[] = []
@@ -1111,13 +1172,37 @@ export class Repository {
     // Page through so pages hidden inside trashed subtrees cannot starve the result.
     for (let offset = 0; out.length < n; offset += n * 2) {
       const rows = s.all(n * 2, offset) as Row[]
-      const live = liveFilter(this.lineage(rows.map((r) => r.id)))
+      const links = this.lineage(rows.map((r) => r.id))
+      const live = liveFilter(links)
+      const archived = archivedFilter(links)
       for (const r of rows) {
-        if (out.length < n && live(r.id)) out.push(toBlock(r))
+        if (out.length < n && live(r.id) && !archived(r.id)) out.push(toBlock(r))
       }
       if (rows.length < n * 2) break
     }
     return out
+  }
+
+  /**
+   * Pages and databases archived by themselves (not those that are only inside an archived
+   * one), outside the trash, the most recently archived first.
+   */
+  listArchived(): Block[] {
+    const rows = this.stmt(
+      `SELECT ${COLS} FROM blocks
+       WHERE type IN ('page', 'database') AND trashed_at IS NULL
+         AND instr(props, '"archivedAt":') > 0 AND json_type(props, '$.archivedAt') IN ('integer', 'real')
+       ORDER BY json_extract(props, '$.archivedAt') DESC, rid DESC`
+    ).all() as Row[]
+    const live = liveFilter(this.lineage(rows.map((r) => r.id)))
+    return rows.filter((r) => live(r.id)).map(toBlock)
+  }
+
+  /** Those of `ids` that are archived, by themselves or because a page above them is. */
+  archivedAmong(ids: readonly string[]): Set<string> {
+    const valid = ids.filter(isValidId)
+    const archived = archivedFilter(this.lineage(valid))
+    return new Set(valid.filter((id) => archived(id)))
   }
 
   listTrash(): Block[] {
@@ -1131,17 +1216,20 @@ export class Repository {
 
   /**
    * Databases a linked view can point at: not in the trash (nor inside something
-   * that is), not themselves linked views; most recently edited first.
+   * that is), not themselves linked views; most recently edited first. With `archived: false`,
+   * not archived either (nor inside an archived page).
    */
-  listDatabases(): Block[] {
+  listDatabases(options: { archived?: boolean } = {}): Block[] {
     const rows = this.stmt(
       `SELECT ${COLS} FROM blocks
        WHERE type IN ('page', 'database') AND trashed_at IS NULL
          AND type = 'database' AND json_extract(props, '$.sourceId') IS NULL
        ORDER BY updated_at DESC, rid DESC`
     ).all() as Row[]
-    const live = liveFilter(this.lineage(rows.map((r) => r.id)))
-    return rows.filter((r) => live(r.id)).map(toBlock)
+    const links = this.lineage(rows.map((r) => r.id))
+    const live = liveFilter(links)
+    const archived = options.archived === false ? archivedFilter(links) : () => false
+    return rows.filter((r) => live(r.id) && !archived(r.id)).map(toBlock)
   }
 
   /**
@@ -1272,7 +1360,7 @@ export class Repository {
       if (!root || !isPageLike(root.type)) throw new Error('The page of this version no longer exists')
       if (root.trashedAt !== null) throw new Error('This page is in the Trash. Restore it first.')
       // Going back would rewrite days that have ended; a copy would be an ordinary page.
-      if (mode === 'replace' && this.isNotebookPage(root.id)) throw new Error('The notebook is written in ink: it cannot go back to an earlier version')
+      if (mode === 'replace' && this.isNotebookPage(root.id)) throw new Error('Past days of Meditations never change: the page cannot go back to an earlier version')
       const was = version.blocks[0]
       if (was.type !== root.type || (sourceIdOf(was) === null) !== (sourceIdOf(root) === null)) {
         throw new Error('This version was saved when the page was a different kind of block')
@@ -1451,6 +1539,8 @@ export class Repository {
 
     const props: BlockProps = { ...snapRoot.props }
     if (root.props.favorite !== undefined) props.favorite = root.props.favorite
+    if (root.props.archivedAt !== undefined) props.archivedAt = root.props.archivedAt
+    else delete props.archivedAt
     const rootNow = this.need(pageId)
     this.putBlock(
       {
@@ -1512,6 +1602,7 @@ export class Repository {
     // A linked view without a title of its own keeps showing its source's.
     if (title.length || sourceIdOf(root) === null) props.title = [...title, [` (restored ${stamp})`]]
     delete props.favorite
+    delete props.archivedAt
     tree.props = props
     const copy = this.createTree(tree, root.parentId, root.id)
     if (pages) notes.push(`${pages} ${pages === 1 ? 'sub-page was not copied and stays' : 'sub-pages were not copied and stay'} in the original page.`)

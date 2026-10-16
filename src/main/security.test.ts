@@ -363,6 +363,59 @@ describe('ipc argument validation', () => {
     for (const bad of ['yes', 1, {}]) expect(() => arg.settingValueFor('mcp.enabled', bad)).toThrow('Invalid setting value')
   })
 
+  it('takes the home only as a page id or one of the screens, and the start-up only as one of its modes', () => {
+    expect(arg.writableSettingKey('home')).toBe('home')
+    expect(arg.writableSettingKey('shell.startup')).toBe('shell.startup')
+    for (const key of ['home.x', 'homes']) expect(() => arg.writableSettingKey(key)).toThrow('read-only')
+    expect(arg.settingValueFor('home', { kind: 'page', id: 'abc-123' })).toEqual({ kind: 'page', id: 'abc-123' })
+    for (const route of ['_today', '_tasks', '_calendar', '_notebook']) {
+      expect(arg.settingValueFor('home', { kind: 'screen', route })).toEqual({ kind: 'screen', route })
+    }
+    expect(arg.settingValueFor('home', null)).toBeNull()
+    expect(arg.settingValueFor('home', undefined)).toBeNull()
+    for (const bad of [
+      'abc',
+      7,
+      [],
+      { kind: 'page' },
+      { kind: 'page', id: '../x' },
+      { kind: 'page', id: '__proto__' },
+      { kind: 'page', id: 'x'.repeat(65) },
+      { kind: 'page', id: 'abc', title: 'more' },
+      { kind: 'screen', route: '_close' },
+      { kind: 'screen', route: 'https://example.com' },
+      { kind: 'url', id: 'abc' }
+    ]) {
+      expect(() => arg.settingValueFor('home', bad), JSON.stringify(bad)).toThrow('Invalid setting value')
+    }
+    for (const mode of ['tabs', 'home', 'both']) expect(arg.settingValueFor('shell.startup', mode)).toBe(mode)
+    expect(arg.settingValueFor('shell.startup', null)).toBeNull()
+    for (const bad of ['always', 1, true, {}]) expect(() => arg.settingValueFor('shell.startup', bad)).toThrow('Invalid setting value')
+  })
+
+  it('takes the sidebar layout only as two lists of item ids', () => {
+    expect(arg.writableSettingKey('sidebar')).toBe('sidebar')
+    for (const key of ['sidebar.order', 'sidebars']) expect(() => arg.writableSettingKey(key)).toThrow('read-only')
+    expect(arg.settingValueFor('sidebar', { order: ['pages', 'search'], hidden: ['trash'] })).toEqual({ order: ['pages', 'search'], hidden: ['trash'] })
+    // Ids of a later version are kept, repeats count once, a missing list is empty.
+    expect(arg.settingValueFor('sidebar', { order: ['search', 'garden-2', 'search'] })).toEqual({ order: ['search', 'garden-2'], hidden: [] })
+    expect(arg.settingValueFor('sidebar', null)).toBeNull()
+    expect(arg.settingValueFor('sidebar', undefined)).toBeNull()
+    for (const bad of [
+      'search',
+      7,
+      [],
+      { order: 'search' },
+      { order: [1] },
+      { order: ['Search'] },
+      { order: ['../x'] },
+      { hidden: ['x'.repeat(41)] },
+      { order: Array.from({ length: 101 }, (_, i) => `item-${i}`) }
+    ]) {
+      expect(() => arg.settingValueFor('sidebar', bad), JSON.stringify(bad)).toThrow('Invalid setting value')
+    }
+  })
+
   it('accepts exactly the four history settings, typed and clamped', () => {
     for (const key of ['history.enabled', 'history.sessionMinutes', 'history.maxPerPage', 'history.budgetMb']) {
       expect(arg.writableSettingKey(key)).toBe(key)

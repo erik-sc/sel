@@ -33,6 +33,9 @@ export const Trash = make(
   </>
 )
 
+/** A box with its lid: the archive. */
+export const Archive = make(<path d="M2.5 3.5h11v2.8h-11zM3.4 6.3v6.2h9.2V6.3M6.5 8.8h3" />)
+
 export const Search = make(
   <>
     <circle cx="7" cy="7" r="4.2" />
@@ -211,6 +214,13 @@ export const Clock = make(
   </>
 )
 
+export const Home = make(
+  <>
+    <path d="M2.5 7.3 8 2.8l5.5 4.5" />
+    <path d="M4 6.2v6.8h3v-3.2h2V13h3V6.2" />
+  </>
+)
+
 export const Mic = make(
   <>
     <rect x="6" y="2" width="4" height="7.5" rx="2" />
@@ -220,6 +230,8 @@ export const Mic = make(
 
 /** A dip pen's nib: the ink notebook. */
 export const Pen = make(<path d="M8 1.8 11.6 6 8 14.2 4.4 6zM8 6.2v3.4M4.4 6h7.2" />)
+/** A four-pointed star, drawn like the glint in the Sky: the Sky. */
+export const Sky = make(<path d="M8 1.6Q8.8 7.2 14.4 8Q8.8 8.8 8 14.4Q7.2 8.8 1.6 8Q7.2 7.2 8 1.6Z" />)
 
 /** A crescent moon: closing the day. */
 export const Moon = make(<path d="M12.8 10.2A5.4 5.4 0 0 1 5.8 3.2a5.4 5.4 0 1 0 7 7z" />)

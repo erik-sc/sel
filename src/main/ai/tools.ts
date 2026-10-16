@@ -89,7 +89,8 @@ function search(source: ToolSource, args: Record<string, unknown>): string {
     const page = source.get(result.pageId)
     if (!live(page)) continue
     const snippet = result.snippet ? oneLine(result.snippet, 200) : ''
-    lines.push(`- ${label(page)}, in ${pathOf(source, page.id)}${snippet ? `: “${snippet}”` : ''}`)
+    // Archived pages are found only here, by asking; the line says they were put away.
+    lines.push(`- ${label(page)}${result.archived ? ' (archived)' : ''}, in ${pathOf(source, page.id)}${snippet ? `: “${snippet}”` : ''}`)
   }
   return lines.length ? lines.join('\n') : `Nothing matches “${query}”.`
 }
@@ -286,7 +287,7 @@ export function repositorySource(repo: Repository, markdown: Pick<typeof import(
     listRoot: () => repo.listRoot(),
     listChildren: (id) => repo.listChildren(id),
     listRecent: (limit) => repo.listRecent(limit),
-    listDatabases: () => repo.listDatabases(),
+    listDatabases: () => repo.listDatabases({ archived: false }),
     search: (text, limit) => repo.search(text, limit),
     pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id),
     children: (id) => repo.children(id)

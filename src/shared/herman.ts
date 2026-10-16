@@ -64,7 +64,7 @@ export type HermanLocale = 'en' | 'pt-BR'
 // ---- nudges -------------------------------------------------------------------
 
 /** The kinds of thing he may remark on, the most timely first: when several apply, that order decides. */
-export const HERMAN_NUDGE_KINDS = ['event-soon', 'streak', 'long-session', 'reopened', 'morning', 'evening', 'free-block', 'overdue', 'today'] as const
+export const HERMAN_NUDGE_KINDS = ['streak', 'long-session', 'reopened', 'morning', 'evening', 'free-block', 'overdue', 'today'] as const
 export type HermanNudgeKind = (typeof HERMAN_NUDGE_KINDS)[number]
 
 /** What a nudge can offer to do: each is something the app already does when asked. */
@@ -80,7 +80,8 @@ export type HermanCommand =
 
 export interface HermanNudge {
   id: string
-  kind: HermanNudgeKind
+  /** `sky`: a line of the Sky's (main/herman/lines.ts SKY_LINES), outside the counsel. */
+  kind: HermanNudgeKind | 'sky'
   text: string
   action?: { label: string; command: HermanCommand }
 }

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { app, BrowserWindow, Menu, Notification, powerMonitor, Tray, type NativeImage } from 'electron'
 import { ALARMS_CHANNEL, type Announcement } from '../../shared/alarms'
-import type { Briefing } from '../../shared/briefing'
+import type { Briefing, BriefingEvent } from '../../shared/briefing'
 import type { BriefingPromptData } from '../ai/prompts'
 import type { AiService } from '../ai/service'
 import type { Repository } from '../db/repository'
@@ -24,6 +24,8 @@ export interface AlarmsContext {
   repo: Repository
   briefing(): Promise<Briefing>
   promptData(): Promise<BriefingPromptData>
+  /** The stored events of the calendars in a span; a calendar that is due is read in the background. */
+  calendar(from: number, to: number): Promise<BriefingEvent[]>
   ai(): Promise<{ service: AiService }>
   recording(): boolean
   createWindow(): void
@@ -50,6 +52,7 @@ export class AlarmsBridge {
         const database = tasksDatabase(repo.listRoot())
         return database ? { database, rows: repo.children(database.id) } : null
       },
+      calendar: ctx.calendar,
       locale: () => hermanLocale(repo.getSetting('ai.language'), app.getLocale()),
       recording: ctx.recording,
       deliver: (announcement) => this.deliver(announcement),
@@ -98,7 +101,7 @@ export class AlarmsBridge {
 
   private notify(announcement: Announcement, win: BrowserWindow): void {
     if (!Notification.isSupported()) return
-    const title = announcement.kind === 'reminder' ? (announcement.locale === 'pt-BR' ? 'Lembrete' : 'Reminder') : 'Herman'
+    const title = announcement.title ?? 'Herman'
     const body = announcement.text.length > 240 ? `${announcement.text.slice(0, 239)}…` : announcement.text
     // The chime is the window's; the system's own sound would ring twice.
     const notification = new Notification({ title, body, silent: true })

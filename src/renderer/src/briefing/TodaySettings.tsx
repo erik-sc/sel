@@ -17,6 +17,9 @@ import {
 } from '@shared/briefing'
 import { plainText } from '@shared/richtext'
 import { bellOn, NOTEBOOK_BELL_KEY } from '@shared/notebook'
+import { SKY_ENABLED_KEY, SKY_EVENTS_KEY, SKY_HEMISPHERE_KEY, type Hemisphere } from '@shared/sky'
+import { COPY as SKY_COPY } from '@/sky/copy'
+import { setSkyEnabled } from '@/sky/route'
 import { ConfirmButton, Segmented } from '@/appearance/controls'
 import { openPage } from '@/store/tabs'
 import { refreshTree } from '@/store/tree'
@@ -565,6 +568,90 @@ export function TodaySection(): JSX.Element {
       </section>
 
       <CloseDaySettings />
+      <SkySettings />
     </div>
+  )
+}
+
+/**
+ * The Sky: on or off (its button, command and shortcut follow; what it records goes on being
+ * recorded), the hemisphere it is seen from, and its rare nights. All three stay on this computer.
+ * Settings speaks English, like the rest of this window; the Sky's own screen speaks both.
+ */
+function SkySettings(): JSX.Element {
+  const copy = SKY_COPY.en
+  const [enabled, setEnabled] = useState(true)
+  const [hemisphere, setHemisphere] = useState<Hemisphere>('north')
+  const [events, setEvents] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    // The view knows the defaults (the hemisphere follows the language until it is chosen).
+    window.api.sky.view().then(
+      (view) => {
+        if (!alive) return
+        setEnabled(view.enabled)
+        setHemisphere(view.hemisphere)
+        setEvents(view.events)
+      },
+      (error: unknown) => console.error('the sky settings failed to load', error)
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const chooseEnabled = (value: 'on' | 'off'): void => {
+    const next = value === 'on'
+    setEnabled(next)
+    setSkyEnabled(next)
+    window.api.app.setSetting(SKY_ENABLED_KEY, next).catch((error: unknown) => {
+      setEnabled(!next)
+      setSkyEnabled(!next)
+      failed(error)
+    })
+  }
+  const chooseHemisphere = (value: Hemisphere): void => {
+    const before = hemisphere
+    setHemisphere(value)
+    window.api.app.setSetting(SKY_HEMISPHERE_KEY, value).catch((error: unknown) => {
+      setHemisphere(before)
+      failed(error)
+    })
+  }
+  const chooseEvents = (value: 'on' | 'off'): void => {
+    const next = value === 'on'
+    setEvents(next)
+    window.api.app.setSetting(SKY_EVENTS_KEY, next).catch((error: unknown) => {
+      setEvents(!next)
+      failed(error)
+    })
+  }
+
+  return (
+    <section className="ap-group">
+      <div className="ap-group-head">
+        <h3 className="ap-group-title">Sky</h3>
+      </div>
+      <div className="ap-list">
+        <Row label={copy.settingsShow} help={copy.settingsShowHelp}>
+          <Segmented label={copy.settingsShow} value={enabled ? 'on' : 'off'} options={ON_OFF} onChange={chooseEnabled} />
+        </Row>
+        <Row label={copy.settingsHemisphere} help={copy.settingsHemisphereHelp}>
+          <Segmented
+            label={copy.settingsHemisphere}
+            value={hemisphere}
+            options={[
+              { value: 'south', label: copy.southern },
+              { value: 'north', label: copy.northern }
+            ]}
+            onChange={chooseHemisphere}
+          />
+        </Row>
+        <Row label={copy.settingsEvents} help={copy.settingsEventsHelp}>
+          <Segmented label={copy.settingsEvents} value={events ? 'on' : 'off'} options={ON_OFF} onChange={chooseEvents} />
+        </Row>
+      </div>
+    </section>
   )
 }

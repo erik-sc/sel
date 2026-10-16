@@ -37,7 +37,7 @@ export function applyPendingMarks(rt: RichText, at: number, caret: number, marks
 }
 
 /** Characters that can complete a block shortcut such as `# `, `- `, ``` or `---`. */
-const BLOCK_TRIGGERS = ' `-'
+const BLOCK_TRIGGERS = ' `-$'
 /** Characters that can close an inline shortcut such as `**bold**`. */
 const INLINE_TRIGGERS = '*`~_'
 
@@ -63,9 +63,9 @@ export function blockShortcutOps(
       { op: 'update', id: b.id, patch: { props: { title: rest } } }
     ]
   }
-  if (sc.type === 'code') {
+  if (sc.type === 'code' || sc.type === 'equation') {
     const plain = textOf(rest)
-    return [{ op: 'update', id: b.id, patch: { type: 'code', props: { title: plain ? [[plain]] : [] } } }]
+    return [{ op: 'update', id: b.id, patch: { type: sc.type, props: { title: plain ? [[plain]] : [] } } }]
   }
   return [{ op: 'update', id: b.id, patch: { type: sc.type, props: { ...sc.props, title: rest } } }]
 }

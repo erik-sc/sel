@@ -156,6 +156,7 @@ export function meetingInput(value: unknown): { title?: string; event?: MeetingE
     const description = typeof event['description'] === 'string' ? event['description'].slice(0, 2000).trim() : ''
     if (location) context.location = location
     if (description) context.description = description
+    if (typeof event['uid'] === 'string' && event['uid'].length > 0 && event['uid'].length <= 400) context.uid = event['uid']
     out.event = context
   }
   return out
@@ -281,10 +282,28 @@ export class MeetingsService {
     }
   }
 
-  /** A new page in the Meetings database. From Today it carries the event's title, day and time. */
-  create(rawInput: unknown): { pageId: string } {
+  /** The page of the Meetings database made for this occurrence of a calendar event, if one is there. */
+  private pageForEvent(database: Block, uid: string, start: number): string | null {
+    for (const row of this.repo.children(database.id)) {
+      const made = row.props.meetingEvent
+      if (row.type === 'page' && row.trashedAt === null && made && made.uid === uid && made.start === start) return row.id
+    }
+    return null
+  }
+
+  /**
+   * A new page in the Meetings database. From Today or an event's alarm it carries the event's
+   * title, day and time; when the event has a UID, a page already made for that occurrence is
+   * the one returned.
+   */
+  create(rawInput: unknown): { pageId: string; existing?: boolean } {
     const input = meetingInput(rawInput)
     const database = this.ensureDatabase()
+    const uid = input.event?.uid
+    if (uid && input.event) {
+      const found = this.pageForEvent(database, uid, input.event.start)
+      if (found) return { pageId: found, existing: true }
+    }
     const at = input.event?.start ?? this.now()
     const title = input.title ?? input.event?.title ?? `Meeting, ${new Date(at).toLocaleDateString('en', { day: 'numeric', month: 'long' })}`
     const values: Record<string, PropertyValue> = {}
@@ -296,7 +315,9 @@ export class MeetingsService {
       if (input.event.description) children.push({ type: 'quote', props: { title: [[input.event.description.replace(/\s+/g, ' ').slice(0, 600)]] } })
     }
     children.push({ type: 'text', props: {} })
-    const page = this.repo.createTree({ type: 'page', props: { title: [[title]], values }, children }, database.id)
+    const props: BlockProps = { title: [[title]], values }
+    if (uid && input.event) props.meetingEvent = { uid, start: input.event.start }
+    const page = this.repo.createTree({ type: 'page', props, children }, database.id)
     return { pageId: page.id }
   }
 

@@ -1,4 +1,4 @@
-// The words of the ink notebook, in English and in Brazilian Portuguese: the two languages
+// The words of Meditations (the notebook), in English and in Brazilian Portuguese: the two languages
 // Herman's own lines are written in (main/herman/lines.ts), chosen the same way, by the main
 // process. Pure: no React, no DOM.
 import type { NotebookLocale } from '../../../shared/notebook'
@@ -6,7 +6,7 @@ import type { NotebookLocale } from '../../../shared/notebook'
 export interface NotebookCopy {
   title: string
   placeholder: string
-  /** Under today's line: what ink means here. */
+  /** Under today's line: a day stays as it was once it has ended. */
   inkNote: string
   saving: string
   kept: string
@@ -26,9 +26,9 @@ export interface NotebookCopy {
 
 export const COPY: Record<NotebookLocale, NotebookCopy> = {
   en: {
-    title: 'Ink notebook',
+    title: 'Meditations',
     placeholder: 'One line for today.',
-    inkNote: 'Written in ink: it can change until midnight, then it stays as it is.',
+    inkNote: 'It can change until midnight. After that, the day stays as you left it.',
     saving: 'Writing…',
     kept: 'Kept',
     failed: 'This line could not be kept. It is still here; try again in a moment.',
@@ -36,16 +36,16 @@ export const COPY: Record<NotebookLocale, NotebookCopy> = {
     onThisDay: 'On this day',
     yearsAgo: (years) => `${years} ${years === 1 ? 'year' : 'years'} ago you wrote`,
     earlier: 'Earlier days',
-    empty: 'Nothing written yet. The first line starts the notebook.',
+    empty: 'Nothing written yet. The first line begins your Meditations.',
     showMore: 'Earlier still',
-    loadFailed: 'The notebook could not be opened.',
+    loadFailed: 'Meditations could not be opened.',
     tryAgain: 'Try again',
     todayLabel: 'Today'
   },
   'pt-BR': {
-    title: 'Caderno de tinta',
+    title: 'Meditações',
     placeholder: 'Uma linha para hoje.',
-    inkNote: 'Escrito a tinta: pode mudar até a meia-noite, depois fica como está.',
+    inkNote: 'Pode mudar até a meia-noite. Depois, o dia fica como você o deixou.',
     saving: 'Escrevendo…',
     kept: 'Guardado',
     failed: 'Não foi possível guardar esta linha. Ela continua aqui; tente de novo daqui a pouco.',
@@ -53,9 +53,9 @@ export const COPY: Record<NotebookLocale, NotebookCopy> = {
     onThisDay: 'Neste dia',
     yearsAgo: (years) => `Há ${years} ${years === 1 ? 'ano' : 'anos'} você escreveu`,
     earlier: 'Dias anteriores',
-    empty: 'Nada escrito ainda. A primeira linha começa o caderno.',
+    empty: 'Nada escrito ainda. A primeira linha começa as suas Meditações.',
     showMore: 'Mais antigos',
-    loadFailed: 'Não foi possível abrir o caderno.',
+    loadFailed: 'Não foi possível abrir as Meditações.',
     tryAgain: 'Tentar de novo',
     todayLabel: 'Hoje'
   }
@@ -131,7 +131,7 @@ export const CLOSE_COPY: Record<NotebookLocale, CloseCopy> = {
     edited: 'Written in',
     quietDay: 'A quiet day: nothing marked done, no page touched. That counts too.',
     keepTitle: 'What is worth keeping?',
-    keepHelp: 'One line. It goes into the ink notebook as today’s line.',
+    keepHelp: 'One line. It goes into Meditations as today’s line.',
     keepReplace: 'Today already has a line. Writing here replaces it, while the day is still open.',
     keepPlaceholder: 'The thing worth keeping…',
     tomorrowTitle: 'Up to three things for tomorrow',
@@ -146,7 +146,7 @@ export const CLOSE_COPY: Record<NotebookLocale, CloseCopy> = {
     restHint: 'Press any key to come back',
     closed: 'The day is closed.',
     closedHelp: 'Nothing more is asked of it.',
-    openNotebook: 'Open the notebook',
+    openNotebook: 'Open Meditations',
     failed: 'This could not be kept. Try again in a moment.',
     ended: 'The day ended while you were closing it. Its line stays as it was.',
     loadFailed: 'The day could not be read.',
@@ -163,7 +163,7 @@ export const CLOSE_COPY: Record<NotebookLocale, CloseCopy> = {
     edited: 'Escrito em',
     quietDay: 'Um dia quieto: nada marcado como feito, nenhuma página mexida. Isso também conta.',
     keepTitle: 'O que vale guardar?',
-    keepHelp: 'Uma linha. Ela vai para o caderno de tinta como a linha de hoje.',
+    keepHelp: 'Uma linha. Ela vai para as Meditações como a linha de hoje.',
     keepReplace: 'Hoje já tem uma linha. Escrever aqui a substitui, enquanto o dia ainda está aberto.',
     keepPlaceholder: 'O que vale guardar…',
     tomorrowTitle: 'Até três coisas para amanhã',
@@ -178,7 +178,7 @@ export const CLOSE_COPY: Record<NotebookLocale, CloseCopy> = {
     restHint: 'Aperte qualquer tecla para voltar',
     closed: 'O dia está fechado.',
     closedHelp: 'Nada mais é pedido dele.',
-    openNotebook: 'Abrir o caderno',
+    openNotebook: 'Abrir as Meditações',
     failed: 'Não foi possível guardar. Tente de novo daqui a pouco.',
     ended: 'O dia acabou enquanto você o fechava. A linha dele fica como estava.',
     loadFailed: 'Não foi possível ler o dia.',

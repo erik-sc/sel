@@ -9,6 +9,7 @@ import { MOD_KEY } from '@/ui/platform'
 import { logError, pageTitle, reportError } from './actions'
 import { isLinkedView } from './linked'
 import { IconGlyph } from '@/ui/IconGlyph'
+import { useArchiveCopy } from '@/archive/locale'
 
 const DEBOUNCE_MS = 120
 const RECENT_LIMIT = 10
@@ -24,6 +25,7 @@ export function QuickFindBody() {
   const listRef = useRef<HTMLDivElement>(null)
   const requestRef = useRef(0)
   const listId = useId()
+  const archive = useArchiveCopy()
   const optionId = (index: number): string => `${listId}-${index}`
 
   const trimmed = query.trim()
@@ -140,6 +142,7 @@ export function QuickFindBody() {
             <span className="quickfind-text">
               <span className="quickfind-title">
                 {item.title || 'Untitled'}
+                {item.archived && <span className="quickfind-badge">{archive.badge}</span>}
                 {item.path.length > 0 && <span className="quickfind-path">{item.path.join(' / ')}</span>}
               </span>
               {item.snippet && <span className="quickfind-snippet">{item.snippet}</span>}

@@ -1,11 +1,18 @@
 import type { Block } from '@shared/types'
 import type { MenuItem } from '@/ui/Menu'
-import { ArrowUpRight, Check, Clock, Copy, Page, Plus, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { Archive, ArrowUpRight, Board, Check, Clock, Copy, Home, Page, Plus, Sigma, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import { isLatexDocument, newLatexDocument } from '@/latex/gate'
+import { latexShellCopy } from '@/latex/locale'
+import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/actions'
+import { archiveCopy } from '@/archive/locale'
+import { HOME_COPY } from '@/home/copy'
+import { setHome, useHome } from '@/home/store'
 import { requestPageAi } from '@/ai/gate'
 import { IS_MAC } from '@/ui/platform'
 import { openPage } from '@/store/tabs'
 import { setHistoryPage, setRenaming } from '@/store/ui'
 import { preloadVersionHistory } from '@/versions/VersionHistory'
+import { openTemplates, templatesCopy } from '@/templates/gate'
 import { isSystemBlock } from '@shared/system'
 import { sourceIdOf } from './linked'
 import {
@@ -36,6 +43,35 @@ function removeItem(block: Block): MenuItem {
     danger: true,
     disabled: !!block.trashedAt,
     onSelect: () => void trashPage(block.id).catch(reportError(linked ? 'remove the linked view' : 'move the page to the Trash'))
+  }
+}
+
+/** "Archive" for a page of the tree, "Unarchive" once it is archived; nothing for what cannot be archived. */
+function archiveItems(block: Block): MenuItem[] {
+  if (!canArchive(block)) return []
+  const copy = archiveCopy()
+  const archived = isArchived(block)
+  return [
+    {
+      id: archived ? 'unarchive' : 'archive',
+      label: archived ? copy.unarchive : copy.archive,
+      icon: <Archive />,
+      onSelect: () => void (archived ? unarchivePage(block.id) : archivePage(block.id))
+    }
+  ]
+}
+
+/** "Set as home", or, on the page that is the home, the way back. */
+function homeItem(block: Block): MenuItem {
+  const { home, locale } = useHome.getState()
+  const copy = HOME_COPY[locale]
+  const isHome = home?.kind === 'page' && home.id === block.id
+  return {
+    id: 'home',
+    label: isHome ? copy.removeAsHome : copy.setAsHome,
+    icon: <Home />,
+    disabled: !isHome && !!block.trashedAt,
+    onSelect: () => void setHome(isHome ? null : { kind: 'page', id: block.id })
   }
 }
 
@@ -70,17 +106,28 @@ export function sidebarPageMenu(block: Block): MenuItem[] {
       label: block.props.favorite ? 'Remove from Favorites' : 'Add to Favorites',
       icon: block.props.favorite ? <StarFilled /> : <Star />,
       onSelect: () => void toggleFavorite(id).catch(reportError('update Favorites'))
-    }
+    },
+    homeItem(block)
   ]
-  if (block.type === 'page') {
-    items.push({
-      id: 'add-subpage',
-      label: 'Add a page inside',
-      icon: <Page />,
-      onSelect: () => void createPage(id).catch(reportError('create the page'))
-    })
+  // A LaTeX document's content is its source: nothing goes inside it.
+  if (block.type === 'page' && !isLatexDocument(block)) {
+    items.push(
+      {
+        id: 'add-subpage',
+        label: 'Add a page inside',
+        icon: <Page />,
+        onSelect: () => void createPage(id).catch(reportError('create the page'))
+      },
+      { id: 'add-template', label: templatesCopy().openInside, icon: <Board />, onSelect: () => openTemplates({ pageId: id, inside: true }) },
+      {
+        id: 'add-latex',
+        label: latexShellCopy().addInside,
+        icon: <Sigma />,
+        onSelect: () => newLatexDocument(id)
+      }
+    )
   }
-  items.push(...removeItems(block))
+  items.push(...archiveItems(block), ...removeItems(block))
   return items
 }
 
@@ -114,6 +161,7 @@ export function topBarPageMenu(block: Block, ai = false): MenuItem[] {
       icon: block.props.favorite ? <StarFilled /> : <Star />,
       onSelect: () => void toggleFavorite(id).catch(reportError('update Favorites'))
     },
+    homeItem(block),
     {
       id: 'duplicate',
       label: 'Duplicate',
@@ -142,6 +190,7 @@ export function topBarPageMenu(block: Block, ai = false): MenuItem[] {
       icon: <ArrowUpRight />,
       onSelect: () => void window.api.app.newWindow(id).catch(reportError('open a new window'))
     },
+    ...archiveItems(block),
     ...removeItems(block)
   )
   return items

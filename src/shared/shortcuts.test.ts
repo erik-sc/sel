@@ -31,5 +31,7 @@ describe('APP_SHORTCUTS', () => {
     expect(acceleratorOf('go-back', false)).toBe('Alt+Left')
     expect(acceleratorOf('go-back', true)).toBe('Cmd+[')
     expect(acceleratorOf('send-feedback', false)).toBeUndefined()
+    expect(acceleratorOf('go-home', false)).toBe('CmdOrCtrl+Alt+H')
+    expect(APP_SHORTCUTS.find((s) => s.key === 'h' && s.ctrl && s.alt && !s.shift)?.command).toBe('go-home')
   })
 })

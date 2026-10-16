@@ -37,7 +37,7 @@ describe('the notebook page', () => {
     notebook.ensure()
     notebook.write(today(), 'first line')
     const root = repo.get(NOTEBOOK_ID) as Block
-    expect(root).toMatchObject({ id: NOTEBOOK_ID, type: 'page', parentId: null, props: { system: 'notebook', title: [['Ink notebook']] } })
+    expect(root).toMatchObject({ id: NOTEBOOK_ID, type: 'page', parentId: null, props: { system: 'notebook', title: [['Meditations']] } })
     expect(repo.rootOrder().order.filter((id) => id === NOTEBOOK_ID)).toHaveLength(1)
     expect(root.content).toEqual([entryId(today())])
   })
@@ -46,7 +46,7 @@ describe('the notebook page', () => {
     const pt = open(at(15))
     pt.repo.setSetting('ai.language', 'pt-BR')
     pt.notebook.ensure()
-    expect(pt.repo.get(NOTEBOOK_ID)?.props.title).toEqual([['Caderno de tinta']])
+    expect(pt.repo.get(NOTEBOOK_ID)?.props.title).toEqual([['Meditações']])
   })
 
   it('cannot be trashed, deleted for good, moved into a page or made twice', () => {
@@ -135,7 +135,7 @@ describe('a day of the notebook', () => {
     notebook.write(today(), 'first')
     const version = repo.saveVersion(NOTEBOOK_ID, 'before')
     notebook.write(today(), 'second')
-    expect(() => repo.restoreVersion(version.id, 'replace')).toThrow(/written in ink/)
+    expect(() => repo.restoreVersion(version.id, 'replace')).toThrow(/never change/)
     expect(repo.get(entryId(today()))?.props.title).toEqual([['second']])
   })
 

@@ -1,7 +1,7 @@
 import type { WebContents } from 'electron'
 import type { BriefingPromptData } from '../ai/prompts'
 import type { PromptBuilder } from '../ai/service'
-import type { Briefing } from '../../shared/briefing'
+import type { Briefing, BriefingEvent } from '../../shared/briefing'
 import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import type { CalendarSync } from '../sync/format'
@@ -32,6 +32,8 @@ export interface BriefingAccess {
   promptData(): Promise<BriefingPromptData>
   /** The calendars for sync. Loads the briefing, so it is asked for only by an encrypted repository. */
   calendarSync(): Promise<CalendarSync>
+  /** Stored events overlapping [from, to), for the alarms; a calendar that is due is read in the background. */
+  upcoming(from: number, to: number): Promise<BriefingEvent[]>
 }
 
 export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncompleted, onCalendarsChanged }: BriefingIpcContext): BriefingAccess & { handlers: Handlers<'briefing'> } {
@@ -94,6 +96,7 @@ export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncomplet
     handlers,
     stored: async () => (await briefing()).service.build(),
     promptData: async () => (await briefing()).service.promptData(),
-    calendarSync: async () => (await briefing()).calendarSync
+    calendarSync: async () => (await briefing()).calendarSync,
+    upcoming: async (from, to) => (await briefing()).service.upcoming(from, to)
   }
 }

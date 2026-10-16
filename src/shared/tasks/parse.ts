@@ -16,7 +16,8 @@
  *  - a weekday alone ("sexta", "friday") is the next one, today included;
  *  - "next friday", "próxima sexta", "sexta que vem" are the Friday of next week (Todoist's reading);
  *  - a time without a day is today; a recurrence without a day starts at its first occurrence;
- *  - "todo!" / "every!" (with the exclamation mark) repeats from the completion, not the due date.
+ *  - "todo!" / "every!" (with the exclamation mark) repeats from the completion, not the due date;
+ *  - a repeat said in one word ("weekly", "quinzenal") counts only when the line says no other.
  */
 
 export type TokenKind = 'date' | 'time' | 'recurrence' | 'priority' | 'project' | 'label' | 'remind'
@@ -296,10 +297,37 @@ const RECURRENCES = [
     days.sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7))
     return recurrence(`FREQ=WEEKLY;BYDAY=${days.map((day) => RRULE_DAYS[day]).join(',')}`, m[2], (today) => Math.min(...days.map((day) => nextWeekday(today, day))))
   }),
-  rule(`${EVERY}\\s+(?:dias?|days?)|diariamente|daily`, (m) => recurrence('FREQ=DAILY', m[2], (today) => today)),
-  rule(`${EVERY}\\s+(?:semanas?|weeks?)|semanalmente|weekly`, (m) => recurrence('FREQ=WEEKLY', m[2], (today) => today)),
-  rule(`${EVERY}\\s+(?:mes|meses|months?)|mensalmente|monthly`, (m) => recurrence('FREQ=MONTHLY', m[2], (today) => today)),
-  rule(`${EVERY}\\s+(?:anos?|years?)|anualmente|yearly|annually`, (m) => recurrence('FREQ=YEARLY', m[2], (today) => today))
+  // "every other week", "every other monday": every second one.
+  rule(`(every)(!?)\\s+other\\s+${UNIT}`, (m) => {
+    const freq = { day: 'DAILY', week: 'WEEKLY', month: 'MONTHLY', year: 'YEARLY' }[unitOf(m[3])]
+    return recurrence(`FREQ=${freq};INTERVAL=2`, m[2], (today) => today)
+  }),
+  rule(`(every)(!?)\\s+other\\s+(${WEEKDAY})`, (m) => {
+    const day = weekdayNumber(m[3])
+    return day === null ? null : recurrence(`FREQ=WEEKLY;INTERVAL=2;BYDAY=${RRULE_DAYS[day]}`, m[2], (today) => nextWeekday(today, day))
+  }),
+  // "dia sim, dia não", "semana sim, semana não".
+  rule(`(?:(todo|toda)(!?)\\s+)?(dia|semana|mes|ano)\\s+sim,?\\s+\\3\\s+nao`, (m) => {
+    const freq = { day: 'DAILY', week: 'WEEKLY', month: 'MONTHLY', year: 'YEARLY' }[unitOf(m[3])]
+    return recurrence(`FREQ=${freq};INTERVAL=2`, m[2], (today) => today)
+  }),
+  rule(`${EVERY}\\s+(?:quinzenas?|fortnights?)`, (m) => recurrence('FREQ=WEEKLY;INTERVAL=2', m[2], (today) => today)),
+  rule(`${EVERY}\\s+(?:dias?|days?)`, (m) => recurrence('FREQ=DAILY', m[2], (today) => today)),
+  rule(`${EVERY}\\s+(?:semanas?|weeks?)`, (m) => recurrence('FREQ=WEEKLY', m[2], (today) => today)),
+  rule(`${EVERY}\\s+(?:mes|meses|months?)`, (m) => recurrence('FREQ=MONTHLY', m[2], (today) => today)),
+  rule(`${EVERY}\\s+(?:anos?|years?)`, (m) => recurrence('FREQ=YEARLY', m[2], (today) => today))
+]
+
+/**
+ * A repeat said in one word. Read only when the line says no other way: "Weekly review every
+ * friday" repeats on Fridays, and "Weekly" stays in the title.
+ */
+const ADVERBS = [
+  rule('diariamente|daily', () => recurrence('FREQ=DAILY', undefined, (today) => today)),
+  rule('semanalmente|weekly', () => recurrence('FREQ=WEEKLY', undefined, (today) => today)),
+  rule('quinzenalmente|quinzenal|biweekly|fortnightly', () => recurrence('FREQ=WEEKLY;INTERVAL=2', undefined, (today) => today)),
+  rule('mensalmente|monthly', () => recurrence('FREQ=MONTHLY', undefined, (today) => today)),
+  rule('anualmente|yearly|annually', () => recurrence('FREQ=YEARLY', undefined, (today) => today))
 ]
 
 const REMIND = '(?:me lembrar|lembre-me|lembre me|lembrar|lembrete|remind me|remind)'
@@ -467,7 +495,7 @@ export function parseTask(text: string, options: ParseOptions = {}): ParsedTask 
     return null
   }
 
-  const repeat = take('recurrence', RECURRENCES)
+  const repeat = take('recurrence', RECURRENCES) ?? take('recurrence', ADVERBS)
   const remind = take('remind', REMINDERS)
   const date = take('date', [...DATES, numericDate(options.dayFirst ?? true), ...NAMED_DATES])
   const time = take('time', TIMES)

@@ -27,6 +27,23 @@ export function Toaster() {
               {item.action.label}
             </button>
           )}
+          {item.actions && (
+            <div className="ui-toast-actions">
+              {item.actions.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  className="ui-toast-action"
+                  onClick={() => {
+                    dismissToast(item.id)
+                    action.run()
+                  }}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             type="button"
             className="ui-toast-close"

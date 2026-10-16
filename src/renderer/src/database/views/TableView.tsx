@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DragEvent, JSX, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import type { PropertySchema } from '@shared/types'
-import { Plus, Trash, Close } from '@/ui/icons'
+import { Plus, Pen, Trash, Close } from '@/ui/icons'
+import { Menu } from '@/ui/Menu'
 import * as L from '../logic'
 import * as actions from '../actions'
+import { bulkEditItems } from '../bulkEdit'
 import { isTextLike, type EditMove } from '../cells'
-import { TypeIcon, beginDrag, draggedOf, endDrag, type ViewProps } from '../common'
+import { Floating, TypeIcon, beginDrag, draggedOf, endDrag, type ViewProps } from '../common'
 import { AddPropertyMenu, PropertyMenu } from '../propertyMenus'
 import { TableRow, cellKey } from './TableRow'
 import { WINDOW_THRESHOLD, scrollToRow, useRowHeight, useWindowedRange } from './tableWindow'
@@ -40,6 +42,7 @@ export function TableView(p: ViewProps): JSX.Element {
   const lastSelected = useRef<string | null>(null)
   const [menu, setMenu] = useState<{ propId: string; anchor: HTMLElement } | null>(null)
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null)
+  const [editAnchor, setEditAnchor] = useState<HTMLElement | null>(null)
   const [rowDrop, setRowDrop] = useState<DropEdge | null>(null)
   const [colDrop, setColDrop] = useState<DropEdge | null>(null)
 
@@ -66,6 +69,11 @@ export function TableView(p: ViewProps): JSX.Element {
     setFocus((prev) => (gone(prev) ? null : prev))
     setEditing((prev) => (gone(prev) ? null : prev))
   }, [rowIndex, props])
+
+  // The edit menu belongs to a selection: it goes when the selection does.
+  useEffect(() => {
+    if (!selected.size) setEditAnchor(null)
+  }, [selected])
 
   // A row created through "New": edit its title right away.
   useEffect(() => {
@@ -352,9 +360,21 @@ export function TableView(p: ViewProps): JSX.Element {
           <span className="db-bulk-count">{selected.size} selected</span>
           <button
             type="button"
+            className="db-link-button"
+            aria-haspopup="menu"
+            aria-expanded={!!editAnchor}
+            onClick={(event) => {
+              const anchor = event.currentTarget
+              setEditAnchor((prev) => (prev ? null : anchor))
+            }}
+          >
+            <Pen size={14} /> Edit
+          </button>
+          <button
+            type="button"
             className="db-link-button is-danger"
             onClick={() => {
-              actions.deleteRows([...selected])
+              actions.trashRows(databaseId, [...selected])
               setSelected(NO_SELECTION)
             }}
           >
@@ -492,6 +512,11 @@ export function TableView(p: ViewProps): JSX.Element {
         <span className="db-count-value">{rows.length}</span>
       </div>
 
+      {editAnchor && selected.size > 0 && (
+        <Floating open anchor={editAnchor} onClose={() => setEditAnchor(null)}>
+          <Menu items={bulkEditItems(schema, () => [...selected])} onClose={() => setEditAnchor(null)} autoFocus />
+        </Floating>
+      )}
       {menu && menuProp && (
         <PropertyMenu
           key={menuProp.id}

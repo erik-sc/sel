@@ -176,6 +176,25 @@ describe('the briefing', () => {
     expect(service.databases()).toEqual([{ id: tasks, name: 'Tasks', detected: true }])
   })
 
+  it('leaves out the tasks of an archived database, and of one inside an archived page', async () => {
+    const id = tasksDatabase()
+    const { service } = make()
+    expect(service.build().tasks.today.length).toBeGreaterThan(0)
+    repo.update(id, { props: { archivedAt: now } })
+    const archived = service.build().tasks
+    expect([...archived.overdue, ...archived.today]).toEqual([])
+    expect((await service.agenda('2026-09-27', '2026-10-31')).tasks).toEqual([])
+
+    // Inside an archived page, the same.
+    repo.update(id, { props: { archivedAt: null } })
+    const project = repo.create({ type: 'page', parentId: null, props: { title: [['Project']] } })
+    repo.move(id, project.id)
+    expect(service.build().tasks.overdue.map((task) => task.title)).toEqual(['Pay the rent'])
+    repo.update(project.id, { props: { archivedAt: now } })
+    expect(service.build().tasks.overdue).toEqual([])
+    expect((await service.agenda('2026-09-27', '2026-10-31')).tasks).toEqual([])
+  })
+
   it('completes a task through the ordinary write path, and takes it back', () => {
     const db = tasksDatabase()
     const { service } = make()

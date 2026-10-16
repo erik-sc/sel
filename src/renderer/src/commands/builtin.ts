@@ -12,6 +12,14 @@ import { IS_MAC } from '@/ui/platform'
 import { preloadVersionHistory } from '@/versions/VersionHistory'
 import { duplicatePage, exportMarkdown, importMarkdown, reportError, toggleFavorite, toggleFullWidth } from '@/shell/actions'
 import { runMenuCommand } from '@/shell/menuCommands'
+import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/actions'
+import { ARCHIVE_KEYWORDS } from '@/archive/copy'
+import { archiveCopy } from '@/archive/locale'
+import { customizeSidebar, sidebarCopy } from '@/shell/sidebarLayout'
+import { SIDEBAR_KEYWORDS } from '@/shell/sidebarCopy'
+import { openSidebarPanel } from '@/shell/sidebarPanels'
+import { skyIsEnabled } from '@/sky/route'
+import { TEMPLATE_KEYWORDS } from '@/templates/copy'
 import { registerCommands, type Command } from './registry'
 
 /** The page (or database) in the active tab, if it is one and not in the Trash. */
@@ -49,18 +57,40 @@ function openSettings(section: SettingsSection): void {
 }
 
 const SETTINGS: [SettingsSection, string, string[]][] = [
-  ['general', 'General', ['import', 'theme']],
+  ['general', 'General', ['import', 'theme', 'home', 'startup']],
   ['appearance', 'Appearance', ['colours', 'colors', 'font', 'look']],
+  ['sidebar', 'Sidebar', SIDEBAR_KEYWORDS],
   ['history', 'History', ['versions', 'snapshots']],
   ['ai', 'AI', ['claude', 'assistant']],
   ['herman', 'Herman', ['assistant', 'council']],
+  ['notifications', 'Notifications', ['notificações', 'reminders', 'lembretes', 'alarms', 'events', 'tray', 'bandeja']],
   ['sync', 'Sync', ['git', 'devices', 'backup']],
-  ['today', 'Today', ['calendar', 'briefing', 'bell', 'close the day']],
+  ['today', 'Today', ['calendar', 'briefing', 'bell', 'close the day', 'sky', 'céu', 'hemisphere', 'rare nights']],
   ['meetings', 'Meetings', ['recording', 'transcription', 'whisper']],
+  ['pomodoro', 'Pomodoro', ['timer', 'focus', 'break', 'tomato']],
   ['mcp', 'MCP', ['connect', 'other apps', 'claude desktop', 'claude code', 'token']]
 ]
 
 const FOCUS_WORDS = ['zen', 'distraction free', 'writing', 'hide']
+
+/** Archive or unarchive the current page; the title is read when the palette lists it, in the archive's language. */
+function archiveCommand(id: string, archived: boolean, title: () => string): Command {
+  return {
+    id,
+    get title() {
+      return title()
+    },
+    keywords: ARCHIVE_KEYWORDS,
+    when: () => {
+      const page = currentPage()
+      return canArchive(page) && isArchived(page) === archived
+    },
+    run: () => {
+      const page = currentPage()
+      if (page) void (archived ? unarchivePage(page.id) : archivePage(page.id))
+    }
+  }
+}
 
 const THEMES: [Theme, string][] = [
   ['light', 'Use the light theme'],
@@ -70,13 +100,16 @@ const THEMES: [Theme, string][] = [
 
 export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('new-page', 'New page', ['create', 'add', 'note']),
+  menu('new-from-template', 'Templates', TEMPLATE_KEYWORDS),
   menu('quick-find', 'Find a page…', ['search', 'open', 'go to', 'jump']),
   menu('find-in-page', 'Find in this page…', ['search', 'word', 'text']),
+  menu('go-home', 'Home', ['start', 'home page', 'início', 'página inicial']),
   menu('open-today', 'Today', ['briefing', 'agenda', 'tasks']),
   menu('open-calendar', 'Calendar', ['events', 'schedule', 'agenda']),
   menu('open-tasks', 'Tasks', ['todo', 'to-do', 'inbox', 'todoist']),
   menu('add-task', 'Add a task…', ['new task', 'quick add', 'todo']),
-  menu('open-notebook', 'Ink notebook', ['journal', 'diary', 'line a day', 'caderno de tinta', 'diário', 'on this day']),
+  menu('open-notebook', 'Meditations', ['meditações', 'journal', 'diary', 'line a day', 'on this day', 'notebook', 'ink', 'ink notebook', 'caderno', 'caderno de tinta', 'diário']),
+  menu('open-sky', 'Sky', ['céu', 'sky', 'estrelas', 'stars', 'constelações', 'constellations', 'jardim', 'garden', 'carta celeste', 'star chart', 'moon', 'lua'], skyIsEnabled),
   menu('close-day', 'Close the day', ['evening', 'end', 'review', 'tomorrow', 'shutdown', 'fechar o dia', 'até amanhã']),
   menu('new-meeting', 'New meeting', ['record', 'transcribe', 'call']),
   menu('toggle-assistant', 'Herman, the assistant', ['ai', 'ask', 'chat', 'claude'], aiEnabled),
@@ -89,6 +122,31 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('go-forward', 'Forward', ['history', 'navigate']),
   menu('new-window', 'New window'),
   menu('toggle-sidebar', 'Show or hide the sidebar', ['collapse', 'expand', 'panel']),
+  {
+    id: 'customize-sidebar',
+    get title() {
+      return sidebarCopy().customizeCommand
+    },
+    keywords: SIDEBAR_KEYWORDS,
+    run: customizeSidebar
+  },
+  // The Trash and the Archive stay at hand when their sidebar buttons are hidden.
+  {
+    id: 'open-trash',
+    get title() {
+      return sidebarCopy().openTrash
+    },
+    keywords: ['trash', 'lixeira', 'deleted', 'restore', 'apagadas'],
+    run: () => openSidebarPanel('trash')
+  },
+  {
+    id: 'open-archive',
+    get title() {
+      return sidebarCopy().openArchive
+    },
+    keywords: ['archive', 'arquivo', 'archived', 'arquivadas'],
+    run: () => openSidebarPanel('archive')
+  },
   menu('toggle-focus-mode', 'Focus mode: only the page', FOCUS_WORDS, () => !useUi.getState().focusMode),
   {
     id: 'leave-focus-mode',
@@ -156,6 +214,8 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
     when: (page) => !!page.props.favorite,
     run: (page) => void toggleFavorite(page.id).catch(reportError('update Favorites'))
   }),
+  archiveCommand('page-archive', false, () => archiveCopy().archiveThisPage),
+  archiveCommand('page-unarchive', true, () => archiveCopy().unarchiveThisPage),
   onPage({
     id: 'page-full-width',
     title: 'Full width',

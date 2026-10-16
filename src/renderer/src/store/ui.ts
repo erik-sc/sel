@@ -30,7 +30,7 @@ interface UiState {
   wordCount: boolean
 }
 
-export type SettingsSection = 'general' | 'appearance' | 'history' | 'ai' | 'herman' | 'sync' | 'today' | 'meetings' | 'mcp'
+export type SettingsSection = 'general' | 'appearance' | 'history' | 'ai' | 'herman' | 'notifications' | 'sync' | 'today' | 'meetings' | 'mcp' | 'pomodoro' | 'sidebar'
 
 export const SIDEBAR_MIN = 200
 export const SIDEBAR_MAX = 480

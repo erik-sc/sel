@@ -1,15 +1,21 @@
 import { app, BrowserWindow, ipcMain, nativeTheme, shell, type IpcMainEvent } from 'electron'
 import { INVOKE, IPC, type InvokeChannel } from '../shared/api'
+import { HOME_SETTING } from '../shared/home'
+import { SIDEBAR_SETTING } from '../shared/sidebar'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
 import { registerExternalIpc, type ExternalHooks } from './external/register'
 import { registerFeedbackIpc } from './feedback/register'
 import { registerTasksIpc } from './tasks/register'
+import { completionChanges, completionsBefore } from './tasks/completions'
 import { registerHermanIpc, type HermanHooks } from './herman/register'
 import { registerAlarmsIpc, type AlarmsHooks } from './alarms/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
 import { registerNotebookIpc } from './notebook/register'
+import { registerPomodoroIpc, type PomodoroHooks } from './pomodoro/register'
+import { registerSkyIpc } from './sky/register'
+import { registerTemplatesIpc } from './templates/register'
 import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
@@ -120,7 +126,18 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     'blocks:update': ([a, b]) => repo.update(arg.id(a), arg.plainObject(b, 'patch') as UpdateBlockInput),
     'blocks:move': ([a, b, c]) => repo.move(arg.id(a), arg.nullableId(b, 'parentId'), arg.afterId(c)),
     'blocks:delete': ([a]) => repo.delete(arg.id(a)),
-    'blocks:apply': ([a]) => repo.apply(arg.ops(a) as Op[])
+    'blocks:apply': ([a], event) => {
+      const ops = arg.ops(a) as Op[]
+      // Done ticked in a view of the Tasks database (or taken back there) reaches Herman as from the Tasks screen.
+      const before = completionsBefore(ops, (id) => repo.get(id))
+      const blocks = repo.apply(ops)
+      if (before.size) {
+        const { completed, uncompleted } = completionChanges(before, (id) => repo.get(id))
+        for (let i = 0; i < completed; i++) herman?.taskCompleted(event.sender)
+        for (let i = 0; i < uncompleted; i++) herman?.taskUncompleted()
+      }
+      return blocks
+    }
   }
 
   // ---- pages
@@ -130,6 +147,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     'pages:listFavorites': () => repo.listFavorites(),
     'pages:listRecent': ([a]) => repo.listRecent(arg.limit(a)),
     'pages:listTrash': () => repo.listTrash(),
+    'pages:listArchived': () => repo.listArchived(),
     'pages:restore': ([a]) => repo.restore(arg.id(a)),
     'pages:deleteForever': ([a]) => repo.deleteForever(arg.id(a)),
     'pages:ancestors': ([a]) => repo.ancestors(arg.id(a)),
@@ -145,6 +163,16 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       const parentId = arg.nullableId(a, 'parentId')
       const { importMarkdown } = await import('./markdown')
       return importMarkdown(repo, windowOf(event), parentId)
+    },
+    'pages:exportTex': async ([a], event) => {
+      const id = arg.id(a)
+      const { exportTex } = await import('./latex')
+      return exportTex(repo, windowOf(event), id)
+    },
+    'pages:exportPdf': async ([a, b], event) => {
+      const id = arg.id(a)
+      const { exportPdf, pdfPageSize } = await import('./latex')
+      return exportPdf(repo, windowOf(event), event.sender, id, pdfPageSize(b))
     }
   }
 
@@ -184,6 +212,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   let updates: UpdatesHooks | null = null
   let external: ExternalHooks | null = null
   let alarms: AlarmsHooks | null = null
+  let pomodoro: PomodoroHooks | null = null
   const appHandlers: Handlers<'app'> = {
     'app:getTheme': () => readTheme(repo),
     'app:setTheme': ([a]) => applyTheme(repo, a),
@@ -195,6 +224,16 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       // The appearance is synced: when it changed here decides which device's change stands.
       if (key === APPEARANCE_SETTING) {
         repo.setSetting('sync.appearanceAt', Date.now())
+        syncBridge?.noteLocalChange()
+      }
+      // So is the home.
+      if (key === HOME_SETTING) {
+        repo.setSetting('sync.homeAt', Date.now())
+        syncBridge?.noteLocalChange()
+      }
+      // And the sidebar's layout.
+      if (key === SIDEBAR_SETTING) {
+        repo.setSetting('sync.sidebarAt', Date.now())
         syncBridge?.noteLocalChange()
       }
       // So are the databases Today takes its tasks from, with the calendars.
@@ -210,6 +249,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       if (key.startsWith('mcp.')) external?.settingChanged()
       // A briefing time, a reminder switch or the notification-area icon: the alarms' clock follows.
       alarms?.settingChanged(key)
+      // The pomodoro's lengths: the windows show them (a running phase keeps its own).
+      pomodoro?.settingChanged(key)
     },
     'app:openExternal': async ([a]) => {
       const url = toExternalUrl(a)
@@ -310,11 +351,32 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     repo,
     briefing: () => briefing.stored(),
     promptData: () => briefing.promptData(),
+    calendar: (from, to) => briefing.upcoming(from, to),
     ai,
     recording: () => meetings.recordingWindow() !== null,
     createWindow: () => createWindow()
   })
   alarms = alarmsIpc
+
+  // ---- pomodoro (the one focus timer, kept here so every window shows the same; see ./pomodoro).
+  // Silent while a meeting is recorded, like the alarms.
+  const pomodoroIpc = registerPomodoroIpc({ repo, recording: () => meetings.recordingWindow() !== null })
+  pomodoro = pomodoroIpc
+
+  // ---- sky (stars from Meditations, dust from tasks, halos from pomodoros; see ./sky). It writes a
+  // checked to-do and a finished pomodoro as they happen, so the sky is right whenever it is opened.
+  const skyIpc = registerSkyIpc({
+    repo,
+    onPomodoroCompleted: (listener) => pomodoroIpc.onCompleted(listener),
+    flushChanges: () => {
+      const ids = repo.drainChanges()
+      changes.add('sky', ids, repo.drainResets())
+      if (ids.length) syncBridge?.noteLocalChange()
+    },
+    herman: (sender, line) => hermanIpc.sky(sender, line)
+  })
+  // ---- templates (pages and databases made from a template in one transaction; see ./templates)
+  const templatesHandlers = registerTemplatesIpc({ repo })
 
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
@@ -361,7 +423,10 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...tasksIpc.handlers,
     ...updatesIpc.handlers,
     ...externalIpc.handlers,
-    ...alarmsIpc.handlers
+    ...alarmsIpc.handlers,
+    ...pomodoroIpc.handlers,
+    ...skyIpc.handlers,
+    ...templatesHandlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 

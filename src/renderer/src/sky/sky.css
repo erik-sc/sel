@@ -1,0 +1,765 @@
+/*
+ * The Sky. An old star chart: ink on paper in the light theme, night in the dark one, all in line.
+ * One column wider than a page (up to ~960 px), centred. Every colour, type size and duration is a
+ * token from styles/tokens.css; motion is in multiples of --duration, with --ease, and happens once,
+ * because of something the user did (docs/plans/sky.md, docs/plans/sky/animations.html).
+ * `--px` (set by SkyChart) is the size of one unit of the drawing in pixels' terms, so that a line
+ * stays 1–1.4 px wide on screen at any size.
+ */
+
+.sky {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(960px + var(--page-padding-x) * 2);
+  margin: 0 auto;
+  padding: 72px var(--page-padding-x) 120px;
+  color: var(--text);
+}
+
+.sky.is-opening {
+  animation: sky-open calc(var(--duration) * 2) var(--ease) both;
+}
+
+@keyframes sky-open {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.sky-head {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.sky-kicker {
+  margin: 0 0 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-ui);
+}
+
+.sky-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+}
+
+.sky-date {
+  margin: 6px 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.sky-caption {
+  min-height: calc(var(--text-md) * var(--leading-body));
+  margin: 14px auto 0;
+  max-width: 70ch;
+  color: var(--text-tertiary);
+  font-family: var(--font-serif);
+  font-size: var(--text-md);
+  font-style: italic;
+  line-height: var(--leading-body);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.sky-caption button,
+.sky-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.sky-link {
+  color: var(--accent);
+  font-style: normal;
+}
+
+.sky-caption button:hover,
+.sky-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sky-caption button:focus-visible,
+.sky-link:focus-visible,
+.sky-name:focus-visible,
+.sky-earlier-item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+.sky-problem {
+  margin: 96px auto;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ---- earlier skies ---- */
+
+.sky-earlier {
+  margin-top: 48px;
+}
+
+.sky-earlier-title {
+  margin: 0 0 14px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  text-align: center;
+}
+
+.sky-earlier-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sky-earlier-item {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--radius-m);
+  background: transparent;
+  color: var(--text-tertiary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sky-earlier-item:hover {
+  background: var(--bg-hover);
+}
+
+.sky-earlier-item span {
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.sky-back {
+  display: block;
+  margin: 18px auto 0;
+}
+
+/* ---- the chart ---- */
+
+.sky-chart {
+  position: relative;
+  width: 100%;
+  container-type: inline-size;
+}
+
+.sky-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.sky-svg path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sky-svg * {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.sky-svg .grid-l {
+  stroke: var(--text-tertiary);
+  stroke-width: calc(var(--px) * 0.7);
+  opacity: 0.2;
+}
+
+.sky-svg .wheel {
+  fill: none;
+  stroke: var(--text-tertiary);
+  stroke-width: calc(var(--px) * 0.8);
+  opacity: 0.32;
+}
+
+.sky-svg .tick {
+  stroke: var(--text-tertiary);
+  stroke-width: calc(var(--px) * 0.8);
+  opacity: 0.4;
+}
+
+.sky-svg .fs {
+  fill: var(--text-tertiary);
+  opacity: 0.4;
+}
+
+.sky-svg .fs.is-dark {
+  opacity: 0.22;
+}
+
+.sky-svg .cl {
+  stroke: var(--text-secondary);
+  stroke-width: calc(var(--px) * 1.1);
+}
+
+.sky-svg .glint {
+  stroke-width: calc(var(--px) * 0.9);
+  opacity: 0.75;
+}
+
+.sky-svg .glint.is-strong {
+  stroke: var(--accent);
+}
+
+.sky-svg .st,
+.sky-svg .n-star {
+  fill: var(--text);
+}
+
+.sky-svg .st.is-loose {
+  fill: var(--text-secondary);
+}
+
+.sky-svg .hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.sky-svg .grain {
+  fill: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.sky-svg .halo {
+  stroke: var(--accent);
+  stroke-width: calc(var(--px) * 0.9);
+  opacity: 0.35;
+}
+
+.sky-svg .moon-halo {
+  opacity: 0.4;
+}
+
+.sky-svg .moon-halo.is-thin {
+  stroke-width: calc(var(--px) * 0.6);
+}
+
+.sky-svg .ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: calc(var(--px) * 0.9);
+  opacity: 0.5;
+}
+
+.sky-svg .accent-star {
+  fill: var(--accent);
+}
+
+.sky-svg .sparkle {
+  stroke: var(--accent);
+  stroke-width: calc(var(--px) * 1);
+  opacity: 0;
+}
+
+.sky-svg .moonr {
+  fill: none;
+  stroke: var(--text-tertiary);
+  stroke-width: calc(var(--px) * 0.7);
+  opacity: 0.5;
+}
+
+.sky-svg .moonw {
+  fill: var(--moon);
+  stroke: none;
+}
+
+.sky-svg .moonl {
+  fill: none;
+  stroke: var(--text-secondary);
+  stroke-width: calc(var(--px) * 1);
+}
+
+.sky-svg .copper {
+  fill: var(--copper);
+}
+
+.sky-svg .umbra {
+  fill: var(--scrim);
+}
+
+.sky-svg .meteor {
+  stroke: var(--text);
+  stroke-width: calc(var(--px) * 1.1);
+  opacity: 0;
+}
+
+.sky-svg .meteor-tail {
+  stroke: var(--text-tertiary);
+  stroke-width: calc(var(--px) * 2.6);
+  opacity: 0;
+}
+
+.sky-svg .trail {
+  stroke: var(--text-tertiary);
+  stroke-width: calc(var(--px) * 0.9);
+  opacity: 0;
+}
+
+.sky-svg .comet-head {
+  fill: var(--text);
+}
+
+.sky-svg .comet-tail {
+  stroke: var(--text-tertiary);
+  stroke-width: calc(var(--px) * 0.9);
+}
+
+.sky-svg .sat {
+  fill: var(--text);
+}
+
+.sky-svg .cloud {
+  fill: var(--bg-solid);
+  stroke: var(--text-tertiary);
+  stroke-width: calc(var(--px) * 0.25);
+}
+
+.sky-svg .bird {
+  stroke: var(--text-secondary);
+  stroke-width: calc(var(--px) * 0.9);
+}
+
+.sky-svg .fly {
+  fill: var(--accent);
+  opacity: 0.2;
+}
+
+.sky-svg .burst {
+  stroke: var(--accent);
+  stroke-width: calc(var(--px) * 0.9);
+  opacity: 0;
+}
+
+.sky-svg .across {
+  opacity: 0;
+}
+
+/* A miniature: its lines a touch bolder, since a unit is a fraction of a pixel. */
+.is-small .sky-svg .cl {
+  stroke-width: calc(var(--px) * 0.9);
+}
+
+/* ---- the names of the constellations, and what is under the pointer ---- */
+
+.sky-name-slot {
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.sky-name {
+  padding: 1px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: var(--font-serif);
+  font-size: clamp(10px, 1.45cqi, 14px);
+  font-style: italic;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sky-name:hover {
+  color: var(--text-secondary);
+}
+
+.sky-lines,
+.sky-tip {
+  position: absolute;
+  z-index: 2;
+  width: max-content;
+  max-width: min(320px, 70cqi);
+  padding: 8px 12px;
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.sky-lines {
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 4px;
+}
+
+.sky-lines p {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: var(--weight-regular);
+}
+
+.sky-lines .sky-lines-more {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.sky-tip {
+  transform: translate(-50%, calc(-100% - 12px));
+  display: grid;
+  gap: 2px;
+}
+
+.sky-tip-day {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.sky-tip-line {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-regular);
+}
+
+/* ---- motion: everything rests on its last frame; .sky-play runs what the timeline names ---- */
+
+@keyframes sky-draw {
+  from {
+    stroke-dashoffset: 1.02;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes sky-fadein {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sky-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+@keyframes sky-sparkle {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-40deg);
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.2) rotate(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.15) rotate(22deg);
+  }
+}
+@keyframes sky-inkset {
+  0% {
+    fill: var(--accent);
+  }
+  100% {
+    fill: var(--text);
+  }
+}
+@keyframes sky-inkset-loose {
+  0% {
+    fill: var(--accent);
+  }
+  100% {
+    fill: var(--text-secondary);
+  }
+}
+@keyframes sky-handoff {
+  0%,
+  100% {
+    fill: var(--text);
+    transform: none;
+  }
+  30% {
+    fill: var(--accent);
+    transform: scale(1.5);
+  }
+}
+@keyframes sky-breathe {
+  0%,
+  100% {
+    transform: none;
+  }
+  45% {
+    transform: scale(1.8);
+    fill: var(--accent);
+  }
+}
+@keyframes sky-glowline {
+  0%,
+  100% {
+    stroke: var(--text-secondary);
+  }
+  45% {
+    stroke: var(--accent);
+  }
+}
+@keyframes sky-write {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes sky-land {
+  0% {
+    opacity: 0;
+    transform: translate(26px, 18px);
+  }
+  70% {
+    opacity: 0.9;
+    transform: scale(1.9);
+  }
+  100% {
+    opacity: 0.6;
+    transform: none;
+  }
+}
+@keyframes sky-trail {
+  0% {
+    opacity: 0.7;
+    stroke-dashoffset: 1.02;
+  }
+  60% {
+    opacity: 0.5;
+    stroke-dashoffset: 0;
+  }
+  100% {
+    opacity: 0;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes sky-meteor {
+  0% {
+    opacity: 1;
+    stroke-dashoffset: 0.28;
+  }
+  100% {
+    opacity: 0;
+    stroke-dashoffset: -1;
+  }
+}
+@keyframes sky-settle {
+  0% {
+    opacity: 0.9;
+    stroke-dashoffset: 1.02;
+  }
+  60% {
+    opacity: 0.9;
+    stroke-dashoffset: 0;
+  }
+  100% {
+    opacity: 0.35;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes sky-pulse {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.35);
+  }
+}
+@keyframes sky-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes sky-across {
+  0% {
+    opacity: 0;
+    transform: translateX(var(--from, -360px));
+  }
+  10%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(var(--to, 360px));
+  }
+}
+@keyframes sky-shadow {
+  from {
+    transform: translateX(-60px);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes sky-flicker {
+  0%,
+  100% {
+    opacity: 0.05;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@keyframes sky-burst {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 1.02;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes sky-cometmove {
+  from {
+    transform: translate(18px, -8px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes sky-sweep {
+  0% {
+    stroke: var(--text-tertiary);
+    opacity: 0.2;
+  }
+  40% {
+    stroke: var(--accent);
+    opacity: 0.7;
+  }
+  100% {
+    stroke: var(--text-tertiary);
+    opacity: 0.2;
+  }
+}
+
+.sky-svg .pulse {
+  animation: sky-pulse calc(var(--duration) * 14) ease-in-out infinite;
+}
+.sky-svg .pulse.is-late {
+  animation-delay: calc(var(--duration) * -7);
+}
+.sky-svg .flicker {
+  animation: sky-flicker var(--d, 3s) ease-in-out var(--o, 0s) infinite;
+}
+
+.sky-play .dash {
+  stroke-dasharray: 1 2;
+  animation: sky-draw calc(var(--duration) * var(--n, 6)) ease-in-out calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .fade {
+  animation: sky-fadein calc(var(--duration) * var(--n, 3)) var(--ease) calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .pop {
+  animation: sky-pop calc(var(--duration) * var(--n, 2)) var(--ease) calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .n-star.pop {
+  animation-name: sky-pop, sky-inkset;
+  animation-duration: calc(var(--duration) * 2), calc(var(--duration) * 16);
+  animation-timing-function: var(--ease), ease-in;
+  animation-delay: calc(var(--duration) * var(--w, 0)), calc(var(--duration) * (var(--w, 0) + 0.5));
+  animation-fill-mode: both, both;
+}
+.sky-play .n-star.is-loose.pop {
+  animation-name: sky-pop, sky-inkset-loose;
+}
+.sky-play .sparkle {
+  animation: sky-sparkle calc(var(--duration) * var(--n, 4.5)) var(--ease) calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .handoff {
+  animation: sky-handoff calc(var(--duration) * var(--n, 4)) var(--ease) calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .breathe {
+  animation: sky-breathe calc(var(--duration) * var(--n, 7)) ease-in-out calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .glowline {
+  animation: sky-glowline calc(var(--duration) * var(--n, 9)) ease-in-out calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .land {
+  animation: sky-land calc(var(--duration) * var(--n, 5)) var(--ease) calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .trail {
+  stroke-dasharray: 1 2;
+  animation: sky-trail calc(var(--duration) * var(--n, 4)) ease-out calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .meteor,
+.sky-play .meteor-tail {
+  stroke-dasharray: 0.28 1.3;
+  animation: sky-meteor calc(var(--duration) * var(--n, 4)) cubic-bezier(0.3, 0.1, 0.5, 1) calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .settle {
+  stroke-dasharray: 1 2;
+  animation: sky-settle calc(var(--duration) * var(--n, 5)) ease-in-out calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .rise {
+  animation: sky-rise calc(var(--duration) * var(--n, 6)) var(--ease) calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .across {
+  animation: sky-across calc(var(--duration) * var(--n, 40)) linear calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .shadow {
+  animation: sky-shadow calc(var(--duration) * var(--n, 16)) ease-in-out calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .burst {
+  stroke-dasharray: 1 2;
+  animation: sky-burst calc(var(--duration) * var(--n, 5)) ease-out calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .cometmove {
+  animation: sky-cometmove calc(var(--duration) * var(--n, 10)) var(--ease) calc(var(--duration) * var(--w, 0)) both;
+}
+.sky-play .sweep {
+  animation: sky-sweep calc(var(--duration) * var(--n, 10)) ease-in-out calc(var(--duration) * var(--w, 0)) both;
+}
+/* The names are HTML over the drawing; they follow the same timeline. */
+.sky-chart:has(.sky-play) .sky-name.write {
+  animation: sky-write calc(var(--duration) * var(--n, 6)) ease-in-out calc(var(--duration) * var(--w, 0)) both;
+}
+
+/* Less motion: what is new is simply there, after a short fade, and nothing travels or blinks. */
+.sky-reduced-play {
+  animation: sky-fadein 0.5s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sky.is-opening {
+    animation: sky-fadein 0.5s ease both;
+  }
+  .sky-svg .ephemeral {
+    display: none;
+  }
+  .sky-svg .pulse,
+  .sky-svg .flicker {
+    animation: none;
+  }
+}

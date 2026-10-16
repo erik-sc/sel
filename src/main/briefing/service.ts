@@ -117,6 +117,17 @@ export class BriefingService {
     return this.build()
   }
 
+  /**
+   * The stored events of the enabled calendars that overlap [from, to), for the alarms. A
+   * calendar that is due (the same 15 minutes as for the briefing) is read in the background, so
+   * the alarms keep it fresh while no window looks at Today; with none connected nothing is fetched.
+   */
+  upcoming(from: number, to: number): BriefingEvent[] {
+    const { calendars } = this.deps
+    if (calendars.stale()) void calendars.refresh(false)
+    return calendars.events(from, to)
+  }
+
   build(): Briefing {
     const nowMs = this.now()
     const now = new Date(nowMs)
@@ -178,9 +189,11 @@ export class BriefingService {
   /** The task databases the settings allow, each followed by its rows. */
   private taskBlocks(databases: Block[], phrasesDb: Block | null, chosen: readonly string[] | null): TaskBlock[] {
     const wanted = chosen ? new Set(chosen) : null
+    // An archived database (or one inside an archived page) is put away: its tasks are not due anywhere.
+    const archived = this.repo.archivedAmong(databases.map((database) => database.id))
     const blocks: TaskBlock[] = []
     for (const database of databases) {
-      if (database.id === phrasesDb?.id || (wanted && !wanted.has(database.id))) continue
+      if (database.id === phrasesDb?.id || (wanted && !wanted.has(database.id)) || archived.has(database.id)) continue
       // Only databases that can say "done" have their rows loaded.
       if (!detectSignal(database.props)) continue
       blocks.push(database)

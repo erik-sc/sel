@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { goBack, goForward } from '@/store/tabs'
 import { setFocusMode, setQuickFindOpen, useUi } from '@/store/ui'
-import { openFind } from './findStore'
 import { IS_MAC } from '@/ui/platform'
 import { openPalette } from '@/commands/store'
 import { openShortcuts } from '@/shortcuts/gate'
@@ -58,7 +57,7 @@ export function useShellCommands(): void {
         // On a Mac, Ctrl+F stays the text fields' "one character forward".
         // Main delivers Ctrl+F as a command; this catches it when the key reaches the page instead.
         event.preventDefault()
-        openFind(window.getSelection()?.toString())
+        runMenuCommand('find-in-page')
       }
     }
 

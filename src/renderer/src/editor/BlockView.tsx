@@ -14,6 +14,7 @@ import { isSelected } from './selection'
 import { textSel } from './types'
 import { EditableText } from './EditableText'
 import { BookmarkBlock, CalloutIcon, CodeBlock, ImageBlock, PageLinkBlock } from './blocks'
+import { EquationBlock } from './EquationBlock'
 import { AiSlot } from '../ai/slot'
 
 export const BlockList = memo(function BlockList({ ids }: { ids: string[] }): JSX.Element {
@@ -103,6 +104,7 @@ const BlockView = memo(function BlockView({ block, number }: { block: Block; num
       </>
     )
   } else if (type === 'code') body = <CodeBlock block={block} />
+  else if (type === 'equation') body = <EquationBlock block={block} />
   else if (type === 'divider') body = <div className="blk-divider-line" role="separator" />
   else if (type === 'image') body = <ImageBlock block={block} />
   else if (type === 'bookmark') body = <BookmarkBlock block={block} />

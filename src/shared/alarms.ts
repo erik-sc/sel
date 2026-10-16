@@ -1,6 +1,7 @@
 /**
- * Alarms: the times of day Herman briefs the user (with a sound, and aloud if they like), and
- * the reminders of tasks that carry a time. The main process keeps the clock (src/main/alarms):
+ * Alarms: the times of day Herman briefs the user (with a sound, and aloud if they like), the
+ * reminders of tasks that carry a time, and the calendar's events a few minutes before they
+ * start (a meeting asks whether to record it). The main process keeps the clock (src/main/alarms):
  * it decides when, composes what is said from what the app already knows, and hands it to a
  * window, which plays the sound, shows Herman's bubble and speaks. Nothing is fetched for it,
  * and a model is asked only when the user turned the AI briefing on.
@@ -30,11 +31,23 @@ export interface AlarmSettings {
   ai: boolean
   /** Tasks with a reminder or a due time are announced when it comes. */
   reminders: boolean
+  /** The calendar's timed events are announced `eventLead` minutes before they start. */
+  events: boolean
+  eventLead: EventLead
+  /** Which events ask whether to record them: meetings only, every timed event, or none. */
+  askRecord: AskRecord
   /** sel keeps running in the notification area when its windows are closed, so alarms still ring. */
   tray: boolean
   /** sel starts with the system (in the notification area, when `tray` is on). */
   openAtLogin: boolean
 }
+
+/** Minutes before an event it is announced. */
+export const EVENT_LEADS = [0, 5, 10, 15] as const
+export type EventLead = (typeof EVENT_LEADS)[number]
+
+export const ASK_RECORD = ['meetings', 'all', 'never'] as const
+export type AskRecord = (typeof ASK_RECORD)[number]
 
 export const ALARM_DEFAULTS: AlarmSettings = {
   times: [],
@@ -43,16 +56,41 @@ export const ALARM_DEFAULTS: AlarmSettings = {
   voiceName: null,
   ai: false,
   reminders: true,
+  events: true,
+  eventLead: 5,
+  askRecord: 'meetings',
   tray: false,
   openAtLogin: false
 }
 
 export const MAX_ALARM_TIMES = 12
+/** "Snooze" puts an announcement off this long. */
+export const SNOOZE_MS = 10 * 60_000
 
-/** Something said at a moment the user chose: the briefing at one of its times, or a task's reminder. */
+/** The event an announcement is about: what a meeting page is made from. */
+export interface AnnouncedEvent {
+  /** The occurrence's id in the calendar cache. */
+  id: string
+  /** The event's UID, which the meeting page remembers (`props.meetingEvent`). */
+  uid?: string
+  title: string
+  start: number
+  end: number
+  location?: string
+  description?: string
+  meetingUrl?: string
+  /** A meeting (someone else invited, or a call's link). */
+  meeting: boolean
+  /** Offer to record it: [Record] [Just notes] [Not now]. */
+  ask: boolean
+}
+
+/** Something said at a moment the user chose: the briefing at one of its times, a task's reminder, or an event about to start. */
 export interface Announcement {
   id: string
-  kind: 'briefing' | 'reminder'
+  kind: 'briefing' | 'reminder' | 'event'
+  /** A short heading for the system's notification ("Reminder", "Meeting in 5 min"). */
+  title?: string
   /** What the bubble shows. */
   text: string
   /** What is read aloud (the same words, without what only reads well). */
@@ -64,6 +102,10 @@ export interface Announcement {
   voiceName: string | null
   /** The task to open from a reminder. */
   pageId?: string
+  /** The event it announces. */
+  event?: AnnouncedEvent
+  /** It can be put off ten minutes (`alarms.snooze`): reminders and events. */
+  snooze?: boolean
   /** True when the text came from the AI. */
   ai?: boolean
   /** When it was due (ms). */
@@ -75,6 +117,8 @@ export interface AlarmsApi {
   pending(): Promise<Announcement | null>
   /** The window has shown it: no other window needs to. */
   heard(id: string): Promise<void>
+  /** Says it again in ten minutes (a reminder or an event only). */
+  snooze(id: string): Promise<void>
   /** Gives the briefing now, as it would be at its time ("Try it"). */
   test(): Promise<void>
   /** `alarms:announce`: something to say now. Returns an unsubscribe function. */
@@ -92,12 +136,17 @@ export const ALARMS_SETTING: Record<keyof AlarmSettings, string> = {
   voiceName: 'alarms.voiceName',
   ai: 'alarms.ai',
   reminders: 'alarms.reminders',
+  events: 'alarms.events',
+  eventLead: 'alarms.eventLead',
+  askRecord: 'alarms.askRecord',
   tray: 'alarms.tray',
   openAtLogin: 'alarms.openAtLogin'
 }
 
 /** What the main process remembers: when each alarm and reminder last rang. Never written by a renderer. */
 export const ALARMS_FIRED_KEY = 'alarms.fired'
+/** What was put off, and until when. Never written by a renderer. */
+export const ALARMS_SNOOZED_KEY = 'alarms.snoozed'
 
 /** The keys a renderer may write. None of them is synced: alarms belong to this device. */
 export const ALARMS_KEYS = Object.values(ALARMS_SETTING)
@@ -144,9 +193,14 @@ export function cleanAlarmsSetting(key: string, value: unknown): unknown {
     case ALARMS_SETTING.voice:
     case ALARMS_SETTING.ai:
     case ALARMS_SETTING.reminders:
+    case ALARMS_SETTING.events:
     case ALARMS_SETTING.tray:
     case ALARMS_SETTING.openAtLogin:
       return typeof value === 'boolean' ? value : undefined
+    case ALARMS_SETTING.eventLead:
+      return (EVENT_LEADS as readonly unknown[]).includes(value) ? value : undefined
+    case ALARMS_SETTING.askRecord:
+      return (ASK_RECORD as readonly unknown[]).includes(value) ? value : undefined
     default:
       return undefined
   }

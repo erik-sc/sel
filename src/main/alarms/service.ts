@@ -1,14 +1,31 @@
-import { ALARMS_FIRED_KEY, readAlarmSettings, type AlarmSettings, type Announcement } from '../../shared/alarms'
-import type { Briefing } from '../../shared/briefing'
+import { ALARMS_FIRED_KEY, ALARMS_SNOOZED_KEY, readAlarmSettings, type AlarmSettings, type AnnouncedEvent, type Announcement } from '../../shared/alarms'
+import type { Briefing, BriefingEvent } from '../../shared/briefing'
 import type { Block } from '../../shared/types'
-import { composeBriefing, composeReminder, type AlarmLocale } from './compose'
+import { composeBriefing, composeEvents, composeReminder, reminderTitle, type AlarmLocale } from './compose'
+import {
+  addSnoozed,
+  announcedEvent,
+  asksToRecord,
+  dueEventAlarms,
+  eventAlarmsOf,
+  EVENTS_AHEAD_MS,
+  EVENTS_BEHIND_MS,
+  nextEventAlarmAt,
+  nextSnoozedAt,
+  readSnoozed,
+  snoozeOf,
+  takeDueSnoozed,
+  type EventAlarm,
+  type SnoozeSource,
+  type Snoozed
+} from './events'
 import { dueReminders, nextReminderAt, remindersOf, type Reminder } from './reminders'
 import { dueAlarm, markAlarms, nextAlarmAt, readFired, waitFor, type Fired } from './schedule'
 
 /**
  * The clock of the alarms: one timer, set for the next moment something is due (a briefing time,
- * a task's reminder) and looked at again whenever the settings, the tasks or the clock may have
- * changed. Free of Electron: the settings store, the day, the windows and the AI come in through
+ * a task's reminder, an event a few minutes ahead, something snoozed) and looked at again
+ * whenever the settings, the tasks, the calendar or the clock may have changed. Free of Electron: the settings store, the day, the windows and the AI come in through
  * `AlarmsDeps` (see ./index.ts).
  */
 
@@ -21,6 +38,10 @@ export const AI_TIMEOUT_MS = 45_000
 const RECORDING_RETRY_MS = MINUTE
 /** An announcement no window has taken stays offered this long (a window opened for it asks). */
 const PENDING_MS = 10 * MINUTE
+/** The calendar's events are asked for again this often (the calendar decides when it is read). */
+const EVENTS_REFRESH_MS = MINUTE
+/** How many of the latest announcements can still be snoozed. */
+const SNOOZABLE = 20
 
 export interface AlarmsDeps {
   getSetting(key: string): unknown
@@ -32,6 +53,11 @@ export interface AlarmsDeps {
   briefing(): Promise<Briefing>
   /** The built-in Tasks database and its rows, when it exists. */
   tasks(): { database: Block; rows: Block[] } | null
+  /**
+   * The stored events of the calendars that overlap [from, to). A calendar that is due (every
+   * 15 minutes, as for the briefing) is read in the background.
+   */
+  calendar?(from: number, to: number): Promise<BriefingEvent[]>
   locale(): AlarmLocale
   /** A meeting is being recorded. */
   recording(): boolean
@@ -48,6 +74,11 @@ export class AlarmsService {
   /** The AI's briefing for the alarm due at `at`, being written or written. */
   private prepared: { at: number; text: Promise<string | null>; abort: AbortController } | null = null
   private stopped = false
+  /** The calendar's events around now, as last asked for. */
+  private calendar: { events: BriefingEvent[]; at: number; key: string } | null = null
+  private asking = false
+  /** What was said lately that can be snoozed, by announcement id. */
+  private readonly said = new Map<string, SnoozeSource>()
 
   constructor(private readonly deps: AlarmsDeps) {}
 
@@ -82,6 +113,48 @@ export class AlarmsService {
     }
   }
 
+  private snoozed(): Snoozed[] {
+    try {
+      return readSnoozed(this.deps.getSetting(ALARMS_SNOOZED_KEY), this.deps.now())
+    } catch {
+      return []
+    }
+  }
+
+  private keepSnoozed(list: Snoozed[]): void {
+    try {
+      this.deps.setSetting(ALARMS_SNOOZED_KEY, list.length ? list : null)
+    } catch (err) {
+      this.deps.log('could not remember what was snoozed', err)
+    }
+  }
+
+  /** The events that ring, from what the calendar said last; it is asked again once that is a minute old. */
+  private eventAlarms(settings: AlarmSettings, now: number): EventAlarm[] {
+    if (!settings.events || !this.deps.calendar) return []
+    if (!this.calendar || now - this.calendar.at >= EVENTS_REFRESH_MS || now < this.calendar.at) void this.askCalendar()
+    return eventAlarmsOf(this.calendar?.events ?? [], settings.eventLead)
+  }
+
+  private async askCalendar(): Promise<void> {
+    const ask = this.deps.calendar
+    if (!ask || this.asking) return
+    this.asking = true
+    const at = this.deps.now()
+    let events = this.calendar?.events ?? []
+    try {
+      events = await ask(at - EVENTS_BEHIND_MS, at + EVENTS_AHEAD_MS)
+    } catch (err) {
+      this.deps.log('could not read the calendar', err)
+    }
+    const key = events.map((event) => [event.id, event.end, event.attendees ?? 0, event.transparent ? 1 : 0].join('|')).join(' ')
+    const changed = key !== this.calendar?.key
+    this.calendar = { events, at, key }
+    this.asking = false
+    // What the calendar holds decides the next ring: the clock is looked at again when it changed.
+    if (changed) this.plan()
+  }
+
   /** Looks at the clock: rings what is due, and sets the timer for what comes next. */
   plan(): void {
     if (this.stopped) return
@@ -93,8 +166,11 @@ export class AlarmsService {
     let wait: number | null = null
 
     const reminders = this.reminders(settings)
+    const events = this.eventAlarms(settings, now)
+    const snoozed = this.snoozed()
     const due = dueAlarm(settings.times, fired, now)
-    const ringing = due !== null || dueReminders(reminders, fired, now).length > 0
+    const ringing =
+      due !== null || dueReminders(reminders, fired, now).length > 0 || dueEventAlarms(events, fired, now).length > 0 || takeDueSnoozed(snoozed, now).due.length > 0
     if (ringing && this.deps.recording()) {
       wait = RECORDING_RETRY_MS
     } else {
@@ -109,19 +185,37 @@ export class AlarmsService {
         this.remember(fired)
         this.giveReminders(settings, reminding)
       }
+      const starting = dueEventAlarms(events, fired, now)
+      if (starting.length) {
+        for (const e of starting) fired[e.key] = e.at
+        this.remember(fired)
+        // A meeting goes first: it is the one that may be recorded.
+        const ordered = [...starting].sort((a, b) => Number(b.meeting) - Number(a.meeting) || a.event.start - b.event.start)
+        const announced = ordered.map((e) => announcedEvent(e.event, e.meeting, asksToRecord(settings.askRecord, e.meeting)))
+        this.giveEvents(settings, announced, starting[0].at)
+      }
+      const { due: back, waiting } = takeDueSnoozed(snoozed, now)
+      if (back.length || waiting.length !== snoozed.length) this.keepSnoozed(waiting)
+      for (const entry of back) {
+        if (entry.kind === 'reminder') this.giveReminders(settings, entry.reminders, entry.at)
+        else this.giveEvents(settings, entry.events.map((event) => ({ ...event, ask: asksToRecord(settings.askRecord, event.meeting) })), entry.at)
+      }
     }
 
     const nextAlarm = nextAlarmAt(settings.times, now)
     let next = nextAlarm
-    const nextReminder = nextReminderAt(reminders, now)
-    if (nextReminder !== null && (next === null || nextReminder < next)) next = nextReminder
+    for (const candidate of [nextReminderAt(reminders, now), nextEventAlarmAt(events, now), nextSnoozedAt(snoozed, now)]) {
+      if (candidate !== null && (next === null || candidate < next)) next = candidate
+    }
     if (settings.ai && nextAlarm !== null && this.deps.writeBriefing) {
       const prepareAt = nextAlarm - PREPARE_MS
       if (prepareAt <= now) this.prepare(nextAlarm)
       else if (next === null || prepareAt < next) next = prepareAt
     }
-    // Tasks change without telling the clock (edits, sync): with reminders on it looks again every minute.
-    const ms = wait ?? waitFor(next, now, settings.reminders ? MINUTE : undefined)
+    // Tasks and calendars change without telling the clock (edits, sync, a calendar read): with
+    // reminders or events on it looks again every minute.
+    const watching = settings.reminders || (settings.events && !!this.deps.calendar)
+    const ms = wait ?? waitFor(next, now, watching ? MINUTE : undefined)
     this.timer = this.deps.timers.set(() => this.plan(), ms)
   }
 
@@ -194,13 +288,16 @@ export class AlarmsService {
     }
   }
 
-  private giveReminders(settings: AlarmSettings, reminders: readonly Reminder[]): void {
+  private giveReminders(settings: AlarmSettings, reminders: readonly Reminder[], at?: number): void {
     const locale = this.deps.locale()
     const said = reminders.map((r) => composeReminder(r, locale))
     const first = reminders[0]
+    const id = this.deps.id()
+    this.keepSaid(id, { kind: 'reminder', reminders: [...reminders] })
     this.announce({
-      id: this.deps.id(),
+      id,
       kind: 'reminder',
+      title: reminderTitle(locale),
       text: said.map((s) => s.text).join(' '),
       speech: said.map((s) => s.speech).join(' '),
       locale,
@@ -209,8 +306,40 @@ export class AlarmsService {
       voiceName: settings.voiceName,
       // One reminder opens its task; several open none (the bubble lists them).
       ...(reminders.length === 1 ? { pageId: first.rowId } : {}),
-      at: first.at
+      snooze: true,
+      at: at ?? first.at
     })
+  }
+
+  /** Events about to start: the first is the one announced (and, when it asks, offered to record). */
+  private giveEvents(settings: AlarmSettings, events: AnnouncedEvent[], at: number): void {
+    if (!events.length) return
+    const locale = this.deps.locale()
+    const { title, text, speech } = composeEvents(events, this.deps.now(), locale)
+    const id = this.deps.id()
+    this.keepSaid(id, { kind: 'event', events })
+    this.announce({
+      id,
+      kind: 'event',
+      title,
+      text,
+      speech,
+      locale,
+      sound: settings.sound,
+      voice: settings.voice,
+      voiceName: settings.voiceName,
+      event: events[0],
+      snooze: true,
+      at
+    })
+  }
+
+  private keepSaid(id: string, source: SnoozeSource): void {
+    this.said.set(id, source)
+    for (const old of this.said.keys()) {
+      if (this.said.size <= SNOOZABLE) break
+      this.said.delete(old)
+    }
   }
 
   private announce(announcement: Announcement): void {
@@ -234,6 +363,17 @@ export class AlarmsService {
 
   heard(id: unknown): void {
     if (typeof id === 'string' && this.pending?.announcement.id === id) this.pending = null
+  }
+
+  /** "Snooze": what was said under `id` is said again in ten minutes (a reminder or an event). */
+  snooze(id: unknown): void {
+    if (typeof id !== 'string') return
+    const source = this.said.get(id)
+    if (!source) return
+    this.said.delete(id)
+    if (this.pending?.announcement.id === id) this.pending = null
+    this.keepSnoozed(addSnoozed(this.snoozed(), snoozeOf(source, this.deps.now())))
+    this.plan()
   }
 
   stop(): void {

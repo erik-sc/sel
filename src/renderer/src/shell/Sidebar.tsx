@@ -1,29 +1,17 @@
-import { memo, useRef, useState } from 'react'
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react'
-import { useTree } from '@/store/tree'
-import {
-  SIDEBAR_MAX,
-  SIDEBAR_MIN,
-  setQuickFindOpen,
-  setSettingsOpen,
-  setSidebarWidth,
-  toggleSidebar,
-  useUi
-} from '@/store/ui'
+import { memo, useState } from 'react'
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import { resolveSidebar, type SidebarItemId } from '@shared/sidebar'
+import { SIDEBAR_MAX, SIDEBAR_MIN, setSidebarWidth, toggleSidebar, useUi } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
-import { Calendar, Check, ChevronLeft, Clock, Feedback, Mic, Moon, Pen, Plus, Search, Settings, Trash } from '@/ui/icons'
-import { openFeedback } from '@/feedback/gate'
-import { preloadFeedback } from '@/feedback/Host'
-import { openCalendar, openToday } from '@/briefing/route'
-import { openCloseDay, openNotebook } from '@/notebook/route'
-import { openTasks, preloadTasks } from '@/tasks/gate'
-import { newMeeting } from '@/meetings/gate'
-import { MOD_KEY } from '@/ui/platform'
-import { createPage, reportError } from './actions'
-import { PageRow, PageTree } from './PageTree'
-import { preloadSettings } from './SettingsModal'
-import { TrashPopover, preloadTrash } from './TrashPopover'
-import { SyncIndicator } from '@/sync/SyncIndicator'
+import { Menu } from '@/ui/Menu'
+import { Popover } from '@/ui/Popover'
+import { ChevronLeft } from '@/ui/icons'
+import { ArchivePopover } from '@/archive/ArchivePopover'
+import { TrashPopover } from './TrashPopover'
+import { SIDEBAR_ITEM_DEFS, useAvailableItem } from './sidebarItems'
+import { customizeSidebar, setSidebarItemHidden, useLayout, useSidebarCopy } from './sidebarLayout'
+import { closeSidebarPanel, useSidebarPanel } from './sidebarPanels'
+import './sidebar.css'
 
 /** Pixels the divider moves per arrow key press. */
 const RESIZE_STEP = 16
@@ -95,15 +83,61 @@ function Resizer() {
   )
 }
 
+/** One item, with the right-click menu that hides it or opens the sidebar's settings. */
+function Item({ id, onMenu }: { id: SidebarItemId; onMenu: (id: SidebarItemId, x: number, y: number) => void }) {
+  const { Render } = SIDEBAR_ITEM_DEFS[id]
+  return (
+    <div
+      className="sidebar-item"
+      data-sidebar-item={id}
+      onContextMenu={(event) => {
+        // A page row has a menu of its own.
+        if (event.defaultPrevented) return
+        event.preventDefault()
+        onMenu(id, event.clientX, event.clientY)
+      }}
+    >
+      <Render />
+    </div>
+  )
+}
+
+/** The items of the top or the footer. Settings with Sync right after it share a row, as they always have. */
+function Items({ ids, onMenu }: { ids: SidebarItemId[]; onMenu: (id: SidebarItemId, x: number, y: number) => void }) {
+  const out: ReactNode[] = []
+  for (let index = 0; index < ids.length; index++) {
+    const id = ids[index]
+    if (id === 'settings' && ids[index + 1] === 'sync') {
+      out.push(
+        <div key="settings+sync" className="sync-footer-row">
+          <Item id="settings" onMenu={onMenu} />
+          <Item id="sync" onMenu={onMenu} />
+        </div>
+      )
+      index++
+    } else if (id === 'sync') {
+      out.push(
+        <div key="sync" className="sync-footer-row">
+          <Item id="sync" onMenu={onMenu} />
+        </div>
+      )
+    } else out.push(<Item key={id} id={id} onMenu={onMenu} />)
+  }
+  return out
+}
+
 // Memoised: the shell re-renders on every frame of a sidebar resize; its panels need not.
 export const Sidebar = memo(function Sidebar() {
   // Focus mode hides it the way collapsing does, without changing whether it is collapsed.
   const collapsed = useUi((state) => state.sidebarCollapsed || state.focusMode)
-  const favorites = useTree((state) => state.favorites)
-  const trashRef = useRef<HTMLButtonElement>(null)
-  const [trashOpen, setTrashOpen] = useState(false)
-
-  const newRootPage = (): void => void createPage(null).catch(reportError('create the page'))
+  const copy = useSidebarCopy()
+  const layout = useLayout()
+  const available = useAvailableItem()
+  const { top, middle, footer } = resolveSidebar(layout, available)
+  const empty = top.length + middle.length + footer.length === 0
+  const panel = useSidebarPanel()
+  const [menu, setMenu] = useState<{ id: SidebarItemId; x: number; y: number } | null>(null)
+  const onMenu = (id: SidebarItemId, x: number, y: number): void => setMenu({ id, x, y })
 
   return (
     <aside className={collapsed ? 'sidebar glass is-collapsed' : 'sidebar glass'} aria-hidden={collapsed} inert={collapsed}>
@@ -113,111 +147,55 @@ export const Sidebar = memo(function Sidebar() {
             S
           </span>
           <span className="workspace-name">sel</span>
-          <IconButton label="Close sidebar" onClick={toggleSidebar}>
+          <IconButton label={copy.closeSidebar} onClick={toggleSidebar}>
             <ChevronLeft />
           </IconButton>
         </header>
 
-        <div className="sidebar-actions">
-          <button type="button" className="sidebar-action is-search" onClick={() => setQuickFindOpen(true)}>
-            <Search />
-            <span>Search</span>
-            <kbd>{MOD_KEY}P</kbd>
-          </button>
-          <button type="button" className="sidebar-action" onClick={openToday}>
-            <Clock />
-            <span>Today</span>
-          </button>
-          <button type="button" className="sidebar-action" onClick={openCalendar}>
-            <Calendar />
-            <span>Calendar</span>
-          </button>
-          <button type="button" className="sidebar-action" onPointerEnter={preloadTasks} onFocus={preloadTasks} onClick={openTasks}>
-            <Check />
-            <span>Tasks</span>
-          </button>
-          <button type="button" className="sidebar-action" onClick={openNotebook}>
-            <Pen />
-            <span>Ink notebook</span>
-          </button>
-          <button type="button" className="sidebar-action" onClick={openCloseDay}>
-            <Moon />
-            <span>Close the day</span>
-          </button>
-          <button type="button" className="sidebar-action" onClick={newRootPage}>
-            <Plus />
-            <span>New page</span>
-          </button>
-          <button type="button" className="sidebar-action" onClick={() => void newMeeting()}>
-            <Mic />
-            <span>New meeting</span>
-          </button>
-        </div>
-
-        <div className="sidebar-scroll">
-          {favorites.length > 0 && (
-            <section className="sidebar-section">
-              <div className="sidebar-section-title">Favorites</div>
-              <div role="tree">
-                {favorites.map((id) => (
-                  <PageRow key={id} id={id} depth={0} flat />
-                ))}
-              </div>
-            </section>
-          )}
-          <section className="sidebar-section is-grow">
-            <div className="sidebar-section-title">
-              <span>Private</span>
-              <IconButton size="small" label="Add a page" onClick={newRootPage}>
-                <Plus />
-              </IconButton>
-            </div>
-            <PageTree />
-          </section>
-        </div>
-
-        <footer className="sidebar-footer">
-          <button
-            type="button"
-            ref={trashRef}
-            className={trashOpen ? 'sidebar-action is-active' : 'sidebar-action'}
-            aria-haspopup="dialog"
-            aria-expanded={trashOpen}
-            onPointerEnter={preloadTrash}
-            onFocus={preloadTrash}
-            onClick={() => setTrashOpen((open) => !open)}
-          >
-            <Trash />
-            <span>Trash</span>
-          </button>
-          <button
-            type="button"
-            className="sidebar-action"
-            onPointerEnter={preloadFeedback}
-            onFocus={preloadFeedback}
-            onClick={() => openFeedback()}
-          >
-            <Feedback />
-            <span>Feedback</span>
-          </button>
-          <div className="sync-footer-row">
-            <button
-              type="button"
-              className="sidebar-action"
-              onPointerEnter={preloadSettings}
-              onFocus={preloadSettings}
-              onClick={() => setSettingsOpen(true)}
-            >
-              <Settings />
-              <span>Settings</span>
+        {empty ? (
+          <div className="sidebar-empty">
+            <span>{copy.empty}</span>
+            <span aria-hidden="true">·</span>
+            <button type="button" className="sidebar-empty-action" onClick={customizeSidebar}>
+              {copy.emptyAction}
             </button>
-            {/* Nothing at all until this device syncs; then a quiet icon that says how it is going. */}
-            <SyncIndicator />
           </div>
-        </footer>
+        ) : (
+          <>
+            {top.length > 0 && (
+              <div className="sidebar-actions">
+                <Items ids={top} onMenu={onMenu} />
+              </div>
+            )}
+            {/* Always there, even empty: it keeps the footer at the bottom. */}
+            <div className="sidebar-scroll">
+              {middle.map((id) => (
+                <Item key={id} id={id} onMenu={onMenu} />
+              ))}
+            </div>
+            {footer.length > 0 && (
+              <footer className="sidebar-footer">
+                <Items ids={footer} onMenu={onMenu} />
+              </footer>
+            )}
+          </>
+        )}
       </div>
       <Resizer />
-      <TrashPopover anchor={trashRef.current} open={trashOpen} onClose={() => setTrashOpen(false)} />
+      <TrashPopover anchor={panel.anchor} open={panel.open === 'trash'} onClose={closeSidebarPanel} />
+      <ArchivePopover anchor={panel.anchor} open={panel.open === 'archive'} onClose={closeSidebarPanel} />
+      {menu && (
+        <Popover open anchor={menu} onClose={() => setMenu(null)}>
+          <Menu
+            autoFocus
+            onClose={() => setMenu(null)}
+            items={[
+              { id: 'hide', label: copy.hide, onSelect: () => void setSidebarItemHidden(menu.id, true) },
+              { id: 'customize', label: copy.customize, onSelect: customizeSidebar }
+            ]}
+          />
+        </Popover>
+      )}
     </aside>
   )
 })
