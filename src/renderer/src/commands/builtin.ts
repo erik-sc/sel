@@ -60,6 +60,7 @@ const SETTINGS: [SettingsSection, string, string[]][] = [
   ['sync', 'Sync', ['git', 'devices', 'backup']],
   ['today', 'Today', ['calendar', 'briefing', 'bell', 'close the day']],
   ['meetings', 'Meetings', ['recording', 'transcription', 'whisper']],
+  ['pomodoro', 'Pomodoro', ['timer', 'focus', 'break', 'tomato']],
   ['mcp', 'MCP', ['connect', 'other apps', 'claude desktop', 'claude code', 'token']]
 ]
 

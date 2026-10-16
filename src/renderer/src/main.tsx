@@ -22,6 +22,7 @@ import { initSync } from './sync/store'
 import { initMeetings } from './meetings/gate'
 import { initUpdates } from './updates/store'
 import { initAlarms } from './alarms/gate'
+import { initPomodoro } from './pomodoro/gate'
 import { openTodayOnLaunch, routeTitle } from './briefing/route'
 import { isQuickAddWindow } from './tasks/gate'
 import { initHome } from './home/store'
@@ -65,6 +66,8 @@ function bootWorkspace(): void {
   initAlarms()
   // The home (synced) and what start-up does on this device, for the Home button and Settings.
   initHome()
+  // The pomodoro the main process keeps: the widget shows it while one is on (and after a reload).
+  initPomodoro()
   void initTabs(initialPageId()).then(() => {
     // The page about to be shown: fetch its blocks while the editor's code loads.
     const pageId = tabPage(activeTab())

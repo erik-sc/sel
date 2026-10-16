@@ -6,6 +6,7 @@ import { INVOKE, IPC, type Api, type MenuCommand } from '@shared/api'
 import { HERMAN_NUDGE_CHANNEL } from '@shared/herman'
 import { buildInvokers, type Invokers } from '@shared/ipc'
 import { MEETINGS_CHANNELS } from '@shared/meetings'
+import { POMODORO_CHANNELS } from '@shared/pomodoro'
 import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
 import type { ChangeEvent } from '@shared/types'
 import { UPDATES_CHANNEL } from '@shared/updates'
@@ -96,6 +97,12 @@ const api: Api = {
   alarms: {
     ...invoke.alarms,
     onAnnounce: subscribe(ALARMS_CHANNEL)
+  },
+  pomodoro: {
+    ...invoke.pomodoro,
+    onChanged: subscribe(POMODORO_CHANNELS.changed),
+    onEnded: subscribe(POMODORO_CHANNELS.ended),
+    onCompleted: subscribe(POMODORO_CHANNELS.completed)
   },
   app: {
     ...invoke.app,

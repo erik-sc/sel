@@ -11,6 +11,7 @@ import { registerHermanIpc, type HermanHooks } from './herman/register'
 import { registerAlarmsIpc, type AlarmsHooks } from './alarms/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
 import { registerNotebookIpc } from './notebook/register'
+import { registerPomodoroIpc, type PomodoroHooks } from './pomodoro/register'
 import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
@@ -186,6 +187,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   let updates: UpdatesHooks | null = null
   let external: ExternalHooks | null = null
   let alarms: AlarmsHooks | null = null
+  let pomodoro: PomodoroHooks | null = null
   const appHandlers: Handlers<'app'> = {
     'app:getTheme': () => readTheme(repo),
     'app:setTheme': ([a]) => applyTheme(repo, a),
@@ -217,6 +219,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       if (key.startsWith('mcp.')) external?.settingChanged()
       // A briefing time, a reminder switch or the notification-area icon: the alarms' clock follows.
       alarms?.settingChanged(key)
+      // The pomodoro's lengths: the windows show them (a running phase keeps its own).
+      pomodoro?.settingChanged(key)
     },
     'app:openExternal': async ([a]) => {
       const url = toExternalUrl(a)
@@ -323,6 +327,11 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   })
   alarms = alarmsIpc
 
+  // ---- pomodoro (the one focus timer, kept here so every window shows the same; see ./pomodoro).
+  // Silent while a meeting is recorded, like the alarms.
+  const pomodoroIpc = registerPomodoroIpc({ repo, recording: () => meetings.recordingWindow() !== null })
+  pomodoro = pomodoroIpc
+
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
 
@@ -368,7 +377,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...tasksIpc.handlers,
     ...updatesIpc.handlers,
     ...externalIpc.handlers,
-    ...alarmsIpc.handlers
+    ...alarmsIpc.handlers,
+    ...pomodoroIpc.handlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 

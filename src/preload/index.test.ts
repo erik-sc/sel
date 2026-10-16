@@ -36,6 +36,7 @@ vi.mock('@shared/sync', () => import('../shared/sync'))
 vi.mock('@shared/types', () => import('../shared/types'))
 vi.mock('@shared/updates', () => import('../shared/updates'))
 vi.mock('@shared/alarms', () => import('../shared/alarms'))
+vi.mock('@shared/pomodoro', () => import('../shared/pomodoro'))
 
 import { INVOKE } from '../shared/api'
 
@@ -97,6 +98,9 @@ describe('the preload', () => {
       'herman.onNudge': 'on herman:nudge',
       'updates.onStatus': 'on updates:status',
       'alarms.onAnnounce': 'on alarms:announce',
+      'pomodoro.onChanged': 'on pomodoro:changed',
+      'pomodoro.onEnded': 'on pomodoro:ended',
+      'pomodoro.onCompleted': 'on pomodoro:completed',
       'app.platform': 'string',
       'app.window.minimize': 'send window:minimize',
       'app.window.toggleMaximize': 'send window:toggleMaximize',
@@ -122,6 +126,13 @@ const INVOKE_CHANNELS = [
   'alarms:heard',
   'alarms:pending',
   'alarms:test',
+  'pomodoro:next',
+  'pomodoro:pause',
+  'pomodoro:resume',
+  'pomodoro:skip',
+  'pomodoro:start',
+  'pomodoro:state',
+  'pomodoro:stop',
   'app:newWindow',
   'app:openExternal',
   'app:setSetting',

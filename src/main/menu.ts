@@ -99,6 +99,7 @@ export function buildMenu(): void {
         item('Add a Task…', 'add-task'),
         item('Meditations', 'open-notebook'),
         item('Close the Day', 'close-day'),
+        item('Start a Pomodoro', 'start-pomodoro'),
         { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar'),
         item('Toggle Assistant', 'toggle-assistant'),

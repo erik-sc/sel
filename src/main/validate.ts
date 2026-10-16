@@ -6,6 +6,7 @@ import { cleanHome, HOME_SETTING, STARTUP_MODES, STARTUP_SETTING } from '../shar
 import { cleanMcpSetting, MCP_KEYS } from '../shared/mcp'
 import { cleanMeetingsSetting, MEETINGS_KEYS } from '../shared/meetings'
 import { cleanNotebookSetting, NOTEBOOK_KEYS } from '../shared/notebook'
+import { cleanPomodoroSetting, POMODORO_KEYS } from '../shared/pomodoro'
 import { cleanUpdatesSetting, UPDATES_KEYS } from '../shared/updates'
 import { cleanHistorySetting, HISTORY_KEYS, MAX_VERSION_LABEL } from '../shared/versions'
 import { isValidId, MAX_SETTING_CHARS } from './db/blocks'
@@ -38,7 +39,7 @@ const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
  * the seats of his council among them (what he remembers, `herman.memory`, is not); `updates.check`
  * (not `updates.lastCheck`); `mcp.enabled`; nothing else in those namespaces.
  */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', HOME_SETTING, ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS, ...NOTEBOOK_KEYS, ...ALARMS_KEYS])
+const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', HOME_SETTING, ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS, ...NOTEBOOK_KEYS, ...ALARMS_KEYS, ...POMODORO_KEYS])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
 const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
 
@@ -175,6 +176,7 @@ export function settingValueFor(key: string, value: unknown): unknown {
   if (key.startsWith('alarms.')) return alarmsSettingValue(key, value)
   if (key === HOME_SETTING) return homeSettingValue(value)
   if (key === STARTUP_SETTING) return startupSettingValue(value)
+  if (key.startsWith('pomodoro.')) return pomodoroSettingValue(key, value)
   if (!key.startsWith('history.')) return settingValue(value)
   if (value === undefined || value === null) return null
   const clean = cleanHistorySetting(key, value)
@@ -231,6 +233,14 @@ function hermanSettingValue(key: string, value: unknown): unknown {
 function alarmsSettingValue(key: string, value: unknown): unknown {
   if (value === undefined || value === null) return null
   const clean = cleanAlarmsSetting(key, value)
+  if (clean === undefined) throw new Error('Invalid setting value')
+  return clean
+}
+
+/** The pomodoro's lengths (whole minutes in a range) and whether starting one enters focus mode. Null resets one. */
+function pomodoroSettingValue(key: string, value: unknown): unknown {
+  if (value === undefined || value === null) return null
+  const clean = cleanPomodoroSetting(key, value)
   if (clean === undefined) throw new Error('Invalid setting value')
   return clean
 }

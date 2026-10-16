@@ -39,6 +39,7 @@ const SECTIONS: { value: Section; label: string }[] = [
 ,
   { value: 'today', label: 'Today' },
   { value: 'meetings', label: 'Meetings' },
+  { value: 'pomodoro', label: 'Pomodoro' },
   { value: 'mcp', label: 'MCP' }
 ]
 
@@ -48,6 +49,8 @@ const SyncSection = lazy(() => import('@/sync/SyncSettings').then((module) => ({
 const HermanSection = lazy(() => import('@/herman/HermanSettings').then((module) => ({ default: module.HermanSection })))
 // And so are the meetings settings.
 const MeetingsSection = lazy(() => import('@/meetings/MeetingsSettings').then((module) => ({ default: module.MeetingsSection })))
+// And so are the pomodoro's.
+const PomodoroSection = lazy(() => import('@/pomodoro/PomodoroSettings').then((module) => ({ default: module.PomodoroSection })))
 // And so are the settings for connecting other apps.
 const McpSection = lazy(() => import('@/external/McpSettings').then((module) => ({ default: module.McpSection })))
 
@@ -117,6 +120,10 @@ function SettingsBody() {
           ) : section === 'mcp' ? (
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
               <McpSection />
+            </Suspense>
+          ) : section === 'pomodoro' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <PomodoroSection />
             </Suspense>
           ) : section === 'today' ? (
             <TodaySection />
