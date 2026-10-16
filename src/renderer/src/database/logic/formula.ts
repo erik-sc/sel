@@ -367,12 +367,15 @@ export function formulaCellValue(outcome: FormulaOutcome | null): number | strin
   return value
 }
 
-/** A formula result as text: formatted like a number, date or checkbox cell. Empty for an error. */
-export function formulaText(outcome: FormulaOutcome | null, opts: FormatOptions = {}): string {
+/**
+ * A formula result as text: formatted like a number, date or checkbox cell (a number in the
+ * property's own number format, when it has one). Empty for an error.
+ */
+export function formulaText(outcome: FormulaOutcome | null, opts: FormatOptions = {}, format: PropertySchema['numberFormat'] = 'number'): string {
   if (!outcome?.ok) return ''
   const value = outcome.value
   if (value === null) return ''
-  if (typeof value === 'number') return formatNumber(value, 'number', opts)
+  if (typeof value === 'number') return formatNumber(value, format, opts)
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
   if (typeof value === 'string') return value
   if (Array.isArray(value)) return value.join(', ')

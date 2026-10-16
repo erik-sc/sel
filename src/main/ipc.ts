@@ -15,6 +15,7 @@ import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
 import { registerNotebookIpc } from './notebook/register'
 import { registerPomodoroIpc, type PomodoroHooks } from './pomodoro/register'
 import { registerSkyIpc } from './sky/register'
+import { registerTemplatesIpc } from './templates/register'
 import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
@@ -364,6 +365,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     },
     herman: (sender, line) => hermanIpc.sky(sender, line)
   })
+  // ---- templates (pages and databases made from a template in one transaction; see ./templates)
+  const templatesHandlers = registerTemplatesIpc({ repo })
 
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
@@ -412,7 +415,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...externalIpc.handlers,
     ...alarmsIpc.handlers,
     ...pomodoroIpc.handlers,
-    ...skyIpc.handlers
+    ...skyIpc.handlers,
+    ...templatesHandlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 

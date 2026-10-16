@@ -19,6 +19,7 @@ import { customizeSidebar, sidebarCopy } from '@/shell/sidebarLayout'
 import { SIDEBAR_KEYWORDS } from '@/shell/sidebarCopy'
 import { openSidebarPanel } from '@/shell/sidebarPanels'
 import { skyIsEnabled } from '@/sky/route'
+import { TEMPLATE_KEYWORDS } from '@/templates/copy'
 import { registerCommands, type Command } from './registry'
 
 /** The page (or database) in the active tab, if it is one and not in the Trash. */
@@ -99,6 +100,7 @@ const THEMES: [Theme, string][] = [
 
 export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('new-page', 'New page', ['create', 'add', 'note']),
+  menu('new-from-template', 'Templates', TEMPLATE_KEYWORDS),
   menu('quick-find', 'Find a page…', ['search', 'open', 'go to', 'jump']),
   menu('find-in-page', 'Find in this page…', ['search', 'word', 'text']),
   menu('go-home', 'Home', ['start', 'home page', 'início', 'página inicial']),

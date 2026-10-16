@@ -21,6 +21,7 @@ import { isSkyRoute } from '@/sky/route'
 import { UpdateNotice } from '@/updates/Notice'
 import { CommandPalette } from '@/commands/Palette'
 import { ShortcutsHost } from '@/shortcuts/Host'
+import { TemplatesHost } from '@/templates/Host'
 import { EmptyState, PageHost } from './PageHost'
 import { FindBar } from './FindBar'
 import { MainBars } from './MainBars'
@@ -108,6 +109,7 @@ export function Shell() {
       <AiSetup />
       <MeetingSetup />
       <FeedbackHost />
+      <TemplatesHost />
       <Toaster />
     </div>
   )

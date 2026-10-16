@@ -8,10 +8,12 @@ import { fetchBlocks, useBlock, useBlockStatus } from '@/store/blocks'
 import { closeTab, openPage, useTabs } from '@/store/tabs'
 import { setQuickFindOpen } from '@/store/ui'
 import { Button } from '@/ui/Button'
-import { Archive, Home, Plus, Search, Trash, Undo } from '@/ui/icons'
+import { Archive, Board, Home, Plus, Search, Trash, Undo } from '@/ui/icons'
 import { isArchived, unarchivePage } from '@/archive/actions'
 import { useArchiveCopy } from '@/archive/locale'
 import { goHome, useHomeCopy, useHomeStatus } from '@/home/store'
+import { openTemplates, useTemplatesCopy } from '@/templates/gate'
+import { preloadTemplates } from '@/templates/Host'
 import { PageSkeleton } from '@/ui/Skeleton'
 import { createPage, deletePageForever, logError, pageTitle, reportError, restorePage } from './actions'
 import { isLinkedView } from './linked'
@@ -106,6 +108,7 @@ const RECENT_PAGES = 6
 export function EmptyState() {
   const [recent, setRecent] = useState<Block[]>([])
   const homeCopy = useHomeCopy()
+  const templatesCopy = useTemplatesCopy()
   const home = useHomeStatus()
   const noTabs = useTabs((state) => state.tabs.length === 0)
 
@@ -144,6 +147,9 @@ export function EmptyState() {
             onClick={() => void createPage(null).catch(reportError('create the page'))}
           >
             New page
+          </Button>
+          <Button icon={<Board />} onPointerEnter={preloadTemplates} onFocus={preloadTemplates} onClick={() => openTemplates()}>
+            {templatesCopy.command}
           </Button>
           {home.home !== null && (
             <Button icon={<Home />} disabled={home.status !== 'ready'} onClick={goHome}>
