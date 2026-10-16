@@ -5,8 +5,9 @@
  * `Intl` time-zone database and the process's local zone.
  *
  * What is read: VEVENT with DTSTART / DTEND / DURATION (dates and date-times; UTC, floating and
- * TZID), SUMMARY, LOCATION, DESCRIPTION, STATUS, TRANSP, ATTENDEE (to hide what the owner
- * declined), RRULE (FREQ=DAILY/WEEKLY/MONTHLY/YEARLY with INTERVAL, COUNT, UNTIL, BYDAY with
+ * TZID), SUMMARY, LOCATION, DESCRIPTION, URL, STATUS, TRANSP, ATTENDEE and ORGANIZER (to hide
+ * what the owner declined, and to count who else is invited), X-GOOGLE-CONFERENCE (with the
+ * others, for the link of a Meet, Teams or Zoom call), RRULE (FREQ=DAILY/WEEKLY/MONTHLY/YEARLY with INTERVAL, COUNT, UNTIL, BYDAY with
  * ordinals, BYMONTHDAY, BYMONTH, BYSETPOS, WKST), EXDATE, RDATE and RECURRENCE-ID overrides.
  *
  * What is not: VTIMEZONE definitions (zones are resolved by name against the IANA database, with
@@ -400,6 +401,10 @@ export interface IcalEvent {
   declined: boolean
   /** TRANSP:TRANSPARENT: does not block time. */
   transparent: boolean
+  /** People invited other than the calendar's owner (rooms and other resources not counted). */
+  attendees: number
+  /** The address of the call (Meet, Teams, Zoom), when the event has one. */
+  meetingUrl?: string
   rule?: IcalRule
   /** The rule has parts this reader does not expand: only the first occurrence is kept. */
   ruleUnsupported?: boolean
@@ -505,6 +510,26 @@ function emailOf(value: string): string | null {
   return /^[^\s@<>]+@[^\s@<>]+$/.test(email) ? email : null
 }
 
+/** A link to a Meet, Teams or Zoom call: the hosts, and the paths that make a link a call. */
+const MEETING_LINK_RE =
+  /https:\/\/(?:meet\.google\.com\/[a-z]{3,4}-[a-z]{4}-[a-z]{3,4}|(?:[a-z0-9-]+\.)?zoom(?:gov)?\.(?:us|com)\/(?:j|my|w|s)\/[^\s"'<>\\]+|teams\.microsoft\.com\/l\/meetup-join\/[^\s"'<>\\]+|teams\.live\.com\/meet\/[^\s"'<>\\]+)/i
+
+/** The first link to a Meet, Teams or Zoom call in a text, or null. Only ever https. */
+export function meetingLink(text: string | undefined): string | null {
+  if (!text) return null
+  const match = MEETING_LINK_RE.exec(text.length > 20_000 ? text.slice(0, 20_000) : text)
+  if (!match) return null
+  // Found in HTML, the link may carry its entities, and the punctuation of the sentence around it.
+  const raw = entities(match[0]).replace(/[.,;:!?)\]}>]+$/, '')
+  if (raw.length > 1000) return null
+  try {
+    const url = new URL(raw)
+    return url.protocol === 'https:' ? url.href : null
+  } catch {
+    return null
+  }
+}
+
 interface Draft {
   lines: IcalLine[]
 }
@@ -520,6 +545,10 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
   let cancelled = false
   let declined = false
   let transparent = false
+  /** Where a call's link may be, most trusted first. */
+  const links: { conference?: string; url?: string; location?: string; description?: string } = {}
+  const invited = new Set<string>()
+  let organizer: string | null = null
   let rule: IcalRule | undefined
   let ruleUnsupported = false
   let recurrenceId: IcalTime | undefined
@@ -545,9 +574,20 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
         break
       case 'LOCATION':
         location = plainLine(line.value, ICAL_LIMITS.location)
+        links.location = unescapeText(line.value)
         break
       case 'DESCRIPTION':
         description = plainDescription(line.value)
+        links.description = unescapeText(line.value)
+        break
+      case 'URL':
+        links.url = line.value
+        break
+      case 'X-GOOGLE-CONFERENCE':
+        links.conference = line.value
+        break
+      case 'ORGANIZER':
+        organizer = emailOf(line.value)
         break
       case 'STATUS':
         cancelled = line.value.trim().toUpperCase() === 'CANCELLED'
@@ -556,8 +596,10 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
         transparent = line.value.trim().toUpperCase() === 'TRANSPARENT'
         break
       case 'ATTENDEE': {
-        if ((line.params['PARTSTAT'] ?? '').toUpperCase() !== 'DECLINED' || self.size === 0) break
         const email = emailOf(line.value)
+        const kind = (line.params['CUTYPE'] ?? '').toUpperCase()
+        if (kind !== 'RESOURCE' && kind !== 'ROOM' && invited.size < 1000) invited.add(email ?? line.value.trim().toLowerCase())
+        if ((line.params['PARTSTAT'] ?? '').toUpperCase() !== 'DECLINED' || self.size === 0) break
         if (email && self.has(email)) declined = true
         break
       }
@@ -599,6 +641,10 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
     context.notes.add('unsupported-rule')
     if (rule) rule = undefined
   }
+  // The owner is not one of the others: by address when the calendar says whose it is, otherwise
+  // the organizer stands for them (a calendar lists its owner among the guests of anything with guests).
+  for (const email of self) invited.delete(email)
+  if (self.size === 0 && organizer) invited.delete(organizer)
   const event: IcalEvent = {
     uid: uid || `no-uid-${start.wall}-${title.slice(0, 40)}`,
     start,
@@ -608,11 +654,14 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
     cancelled,
     declined,
     transparent,
+    attendees: invited.size,
     exdates,
     rdates
   }
   if (location) event.location = location
   if (description) event.description = description
+  const link = meetingLink(links.conference) ?? meetingLink(links.url) ?? meetingLink(links.location) ?? meetingLink(links.description)
+  if (link) event.meetingUrl = link
   if (rule) event.rule = rule
   if (ruleUnsupported) event.ruleUnsupported = true
   if (recurrenceId) event.recurrenceId = recurrenceId
@@ -722,6 +771,8 @@ function wallIn(instant: number, zone: string | null): number {
 export interface CalendarOccurrence {
   id: string
   calendarId: string
+  /** The event's UID: the same for every occurrence of a series. */
+  uid: string
   title: string
   /** Epoch ms. All-day: local midnight of the first day, and of the day after the last. */
   start: number
@@ -733,6 +784,11 @@ export interface CalendarOccurrence {
   location?: string
   description?: string
   recurring: boolean
+  /** TRANSP:TRANSPARENT: shown as free. */
+  transparent?: boolean
+  /** People invited other than the calendar's owner, when there are any. */
+  attendees?: number
+  meetingUrl?: string
 }
 
 export interface ExpandOptions {
@@ -794,6 +850,7 @@ export function expandCalendar(calendar: ParsedCalendar, window: { from: number;
     const occurrence: CalendarOccurrence = {
       id: `${calendarId}:${event.uid}:${start}`.slice(0, 500),
       calendarId,
+      uid: event.uid,
       title: event.title,
       start,
       end,
@@ -806,6 +863,9 @@ export function expandCalendar(calendar: ParsedCalendar, window: { from: number;
     }
     if (event.location) occurrence.location = event.location
     if (event.description) occurrence.description = event.description
+    if (event.transparent) occurrence.transparent = true
+    if (event.attendees > 0) occurrence.attendees = event.attendees
+    if (event.meetingUrl) occurrence.meetingUrl = event.meetingUrl
     out.push(occurrence)
   }
 

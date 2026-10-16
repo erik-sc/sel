@@ -1,5 +1,5 @@
-// Settings → Herman → Briefing and reminders: the times he briefs you, the chime and the voice,
-// the reminders of tasks, and whether sel keeps running in the notification area for them.
+// Settings → Herman → Briefing: the times he briefs you, his voice, and whether the AI writes it.
+// The chime, the reminders, the events and the notification area are under Notifications.
 import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import { ALARM_DEFAULTS, ALARMS_SETTING, MAX_ALARM_TIMES, readAlarmSettings, type AlarmSettings, type AlarmTime } from '@shared/alarms'
@@ -75,7 +75,7 @@ export function AlarmSettings(): JSX.Element {
   return (
     <section className="ap-group">
       <div className="ap-group-head">
-        <h3 className="ap-group-title">Briefing and reminders</h3>
+        <h3 className="ap-group-title">Briefing</h3>
       </div>
       <div className="ap-list">
         <div className="ap-row alarm-times-row">
@@ -134,14 +134,6 @@ export function AlarmSettings(): JSX.Element {
         </div>
         <div className="ap-row">
           <div className="ap-row-text">
-            <span className="ap-row-label">Chime</span>
-          </div>
-          <div className="ap-row-control">
-            <Segmented label="Chime" value={values.sound ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('sound', value === 'on')} />
-          </div>
-        </div>
-        <div className="ap-row">
-          <div className="ap-row-text">
             <span className="ap-row-label">Read aloud</span>
             <span className="ap-row-help">He speaks with a voice of this computer, in the language of his lines.</span>
           </div>
@@ -184,35 +176,8 @@ export function AlarmSettings(): JSX.Element {
             <Segmented label="Written by the AI" value={values.ai ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('ai', value === 'on')} />
           </div>
         </div>
-        <div className="ap-row">
-          <div className="ap-row-text">
-            <span className="ap-row-label">Reminders of tasks</span>
-            <span className="ap-row-help">A task with a reminder, or due at a time of day, is announced when it comes.</span>
-          </div>
-          <div className="ap-row-control">
-            <Segmented label="Reminders of tasks" value={values.reminders ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('reminders', value === 'on')} />
-          </div>
-        </div>
-        <div className="ap-row">
-          <div className="ap-row-text">
-            <span className="ap-row-label">Keep running in the notification area</span>
-            <span className="ap-row-help">Closing the last window leaves sel running there, so briefings and reminders still come. Quit from its icon.</span>
-          </div>
-          <div className="ap-row-control">
-            <Segmented label="Keep running in the notification area" value={values.tray ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('tray', value === 'on')} />
-          </div>
-        </div>
-        <div className="ap-row">
-          <div className="ap-row-text">
-            <span className="ap-row-label">Start with the computer</span>
-            <span className="ap-row-help">{values.tray ? 'sel starts in the notification area when you sign in.' : 'sel opens when you sign in.'} Only in the installed app.</span>
-          </div>
-          <div className="ap-row-control">
-            <Segmented label="Start with the computer" value={values.openAtLogin ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('openAtLogin', value === 'on')} />
-          </div>
-        </div>
       </div>
-      <p className="ap-note">The times and reminders are kept by sel on this computer and stay on this device. Nothing is sent anywhere unless the AI writes the briefing.</p>
+      <p className="ap-note">The times are kept by sel on this computer and stay on this device. Nothing is sent anywhere unless the AI writes the briefing. The chime, reminders and calendar events are under Notifications.</p>
     </section>
   )
 }

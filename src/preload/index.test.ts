@@ -125,6 +125,7 @@ const INVOKE_CHANNELS = [
   'app:getTheme',
   'alarms:heard',
   'alarms:pending',
+  'alarms:snooze',
   'alarms:test',
   'pomodoro:next',
   'pomodoro:pause',

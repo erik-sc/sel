@@ -456,6 +456,7 @@ export const INVOKE = {
   'mcp:rotateToken': true,
   'alarms:pending': true,
   'alarms:heard': true,
+  'alarms:snooze': true,
   'alarms:test': true,
 
   'pomodoro:state': true,

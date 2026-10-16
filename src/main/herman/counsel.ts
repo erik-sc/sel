@@ -1,4 +1,4 @@
-import { HERMAN_NUDGE_KINDS, type HermanCommand, type HermanLocale, type HermanNudge, type HermanNudgeKind } from '../../shared/herman'
+import { HERMAN_NUDGE_KINDS, type HermanLocale, type HermanNudge, type HermanNudgeKind } from '../../shared/herman'
 import { agoWords, capitalize, LINES, numberWord, PHRASES, sinceWords, spanWords, type Words } from './lines'
 
 /**
@@ -16,7 +16,10 @@ export interface CounselTask {
   due?: string
 }
 
-/** A calendar event of today as this module reads it. */
+/**
+ * A calendar event of today as this module reads it. An event about to start is not his to
+ * mention: the alarms announce it (src/main/alarms/events.ts), with the offer to record a meeting.
+ */
 export interface CounselEvent {
   title: string
   start: number
@@ -25,9 +28,6 @@ export interface CounselEvent {
 }
 
 export interface CounselThresholds {
-  /** An event is "soon" when it starts within this window from now. */
-  soonFromMs: number
-  soonToMs: number
   /** How long a page is edited without a real pause before he says so. */
   longSessionMs: number
   /** How many days a page went untouched before reopening it is worth a word. */
@@ -45,8 +45,6 @@ export interface CounselThresholds {
 }
 
 export const COUNSEL_DEFAULTS: CounselThresholds = {
-  soonFromMs: 2 * 60_000,
-  soonToMs: 15 * 60_000,
   longSessionMs: 50 * 60_000,
   untouchedDays: 30,
   streak: 3,
@@ -153,15 +151,6 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
   const ask = (question: string): HermanNudge['action'] => ({ label: phrases.ask, command: { type: 'ask', question } })
 
   const timed = input.events.filter((event) => !event.allDay && event.end > event.start)
-
-  // A meeting about to start.
-  const soon = timed.find((event) => event.start - input.now >= limits.soonFromMs && event.start - input.now <= limits.soonToMs)
-  if (soon) {
-    const title = tidyTitle(soon.title)
-    const command: HermanCommand = { type: 'new-meeting', event: { title: title || 'Meeting', start: soon.start, end: soon.end } }
-    const action = { label: phrases.takeNotes, command }
-    out['event-soon'] = { words: { title, ...minutesOf(soon.start - input.now) }, action, titledAction: action }
-  }
 
   if ((input.streak ?? 0) >= limits.streak) out.streak = { words: count(input.streak ?? 0) }
 
