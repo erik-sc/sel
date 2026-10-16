@@ -305,6 +305,11 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
       const fence = '`'.repeat(longest + 1)
       return [`${fence}${(p.language ?? '').replace(/[^\w+#.-]/g, '')}`, ...code.split('\n'), fence]
     }
+    case 'equation': {
+      // Display math between `$$` lines, as most Markdown dialects with math write it.
+      const tex = plainText(p.title).trim()
+      return tex ? ['$$', ...tex.split('\n'), '$$'] : []
+    }
     case 'divider':
       return ['---']
     case 'image': {
@@ -583,6 +588,24 @@ function isSafeImageUrl(url: string): boolean {
  * The blocks of a Markdown text. A leading `# heading` is the title of the page it becomes,
  * unless `keepTitle` keeps it a heading (the text goes into a page that has its own title).
  */
+/** Display math starting at line `first` (which begins with `$$`): its TeX and the line it ends on. */
+function parseDisplayMath(lines: readonly string[], first: number, indent: number): { tex: string; last: number } | null {
+  const opening = lines[first].trim().slice(2)
+  const oneLine = /^(.*?)\$\$\s*$/.exec(opening)
+  if (oneLine && opening.trim()) return { tex: oneLine[1].trim(), last: first }
+  const body: string[] = opening.trim() ? [opening] : []
+  for (let i = first + 1; i < lines.length; i++) {
+    const line = lines[i].startsWith(' '.repeat(indent)) ? lines[i].slice(indent) : lines[i].trimStart()
+    const end = /^(.*?)\$\$\s*$/.exec(line)
+    if (end) {
+      if (end[1].trim()) body.push(end[1])
+      return { tex: body.join('\n').trim(), last: i }
+    }
+    body.push(line)
+  }
+  return null
+}
+
 export function parseMarkdown(source: string, { keepTitle = false }: { keepTitle?: boolean } = {}): { title: string | null; nodes: Node[] } {
   scanBudget = INLINE_SCAN_BUDGET
   const lines = source.replace(/^﻿/, '').replace(/\r\n?/g, '\n').replace(/\t/g, INDENT).split('\n')
@@ -637,6 +660,18 @@ export function parseMarkdown(source: string, { keepTitle = false }: { keepTitle
       if (language) props.language = language.toLowerCase().slice(0, 40)
       container(indent).push({ type: 'code', props, children: [] })
       continue
+    }
+
+    // `$$ … $$` on one line, or `$$` lines around display math: an equation block. Without a
+    // closing `$$` the text stays a paragraph.
+    if (text.startsWith('$$')) {
+      const math = parseDisplayMath(lines, i, indent)
+      if (math) {
+        flush()
+        container(indent).push({ type: 'equation', props: { title: math.tex ? [[math.tex]] : [] }, children: [] })
+        i = math.last
+        continue
+      }
     }
 
     const heading = /^(#{1,6})\s+(.*)$/.exec(text)

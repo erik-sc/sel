@@ -13,6 +13,8 @@ import { isArchived, unarchivePage } from '@/archive/actions'
 import { useArchiveCopy } from '@/archive/locale'
 import { goHome, useHomeCopy, useHomeStatus } from '@/home/store'
 import { PageSkeleton } from '@/ui/Skeleton'
+import { isLatexDocument } from '@/latex/gate'
+import { LatexDocument } from '@/latex/lazy'
 import { createPage, deletePageForever, logError, pageTitle, reportError, restorePage } from './actions'
 import { isLinkedView } from './linked'
 import { PageIcon } from './PageIcon'
@@ -199,9 +201,22 @@ export const PageHost = memo(function PageHost({ pageId }: { pageId: string }) {
     )
   }
 
+  const banner = block.trashedAt ? <TrashBanner block={block} /> : isArchived(block) && <ArchiveBanner block={block} />
+  // A LaTeX document fills the page with its own split screen, which scrolls each side itself.
+  if (isLatexDocument(block)) {
+    return (
+      <div className="page-host">
+        {banner}
+        <ErrorBoundary key={pageId}>
+          <LatexDocument pageId={pageId} />
+        </ErrorBoundary>
+      </div>
+    )
+  }
+
   return (
     <div className="page-host">
-      {block.trashedAt ? <TrashBanner block={block} /> : isArchived(block) && <ArchiveBanner block={block} />}
+      {banner}
       <div className="page-scroll" key={pageId}>
         <ErrorBoundary>
           {block.type === 'database' ? (

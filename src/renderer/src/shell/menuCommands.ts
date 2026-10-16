@@ -22,6 +22,7 @@ import { focusQuickAdd, openTasks } from '@/tasks/gate'
 import { openCloseDay, openNotebook } from '@/notebook/route'
 import { newMeeting } from '@/meetings/gate'
 import { openFind } from './findStore'
+import { runLatexAction } from '@/latex/gate'
 import { openFeedback } from '@/feedback/gate'
 import { openPalette } from '@/commands/store'
 import { goHome } from '@/home/store'
@@ -49,7 +50,8 @@ export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
       setQuickFindOpen(true)
       break
     case 'find-in-page':
-      openFind(window.getSelection()?.toString())
+      // A LaTeX document searches its source with its own find bar.
+      if (!runLatexAction('find')) openFind(window.getSelection()?.toString())
       break
     case 'command-palette':
       openPalette()

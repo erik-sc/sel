@@ -42,6 +42,24 @@ function devCsp(): Plugin {
   }
 }
 
+/**
+ * KaTeX's stylesheet offers every font as woff2, woff and ttf. Chromium always takes the woff2,
+ * so the other two are dropped from it and never shipped (about 0.9 MB less in the app).
+ */
+function katexWoff2Only(): Plugin {
+  const KATEX_CSS = /[\\/]node_modules[\\/]katex[\\/]dist[\\/]katex(\.min)?\.css(\?.*)?$/
+  return {
+    name: 'sel:katex-woff2-only',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!KATEX_CSS.test(id)) return null
+      const out = code.replace(/,\s*url\([^)]*\.woff\)\s*format\("woff"\)/g, '').replace(/,\s*url\([^)]*\.ttf\)\s*format\("truetype"\)/g, '')
+      if (out === code) throw new Error('katex.css: expected woff and ttf fallbacks to drop')
+      return { code: out, map: null }
+    }
+  }
+}
+
 /** Packages that every screen needs and that change only when they are upgraded. */
 const VENDOR_RE = /[\\/]node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/
 
@@ -76,7 +94,7 @@ export default defineConfig(({ command }) => {
       build: { ...output, target: NODE_TARGET }
     },
     renderer: {
-      plugins: [react(), devCsp()],
+      plugins: [react(), devCsp(), katexWoff2Only()],
       resolve: {
         alias: { '@shared': shared, '@': resolve(__dirname, 'src/renderer/src') }
       },

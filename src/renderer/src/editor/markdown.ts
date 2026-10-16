@@ -23,6 +23,7 @@ export function detectBlockShortcut(before: string): BlockShortcut | null {
   if (before === '>> ') return { type: 'toggle' }
   if (before === '> ' || before === '" ') return { type: 'quote' }
   if (before === '```') return { type: 'code' }
+  if (before === '$$') return { type: 'equation' }
   if (before === '---') return { type: 'divider' }
   return null
 }
@@ -134,6 +135,18 @@ export function parseMarkdownBlocks(input: string): ParsedBlock[] {
         props: fence[1] ? { language: fence[1].toLowerCase() } : undefined
       })
       continue
+    }
+    // Display math: `$$ … $$` on one line, or between `$$` lines. Unclosed, it stays text.
+    if (line.startsWith('$$')) {
+      const one = /^\$\$(.+?)\$\$$/.exec(line)
+      let close = -1
+      if (!one && line === '$$') for (let j = i + 1; j < lines.length && close < 0; j++) if (lines[j].trim() === '$$') close = j
+      if (one || close > 0) {
+        const tex = one ? one[1].trim() : lines.slice(i + 1, close).join('\n').trim()
+        out.push({ type: 'equation', title: tex ? [[tex]] : [] })
+        if (close > 0) i = close
+        continue
+      }
     }
     let m: RegExpExecArray | null
     if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) out.push({ type: 'divider', title: [] })

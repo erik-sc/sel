@@ -212,6 +212,8 @@ const INVOKE_CHANNELS = [
   'pages:deleteForever',
   'pages:duplicate',
   'pages:exportMarkdown',
+  'pages:exportPdf',
+  'pages:exportTex',
   'pages:importMarkdown',
   'pages:listArchived',
   'pages:listChildren',

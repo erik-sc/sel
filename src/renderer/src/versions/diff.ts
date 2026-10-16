@@ -314,7 +314,8 @@ const TYPE_NAMES: Record<BlockType, string> = {
   divider: 'Divider',
   image: 'Image',
   bookmark: 'Bookmark',
-  database: 'Database'
+  database: 'Database',
+  equation: 'Equation'
 }
 
 export function typeName(type: BlockType): string {

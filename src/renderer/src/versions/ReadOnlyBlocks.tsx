@@ -173,11 +173,12 @@ function BlockBody({ block, change, number }: { block: SnapshotBlock; change: Bl
       </>
     )
   }
-  if (type === 'code') {
+  // An equation is compared as its TeX: what changed is in the source.
+  if (type === 'code' || type === 'equation') {
     return (
       <div className="blk-code-box">
         <div className="blk-code-bar vh-code-bar">
-          <span className="blk-code-lang">{props.language ?? 'plain text'}</span>
+          <span className="blk-code-lang">{type === 'equation' ? 'TeX' : (props.language ?? 'plain text')}</span>
         </div>
         <Rich value={props.title} ops={change?.text} className="blk-code-area vh-code" />
       </div>

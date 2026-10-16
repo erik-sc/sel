@@ -148,6 +148,16 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       const parentId = arg.nullableId(a, 'parentId')
       const { importMarkdown } = await import('./markdown')
       return importMarkdown(repo, windowOf(event), parentId)
+    },
+    'pages:exportTex': async ([a], event) => {
+      const id = arg.id(a)
+      const { exportTex } = await import('./latex')
+      return exportTex(repo, windowOf(event), id)
+    },
+    'pages:exportPdf': async ([a, b], event) => {
+      const id = arg.id(a)
+      const { exportPdf, pdfPageSize } = await import('./latex')
+      return exportPdf(repo, windowOf(event), event.sender, id, pdfPageSize(b))
     }
   }
 

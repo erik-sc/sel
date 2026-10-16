@@ -13,7 +13,7 @@ import type { BlockProps, BlockType, Mark, Op, RichText } from '@shared/types'
 import { applyOps, getBlock, loadTree, newId } from '@/store/blocks'
 import { createThrottle } from '@/ui/throttle'
 import { notifyError } from '@/ui/toast'
-import { isTextType, type SlashItem } from './blockTypes'
+import { isPlainTextType, isTextType, type SlashItem } from './blockTypes'
 import { History } from './history'
 import { invertOps } from './ops'
 import * as paste from './paste'
@@ -429,7 +429,7 @@ export class EditorController {
   insertAfter(afterId: string | null, type: BlockType = 'text', props: BlockProps = {}): string {
     const ref = afterId ? getBlock(afterId) : undefined
     const id = newId()
-    const editable = isTextType(type) || type === 'code'
+    const editable = isTextType(type) || isPlainTextType(type)
     this.commit(
       [{ op: 'create', input: { id, type, parentId: ref?.parentId ?? this.pageId, afterId: ref ? ref.id : null, props } }],
       { after: editable ? textSel(id, 0) : { kind: 'blocks', ids: [id] } }

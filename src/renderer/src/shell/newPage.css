@@ -1,0 +1,50 @@
+/* "New page" in the sidebar: the row is two buttons, the page itself and the chevron of its kinds. */
+
+.sidebar-action.new-page-action {
+  padding: 0;
+}
+
+.new-page-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 0 0 8px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.new-page-main > svg {
+  color: var(--text-secondary);
+}
+
+.new-page-main > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.new-page-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  margin-right: 4px;
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.new-page-action:hover .new-page-more,
+.new-page-more:focus-visible,
+.new-page-more[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.new-page-more:hover {
+  background: var(--bg-active);
+}

@@ -20,6 +20,7 @@ import { openTasks, preloadTasks } from '@/tasks/gate'
 import { newMeeting } from '@/meetings/gate'
 import { MOD_KEY } from '@/ui/platform'
 import { createPage, reportError } from './actions'
+import { NewPageButton } from './NewPageButton'
 import { PageRow, PageTree } from './PageTree'
 import { preloadSettings } from './SettingsModal'
 import { TrashPopover, preloadTrash } from './TrashPopover'
@@ -147,10 +148,7 @@ export const Sidebar = memo(function Sidebar() {
             <Moon />
             <span>Close the day</span>
           </button>
-          <button type="button" className="sidebar-action" onClick={newRootPage}>
-            <Plus />
-            <span>New page</span>
-          </button>
+          <NewPageButton />
           <button type="button" className="sidebar-action" onClick={() => void newMeeting()}>
             <Mic />
             <span>New meeting</span>
