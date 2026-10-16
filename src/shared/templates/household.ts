@@ -2,7 +2,7 @@
 // now and then (and its warranty), what there is in it, who to call, and the shopping list.
 // Each chore and each check works out its next date from the last one, so the page on top only
 // has to show what is due.
-import { asc, b, calc, callout, chooser, database, divider, h2, inDays, line, linked, opt, p, page, prop, row, schema, views, where } from './build'
+import { asc, b, calc, desc, callout, chooser, database, divider, h2, inDays, line, linked, opt, p, page, prop, row, schema, views, where } from './build'
 import type { Template, TemplateLocale } from './model'
 
 export function household(locale: TemplateLocale): Template {
@@ -124,7 +124,7 @@ export function household(locale: TemplateLocale): Template {
     icon: 'house',
     page: page(t('Casa', 'Household'), line('house'), [
       callout(
-        line('lantern'),
+        '💡',
         t(
           [['Marque '], b('Última vez'), [' quando fizer uma tarefa: a próxima data se calcula sozinha pela frequência, e ela volta para esta página quando chegar a hora.']],
           [['Set '], b('Last done'), [' when you do a chore: the next date follows from how often it comes back, and it returns to this page when it is due.']]
@@ -141,8 +141,8 @@ export function household(locale: TemplateLocale): Template {
       ),
       linked(
         'shopping',
-        [views.board(t('Falta comprar', 'Still to get'), 'store', ['amount', 'urgent'], { filters: [where.unchecked('bought')] })],
-        { title: t('Lista de compras', 'Shopping list'), beside: true }
+        [views.board(t('Falta comprar', 'Still to get'), 'store', ['amount'], { filters: [where.unchecked('bought')], sorts: [desc('urgent')] })],
+        { title: t('Lista de compras', 'Shopping list') }
       ),
       h2(t('Revisões e garantias', 'Servicing and warranties')),
       linked(
@@ -154,8 +154,8 @@ export function household(locale: TemplateLocale): Template {
         { title: t('Manutenção', 'Upkeep') }
       ),
       divider(),
-      h2(t('Tudo da casa', 'Everything in the house')),
-      p(t('As bases de onde esta página lê. Comece pelas tarefas: apague as que não servem e acrescente as suas.', 'Where the page above reads from. Start with the chores: delete the ones that do not fit and add your own.')),
+      page(t('Tudo da casa', 'Everything in the house'), line('box'), [
+      p(t('De onde a página Casa lê. Comece pelas tarefas: apague as que não servem e acrescente as suas.', 'What the Household page reads from. Start with the chores: delete the ones that do not fit and add your own.')),
       database(
         'chores',
         t('Tarefas da casa', 'Chores'),
@@ -269,6 +269,7 @@ export function household(locale: TemplateLocale): Template {
           row(undefined, t('Sabão em pó', 'Laundry detergent'), { store: 'market', amount: '1', urgent: false, bought: true })
         ]
       )
+      ])
     ])
   }
 }

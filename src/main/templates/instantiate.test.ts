@@ -238,12 +238,13 @@ describe('resolveDate', () => {
     expect(resolveDate({ month: -9, day: 29 }, new Date(2027, 0, 31))).toEqual({ start: '2026-04-29' })
   })
 
-  it('finds a weekday of this week, Monday first', () => {
+  it('finds a weekday of this week, Sunday first like the "this week" filter', () => {
+    expect(resolveDate({ week: 0, weekday: 0 }, today)).toEqual({ start: '2026-10-11' })
     expect(resolveDate({ week: 0, weekday: 1 }, today)).toEqual({ start: '2026-10-12' })
-    expect(resolveDate({ week: 0, weekday: 7 }, today)).toEqual({ start: '2026-10-18' })
+    expect(resolveDate({ week: 0, weekday: 6 }, today)).toEqual({ start: '2026-10-17' })
     expect(resolveDate({ week: 1, weekday: 1 }, today)).toEqual({ start: '2026-10-19' })
-    // On a Sunday the week is the one that ends that day.
-    expect(resolveDate({ week: 0, weekday: 1 }, new Date(2026, 9, 18))).toEqual({ start: '2026-10-12' })
+    // On a Sunday the week is the one that starts that day.
+    expect(resolveDate({ week: 0, weekday: 1 }, new Date(2026, 9, 18))).toEqual({ start: '2026-10-19' })
   })
 })
 

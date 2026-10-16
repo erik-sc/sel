@@ -46,7 +46,7 @@ export function finances(locale: TemplateLocale): Template {
     prop.formula(
       'status',
       t('Situação', 'Status'),
-      `ifs(empty(prop("budget")), "", prop("average") > prop("budget"), "${t('Acima do orçamento', 'Over budget')}", prop("average") >= prop("budget") * 0.9, "${t('No limite', 'At the limit')}", "${t('Dentro', 'Within')}")`
+      `ifs(empty(prop("budget")), "", prop("average") > prop("budget"), "${t('Acima', 'Over')}", prop("average") >= prop("budget") * 0.9, "${t('No limite', 'At the limit')}", "${t('Dentro', 'Within')}")`
     ),
     prop.relation('entries', t('Lançamentos', 'Transactions'), 'entries', { synced: 'category' }),
     prop.rollup('spent', t('Gasto no total', 'Spent in total'), 'entries', 'expense', 'sum'),
@@ -112,7 +112,6 @@ export function finances(locale: TemplateLocale): Template {
     const list: Entry[] = [
       { day: 5, title: t('Salário', 'Paycheck'), category: 'salary', account: 'checking', income: t(5200, 4200), recurring: true },
       { day: 6, title: t('Guardar na poupança', 'Transfer to savings'), category: 'reserve', account: 'checking', expense: t(600, 400), recurring: true },
-      { day: 6, title: t('Depósito na poupança', 'Savings deposit'), category: 'reserve', account: 'savings', income: t(600, 400), recurring: true },
       { day: 10, title: t('Aluguel e condomínio', 'Rent'), category: 'housing', account: 'checking', expense: t(1750, 1350), recurring: true },
       { day: 12, title: t('Conta de luz', 'Electricity'), category: 'housing', account: 'checking', expense: wobble(t(160, 85), t(12, 6)), recurring: true },
       { day: 15, title: t('Internet', 'Internet'), category: 'housing', account: 'card', expense: t(110, 60), recurring: true },
@@ -173,7 +172,7 @@ export function finances(locale: TemplateLocale): Template {
     icon: 'stones',
     page: page(t('Finanças pessoais', 'Personal finances'), line('stones'), [
       callout(
-        line('lantern'),
+        '💡',
         t(
           [['Anote cada entrada e saída em '], b('Lançamentos'), [', ligada a uma categoria e a uma conta. O resto desta página se monta sozinho.']],
           [['Write down every bit of money in and out in '], b('Transactions'), [', with a category and an account. The rest of this page builds itself.']]
@@ -184,7 +183,7 @@ export function finances(locale: TemplateLocale): Template {
         'entries',
         [
           views.calc(
-            t('Resumo do mês', 'The month so far'),
+            t('Este mês', 'This month'),
             [
               calc('in', t('Entrou', 'Came in'), `sum(${IN})`, 'currency'),
               calc('out', t('Saiu', 'Went out'), `sum(${OUT})`, 'currency'),
@@ -199,7 +198,7 @@ export function finances(locale: TemplateLocale): Template {
       linked(
         'entries',
         [
-          views.chart(t('Saídas por mês', 'Spending by month'), {
+          views.chart(t('Últimos meses', 'Recent months'), {
             kind: 'column',
             x: 'date',
             xDateBucket: 'month',
@@ -232,7 +231,7 @@ export function finances(locale: TemplateLocale): Template {
       linked(
         'categories',
         [
-          views.table(t('Orçamento', 'Budget'), ['title', 'group', 'budget', 'average', 'left', 'status'], {
+          views.table(t('Com orçamento', 'With a budget'), ['title', 'budget', 'average', 'left', 'status'], {
             filters: [where.notEmpty('budget')],
             sorts: [asc('group')]
           })
@@ -243,7 +242,7 @@ export function finances(locale: TemplateLocale): Template {
         'categories',
         [
           views.chart(
-            t('Para onde vai o orçamento', 'Where the budget goes'),
+            t('Por grupo', 'By group'),
             { kind: 'donut', x: 'group', y: { aggregate: 'sum', property: 'budget' }, palette: 'options', showLegend: true, showValues: true, sort: 'manual', height: 220 },
             { filters: [where.notEmpty('budget')] }
           )
@@ -254,27 +253,27 @@ export function finances(locale: TemplateLocale): Template {
       linked(
         'entries',
         [
-          views.table(t('Fixas do mês', "This month's fixed bills"), ['title', 'expense', 'date', 'category', 'account'], {
-            filters: [where.checked('recurring'), where.notEmpty('expense'), where.date('date', 'this_month')],
-            sorts: [asc('date')]
-          })
-        ],
-        { title: t('Fixas do mês', "This month's fixed bills") }
-      ),
-      linked(
-        'entries',
-        [
           views.calc(
-            t('Quanto já está comprometido', 'Already spoken for'),
+            t('Todo mês', 'Every month'),
             [calc('fixed', t('Fixas por mês', 'Fixed each month'), `sum(${OUT})`, 'currency'), calc('n', t('Contas', 'Bills'), 'count()')],
             { filters: [where.checked('recurring'), where.notEmpty('expense'), where.date('date', 'this_month')] }
           )
         ],
-        { title: t('Comprometido', 'Spoken for'), beside: true }
+        { title: t('Comprometido', 'Spoken for') }
+      ),
+      linked(
+        'entries',
+        [
+          views.table(t('Este mês', 'This month'), ['title', 'expense', 'date', 'category', 'account'], {
+            filters: [where.checked('recurring'), where.notEmpty('expense'), where.date('date', 'this_month')],
+            sorts: [asc('date')]
+          })
+        ],
+        { title: t('Contas fixas', 'Fixed bills') }
       ),
       divider(),
-      h2(t('Dados', 'Data')),
-      p(t('De onde o painel lê. Os lançamentos mudam todo dia; categorias e contas, quase nunca.', 'Where the page above reads from. Transactions change every day; categories and accounts hardly ever.')),
+      page(t('Dados', 'Data'), line('box'), [
+      p(t('De onde a página Finanças pessoais lê. Os lançamentos mudam todo dia; categorias e contas, quase nunca.', 'What the Personal finances page reads from. Transactions change every day; categories and accounts hardly ever.')),
       database(
         'entries',
         t('Lançamentos', 'Transactions'),
@@ -315,6 +314,7 @@ export function finances(locale: TemplateLocale): Template {
         [views.table(t('Contas', 'Accounts'), ['title', 'type', 'opening', 'in', 'out', 'balance', 'last'])],
         accountRows
       )
+      ])
     ])
   }
 }

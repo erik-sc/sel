@@ -101,7 +101,7 @@ export function studies(locale: TemplateLocale): Template {
     icon: 'spectacles',
     page: page(t('Estudos', 'Studies'), line('spectacles'), [
       callout(
-        line('lantern'),
+        '💡',
         t(
           [['Depois de cada aula, abra uma página em '], b('Aulas e anotações'), [' e ligue-a à disciplina. Provas e entregas avisam quanto tempo falta.']],
           [['After each class, start a page in '], b('Class notes'), [' and link it to its subject. Exams and assignments tell you how long is left.']]
@@ -110,7 +110,7 @@ export function studies(locale: TemplateLocale): Template {
       h2(t('Esta semana', 'This week')),
       linked(
         'assessments',
-        [views.table(t('Próximos 7 dias', 'Next 7 days'), ['title', 'subject', 'left', 'kind'], { filters: [where.unchecked('done'), where.date('date', 'next_7_days')], sorts: [asc('date')] })],
+        [views.list(t('Próximos 7 dias', 'Next 7 days'), ['subject', 'left'], { filters: [where.unchecked('done'), where.date('date', 'next_7_days')], sorts: [asc('date')] })],
         { title: t('Vem aí', 'Coming up') }
       ),
       linked('lessons', [views.list(t('Para revisar', 'To review'), ['subject', 'date'], { filters: [where.unchecked('reviewed')], sorts: [asc('date')] })], {
@@ -118,21 +118,20 @@ export function studies(locale: TemplateLocale): Template {
         beside: true
       }),
       h2(t('Calendário', 'Calendar')),
-      linked('assessments', [views.calendar(t('Provas e entregas', 'Exams and assignments'), 'date', ['title', 'subject'])], { title: t('Provas e entregas', 'Exams and assignments') }),
+      linked('assessments', [views.calendar(t('Calendário', 'Calendar'), 'date', ['title', 'subject'])], { title: t('Provas e entregas', 'Exams and assignments') }),
       h2(t('Disciplinas', 'Subjects')),
-      linked('subjects', [views.gallery(t('Semestre', 'This term'), ['teacher', 'schedule', 'lessonCount', 'handedIn', 'average'])], { title: t('Este semestre', 'This term') }),
+      linked('subjects', [views.table(t('Semestre', 'Term'), ['title', 'schedule', 'lessonCount', 'handedIn', 'average'])], { title: t('Este semestre', 'This term') }),
       ...(latex ? [h2(t('Trabalhos escritos', 'Writing')), latex] : []),
       divider(),
-      h2(t('Cadernos', 'Notebooks')),
-      p(t('Onde as visões acima leem. Uma aula, leitura ou prova ligada a uma disciplina aparece também na página dela.', 'Where the views above read from. A class, reading or exam linked to a subject also shows up on its page.')),
+      page(t('Cadernos', 'Notebooks'), line('box'), [
+      p(t('De onde as visões da página Estudos leem. Uma aula, leitura ou prova ligada a uma disciplina aparece também na página dela.', 'What the views on the Studies page read. A class, reading or exam linked to a subject also shows up on its page.')),
       database(
         'subjects',
         t('Disciplinas', 'Subjects'),
         line('book'),
         subjects,
         [
-          views.gallery(t('Semestre', 'This term'), ['teacher', 'schedule', 'lessonCount', 'handedIn', 'average']),
-          views.table(t('Tabela', 'Table'), ['title', 'teacher', 'schedule', 'room', 'credits', 'lessonCount', 'handedIn', 'average'])
+          views.table(t('Semestre', 'Term'), ['title', 'teacher', 'schedule', 'room', 'credits', 'lessonCount', 'handedIn', 'average'])
         ],
         [
           row('calc', t('Cálculo II', 'Calculus II'), {
@@ -264,6 +263,7 @@ export function studies(locale: TemplateLocale): Template {
           row(undefined, t('Seminário sobre Popper', 'Presentation on Popper'), { kind: 'talk', date: inDays(16, '19:00'), subject: ['philosophy'], weight: 0.4, done: false })
         ]
       )
+      ])
     ])
   }
 }

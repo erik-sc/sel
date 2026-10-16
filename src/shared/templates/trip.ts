@@ -123,7 +123,7 @@ export function trip(locale: TemplateLocale): Template {
     icon: 'boat',
     page: page(t('Viagem', 'Trip'), line('boat'), [
       callout(
-        line('lantern'),
+        '💡',
         t(
           [['Comece pelo '], b('Roteiro'), [': cada linha é um momento da viagem, ligado ao lugar e à reserva. Troque as datas e a página acompanha.']],
           [['Start with the '], b('Itinerary'), [': each line is a moment of the trip, linked to its place and its booking. Change the dates and the page follows.']]
@@ -131,26 +131,33 @@ export function trip(locale: TemplateLocale): Template {
       ),
       h2(t('Antes de ir', 'Before you go')),
       linked(
-        'bookings',
-        [views.table(t('Falta confirmar', 'Not confirmed yet'), ['title', 'kind', 'date', 'code'], { filters: [where.unchecked('confirmed')], sorts: [asc('date')] })],
-        { title: t('Reservas pendentes', 'Bookings to confirm') }
-      ),
-      linked(
         'packing',
         [
-          views.calc(t('A mala', 'The suitcase'), [
+          views.calc(t('Progresso', 'Progress'), [
             calc('packed', t('Já na mala', 'Packed'), `count(${t('Na mala', 'Packed')}) / count()`, 'percent'),
             calc('left', t('Faltam', 'Still to pack'), `count() - count(${t('Na mala', 'Packed')})`)
           ])
         ],
-        { title: t('Mala', 'Packing'), beside: true }
+        { title: t('Mala', 'Packing') }
+      ),
+      linked(
+        'bookings',
+        [views.table(t('Falta confirmar', 'Not confirmed yet'), ['title', 'kind', 'date', 'code'], { filters: [where.unchecked('confirmed')], sorts: [asc('date')] })],
+        { title: t('Reservas pendentes', 'Bookings to confirm') }
       ),
       h3(t('Uma semana antes', 'A week before')),
       todo(t('Avisar o banco sobre a viagem', 'Tell the bank about the trip')),
       todo(t('Baixar os mapas offline', 'Download offline maps')),
       todo(t('Separar dinheiro local para os primeiros dias', 'Get some local cash for the first days')),
       h2(t('Roteiro', 'Itinerary')),
-      linked('itinerary', [views.calendar(t('Calendário', 'Calendar'), 'when', ['title', 'city'])], { title: t('A viagem no calendário', 'The trip on a calendar') }),
+      linked(
+        'itinerary',
+        [
+          views.list(t('Dia a dia', 'Day by day'), ['when', 'city', 'place'], { sorts: [asc('when')] }),
+          views.calendar(t('Calendário', 'Calendar'), 'when', ['title', 'city'])
+        ],
+        { title: t('A viagem', 'The trip') }
+      ),
       h2(t('Orçamento', 'Budget')),
       p(
         t(
@@ -175,7 +182,7 @@ export function trip(locale: TemplateLocale): Template {
         { title: t('Gastos na moeda do destino', 'Spending in the local currency') }
       ),
       divider(),
-      h2(t('Tudo da viagem', 'Everything about the trip')),
+      page(t('Tudo da viagem', 'Everything about the trip'), line('box'), [
       database(
         'itinerary',
         t('Roteiro', 'Itinerary'),
@@ -297,6 +304,7 @@ export function trip(locale: TemplateLocale): Template {
           row(undefined, t('Ponte Luís I ao entardecer', 'Luís I Bridge at dusk'), { city: 'porto', kind: 'view', status: 'want' })
         ]
       )
+      ])
     ])
   }
 }

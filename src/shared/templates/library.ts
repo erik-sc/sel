@@ -67,7 +67,7 @@ export function library(locale: TemplateLocale): Template {
     icon: 'book',
     page: page(t('Biblioteca', 'Library'), line('book'), [
       callout(
-        line('lantern'),
+        '💡',
         t(
           [['Guarde aqui o que você quer ler e assistir. Ao terminar, diga '], b('o que achou'), [' em palavras — sem notas — e guarde as frases que ficaram.']],
           [['Keep what you want to read and watch here. When you finish, say '], b('what you thought'), [' in words, not scores, and keep the lines that stayed with you.']]
@@ -104,7 +104,7 @@ export function library(locale: TemplateLocale): Template {
       ),
       linked('quotes', [views.list(t('Recentes', 'Latest'), ['item', 'where'], { sorts: [desc('noted')] })], { title: t('Citações e anotações', 'Quotes and notes') }),
       divider(),
-      h2(t('Acervo', 'Collection')),
+      page(t('Acervo', 'Collection'), line('box'), [
       p(t('Tudo o que já passou por aqui, em qualquer situação.', 'Everything that has come through here, in any state.')),
       database(
         'items',
@@ -115,7 +115,7 @@ export function library(locale: TemplateLocale): Template {
           views.board(t('Estante', 'Shelf'), 'status', ['kind', 'creator', 'verdict']),
           views.table(t('Tudo', 'Everything'), ['title', 'kind', 'creator', 'status', 'verdict', 'genres', 'started', 'finished', 'from', 'quoteCount']),
           views.list(t('Terminados', 'Finished'), ['kind', 'verdict', 'finished'], { filters: [where.is('status', 'done')], sorts: [desc('finished')] }),
-          views.gallery(t('Por tipo', 'By kind'), ['kind', 'creator', 'verdict'])
+          views.board(t('Por tipo', 'By kind'), 'kind', ['creator', 'status', 'verdict'])
         ],
         t(
           [
@@ -166,6 +166,7 @@ export function library(locale: TemplateLocale): Template {
           ]
         )
       )
+      ])
     ])
   }
 }

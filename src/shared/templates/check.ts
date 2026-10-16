@@ -27,7 +27,7 @@ function isDate(value: TemplateValue): boolean {
   return (
     ('days' in v && typeof v.days === 'number') ||
     ('month' in v && typeof v.month === 'number' && typeof v.day === 'number') ||
-    ('weekday' in v && typeof v.week === 'number' && typeof v.weekday === 'number' && v.weekday >= 1 && v.weekday <= 7)
+    ('weekday' in v && typeof v.week === 'number' && typeof v.weekday === 'number' && v.weekday >= 0 && v.weekday <= 6)
   )
 }
 

@@ -16,6 +16,8 @@ import type {
 } from '../types'
 import {
   plain,
+  templateNodes,
+  type Template,
   type TemplateBlock,
   type TemplateDatabase,
   type TemplateLinked,
@@ -192,8 +194,52 @@ export const inDays = (days: number, time?: string, endDays?: number, endTime?: 
 /** The `day` of the month `month` months away (0 = this one); never later than the day the template is used. */
 export const ofMonth = (month: number, day: number) => ({ month, day })
 
-/** The `weekday` (1 = Monday … 7 = Sunday) of the week `week` weeks away (0 = this one). */
+/** The `weekday` (0 = Sunday … 6 = Saturday) of the week `week` weeks away (0 = this one), Sunday first. */
 export const onWeekday = (weekday: number, week = 0) => ({ week, weekday })
 
 /** A line icon, stored as `icon:<name>`. */
 export const line = (name: string): string => `icon:${name}`
+
+// ---- column widths
+
+const COLUMN: Partial<Record<PropertySchema['type'], number>> = {
+  title: 200,
+  text: 170,
+  url: 150,
+  number: 110,
+  select: 120,
+  multi_select: 150,
+  date: 120,
+  checkbox: 90,
+  relation: 150,
+  rollup: 120,
+  formula: 130,
+  created_time: 120
+}
+/** About what an inline database gets of the page's width: a table this wide needs no scrolling. */
+const TABLE_WIDTH = 740
+
+/**
+ * Gives the table views of a template columns sized to their property types, narrowed to fit
+ * the page when that costs them little (a table with many columns keeps its widths and scrolls).
+ * Widths already written by the template stay.
+ */
+export function fitColumns(template: Template): Template {
+  const schemas = new Map<string, Record<string, PropertySchema>>()
+  for (const node of templateNodes(template)) if (node.kind === 'database') schemas.set(node.key, node.schema)
+  for (const node of templateNodes(template)) {
+    if (node.kind === 'block') continue
+    const schema = schemas.get(node.kind === 'database' ? node.key : node.source)
+    if (!schema) continue
+    for (const v of node.views) {
+      if (v.type !== 'table') continue
+      const widths: Record<string, number> = {}
+      for (const id of v.visibleProperties) widths[id] = COLUMN[schema[id]?.type ?? 'text'] ?? 150
+      const total = Object.values(widths).reduce((sum, w) => sum + w, 0)
+      const scale = total > TABLE_WIDTH && TABLE_WIDTH / total >= 0.8 ? TABLE_WIDTH / total : 1
+      for (const id of Object.keys(widths)) widths[id] = Math.floor(widths[id] * scale)
+      v.propertyWidths = { ...widths, ...v.propertyWidths }
+    }
+  }
+  return template
+}

@@ -70,7 +70,7 @@ export function kitchen(locale: TemplateLocale): Template {
     ...ingredients.map((item) => bullet(item)),
     h3(t('Modo de preparo', 'Method')),
     ...steps.map((step) => numbered(step)),
-    ...(tip ? [callout(line('leaf'), tip, 'green_background')] : [])
+    ...(tip ? [callout('🌿', tip, 'green_background')] : [])
   ]
 
   interface Recipe {
@@ -322,7 +322,7 @@ export function kitchen(locale: TemplateLocale): Template {
     icon: 'cup',
     page: page(t('Cozinha', 'Kitchen'), line('cup'), [
       callout(
-        line('lantern'),
+        '💡',
         t(
           [['Cada receita é uma página com ingredientes e preparo. Monte a semana no '], b('Cardápio'), [' escolhendo receitas, e anote o que falta na lista de compras.']],
           [['Each recipe is a page with its ingredients and method. Plan the week in the '], b('Menu'), [' by picking recipes, and note what is missing on the shopping list.']]
@@ -342,7 +342,7 @@ export function kitchen(locale: TemplateLocale): Template {
         beside: true
       }),
       divider(),
-      h2(t('Livro de receitas', 'Recipe book')),
+      page(t('Receitas, cardápio e compras', 'Recipes, menu and shopping'), line('box'), [
       p(t('Abra uma receita para ver os ingredientes e o modo de preparo.', 'Open a recipe to see its ingredients and method.')),
       database(
         'recipes',
@@ -366,13 +366,13 @@ export function kitchen(locale: TemplateLocale): Template {
           views.calendar(t('Calendário', 'Calendar'), 'date', ['lunch', 'dinner'])
         ],
         [
+          day('sun', t('Domingo', 'Sunday'), 0, { lunch: ['r1', 'r3'], cook: 'me', notes: t('Bolo para a semana.', 'Bake for the week.') }),
           day('mon', t('Segunda', 'Monday'), 1, { lunch: ['r1', 'r3'], dinner: ['r8'], cook: 'me' }),
           day('tue', t('Terça', 'Tuesday'), 2, { lunch: ['r6'], dinner: ['r4'], cook: 'partner' }),
           day('wed', t('Quarta', 'Wednesday'), 3, { lunch: ['r1', 'r3'], dinner: ['r8'], cook: 'me', notes: t('Sobra de segunda.', "Monday's leftovers.") }),
           day('thu', t('Quinta', 'Thursday'), 4, { lunch: ['r6'], dinner: ['r5'], cook: 'together' }),
           day('fri', t('Sexta', 'Friday'), 5, { lunch: ['r5'], cook: 'out', notes: t('Jantar fora.', 'Dinner out.') }),
           day('sat', t('Sábado', 'Saturday'), 6, { lunch: ['r4'], dinner: ['r7'], cook: 'together' }),
-          day('sun', t('Domingo', 'Sunday'), 7, { lunch: ['r1', 'r3'], cook: 'me', notes: t('Bolo para a semana.', 'Bake for the week.') })
         ]
       ),
       database(
@@ -407,6 +407,7 @@ export function kitchen(locale: TemplateLocale): Template {
           ]
         )
       )
+      ])
     ])
   }
 }

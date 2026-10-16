@@ -27,7 +27,8 @@ export function isTemplateLocale(value: unknown): value is TemplateLocale {
  * about now: `days` from that day (with an optional wall-clock time and end), or `day` of the
  * month `month` months away (0 = this month), never later than that day when the month is
  * this one or an earlier one (something that already happened, like a payment), or the
- * `weekday` (1 = Monday … 7 = Sunday) of the week `week` weeks away (0 = this one).
+ * `weekday` (0 = Sunday … 6 = Saturday) of the week `week` weeks away (0 = this one), a week
+ * running from Sunday to Saturday as the "this week" filter counts it.
  */
 export type TemplateDate =
   | { days: number; time?: string; endDays?: number; endTime?: string }

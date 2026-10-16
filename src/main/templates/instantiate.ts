@@ -45,9 +45,9 @@ export function resolveDate(date: TemplateDate, today: Date): { start: string; e
   const m = today.getMonth()
   const d = today.getDate()
   if ('weekday' in date) {
-    // Monday is the first day of a week, as for weekday() in formulas.
-    const monday = d - ((today.getDay() + 6) % 7)
-    return { start: dayOf(new Date(y, m, monday + date.week * 7 + Math.min(Math.max(1, date.weekday), 7) - 1)) }
+    // A week runs from Sunday, as the "this week" filter of a view counts it.
+    const sunday = d - today.getDay()
+    return { start: dayOf(new Date(y, m, sunday + date.week * 7 + Math.min(Math.max(0, date.weekday), 6))) }
   }
   if ('month' in date) {
     const length = new Date(y, m + date.month + 1, 0).getDate()

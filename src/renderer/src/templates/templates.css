@@ -2,8 +2,8 @@
    what the chosen one makes on the right, then how to make it at the bottom. */
 
 .ui-modal.templates {
-  width: 880px;
-  height: min(620px, 100%);
+  width: 960px;
+  height: min(640px, 100%);
   border-radius: var(--radius-l);
   font-size: var(--text-md);
 }
@@ -30,7 +30,7 @@
 
 .tpl-body {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
 }
@@ -50,7 +50,7 @@
   grid-template-rows: auto auto;
   column-gap: 10px;
   row-gap: 2px;
-  padding: 12px;
+  padding: 10px 12px;
   border: var(--hairline) solid var(--border);
   border-radius: var(--radius-m);
   background: var(--fill-1);
@@ -89,7 +89,7 @@
 }
 
 .tpl-card.is-chosen .tpl-card-icon {
-  color: var(--accent-text);
+  color: var(--text);
 }
 
 .tpl-card-name {
@@ -97,9 +97,13 @@
 }
 
 .tpl-card-description {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--text-secondary);
   font-size: var(--text-sm);
   line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .tpl-preview {

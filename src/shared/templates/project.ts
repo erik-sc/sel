@@ -45,7 +45,7 @@ export function project(locale: TemplateLocale): Template {
       `ifs(prop("progress") >= 1, "${t('Concluído', 'Reached')}", empty(prop("date")), "", prop("date") < today(), "${t('Atrasado', 'Late')}", "${t('No prazo', 'On track')}")`
     ),
     prop.relation('tasks', t('Tarefas', 'Tasks'), 'tasks', { synced: 'milestone' }),
-    prop.rollup('total', t('Tarefas no total', 'Tasks in all'), 'tasks', undefined, 'count'),
+    prop.rollup('total', t('Nº de tarefas', 'Tasks'), 'tasks', undefined, 'count'),
     prop.rollup('statuses', t('Situação das tarefas', 'Task statuses'), 'tasks', 'status', 'show_original')
   )
 
@@ -82,7 +82,7 @@ export function project(locale: TemplateLocale): Template {
     icon: 'path',
     page: page(t('Projeto', 'Project'), line('path'), [
       callout(
-        line('star'),
+        '🎯',
         t(
           [b('Objetivo: '), ['em uma frase, o que este projeto entrega e para quando. Exemplo: lançar o site novo até o fim do trimestre, com o blog e a loja no mesmo lugar.']],
           [b('Goal: '), ['in one sentence, what this project delivers and by when. For example: launch the new website by the end of the quarter, with the blog and the shop in one place.']]
@@ -119,15 +119,14 @@ export function project(locale: TemplateLocale): Template {
             height: 200
           })
         ],
-        { title: t('Quem está com o quê', "Who's on what"), beside: true }
+        { title: t('Quem está com o quê', "Who's on what") }
       ),
-      h2(t('Marcos', 'Milestones')),
-      linked('milestones', [views.table(t('Marcos', 'Milestones'), ['title', 'date', 'progress', 'state', 'total'], { sorts: [asc('date')] })]),
-      h2(t('Reuniões', 'Meetings')),
+      h2(t('Marcos e reuniões', 'Milestones and meetings')),
+      linked('milestones', [views.table(t('Por data', 'By date'), ['title', 'date', 'progress', 'state', 'total'], { sorts: [asc('date')] })]),
       linked('meetings', [views.list(t('Recentes', 'Recent'), ['date', 'kind', 'people'], { sorts: [desc('date')] })]),
       divider(),
-      h2(t('Dados do projeto', 'Project data')),
-      p(t('As bases que as visões acima mostram. Uma tarefa nova aqui aparece no quadro, nos prazos e no marco dela.', 'Where the views above read from. A new task here shows up on the board, in the deadlines and in its milestone.')),
+      page(t('Dados do projeto', 'Project data'), line('box'), [
+      p(t('De onde as visões da página do projeto leem. Uma tarefa nova aqui aparece no quadro, nos prazos e no marco dela.', 'What the views on the project page read. A new task here shows up on the board, in the deadlines and in its milestone.')),
       database(
         'tasks',
         t('Tarefas', 'Tasks'),
@@ -210,6 +209,7 @@ export function project(locale: TemplateLocale): Template {
           )
         ]
       )
+      ])
     ])
   }
 }
