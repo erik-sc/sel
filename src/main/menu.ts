@@ -51,6 +51,7 @@ export function buildMenu(): void {
       label: 'File',
       submenu: [
         item('New Page', 'new-page'),
+        item('New Page from Template…', 'new-from-template'),
         item('New Tab', 'new-tab'),
         item('New Meeting', 'new-meeting'),
         { type: 'separator' },

@@ -171,6 +171,7 @@ const INVOKE_CHANNELS = [
   'tasks:globalShortcut',
   'tasks:importTodoist',
   'tasks:setGlobalShortcut',
+  'templates:create',
   'files:pickImage',
   'files:saveGeneratedImage',
   'files:saveImage',

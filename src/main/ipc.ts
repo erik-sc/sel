@@ -12,6 +12,7 @@ import { registerAlarmsIpc, type AlarmsHooks } from './alarms/register'
 import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
 import { registerNotebookIpc } from './notebook/register'
 import { registerPomodoroIpc, type PomodoroHooks } from './pomodoro/register'
+import { registerTemplatesIpc } from './templates/register'
 import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
 import type { Repository } from './db/repository'
 import type { SyncBridge } from './sync'
@@ -333,6 +334,9 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   const pomodoroIpc = registerPomodoroIpc({ repo, recording: () => meetings.recordingWindow() !== null })
   pomodoro = pomodoroIpc
 
+  // ---- templates (pages and databases made from a template in one transaction; see ./templates)
+  const templatesHandlers = registerTemplatesIpc({ repo })
+
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
 
@@ -379,7 +383,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...updatesIpc.handlers,
     ...externalIpc.handlers,
     ...alarmsIpc.handlers,
-    ...pomodoroIpc.handlers
+    ...pomodoroIpc.handlers,
+    ...templatesHandlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 

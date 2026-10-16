@@ -11,6 +11,7 @@ import type { McpApi } from './mcp'
 import type { MeetingsApi } from './meetings'
 import type { NotebookApi } from './notebook'
 import type { PomodoroApi } from './pomodoro'
+import type { TemplatesApi } from './templates/model'
 import type {
   Block,
   ChangeEvent,
@@ -218,6 +219,9 @@ export interface Api {
    */
   notebook: NotebookApi
 
+  /** Templates of pages and databases (see shared/templates): making one is a single transaction. */
+  templates: TemplatesApi
+
   /**
    * Bug reports and suggestions the user writes in the app, kept as files on this computer for
    * the nightly development agent to pick up. See shared/feedback.ts.
@@ -276,6 +280,8 @@ export interface Api {
 
 export type MenuCommand =
   | 'new-page'
+  /** Opens the template gallery. */
+  | 'new-from-template'
   | 'new-tab'
   | 'close-tab'
   | 'next-tab'
@@ -437,6 +443,8 @@ export const INVOKE = {
   'notebook:plan': true,
   'notebook:dismissPlans': true,
   'notebook:review': true,
+
+  'templates:create': true,
 
   'feedback:list': true,
   'feedback:create': true,

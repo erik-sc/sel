@@ -27,12 +27,19 @@ import { openPalette } from '@/commands/store'
 import { goHome } from '@/home/store'
 import { openShortcuts } from '@/shortcuts/gate'
 import { startOrShowPomodoro } from '@/pomodoro/gate'
+import { openTemplates } from '@/templates/gate'
 
 export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
   switch (command) {
     case 'new-page':
       void createPage(null).catch(reportError('create the page'))
       break
+    case 'new-from-template': {
+      // The page in front is offered as a place for it; the workspace root stays the default.
+      const pageId = tabPage(activeTab())
+      openTemplates({ pageId: pageId && isBlockId(pageId) ? pageId : null })
+      break
+    }
     case 'new-tab':
       newTab()
       break
