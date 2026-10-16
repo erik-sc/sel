@@ -286,6 +286,7 @@ export type MenuCommand =
   | 'new-window'
   | 'version-history'
   | 'toggle-assistant'
+  | 'go-home'
   | 'open-today'
   | 'open-calendar'
   | 'open-tasks'

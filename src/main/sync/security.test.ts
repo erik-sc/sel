@@ -18,12 +18,15 @@ import {
   FormatError,
   mergeAppearance,
   mergeCalendars,
+  mergeHome,
   parseAppearance,
   parseCalendars,
+  parseHome,
   parseMeta,
   parsePage,
   parseRoot,
   serializeCalendars,
+  serializeHome,
   serializeMeta,
   serializePage,
   type CalendarsFile,
@@ -575,6 +578,38 @@ describe('files read from a repository', () => {
     expect(mergeAppearance(base, local, remote)).toEqual(file(9, { light: { a: 'R', b: '2', c: '3' }, dark: { d: '4' }, shared: {}, customCss: 'local' }))
     expect(mergeAppearance(base, { ...local, updatedAt: 10 }, remote).value).toMatchObject({ light: { a: 'L', c: '3' } })
     expect(mergeAppearance(null, file(1, null), remote)).toBe(remote)
+  })
+
+  it('reads the home file as a page id, one of the screens or nothing', () => {
+    const page = { kind: 'page', id: 'p1' } as const
+    expect(parseHome(serializeHome({ updatedAt: 7, value: page }))).toEqual({ updatedAt: 7, value: page })
+    // Cleared: still a file, so that the other devices clear theirs.
+    expect(JSON.parse(serializeHome({ updatedAt: 8, value: null }))).toEqual({ format: 1, updatedAt: 8, value: null })
+    expect(parseHome('{"format":1,"updatedAt":5,"value":{"kind":"screen","route":"_today"}}').value).toEqual({ kind: 'screen', route: '_today' })
+    // What this version cannot use counts as no home.
+    for (const value of ['"x"', '[1]', '{"kind":"page","id":"../x"}', '{"kind":"screen","route":"_garden"}', '{"kind":"page","id":"p1","__proto__":{"polluted":true}}']) {
+      expect(parseHome(`{"format":1,"updatedAt":5,"value":${value}}`).value, value).toBeNull()
+    }
+    expect(({} as { polluted?: boolean }).polluted).toBeUndefined()
+    for (const bad of ['x', '[]', '{"value":null}']) expect(() => parseHome(bad)).toThrow(FormatError)
+    expect(() => parseHome('{"format":9,"updatedAt":1,"value":null}')).toThrow(expect.objectContaining({ newer: true }))
+  })
+
+  it('merges the home three ways: the later change wins where both devices changed it', () => {
+    const at = (updatedAt: number, id: string | null): { updatedAt: number; value: { kind: 'page'; id: string } | null } => ({ updatedAt, value: id === null ? null : { kind: 'page', id } })
+    const base = at(1, 'a')
+    const local = at(5, 'b')
+    const remote = at(9, 'c')
+    expect(mergeHome(base, local, null)).toBe(local)
+    expect(mergeHome(base, local, base)).toBe(local)
+    expect(mergeHome(base, base, remote)).toBe(remote)
+    expect(mergeHome(base, local, remote)).toBe(remote)
+    expect(mergeHome(base, at(10, 'b'), remote)).toEqual(at(10, 'b'))
+    // Clearing is a change like any other.
+    expect(mergeHome(base, base, at(4, null))).toEqual(at(4, null))
+    expect(mergeHome(base, at(12, null), remote)).toEqual(at(12, null))
+    // A device that never had a home takes the workspace's.
+    expect(mergeHome(null, at(0, null), remote)).toBe(remote)
   })
 
   it('takes from a calendars file only https addresses of public hosts, and nothing else', () => {

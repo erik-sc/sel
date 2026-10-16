@@ -66,6 +66,7 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { id: 'tab-position', label: 'Go to tab 1 to 8', keys: ['CmdOrCtrl+1…8'], notMac: true },
       { id: 'tab-last', label: 'Go to the last tab', keys: ['CmdOrCtrl+9'], notMac: true },
       { id: 'open-in-tab', label: 'Open a page in a new tab, from the sidebar', keys: ['CmdOrCtrl+Click', 'CmdOrCtrl+Enter'] },
+      { id: 'go-home', label: 'Home', command: 'go-home', keywords: ['start', 'início'] },
       { id: 'open-today', label: 'Today', command: 'open-today', keywords: ['briefing', 'agenda'] },
       { id: 'open-calendar', label: 'Calendar', command: 'open-calendar', keywords: ['events'] },
       { id: 'open-tasks', label: 'Tasks', command: 'open-tasks', keywords: ['todo'] },

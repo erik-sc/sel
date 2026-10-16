@@ -45,6 +45,7 @@ export const APP_SHORTCUTS: readonly AppShortcut[] = [
   { command: 'new-window', accelerator: 'CmdOrCtrl+Shift+N', key: 'n', ctrl: true, shift: true },
   { command: 'version-history', accelerator: 'CmdOrCtrl+Alt+Shift+H', key: 'h', ctrl: true, shift: true, alt: true },
   { command: 'toggle-assistant', accelerator: 'CmdOrCtrl+J', key: 'j', ctrl: true },
+  { command: 'go-home', accelerator: 'CmdOrCtrl+Alt+H', key: 'h', ctrl: true, alt: true },
   { command: 'open-today', accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true },
   { command: 'open-calendar', accelerator: 'CmdOrCtrl+Alt+C', key: 'c', ctrl: true, alt: true },
   { command: 'open-tasks', accelerator: 'CmdOrCtrl+Alt+K', key: 'k', ctrl: true, alt: true },

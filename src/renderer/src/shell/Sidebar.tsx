@@ -24,6 +24,7 @@ import { PageRow, PageTree } from './PageTree'
 import { preloadSettings } from './SettingsModal'
 import { TrashPopover, preloadTrash } from './TrashPopover'
 import { SyncIndicator } from '@/sync/SyncIndicator'
+import { HomeButton } from '@/home/HomeButton'
 
 /** Pixels the divider moves per arrow key press. */
 const RESIZE_STEP = 16
@@ -124,6 +125,7 @@ export const Sidebar = memo(function Sidebar() {
             <span>Search</span>
             <kbd>{MOD_KEY}P</kbd>
           </button>
+          <HomeButton />
           <button type="button" className="sidebar-action" onClick={openToday}>
             <Clock />
             <span>Today</span>

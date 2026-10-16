@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, nativeTheme, shell, type IpcMainEvent } from 'electron'
 import { INVOKE, IPC, type InvokeChannel } from '../shared/api'
+import { HOME_SETTING } from '../shared/home'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
@@ -195,6 +196,11 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       // The appearance is synced: when it changed here decides which device's change stands.
       if (key === APPEARANCE_SETTING) {
         repo.setSetting('sync.appearanceAt', Date.now())
+        syncBridge?.noteLocalChange()
+      }
+      // So is the home.
+      if (key === HOME_SETTING) {
+        repo.setSetting('sync.homeAt', Date.now())
         syncBridge?.noteLocalChange()
       }
       // So are the databases Today takes its tasks from, with the calendars.

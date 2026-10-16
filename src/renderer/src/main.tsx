@@ -24,6 +24,7 @@ import { initUpdates } from './updates/store'
 import { initAlarms } from './alarms/gate'
 import { openTodayOnLaunch, routeTitle } from './briefing/route'
 import { isQuickAddWindow } from './tasks/gate'
+import { initHome } from './home/store'
 
 bootMark('start')
 
@@ -62,6 +63,8 @@ function bootWorkspace(): void {
   initUpdates()
   // What the alarms' clock in the main process has to say (a briefing at one of its times, a reminder).
   initAlarms()
+  // The home (synced) and what start-up does on this device, for the Home button and Settings.
+  initHome()
   void initTabs(initialPageId()).then(() => {
     // The page about to be shown: fetch its blocks while the editor's code loads.
     const pageId = tabPage(activeTab())
