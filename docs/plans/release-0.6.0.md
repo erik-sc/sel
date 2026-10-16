@@ -1,6 +1,6 @@
 # Release 0.6.0 — specs
 
-Status: **tudo decidido** · onda 1 integrada (PRs #39–#44) · onda 2 despachada · 2026-10-15 ·
+Status: **integrada** · ondas 1 e 2 em release/0.6.0 (PRs #39–#51), README revisto, versão 0.6.0 · 2026-10-16 ·
 branch `release/0.6.0` (de main @ 5591a5a, v0.5.0). Features 7–10 decididas pelo orquestrador com a
 aprovação do Érik para tocar a release inteira.
 
@@ -13,7 +13,7 @@ Marcadores: **❓** = decisão pendente do Érik · **✅** = decidido.
 | Onda | Features | Por quê |
 |---|---|---|
 | 1 (integrada) | 1 Arquivar · 2 Home · 3 Notificações · 4 Meditações · 5 Pomodoro | independentes entre si |
-| 2 (paralelo) | 6 Céu · 7 Barra lateral · 8 Templates · 9 LaTeX · 10a–10f Melhorias pragmáticas | dependem só da onda 1 |
+| 2 (paralelo) | 6 Céu · 7 Barra lateral · 8 Templates · 9 LaTeX · melhorias 10a–10c (10d–10f não rodaram: faltou espaço em disco para as worktrees; ficam para a 0.6.1) | dependem só da onda 1 |
 | 3 | 11 README | descreve o app depois de tudo integrado |
 
 **Registros compartilhados** (conflitos esperados, resolver mantendo os dois lados):
