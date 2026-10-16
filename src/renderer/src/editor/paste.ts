@@ -1,5 +1,5 @@
 // Getting content in and out of the editor: copy, paste, duplicate and file drops.
-import type { Block } from '@shared/types'
+import type { Block, RichText } from '@shared/types'
 import { isTrashable } from '../../../shared/linked'
 import { getBlock, loadTree, newId } from '@/store/blocks'
 import type { EditorController } from './controller'
@@ -14,7 +14,8 @@ import {
   type ClipNode
 } from './clipboard'
 import { isTextType } from './blockTypes'
-import { parseMarkdownBlocks } from './markdown'
+import { MAX_HTML_LENGTH, htmlToNodes } from './html'
+import { parseMarkdownNodes } from './markdown'
 import { rtLength, textOf } from './richtext-dom'
 import { imageExtension, isUrl } from './sanitize'
 import { isEditable, liveChildren, placeForDrop, topLevel } from './structure'
@@ -100,10 +101,33 @@ export function duplicate(ctrl: EditorController, ids: readonly string[]): void 
 }
 
 /**
+ * Blocks for the clipboard's `text/html` (from a web page, an e-mail, Google Docs), or null
+ * when it adds nothing to the plain text. DOMParser makes an inert document: no script in it
+ * runs and nothing it points to loads; html.ts keeps only our own block types and marks.
+ */
+function htmlBlocks(dt: DataTransfer, plain: string): ClipNode[] | null {
+  const html = dt.getData('text/html')
+  if (!html || html.length > MAX_HTML_LENGTH) return null
+  try {
+    return htmlToNodes(new DOMParser().parseFromString(html, 'text/html').body, plain)
+  } catch (err) {
+    console.error('[editor] reading pasted html failed', err)
+    return null
+  }
+}
+
+/** The text of a single pasted paragraph to put inline, when it carries marks or links. */
+function inlineSpans(nodes: readonly ClipNode[]): RichText | null {
+  if (nodes.length !== 1 || nodes[0].children.length) return null
+  const title = nodes[0].props.title
+  return title?.length && title.some((span) => span[1]?.length) ? title : null
+}
+
+/**
  * Handles a paste. `targetId` is the focused text block (null in block-selection
  * mode). Returns false when the caller should insert `text/plain` inline itself.
- * `text/html` is never read: rich content only arrives through the validated
- * internal formats, everything else is treated as plain text / Markdown.
+ * Rich content arrives through the validated internal formats, or as `text/html`
+ * converted to our own blocks (html.ts); everything else is plain text / Markdown.
  */
 export function handlePaste(ctrl: EditorController, dt: DataTransfer, targetId: string | null): boolean {
   const nodes = parseClipboardBlocks(dt.getData(MIME_BLOCKS))
@@ -120,19 +144,36 @@ export function handlePaste(ctrl: EditorController, dt: DataTransfer, targetId: 
   }
   const text = dt.getData('text/plain').replace(/\r\n?/g, '\n')
   const o = targetId ? ctrl.focusable(targetId)?.getSel() : null
-  if (targetId && o && targetId !== ctrl.pageId) {
+  // A caret or selection inside a block's text (not the page title, not a block selection).
+  const inline = targetId && o && targetId !== ctrl.pageId ? { id: targetId, start: o.start, end: o.end } : null
+  const oneLine = !text.replace(/\n+$/, '').includes('\n')
+  if (inline) {
     const spans = parseClipboardRichText(dt.getData(MIME_RICHTEXT))
     if (spans.length) {
-      ctrl.replaceText(targetId, o.start, o.end, spans)
+      ctrl.replaceText(inline.id, inline.start, inline.end, spans)
       return true
     }
+    if (isUrl(text) && inline.end > inline.start && ctrl.setLink(inline, text.trim())) return true
+  }
+  const html = htmlBlocks(dt, text)
+  if (html && inline && oneLine) {
+    // A few words or a link from a page join the line, keeping their marks; without any,
+    // the caller inserts the plain text as it always has.
+    const spans = inlineSpans(html)
+    if (spans) {
+      ctrl.replaceText(inline.id, inline.start, inline.end, spans)
+      return true
+    }
+  } else if (html) {
+    insertNodes(ctrl, html, placeFor(ctrl, targetId))
+    return true
+  }
+  if (inline) {
     if (!text) return true
-    if (isUrl(text) && o.end > o.start && ctrl.setLink({ id: targetId, start: o.start, end: o.end }, text.trim())) return true
-    if (!text.replace(/\n+$/, '').includes('\n')) return false
+    if (oneLine) return false
   }
   if (!text.trim()) return true
-  const parsed = parseMarkdownBlocks(text).map((p): ClipNode => ({ type: p.type, props: { ...p.props, title: p.title }, children: [] }))
-  insertNodes(ctrl, parsed, placeFor(ctrl, targetId))
+  insertNodes(ctrl, parseMarkdownNodes(text), placeFor(ctrl, targetId))
   return true
 }
 
