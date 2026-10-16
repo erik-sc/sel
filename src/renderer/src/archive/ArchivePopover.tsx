@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { Popover } from '@/ui/Popover'
+import { Popover, type PopoverAnchor } from '@/ui/Popover'
 
 const load = (): Promise<typeof import('./ArchiveList')> => import('./ArchiveList')
 const ArchiveList = lazy(() => load().then((module) => ({ default: module.ArchiveList })))
@@ -9,7 +9,7 @@ export function preloadArchive(): void {
   load().catch(() => undefined)
 }
 
-export function ArchivePopover({ anchor, open, onClose }: { anchor: HTMLElement | null; open: boolean; onClose: () => void }) {
+export function ArchivePopover({ anchor, open, onClose }: { anchor: PopoverAnchor; open: boolean; onClose: () => void }) {
   return (
     <Popover anchor={anchor} open={open} onClose={onClose} placement="right-start" className="trash-popover">
       <Suspense fallback={<div className="trash archive" aria-busy="true" />}>

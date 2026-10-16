@@ -345,6 +345,47 @@ suite('sync with real git: flows', () => {
     expect(b.repo.getSetting('home')).toEqual({ kind: 'screen', route: '_notebook' })
   })
 
+  it('carries the sidebar layout to the other device, and back to the default', async () => {
+    const { remote, a, b } = await pair()
+    const layout = { order: ['pages', 'favorites', 'search', 'settings'], hidden: ['feedback'] }
+    a.repo.setSetting('sidebar', layout)
+    a.repo.setSetting('sync.sidebarAt', 5000)
+    await sync(a, b)
+    expect(b.repo.getSetting('sidebar')).toEqual(layout)
+    expect(b.repo.getSetting('sync.sidebarAt')).toBe(5000)
+    expect(JSON.parse(remoteFiles(remote).get('settings/sidebar.json')!.toString())).toEqual({ format: 1, updatedAt: 5000, value: layout })
+    // Nothing changed since: nothing more to upload.
+    const commits = commitCount(remote)
+    await sync(a, b)
+    expect(commitCount(remote)).toBe(commits)
+    // "Restore default" on B is a change A takes too.
+    b.repo.setSetting('sidebar', null)
+    b.repo.setSetting('sync.sidebarAt', 6000)
+    await sync(b, a)
+    expect(a.repo.getSetting('sidebar')).toBeNull()
+    expect(JSON.parse(remoteFiles(remote).get('settings/sidebar.json')!.toString())).toMatchObject({ updatedAt: 6000, value: null })
+  })
+
+  it('keeps the later sidebar layout when both devices changed it', async () => {
+    const { a, b } = await pair()
+    a.repo.setSetting('sidebar', { order: ['trash'], hidden: [] })
+    a.repo.setSetting('sync.sidebarAt', 6000)
+    b.repo.setSetting('sidebar', { order: [], hidden: ['search'] })
+    b.repo.setSetting('sync.sidebarAt', 7000)
+    await sync(a, b, a)
+    expect(a.repo.getSetting('sidebar')).toEqual({ order: [], hidden: ['search'] })
+    expect(b.repo.getSetting('sidebar')).toEqual({ order: [], hidden: ['search'] })
+
+    // The other way round: the device that syncs first has the later change.
+    a.repo.setSetting('sidebar', { order: ['settings'], hidden: [] })
+    a.repo.setSetting('sync.sidebarAt', 9000)
+    b.repo.setSetting('sidebar', { order: ['sync'], hidden: [] })
+    b.repo.setSetting('sync.sidebarAt', 8000)
+    await sync(b, a, b)
+    expect(a.repo.getSetting('sidebar')).toEqual({ order: ['settings'], hidden: [] })
+    expect(b.repo.getSetting('sidebar')).toEqual({ order: ['settings'], hidden: [] })
+  })
+
   it('carries the home in an encrypted repository, sealed like the rest', async () => {
     const remote = bareRemote()
     const a = device('Device A', 1_000_000)

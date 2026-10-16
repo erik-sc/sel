@@ -15,6 +15,9 @@ import { runMenuCommand } from '@/shell/menuCommands'
 import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/actions'
 import { ARCHIVE_KEYWORDS } from '@/archive/copy'
 import { archiveCopy } from '@/archive/locale'
+import { customizeSidebar, sidebarCopy } from '@/shell/sidebarLayout'
+import { SIDEBAR_KEYWORDS } from '@/shell/sidebarCopy'
+import { openSidebarPanel } from '@/shell/sidebarPanels'
 import { registerCommands, type Command } from './registry'
 
 /** The page (or database) in the active tab, if it is one and not in the Trash. */
@@ -54,6 +57,7 @@ function openSettings(section: SettingsSection): void {
 const SETTINGS: [SettingsSection, string, string[]][] = [
   ['general', 'General', ['import', 'theme', 'home', 'startup']],
   ['appearance', 'Appearance', ['colours', 'colors', 'font', 'look']],
+  ['sidebar', 'Sidebar', SIDEBAR_KEYWORDS],
   ['history', 'History', ['versions', 'snapshots']],
   ['ai', 'AI', ['claude', 'assistant']],
   ['herman', 'Herman', ['assistant', 'council']],
@@ -114,6 +118,31 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('go-forward', 'Forward', ['history', 'navigate']),
   menu('new-window', 'New window'),
   menu('toggle-sidebar', 'Show or hide the sidebar', ['collapse', 'expand', 'panel']),
+  {
+    id: 'customize-sidebar',
+    get title() {
+      return sidebarCopy().customizeCommand
+    },
+    keywords: SIDEBAR_KEYWORDS,
+    run: customizeSidebar
+  },
+  // The Trash and the Archive stay at hand when their sidebar buttons are hidden.
+  {
+    id: 'open-trash',
+    get title() {
+      return sidebarCopy().openTrash
+    },
+    keywords: ['trash', 'lixeira', 'deleted', 'restore', 'apagadas'],
+    run: () => openSidebarPanel('trash')
+  },
+  {
+    id: 'open-archive',
+    get title() {
+      return sidebarCopy().openArchive
+    },
+    keywords: ['archive', 'arquivo', 'archived', 'arquivadas'],
+    run: () => openSidebarPanel('archive')
+  },
   menu('toggle-focus-mode', 'Focus mode: only the page', FOCUS_WORDS, () => !useUi.getState().focusMode),
   {
     id: 'leave-focus-mode',

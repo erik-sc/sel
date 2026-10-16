@@ -7,6 +7,7 @@ import { cleanMcpSetting, MCP_KEYS } from '../shared/mcp'
 import { cleanMeetingsSetting, MEETINGS_KEYS } from '../shared/meetings'
 import { cleanNotebookSetting, NOTEBOOK_KEYS } from '../shared/notebook'
 import { cleanPomodoroSetting, POMODORO_KEYS } from '../shared/pomodoro'
+import { cleanSidebar, SIDEBAR_SETTING } from '../shared/sidebar'
 import { cleanUpdatesSetting, UPDATES_KEYS } from '../shared/updates'
 import { cleanHistorySetting, HISTORY_KEYS, MAX_VERSION_LABEL } from '../shared/versions'
 import { isValidId, MAX_SETTING_CHARS } from './db/blocks'
@@ -39,7 +40,7 @@ const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
  * the seats of his council among them (what he remembers, `herman.memory`, is not); `updates.check`
  * (not `updates.lastCheck`); `mcp.enabled`; nothing else in those namespaces.
  */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', HOME_SETTING, ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS, ...NOTEBOOK_KEYS, ...ALARMS_KEYS, ...POMODORO_KEYS])
+const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', HOME_SETTING, ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS, ...NOTEBOOK_KEYS, ...ALARMS_KEYS, ...POMODORO_KEYS, SIDEBAR_SETTING])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
 const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
 
@@ -176,6 +177,7 @@ export function settingValueFor(key: string, value: unknown): unknown {
   if (key.startsWith('alarms.')) return alarmsSettingValue(key, value)
   if (key === HOME_SETTING) return homeSettingValue(value)
   if (key === STARTUP_SETTING) return startupSettingValue(value)
+  if (key === SIDEBAR_SETTING) return sidebarSettingValue(value)
   if (key.startsWith('pomodoro.')) return pomodoroSettingValue(key, value)
   if (!key.startsWith('history.')) return settingValue(value)
   if (value === undefined || value === null) return null
@@ -272,6 +274,16 @@ function notebookSettingValue(key: string, value: unknown): unknown {
 /** The home syncs to every device, so it is exactly a page id or one of the screens. Null clears it. */
 function homeSettingValue(value: unknown): unknown {
   const clean = cleanHome(value)
+  if (clean === undefined) throw new Error('Invalid setting value')
+  return clean
+}
+
+/**
+ * The sidebar's layout syncs to every device: lists of item ids, nothing else. Ids this version
+ * does not know are kept for a newer device; the renderer ignores them. Null is the default.
+ */
+function sidebarSettingValue(value: unknown): unknown {
+  const clean = cleanSidebar(value)
   if (clean === undefined) throw new Error('Invalid setting value')
   return clean
 }
