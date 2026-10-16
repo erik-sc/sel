@@ -76,6 +76,40 @@ export function rowDropTarget(
   return { afterId: targetId }
 }
 
+/**
+ * The moves that put restored rows back where they were. `order` is the database order
+ * before they left, `content` the order now (restoring appends). Each row goes right after
+ * the nearest row before it in `order` that is still there (null = first); rows already in
+ * place, and rows that did not come back, are left alone. Apply the moves in the order given.
+ */
+export function restoreMoves(
+  order: readonly string[],
+  restored: readonly string[],
+  content: readonly string[]
+): { id: string; afterId: string | null }[] {
+  // Moves change positions, never which rows are there.
+  const present = new Set(content)
+  const back = new Set(restored.filter((id) => present.has(id)))
+  const current = content.slice()
+  const moves: { id: string; afterId: string | null }[] = []
+  order.forEach((id, index) => {
+    if (!back.has(id)) return
+    let afterId: string | null = null
+    for (let i = index - 1; i >= 0; i--) {
+      if (present.has(order[i])) {
+        afterId = order[i]
+        break
+      }
+    }
+    const at = current.indexOf(id)
+    if (afterId === null ? at === 0 : at === current.indexOf(afterId) + 1) return
+    current.splice(at, 1)
+    current.splice(afterId === null ? 0 : current.indexOf(afterId) + 1, 0, id)
+    moves.push({ id, afterId })
+  })
+  return moves
+}
+
 export function uniqueName(existing: string[], base: string): string {
   const taken = new Set(existing.map((n) => String(n).toLocaleLowerCase()))
   if (!taken.has(base.toLocaleLowerCase())) return base

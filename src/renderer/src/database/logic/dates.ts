@@ -336,7 +336,7 @@ export function monthRangeLabel(fromIso: string, toIso: string, locale?: string)
   try {
     return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).formatRange(new Date(from), new Date(to))
   } catch {
-    return formatCivil(from, locale, { month: 'long', year: 'numeric' })
+    return formatCivil(from, locale, 'month')
   }
 }
 
@@ -345,10 +345,32 @@ export interface FormatOptions {
   currency?: string
 }
 
+const CIVIL_FORMATS = {
+  day: { year: 'numeric', month: 'short', day: 'numeric' },
+  time: { hour: 'numeric', minute: '2-digit' },
+  month: { month: 'long', year: 'numeric' },
+  shortMonth: { month: 'short', year: 'numeric' },
+  weekday: { weekday: 'short' }
+} satisfies Record<string, Intl.DateTimeFormatOptions>
+
+/**
+ * Formatters by locale and kind. Building one is far dearer than formatting with it, and a
+ * long list formats a date per row on every render.
+ */
+const civilFormatters = new Map<string, Intl.DateTimeFormat>()
+const MAX_CIVIL_FORMATTERS = 64
+
 /** Formats a civil day. The formatter runs in UTC on a UTC date, so the day never shifts. */
-function formatCivil(ms: number, locale: string | undefined, options: Intl.DateTimeFormatOptions): string {
+function formatCivil(ms: number, locale: string | undefined, kind: keyof typeof CIVIL_FORMATS): string {
   try {
-    return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(new Date(ms))
+    const key = `${kind}|${locale ?? ''}`
+    let formatter = civilFormatters.get(key)
+    if (!formatter) {
+      formatter = new Intl.DateTimeFormat(locale, { ...CIVIL_FORMATS[kind], timeZone: 'UTC' })
+      if (civilFormatters.size >= MAX_CIVIL_FORMATTERS) civilFormatters.clear()
+      civilFormatters.set(key, formatter)
+    }
+    return formatter.format(new Date(ms))
   } catch {
     return isoFromUtc(ms)
   }
@@ -357,7 +379,7 @@ function formatCivil(ms: number, locale: string | undefined, options: Intl.DateT
 export function formatDay(iso: string, opts: FormatOptions = {}): string {
   const ms = parseDayMs(iso)
   if (ms === null) return ''
-  return formatCivil(ms, opts.locale, { year: 'numeric', month: 'short', day: 'numeric' })
+  return formatCivil(ms, opts.locale, 'day')
 }
 
 /** A wall-clock `HH:mm` the way the locale writes times ("09:30", "9:30 AM"). */
@@ -365,7 +387,7 @@ export function formatTime(time: string, opts: FormatOptions = {}): string {
   const clean = normalizeTime(time)
   if (!clean) return ''
   const ms = utcMs(2000, 1, 1) + (Number(clean.slice(0, 2)) * 60 + Number(clean.slice(3))) * 60_000
-  return formatCivil(ms, opts.locale, { hour: 'numeric', minute: '2-digit' })
+  return formatCivil(ms, opts.locale, 'time')
 }
 
 /** A day, with its time of day when it has one. */
@@ -404,14 +426,14 @@ export function formatTimestamp(ms: number, opts: FormatOptions = {}): string {
 }
 
 export function monthLabel(year: number, month: number, locale?: string): string {
-  return formatCivil(utcMs(year, month + 1, 1), locale, { month: 'long', year: 'numeric' })
+  return formatCivil(utcMs(year, month + 1, 1), locale, 'month')
 }
 
 /** Short weekday names starting on `weekStart` (0 = Sunday). */
 export function weekdayLabels(locale?: string, weekStart = 0): string[] {
   const out: string[] = []
   // 2023-01-01 was a Sunday.
-  for (let i = 0; i < 7; i++) out.push(formatCivil(utcMs(2023, 1, 1 + weekStart + i), locale, { weekday: 'short' }))
+  for (let i = 0; i < 7; i++) out.push(formatCivil(utcMs(2023, 1, 1 + weekStart + i), locale, 'weekday'))
   return out
 }
 
@@ -489,7 +511,7 @@ export function bucketLabel(start: string, bucket: DateBucket, opts: FormatOptio
       return week ? `W${week.week} ${week.year}` : ''
     }
     case 'month':
-      return formatCivil(ms, opts.locale, { month: 'short', year: 'numeric' })
+      return formatCivil(ms, opts.locale, 'shortMonth')
     case 'quarter':
       return `Q${Math.floor(d.getUTCMonth() / 3) + 1} ${d.getUTCFullYear()}`
     case 'year':
