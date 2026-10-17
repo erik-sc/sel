@@ -280,15 +280,41 @@ describe('what the examples say', () => {
     return { cell, rowsOf }
   }
 
-  it('finances: a category compares its budget with its average month, an account keeps its balance', () => {
+  it('finances: a category compares its budget with this month and the last, an account keeps its balance', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date(2026, 9, 20, 12))
+      const { cell } = made('finances', 'pt-BR')
+      expect(cell('Categorias', 'Moradia', 'budget')).toMatch(/R\$\s?2\.000,00/)
+      // Rent, electricity and internet: this month's bill is a little lower than last month's.
+      expect(cell('Categorias', 'Moradia', 'month')).toMatch(/R\$\s?1\.996,00/)
+      expect(cell('Categorias', 'Moradia', 'lastMonth')).toMatch(/R\$\s?2\.020,00/)
+      expect(cell('Categorias', 'Moradia', 'left')).toMatch(/R\$\s?4,00/)
+      expect(cell('Categorias', 'Moradia', 'used')).toBe('99,8%')
+      expect(cell('Categorias', 'Moradia', 'status')).toBe('No limite')
+      expect(cell('Categorias', 'Moradia', 'average')).toMatch(/R\$/)
+      expect(cell('Categorias', 'Salário', 'status')).toBe('')
+      // Putting the whole budget aside is the aim of a savings category, not a limit.
+      expect(cell('Categorias', 'Reserva de emergência', 'status')).toBe('Guardado')
+      expect(cell('Contas', 'Poupança', 'balance')).toMatch(/^R\$\s?\d/)
+      const en = made('finances', 'en')
+      expect(en.cell('Accounts', 'Savings account', 'balance')).toMatch(/^\$\d/)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('finances: the plan shares the pay out by group and says what to look at first', () => {
     const { cell } = made('finances', 'pt-BR')
-    expect(cell('Categorias', 'Moradia', 'budget')).toMatch(/R\$\s?2\.000,00/)
-    expect(cell('Categorias', 'Moradia', 'average')).toMatch(/R\$/)
-    expect(cell('Categorias', 'Moradia', 'status')).not.toBe('')
-    expect(cell('Categorias', 'Salário', 'status')).toBe('')
-    expect(cell('Contas', 'Poupança', 'balance')).toMatch(/^R\$\s?\d/)
+    expect(cell('Meu plano', 'Meu salário', 'salary')).toMatch(/R\$\s?5\.200,00/)
+    expect(cell('Meu plano', 'Meu salário', 'planned')).toMatch(/R\$\s?4\.730,00/)
+    expect(cell('Meu plano', 'Meu salário', 'free')).toMatch(/R\$\s?470,00/)
+    expect(cell('Meu plano', 'Meu salário', 'needs')).toMatch(/R\$\s?3\.450,00/)
+    expect(cell('Meu plano', 'Meu salário', 'futureShare')).toBe('11,54%')
+    expect(cell('Meu plano', 'Meu salário', 'advice')).toBe('O essencial leva 66% do salário (o comum é até 50%). Reveja moradia e contas fixas.')
     const en = made('finances', 'en')
-    expect(en.cell('Accounts', 'Savings account', 'balance')).toMatch(/^\$\d/)
+    expect(en.cell('My plan', 'My pay', 'free')).toBe('$1,300.00')
+    expect(en.cell('My plan', 'My pay', 'advice')).toBe('Only 10% goes to savings (20% is usual). Put more aside.')
   })
 
   it('project: a milestone whose tasks are all done is reached', () => {

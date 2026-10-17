@@ -8,11 +8,13 @@ import type {
   PropertyValue,
   RollupConfig,
   RollupFunction,
-  SelectOption
+  SelectOption,
+  ViewFilter
 } from '../../../../shared/types'
 import { dayKey, type DateValue } from './dates'
+import { applyFilters } from './query'
 import { linkedRows, relatedDatabaseState, type CellContext } from './relation'
-import { findOption, formatValue, getCellValue, isEmptyValue, isPlainObject, isSafeKey, propOf } from './values'
+import { findOption, formatValue, getCellValue, isEmptyValue, isPlainObject, isSafeKey, propOf, type Schema } from './values'
 
 export const ROLLUP_FUNCTIONS: RollupFunction[] = [
   'show_original',
@@ -62,11 +64,33 @@ export function sanitizeRollupConfig(raw: unknown): RollupConfig {
   const badFunction = !isRollupFunction(raw.function)
   const badRelation = raw.relationId !== undefined && !isSafeKey(raw.relationId)
   const badProperty = raw.propertyId !== undefined && !isSafeKey(raw.propertyId)
-  if (!badFunction && !badRelation && !badProperty) return raw as unknown as RollupConfig
+  const filters = raw.filters === undefined ? undefined : wellFormedRules(raw.filters)
+  const badFilters = raw.filters !== undefined && (filters === undefined || filters.length === 0 || filters.length !== (raw.filters as unknown[]).length)
+  if (!badFunction && !badRelation && !badProperty && !badFilters) return raw as unknown as RollupConfig
   const out = { ...raw, function: badFunction ? DEFAULT_ROLLUP.function : raw.function } as RollupConfig
   if (badRelation) delete out.relationId
   if (badProperty) delete out.propertyId
+  if (badFilters) {
+    if (filters?.length) out.filters = filters
+    else delete out.filters
+  }
   return out
+}
+
+/** The rules of a list that have the shape of one (a property key and an operator); undefined for anything but a list. */
+function wellFormedRules(raw: unknown): ViewFilter[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  return raw.filter((rule): rule is ViewFilter => isPlainObject(rule) && isSafeKey(rule.propertyId) && typeof rule.operator === 'string')
+}
+
+/**
+ * The rules of a rollup that apply: those on plain properties of the related database
+ * (a rule on a relation, a rollup or a formula would let rollups read each other in a loop).
+ * What each rule means is decided as views decide it, so an incomplete one keeps every row.
+ */
+export function rollupFilters(config: RollupConfig, targetSchema: Schema | undefined): ViewFilter[] {
+  if (!config.filters?.length || !targetSchema) return []
+  return config.filters.filter((rule) => isRollupSource(propOf(targetSchema, rule.propertyId)))
 }
 
 export type RollupKind = 'number' | 'date' | 'text'
@@ -236,8 +260,14 @@ export function computeRollup(row: Block, prop: PropertySchema, ctx: CellContext
   if (prop.type !== 'rollup' || !row.parentId) return null
   const resolved = resolveRollup(prop, ctx.schemaOf(row.parentId), ctx)
   if (!resolved.ready || !resolved.relation?.relation) return null
-  if (relatedDatabaseState(resolved.relation.relation.databaseId, ctx) !== 'ok') return null
-  return aggregateRollup(resolved.config.function, linkedRows(row, resolved.relation, ctx), resolved.target)
+  const databaseId = resolved.relation.relation.databaseId
+  if (relatedDatabaseState(databaseId, ctx) !== 'ok') return null
+  const rows = linkedRows(row, resolved.relation, ctx)
+  const targetSchema = ctx.schemaOf(databaseId)
+  const rules = rollupFilters(resolved.config, targetSchema)
+  // No context for the rules: they only read what the related rows store.
+  const kept = rules.length && targetSchema ? applyFilters(rows, targetSchema, rules) : rows
+  return aggregateRollup(resolved.config.function, kept, resolved.target)
 }
 
 /** A rollup result as a cell value: a number, a date, or the original values as one line of text. */

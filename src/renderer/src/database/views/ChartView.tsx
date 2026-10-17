@@ -8,6 +8,7 @@ import * as L from './chartLogic'
 import * as actions from '../actions'
 import { isFreshChart, settleChart } from '../chartFresh'
 import { Floating, RowIcon, rowTitle, type ViewProps } from '../common'
+import { useRelated } from '../related'
 import { ChartKindIcon } from './chartIcons'
 import { buildScene, type Scene } from './chartLayout'
 import { ChartPlot, NumberTile, colourVar, type PickPoint, type Target } from './chartPlot'
@@ -219,8 +220,10 @@ function withoutHidden(data: L.ChartData, hidden: ReadonlySet<string>): L.ChartD
 export function ChartView(p: ViewProps): JSX.Element {
   const { databaseId, schema, view, rows } = p
   const config = useMemo(() => L.chartConfigOf(view, schema), [view, schema])
+  // Relations, rollups and formulas are read through the cells of the related rows.
+  const { cells } = useRelated()
   // The only place rows are aggregated: hovering, focusing and resizing reuse this.
-  const data = useMemo(() => L.buildChartData(rows, schema, config), [rows, schema, config])
+  const data = useMemo(() => L.buildChartData(rows, schema, config, undefined, {}, cells), [rows, schema, config, cells])
 
   const plotRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -315,8 +318,8 @@ export function ChartView(p: ViewProps): JSX.Element {
   )
 
   const drillRows = useMemo<Block[]>(
-    () => (drill ? L.chartRowsAt(rows, schema, config, data, drill.categoryKey, drill.seriesKey) : []),
-    [drill, rows, schema, config, data]
+    () => (drill ? L.chartRowsAt(rows, schema, config, data, drill.categoryKey, drill.seriesKey, undefined, {}, cells) : []),
+    [drill, rows, schema, config, data, cells]
   )
   const drillTitle = useMemo(() => {
     if (!drill) return ''

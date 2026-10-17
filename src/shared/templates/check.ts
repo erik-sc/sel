@@ -87,6 +87,15 @@ export function templateProblems(template: Template): string[] {
           if (!read || COMPUTED.includes(read.type)) problems.push(`${at}: the rollup "${id}" reads no plain property of "${target.key}"`)
           else if (!rollupFits(property.rollup?.function ?? 'count', read)) problems.push(`${at}: the rollup "${id}" cannot ${property.rollup?.function} "${read.id}"`)
         }
+        // The rows it keeps are chosen by plain properties of the related database (no chains).
+        if (target) {
+          for (const rule of property.rollup?.filters ?? []) {
+            const by = target.schema[rule.propertyId]
+            if (!by || COMPUTED.includes(by.type)) problems.push(`${at}: the rollup "${id}" keeps rows by "${rule.propertyId}", which is no plain property of "${target.key}"`)
+            else if (OPERATORS[by.type] && !OPERATORS[by.type]?.includes(rule.operator)) problems.push(`${at}: the rollup "${id}": "${rule.operator}" does not apply to "${by.id}"`)
+            else if (by.type === 'select' && rule.value !== undefined && !by.options?.some((o) => o.id === rule.value)) problems.push(`${at}: the rollup "${id}" keeps rows by an unknown option`)
+          }
+        }
       }
       if (property.type === 'formula') {
         const expression = property.formula?.expression ?? ''
@@ -147,6 +156,14 @@ export function templateProblems(template: Template): string[] {
   return problems
 }
 
+/** Whether a property gives a number a chart can add up: a number, a box, a formula written as one, or a numeric rollup. */
+function givesNumber(property: PropertySchema | undefined): boolean {
+  if (!property) return false
+  if (property.type === 'number' || property.type === 'checkbox') return true
+  if (property.type === 'formula') return property.numberFormat !== undefined
+  return property.type === 'rollup' && !['show_original', 'earliest', 'latest'].includes(property.rollup?.function ?? 'count')
+}
+
 function rollupFits(fn: string, read: PropertySchema): boolean {
   if (['show_original', 'count', 'count_values', 'count_unique'].includes(fn)) return true
   if (['sum', 'average', 'min', 'max', 'range'].includes(fn)) return read.type === 'number'
@@ -185,11 +202,10 @@ function viewProblems(list: TemplateView[], schema: Record<string, PropertySchem
       if (!chart) out.push(`${where} is a chart with nothing to draw`)
       else {
         for (const id of [chart.x, chart.series]) {
-          if (id !== undefined && (!schema[id] || COMPUTED.includes(schema[id].type))) out.push(`${where} groups by "${id}", which a chart cannot`)
+          if (id !== undefined && !schema[id]) out.push(`${where} groups by "${id}", which is not a property`)
         }
-        const value = chart.y.property
-        if (chart.y.aggregate !== 'count' && (!value || !['number', 'checkbox'].includes(schema[value]?.type ?? ''))) {
-          out.push(`${where} adds up "${String(value)}", which is not a number`)
+        if (chart.y.aggregate !== 'count' && chart.y.aggregate !== 'count_unique' && !givesNumber(schema[chart.y.property ?? ''])) {
+          out.push(`${where} adds up "${String(chart.y.property)}", which is not a number`)
         }
       }
     }

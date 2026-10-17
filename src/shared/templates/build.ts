@@ -90,11 +90,12 @@ export const prop = {
       ...(options.one ? { limit: 'one' as const } : {})
     }
   }),
-  rollup: (id: string, name: string, relationId: string, propertyId: string | undefined, fn: RollupFunction): PropertySchema => ({
+  /** `filters`: only the related rows these rules keep count ("Date is this month"). */
+  rollup: (id: string, name: string, relationId: string, propertyId: string | undefined, fn: RollupFunction, filters?: ViewFilter[]): PropertySchema => ({
     id,
     name,
     type: 'rollup',
-    rollup: propertyId ? { relationId, propertyId, function: fn } : { relationId, function: fn }
+    rollup: { relationId, ...(propertyId ? { propertyId } : {}), function: fn, ...(filters?.length ? { filters } : {}) }
   }),
   /** `expression` names properties by id, as `prop("id")`. */
   formula: (id: string, name: string, expression: string, numberFormat?: PropertySchema['numberFormat']): PropertySchema =>

@@ -883,3 +883,93 @@ describe('scale', () => {
     expect(elapsed).toBeLessThan(3000)
   })
 })
+
+describe('relations, rollups and formulas', () => {
+  // A ledger whose rows link to categories; the categories sum up what was spent on them.
+  const ledgerSchema: L.Schema = {
+    title: { id: 'title', name: 'Name', type: 'title' },
+    inc: { id: 'inc', name: 'In', type: 'number', numberFormat: 'currency' },
+    exp: { id: 'exp', name: 'Out', type: 'number', numberFormat: 'currency' },
+    cat: { id: 'cat', name: 'Category', type: 'relation', relation: { databaseId: 'cats', syncedPropertyId: 'entries' } },
+    net: { id: 'net', name: 'Net', type: 'formula', formula: { expression: 'prop("inc") - prop("exp")' }, numberFormat: 'currency' },
+    kind: { id: 'kind', name: 'Kind', type: 'formula', formula: { expression: 'if(prop("exp") > 0, "Out", "In")' } }
+  }
+  const catsSchema: L.Schema = {
+    title: { id: 'title', name: 'Category', type: 'title' },
+    entries: { id: 'entries', name: 'Entries', type: 'relation', relation: { databaseId: 'db', syncedPropertyId: 'cat' } },
+    spent: { id: 'spent', name: 'Spent', type: 'rollup', rollup: { relationId: 'entries', propertyId: 'exp', function: 'sum' } }
+  }
+  const entries: Block[] = [
+    row('pay', { inc: 1000, exp: 0, cat: ['salary'] }),
+    row('rent', { inc: 0, exp: 600, cat: ['home'] }),
+    row('food', { inc: 0, exp: 150, cat: ['home', 'fun'] }),
+    row('show', { inc: 0, exp: 50, cat: ['fun'] }),
+    row('loose', { inc: 0, exp: 20 })
+  ]
+  const cat = (id: string, title: string, linked: string[]): Block => ({
+    ...row(id, { entries: linked }),
+    parentId: 'cats',
+    props: { title: [[title]], values: { entries: linked } }
+  })
+  const cats = [cat('salary', 'Salary', ['pay']), cat('home', 'Home', ['rent', 'food']), cat('fun', 'Fun', ['food', 'show'])]
+  const database = (id: string, s: L.Schema, content: string[]): Block => ({
+    id,
+    type: 'database',
+    parentId: null,
+    content,
+    props: { schema: s, views: [] },
+    createdAt: 0,
+    updatedAt: 0,
+    trashedAt: null
+  })
+  const blocks = [database('db', ledgerSchema, entries.map((b) => b.id)), database('cats', catsSchema, cats.map((b) => b.id)), ...entries, ...cats]
+  const byId = new Map(blocks.map((b) => [b.id, b]))
+  const ctx = L.cellContext({ get: (id) => byId.get(id) })
+  const ledger = (config: ChartConfig, withCtx = true): L.ChartData => L.buildChartData(entries, ledgerSchema, config, undefined, EN, withCtx ? ctx : undefined)
+
+  it('groups by the rows a relation links to, named by their titles; a row in two counts in both', () => {
+    const data = ledger({ kind: 'bar', x: 'cat', y: { aggregate: 'sum', property: 'exp' } })
+    expect(labels(data)).toEqual(['Salary', 'Home', 'Fun'])
+    expect(values(data)).toEqual([0, 750, 200])
+    expect(data.yFormat.numberFormat).toBe('currency')
+    // Each row once in the total, however many categories it is in.
+    expect(data.total).toBe(800)
+  })
+
+  it('cannot name the linked rows without the context', () => {
+    expect(labels(ledger({ kind: 'bar', x: 'cat', y: { aggregate: 'count' } }, false))).toEqual(['Untitled', 'Untitled', 'Untitled'])
+  })
+
+  it('sums a formula in its own number format, and groups by the text a formula gives', () => {
+    const data = ledger({ kind: 'column', x: 'kind', y: { aggregate: 'sum', property: 'net' } })
+    expect(labels(data)).toEqual(['In', 'Out'])
+    expect(values(data)).toEqual([1000, -820])
+    expect(data.yFormat.numberFormat).toBe('currency')
+  })
+
+  it('splits by a formula', () => {
+    const data = ledger({ kind: 'column', x: 'cat', y: { aggregate: 'sum', property: 'net' }, series: 'kind' })
+    expect(data.split).toBe(true)
+    expect(data.series.map((s) => s.label)).toEqual(['In', 'Out'])
+  })
+
+  it('reads a rollup as the number it gives, in the related property format', () => {
+    const data = L.buildChartData(cats, catsSchema, { kind: 'bar', x: 'title', y: { aggregate: 'sum', property: 'spent' } }, undefined, EN, ctx)
+    expect(labels(data)).toEqual(['Salary', 'Home', 'Fun'])
+    expect(values(data)).toEqual([0, 750, 200])
+    expect(data.yFormat.numberFormat).toBe('currency')
+  })
+
+  it('keeps relations, rollups and formulas in a configuration, and offers numeric ones as values', () => {
+    const config: ChartConfig = { kind: 'bar', x: 'cat', y: { aggregate: 'sum', property: 'net' }, series: 'kind' }
+    expect(L.normalizeChartConfig(config, ledgerSchema)).toEqual(config)
+    expect(L.chartValueProperties(ledgerSchema, 'sum').map((p) => p.id)).toEqual(['inc', 'exp', 'net'])
+    expect(L.chartValueProperties(catsSchema, 'sum').map((p) => p.id)).toEqual(['spent'])
+  })
+
+  it('finds the rows behind a linked row', () => {
+    const config: ChartConfig = { kind: 'bar', x: 'cat', y: { aggregate: 'sum', property: 'exp' } }
+    const data = ledger(config)
+    expect(L.chartRowsAt(entries, ledgerSchema, config, data, 'r:fun', null, undefined, EN, ctx).map((r) => r.id)).toEqual(['food', 'show'])
+  })
+})

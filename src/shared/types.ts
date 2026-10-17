@@ -167,6 +167,12 @@ export interface RollupConfig {
   relationId?: string
   /** A property of the related database; `count` needs none. */
   propertyId?: string
+  /**
+   * Only the linked rows that pass every rule count ("Date is this month"). Rules name
+   * properties of the related database, and only plain ones (no relation, rollup or
+   * formula: no chains). Absent: every linked row.
+   */
+  filters?: ViewFilter[]
   function: RollupFunction
 }
 
@@ -267,7 +273,10 @@ export const RELATIVE_DATES = [
   'past_7_days',
   'this_week',
   'next_week',
-  'this_month'
+  'this_month',
+  'last_month',
+  'past_30_days',
+  'this_year'
 ] as const
 export type RelativeDate = (typeof RELATIVE_DATES)[number]
 
