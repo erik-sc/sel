@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Block, DatabaseView, PropertySchema, RollupConfig, RollupFunction } from '../../../../shared/types'
 import { cellText, filterTypeOf, readCell } from './cell'
 import { addProperty, changePropertyType, updateRollup } from './mutations'
@@ -273,5 +273,56 @@ describe('rollup mutations', () => {
     expect(updateRollup(schema, 'total', { relationId: 'other' }).total.rollup).toEqual({ relationId: 'other', function: 'sum' })
     expect(updateRollup(schema, 'total', { function: 'sum' })).toBe(schema)
     expect(updateRollup(schema, 'items', { function: 'sum' })).toBe(schema)
+  })
+})
+
+describe('rollup rules', () => {
+  const sumWhere = (filters: RollupConfig['filters']): ReturnType<typeof computeRollup> => {
+    const total = rollup({ relationId: 'items', propertyId: 'price', function: 'sum', filters })
+    const { ctx, order } = world(ordersSchema({ total }))
+    return computeRollup(order, total, ctx)
+  }
+
+  it('counts only the linked rows that pass every rule', () => {
+    expect(sumWhere([{ propertyId: 'tag', operator: 'equals', value: 'red' }])).toMatchObject({ value: 3.5 })
+    expect(sumWhere([{ propertyId: 'done', operator: 'checked' }])).toMatchObject({ value: 6.5 })
+    expect(sumWhere([{ propertyId: 'tag', operator: 'equals', value: 'red' }, { propertyId: 'done', operator: 'checked' }])).toMatchObject({ value: 2.5 })
+    expect(sumWhere([{ propertyId: 'tag', operator: 'equals', value: 'blue' }])).toMatchObject({ value: 0 })
+  })
+
+  it('keeps the rows whose date is in a span relative to today', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date(2026, 2, 15, 12))
+      // Bread is due on 2 March; Milk runs from January into April.
+      expect(sumWhere([{ propertyId: 'due', operator: 'date_is', value: 'this_month' }])).toMatchObject({ value: 3.5 })
+      expect(sumWhere([{ propertyId: 'due', operator: 'date_is', value: 'last_month' }])).toMatchObject({ value: 1 })
+      vi.setSystemTime(new Date(2026, 5, 1, 12))
+      expect(sumWhere([{ propertyId: 'due', operator: 'date_is', value: 'this_month' }])).toMatchObject({ value: 0 })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('ignores rules on relations, rollups, formulas and properties that are gone', () => {
+    expect(sumWhere([{ propertyId: 'back', operator: 'is_not_empty' }])).toMatchObject({ value: 7.5 })
+    expect(sumWhere([{ propertyId: 'gone', operator: 'checked' }])).toMatchObject({ value: 7.5 })
+  })
+
+  it('keeps well-formed rules and drops the rest', () => {
+    const clean: RollupConfig = { relationId: 'items', function: 'count', filters: [{ propertyId: 'done', operator: 'checked' }] }
+    expect(sanitizeRollupConfig(clean)).toBe(clean)
+    expect(sanitizeRollupConfig({ ...clean, filters: [...clean.filters!, { operator: 'checked' }, 'x'] })).toEqual(clean)
+    expect(sanitizeRollupConfig({ ...clean, filters: 'done' })).toEqual({ relationId: 'items', function: 'count' })
+    expect(sanitizeRollupConfig({ ...clean, filters: [] })).toEqual({ relationId: 'items', function: 'count' })
+  })
+
+  it('are set and cleared, and forgotten with the relation', () => {
+    const schema = ordersSchema({ total: rollup({ relationId: 'items', propertyId: 'price', function: 'sum' }) })
+    const rule = { propertyId: 'done', operator: 'checked' } as const
+    const kept = updateRollup(schema, 'total', { filters: [rule] })
+    expect(kept.total.rollup).toEqual({ relationId: 'items', propertyId: 'price', function: 'sum', filters: [rule] })
+    expect(updateRollup(kept, 'total', { filters: undefined }).total.rollup).toEqual({ relationId: 'items', propertyId: 'price', function: 'sum' })
+    expect(updateRollup(kept, 'total', { relationId: 'other' }).total.rollup).toEqual({ relationId: 'other', function: 'sum' })
   })
 })

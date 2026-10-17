@@ -166,15 +166,16 @@ function sourceOf(repo: Repository, db: Block): Block | null {
 function chartToMarkdown(repo: Repository, db: Block, source: Block, title: string): string[] {
   const schema = normalizeDatabase(source).schema
   const view = sanitizeViews(db.props.views ?? [], schema)[0]
+  // Filter rules, axes and values on relations, rollups and formulas see the related rows.
+  const ctx = exportContext(repo)
   const rows = queryRows(
     repo.children(source.id).filter((row) => row.type === 'page' && row.trashedAt === null),
     schema,
     view,
     '',
-    // Filter rules on relations, rollups and formulas see the related rows.
-    exportContext(repo)
+    ctx
   )
-  const data = buildChartData(rows, schema, chartConfigOf(view, schema))
+  const data = buildChartData(rows, schema, chartConfigOf(view, schema), undefined, {}, ctx)
   const table = chartTable(data)
   const cell = (text: string): string => cellText(escapeText(text))
   const lines: string[] = []

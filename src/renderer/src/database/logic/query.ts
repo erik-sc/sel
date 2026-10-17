@@ -91,7 +91,10 @@ const RELATIVE_LABELS: Record<RelativeDate, string> = {
   past_7_days: 'Past 7 days',
   this_week: 'This week',
   next_week: 'Next week',
-  this_month: 'This month'
+  this_month: 'This month',
+  last_month: 'Last month',
+  past_30_days: 'Past 30 days',
+  this_year: 'This year'
 }
 
 export function relativeDateLabel(name: RelativeDate): string {

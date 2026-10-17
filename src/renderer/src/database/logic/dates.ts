@@ -256,6 +256,15 @@ export function relativeSpan(name: unknown, today: string, weekStart = 0): { fro
       const { year, month } = monthOf(today)
       return { from: first, to: isoFromUtc(utcMs(year, month + 1, daysInMonth(year, month + 1))) }
     }
+    case 'last_month': {
+      // Day 0 of this month is the last day of the one before; month 0 rolls back a year.
+      const { year, month } = monthOf(today)
+      return { from: isoFromUtc(utcMs(year, month, 1)), to: isoFromUtc(utcMs(year, month + 1, 0)) }
+    }
+    case 'past_30_days':
+      return { from: addDays(today, -29), to: today }
+    case 'this_year':
+      return { from: `${today.slice(0, 4)}-01-01`, to: `${today.slice(0, 4)}-12-31` }
     default:
       return null
   }

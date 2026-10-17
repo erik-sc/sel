@@ -7,19 +7,22 @@
 // Dates are civil days (`YYYY-MM-DD`) bucketed with the helpers of ./dates, so no
 // bucket ever depends on the machine's timezone or on a DST transition. Only the
 // computed "created" / "last edited" timestamps are mapped to the local day they fell on.
-import type { Block, ChartAggregate, ChartConfig, ChartDateBucket, ChartKind, PropertySchema } from '../../../../shared/types'
+import type { Block, ChartAggregate, ChartConfig, ChartDateBucket, ChartKind, PropertySchema, PropertyValue } from '../../../../shared/types'
+import { filterTypeOf, readCell } from './cell'
 import { CHART_KIND_LABELS, chartKindCanAccumulate, chartKindHasSeries, normalizeChartConfig } from './chartConfig'
 import { binEdge, binIndex, niceBins, type Bins } from './chartScale'
 import { bucketLabel, bucketStart, dayKey, diffDays, nextBucketStart, todayISO, type FormatOptions } from './dates'
+import type { CellContext } from './relation'
+import { resolveRollup } from './rollup'
 import {
   OPTION_COLORS,
   defaultCurrency,
   formatNumber,
-  getCellValue,
   isDateLikeType,
   isSelectType,
   optionsOf,
   propOf,
+  titleOf,
   type Schema
 } from './values'
 
@@ -156,7 +159,10 @@ function knownColour(colour: unknown): string {
   return typeof colour === 'string' && (OPTION_COLORS as readonly string[]).includes(colour) ? colour : CHART_NEUTRAL_COLOUR
 }
 
-function optionGrouper(prop: PropertySchema): Grouper {
+/** How a grouper reads a row's cell: what it stores, or (relations, rollups, formulas) what it shows. */
+type Read = (row: Block) => PropertyValue
+
+function optionGrouper(prop: PropertySchema, read: Read): Grouper {
   const list: Group[] = optionsOf(prop).map((option, order) => ({
     key: `o:${option.id}`,
     label: cleanLabel(option.name) || 'Untitled',
@@ -168,15 +174,15 @@ function optionGrouper(prop: PropertySchema): Grouper {
     continuous: false,
     groups: () => list,
     keysOf(row) {
-      // `getCellValue` only ever returns ids of options that exist.
-      const value = getCellValue(row, prop)
+      // A select cell only ever reads as ids of options that exist.
+      const value = read(row)
       if (typeof value === 'string') return [`o:${value}`]
       return Array.isArray(value) ? value.map((id) => `o:${id}`) : []
     }
   }
 }
 
-function checkboxGrouper(prop: PropertySchema): Grouper {
+function checkboxGrouper(prop: PropertySchema, read: Read): Grouper {
   const list: Group[] = [
     { key: 'c:true', label: 'Checked', order: 0, sortNumber: 1 },
     { key: 'c:false', label: 'Unchecked', order: 1, sortNumber: 0 }
@@ -185,11 +191,16 @@ function checkboxGrouper(prop: PropertySchema): Grouper {
     prop,
     continuous: false,
     groups: () => list,
-    keysOf: (row) => [getCellValue(row, prop) === true ? 'c:true' : 'c:false']
+    keysOf: (row) => [read(row) === true ? 'c:true' : 'c:false']
   }
 }
 
-function textGrouper(prop: PropertySchema): Grouper {
+/**
+ * A relation: one group per linked row, named by its title, in the order first seen. A row
+ * linked to several counts in each, as a multi-select does. Without a context the linked
+ * rows cannot be looked up, so every group is untitled.
+ */
+function relationGrouper(prop: PropertySchema, read: Read, ctx: CellContext | undefined): Grouper {
   const seen = new Map<string, Group>()
   const list: Group[] = []
   return {
@@ -197,7 +208,31 @@ function textGrouper(prop: PropertySchema): Grouper {
     continuous: false,
     groups: () => list,
     keysOf(row) {
-      const value = getCellValue(row, prop)
+      const value = read(row)
+      const ids = Array.isArray(value) ? value : []
+      return ids.map((id) => {
+        const key = `r:${id}`
+        if (!seen.has(key)) {
+          const linked = ctx?.get(id)
+          const group: Group = { key, label: (linked ? cleanLabel(titleOf(linked)) : '') || 'Untitled', order: list.length }
+          seen.set(key, group)
+          list.push(group)
+        }
+        return key
+      })
+    }
+  }
+}
+
+function textGrouper(prop: PropertySchema, read: Read): Grouper {
+  const seen = new Map<string, Group>()
+  const list: Group[] = []
+  return {
+    prop,
+    continuous: false,
+    groups: () => list,
+    keysOf(row) {
+      const value = read(row)
       const text = typeof value === 'string' ? value.trim() : ''
       if (text === '') return []
       const key = `t:${text}`
@@ -211,18 +246,24 @@ function textGrouper(prop: PropertySchema): Grouper {
   }
 }
 
-function numberGrouper(prop: PropertySchema, rows: readonly Block[], opts: FormatOptions): Grouper {
+function numberGrouper(
+  prop: PropertySchema,
+  read: Read,
+  rows: readonly Block[],
+  numberFormat: PropertySchema['numberFormat'],
+  opts: FormatOptions
+): Grouper {
   const distinct = new Set<number>()
   let min = Infinity
   let max = -Infinity
   for (const row of rows) {
-    const value = getCellValue(row, prop)
+    const value = read(row)
     if (typeof value !== 'number' || !isFinite(value)) continue
     if (distinct.size <= MAX_DISTINCT_NUMBERS) distinct.add(value)
     if (value < min) min = value
     if (value > max) max = value
   }
-  const format = (n: number): string => formatNumber(n, prop.numberFormat, opts)
+  const format = (n: number): string => formatNumber(n, numberFormat, opts)
 
   if (distinct.size <= MAX_DISTINCT_NUMBERS) {
     const list: Group[] = [...distinct]
@@ -233,7 +274,7 @@ function numberGrouper(prop: PropertySchema, rows: readonly Block[], opts: Forma
       continuous: false,
       groups: () => list,
       keysOf(row) {
-        const value = getCellValue(row, prop)
+        const value = read(row)
         return typeof value === 'number' && isFinite(value) ? [`n:${value}`] : []
       }
     }
@@ -250,7 +291,7 @@ function numberGrouper(prop: PropertySchema, rows: readonly Block[], opts: Forma
     continuous: true,
     groups: () => list,
     keysOf(row) {
-      const value = getCellValue(row, prop)
+      const value = read(row)
       return typeof value === 'number' && isFinite(value) ? [`b:${binIndex(value, bins)}`] : []
     }
   }
@@ -258,6 +299,7 @@ function numberGrouper(prop: PropertySchema, rows: readonly Block[], opts: Forma
 
 function dateGrouper(
   prop: PropertySchema,
+  read: Read,
   rows: readonly Block[],
   asked: ChartDateBucket,
   today: string,
@@ -266,7 +308,7 @@ function dateGrouper(
   let min: string | null = null
   let max: string | null = null
   for (const row of rows) {
-    const day = dayKey(getCellValue(row, prop))
+    const day = dayKey(read(row))
     if (!day) continue
     if (min === null || day < min) min = day
     if (max === null || day > max) max = day
@@ -308,7 +350,7 @@ function dateGrouper(
     bucket,
     groups: () => list,
     keysOf(row) {
-      const day = dayKey(getCellValue(row, prop))
+      const day = dayKey(read(row))
       const start = day ? bucketStart(day, bucket) : null
       if (!start) return []
       // Only reachable past the guard above: such a row joins the nearest end.
@@ -320,17 +362,43 @@ function dateGrouper(
 
 interface GrouperInput {
   rows: readonly Block[]
+  schema: Schema
   bucket?: ChartDateBucket
   today: string
   opts: FormatOptions
+  ctx?: CellContext
+}
+
+/** A cell reader for `prop`: through the context, so relations, rollups and formulas read as they show. */
+function readerOf(prop: PropertySchema, ctx: CellContext | undefined): Read {
+  return (row) => readCell(row, prop, ctx)
+}
+
+/**
+ * The number format of what a property gives: its own for a number or a formula, the
+ * related property's for a rollup that sums, averages or picks numbers from it.
+ */
+function valueFormatOf(prop: PropertySchema | undefined, schema: Schema, ctx: CellContext | undefined): NonNullable<PropertySchema['numberFormat']> {
+  if (!prop) return 'number'
+  if (prop.type === 'rollup') {
+    const fn = prop.rollup?.function
+    if (fn === 'percent_checked') return 'percent'
+    if (!ctx || (fn !== 'sum' && fn !== 'average' && fn !== 'min' && fn !== 'max' && fn !== 'range')) return 'number'
+    return resolveRollup(prop, schema, ctx).target?.numberFormat ?? 'number'
+  }
+  return prop.type === 'number' || prop.type === 'formula' ? (prop.numberFormat ?? 'number') : 'number'
 }
 
 function createGrouper(prop: PropertySchema, input: GrouperInput): Grouper {
-  if (isSelectType(prop.type)) return optionGrouper(prop)
-  if (prop.type === 'checkbox') return checkboxGrouper(prop)
-  if (prop.type === 'number') return numberGrouper(prop, input.rows, input.opts)
-  if (isDateLikeType(prop.type)) return dateGrouper(prop, input.rows, input.bucket ?? 'month', input.today, input.opts)
-  return textGrouper(prop)
+  const read = readerOf(prop, input.ctx)
+  if (prop.type === 'relation') return relationGrouper(prop, read, input.ctx)
+  // A rollup or a formula groups as what it gives.
+  const type = filterTypeOf(prop, input.schema)
+  if (isSelectType(type)) return optionGrouper(prop, read)
+  if (type === 'checkbox') return checkboxGrouper(prop, read)
+  if (type === 'number') return numberGrouper(prop, read, input.rows, valueFormatOf(prop, input.schema, input.ctx), input.opts)
+  if (isDateLikeType(type)) return dateGrouper(prop, read, input.rows, input.bucket ?? 'month', input.today, input.opts)
+  return textGrouper(prop, read)
 }
 
 // ---------------------------------------------------------------------------
@@ -371,14 +439,15 @@ interface Reading {
 
 const NO_UNIQUE: string[] = []
 
-function reader(aggregate: ChartAggregate, prop: PropertySchema | undefined): (row: Block) => Reading {
+function reader(aggregate: ChartAggregate, prop: PropertySchema | undefined, ctx: CellContext | undefined): (row: Block) => Reading {
   if (!prop || aggregate === 'count') {
     const nothing: Reading = { number: null, checked: false, unique: NO_UNIQUE }
     return () => nothing
   }
+  const read = readerOf(prop, ctx)
   if (aggregate === 'count_unique') {
     return (row) => {
-      const value = getCellValue(row, prop)
+      const value = read(row)
       let unique: string[]
       if (value === null || value === undefined || value === '') unique = NO_UNIQUE
       else if (Array.isArray(value)) unique = value
@@ -388,7 +457,7 @@ function reader(aggregate: ChartAggregate, prop: PropertySchema | undefined): (r
     }
   }
   return (row) => {
-    const value = getCellValue(row, prop)
+    const value = read(row)
     // A checkbox reads as 1 / 0; anything that is not a finite number is left out.
     const number = typeof value === 'boolean' ? (value ? 1 : 0) : typeof value === 'number' && isFinite(value) ? value : null
     return { number, checked: value === true, unique: NO_UNIQUE }
@@ -474,11 +543,11 @@ function yLabelOf(aggregate: ChartAggregate, prop: PropertySchema | undefined): 
   }
 }
 
-function yFormatOf(aggregate: ChartAggregate, prop: PropertySchema | undefined): ChartYFormat {
+function yFormatOf(aggregate: ChartAggregate, prop: PropertySchema | undefined, schema: Schema, ctx: CellContext | undefined): ChartYFormat {
   if (aggregate === 'count' || aggregate === 'count_unique') return { numberFormat: 'number', integer: true }
   if (aggregate === 'percent_checked') return { numberFormat: 'percent', integer: false }
-  const numberFormat = prop?.type === 'number' ? (prop.numberFormat ?? 'number') : 'number'
-  return { numberFormat, integer: prop?.type === 'checkbox' && aggregate !== 'average' && aggregate !== 'median' }
+  const checkbox = !!prop && filterTypeOf(prop, schema) === 'checkbox'
+  return { numberFormat: valueFormatOf(prop, schema, ctx), integer: checkbox && aggregate !== 'average' && aggregate !== 'median' }
 }
 
 // ---------------------------------------------------------------------------
@@ -493,7 +562,7 @@ interface Plan {
   showEmpty: boolean
 }
 
-function plan(rows: readonly Block[], schema: Schema, raw: ChartConfig, now: Date | undefined, opts: FormatOptions): Plan {
+function plan(rows: readonly Block[], schema: Schema, raw: ChartConfig, now: Date | undefined, opts: FormatOptions, ctx: CellContext | undefined): Plan {
   // Whatever the caller hands over, only a configuration that fits the schema is drawn.
   const config = normalizeChartConfig(raw, schema)
   const today = todayISO(now ?? new Date())
@@ -501,9 +570,9 @@ function plan(rows: readonly Block[], schema: Schema, raw: ChartConfig, now: Dat
   const seriesProp = chartKindHasSeries(config.kind) ? propOf(schema, config.series) : undefined
   return {
     config,
-    x: xProp ? createGrouper(xProp, { rows, bucket: config.xDateBucket, today, opts }) : undefined,
+    x: xProp ? createGrouper(xProp, { rows, schema, bucket: config.xDateBucket, today, opts, ctx }) : undefined,
     // A date used as a split is bucketed too (by month): one series per day would be noise.
-    series: seriesProp ? createGrouper(seriesProp, { rows, bucket: 'month', today, opts }) : undefined,
+    series: seriesProp ? createGrouper(seriesProp, { rows, schema, bucket: 'month', today, opts, ctx }) : undefined,
     valueProp: propOf(schema, config.y.property),
     showEmpty: config.showEmpty === true
   }
@@ -548,21 +617,23 @@ function emptyData(config: ChartConfig, status: ChartStatus, labels: { x: string
  * One pass over the rows fills an accumulator per (category, series) cell; a row
  * with several values (multi-select) counts in each of them, but only once in a
  * category total and once in `total`. `now` decides which date bucket is "current".
+ * Relations, rollups and formulas need `ctx` to read as they show (else they read as empty).
  */
 export function buildChartData(
   rows: readonly Block[],
   schema: Schema,
   rawConfig: ChartConfig,
   now?: Date,
-  opts: FormatOptions = {}
+  opts: FormatOptions = {},
+  ctx?: CellContext
 ): ChartData {
-  const { config, x, series, valueProp, showEmpty } = plan(rows, schema, rawConfig, now, opts)
+  const { config, x, series, valueProp, showEmpty } = plan(rows, schema, rawConfig, now, opts, ctx)
   const aggregate = config.y.aggregate
   const additive = isAdditive(aggregate)
-  const yFormat = yFormatOf(aggregate, valueProp)
+  const yFormat = yFormatOf(aggregate, valueProp, schema, ctx)
   const yLabel = yLabelOf(aggregate, valueProp)
   const xLabel = x ? x.prop.name : ''
-  const read = reader(aggregate, valueProp)
+  const read = reader(aggregate, valueProp, ctx)
 
   if (config.kind !== 'number' && !x) return emptyData(config, 'no_x', { x: xLabel, y: yLabel }, yFormat, additive)
 
@@ -789,9 +860,10 @@ export function chartRowsAt(
   categoryKey: string,
   seriesKey: string | null,
   now?: Date,
-  opts: FormatOptions = {}
+  opts: FormatOptions = {},
+  ctx?: CellContext
 ): Block[] {
-  const { x, series, showEmpty } = plan(rows, schema, rawConfig, now, opts)
+  const { x, series, showEmpty } = plan(rows, schema, rawConfig, now, opts, ctx)
   const categoryKeys = new Set(data.categories.map((category) => category.key))
   const seriesKeys = new Set(data.series.map((item) => item.key))
   const wantsSeries = series && data.split && seriesKey !== null

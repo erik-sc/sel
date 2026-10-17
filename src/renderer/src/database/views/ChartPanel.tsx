@@ -154,7 +154,7 @@ export function ChartPanel({ databaseId, schema, view }: { databaseId: string; s
     patch((current) => {
       const y: ChartConfig['y'] = { aggregate: next }
       // The same property when it still fits; otherwise normalisation picks the first that does.
-      if (L.isChartValueProperty(L.propOf(schema, current.y.property), next)) y.property = current.y.property
+      if (L.isChartValueProperty(L.propOf(schema, current.y.property), next, schema)) y.property = current.y.property
       return { ...current, y }
     })
 
