@@ -109,12 +109,12 @@ To try the update flow in development, serve a folder with a `latest.yml` on `ht
 
 ## Releasing
 
-A tag publishes a release. For version `0.6.0`:
+A tag publishes a release. For version `0.6.1`:
 
-1. Raise `version` in `package.json` to `0.6.0`, update this README with what changed, commit and merge it.
-2. Tag that commit `v0.6.0` (a `v`, then the version exactly) and push the tag: `git tag v0.6.0 && git push origin v0.6.0`.
+1. Raise `version` in `package.json` to `0.6.1`, update this README with what changed, commit and merge it.
+2. Tag that commit `v0.6.1` (a `v`, then the version exactly) and push the tag: `git tag v0.6.1 && git push origin v0.6.1`.
 
-The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.6.0-setup.exe`, `sel-0.6.0-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
+The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.6.1-setup.exe`, `sel-0.6.1-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
 
 To build by hand, `npm run dist` writes the same three files into `release/` and uploads nothing.
 
