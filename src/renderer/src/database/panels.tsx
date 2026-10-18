@@ -434,6 +434,9 @@ export function PropertiesPanel({ databaseId, schema, view }: PanelProps): JSX.E
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null)
   const groupType = L.groupTypeOf(view.type)
   const groupCandidates = groupType ? L.orderedProperties(schema).filter((p) => p.type === groupType) : []
+  // A calculations view may be split by a select property (or not at all).
+  const splitCandidates = view.type === 'calc' ? L.orderedProperties(schema).filter((p) => p.type === 'select') : []
+  const splitBy = splitCandidates.some((p) => p.id === view.groupBy) ? view.groupBy : ''
 
   const setVisible = (propertyId: string, on: boolean): void =>
     actions.patchView(databaseId, view.id, (v, s) => L.setPropertyVisible(v, s, propertyId, on))
@@ -480,6 +483,34 @@ export function PropertiesPanel({ databaseId, schema, view }: PanelProps): JSX.E
       />
     </div>
   )
+
+  // A calculations view shows no properties: its panel only says what the figures are split by.
+  if (view.type === 'calc') {
+    return (
+      <div className="db-panel is-narrow">
+        <div className="db-panel-title">Split by</div>
+        {splitCandidates.length ? (
+          <div className="db-rule">
+            <select
+              className="db-select is-wide"
+              aria-label="Split by"
+              value={splitBy}
+              onChange={(event) => actions.patchView(databaseId, view.id, { groupBy: event.target.value || undefined })}
+            >
+              <option value="">None</option>
+              {splitCandidates.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="db-panel-empty">Add a select property to split the figures by it.</div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="db-panel is-narrow">

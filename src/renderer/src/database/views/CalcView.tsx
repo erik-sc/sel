@@ -1,14 +1,26 @@
 // The "Calculations" view: figures computed from the rows of the view (its filters apply),
-// each with a name and a formula. Clicking a figure edits it. Loaded on demand (lazyParts.tsx).
+// each with a name and a formula. Clicking a figure edits it. Split by a select property, the
+// figures become the columns of a table with one row per option and a total. Loaded on
+// demand (lazyParts.tsx).
 import { useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import type { ViewCalc } from '@shared/types'
 import { Plus, Trash } from '@/ui/icons'
 import * as L from '../logic'
 import * as actions from '../actions'
-import { Floating, type ViewProps } from '../common'
+import { Floating, OptionTag, type ViewProps } from '../common'
 import { useCommitOnUnmount } from '../hooks'
-import { CALC_FUNCTIONS, CALC_FUNCTION_LABELS, evaluateCalc, type CalcFunction, type CalcResult } from '../logic/calc'
+import { useRelated } from '../related'
+import {
+  CALC_FUNCTIONS,
+  CALC_FUNCTION_LABELS,
+  calcSplitProperty,
+  evaluateCalc,
+  evaluateSplit,
+  isCalcNumber,
+  type CalcFunction,
+  type CalcResult
+} from '../logic/calc'
 import './calc.css'
 
 const FORMAT_LABELS: Record<NonNullable<ViewCalc['format']> | 'auto', string> = {
@@ -38,14 +50,22 @@ function patchCalc(databaseId: string, viewId: string, calcId: string, change: (
 }
 
 /** Name, formula and format of one calculation. Text is saved on blur, on Enter and when the popover closes. */
-function CalcEditor(props: { databaseId: string; viewId: string; calc: ViewCalc; rows: ViewProps['rows']; schema: L.Schema; onClose: () => void }): JSX.Element {
-  const { databaseId, viewId, calc, rows, schema, onClose } = props
+function CalcEditor(props: {
+  databaseId: string
+  viewId: string
+  calc: ViewCalc
+  rows: ViewProps['rows']
+  schema: L.Schema
+  cells: L.CellContext | undefined
+  onClose: () => void
+}): JSX.Element {
+  const { databaseId, viewId, calc, rows, schema, cells, onClose } = props
   const [name, setName] = useState(calc.name)
   const [formula, setFormula] = useState(calc.formula)
   const [fn, setFn] = useState<CalcFunction>('sum')
   const formulaRef = useRef<HTMLInputElement>(null)
   const properties = useMemo(() => L.orderedProperties(schema), [schema])
-  const numeric = useMemo(() => properties.filter((prop) => prop.type === 'number' || prop.type === 'checkbox'), [properties])
+  const numeric = useMemo(() => properties.filter((prop) => isCalcNumber(prop, schema)), [properties, schema])
   // `count` takes any property; the others only what holds numbers.
   const offered = fn === 'count' ? properties : numeric
   const [propertyId, setPropertyId] = useState(() => numeric[0]?.id ?? '')
@@ -60,7 +80,7 @@ function CalcEditor(props: { databaseId: string; viewId: string; calc: ViewCalc;
   }
   useCommitOnUnmount(commit)
 
-  const preview = evaluateCalc({ formula, format: calc.format }, rows, schema)
+  const preview = evaluateCalc({ formula, format: calc.format }, rows, schema, cells)
 
   const insert = (): void => {
     const snippet = `${fn}(${property ? L.calcRef(property.name) : ''})`
@@ -161,10 +181,22 @@ function CalcEditor(props: { databaseId: string; viewId: string; calc: ViewCalc;
 
 export function CalcView({ databaseId, schema, view, rows }: ViewProps): JSX.Element {
   const calcs = view.calcs ?? []
+  // Rollups and formulas are read through the cells of the related rows.
+  const { cells } = useRelated()
+  const split = calcSplitProperty(view, schema)
   const [editing, setEditing] = useState<{ id: string; anchor: HTMLElement } | null>(null)
-  const results = useMemo(() => new Map(calcs.map((calc) => [calc.id, evaluateCalc(calc, rows, schema)])), [calcs, rows, schema])
+  const results = useMemo(
+    () => (split ? null : new Map(calcs.map((calc) => [calc.id, evaluateCalc(calc, rows, schema, cells)]))),
+    [split, calcs, rows, schema, cells]
+  )
+  const table = useMemo(() => (split ? evaluateSplit(calcs, rows, schema, split, cells) : null), [split, calcs, rows, schema, cells])
   const edited = editing ? calcs.find((calc) => calc.id === editing.id) : undefined
   const tiles = useRef(new Map<string, HTMLButtonElement>())
+  const keepTile = (id: string) => (element: HTMLButtonElement | null) => {
+    if (element) tiles.current.set(id, element)
+    else tiles.current.delete(id)
+  }
+  const toggle = (id: string, anchor: HTMLElement): void => setEditing(editing?.id === id ? null : { id, anchor })
 
   const add = (): void => {
     if (calcs.length >= L.MAX_CALCS) return
@@ -177,23 +209,91 @@ export function CalcView({ databaseId, schema, view, rows }: ViewProps): JSX.Ele
     })
   }
 
+  const editor = editing && edited && (
+    <Floating open anchor={editing.anchor} onClose={() => setEditing(null)}>
+      <CalcEditor key={edited.id} databaseId={databaseId} viewId={view.id} calc={edited} rows={rows} schema={schema} cells={cells} onClose={() => setEditing(null)} />
+    </Floating>
+  )
+
+  if (split && table) {
+    const cell = (result: CalcResult | undefined, key: string): JSX.Element => (
+      <td key={key} className={result?.ok && result.value !== null ? undefined : 'is-empty'} title={result && !result.ok ? result.error : undefined}>
+        {result ? resultText(result) : '—'}
+      </td>
+    )
+    return (
+      <div className="db-calc-split">
+        <table className="db-calc-table">
+          <thead>
+            <tr>
+              <th scope="col">{split.name}</th>
+              {calcs.map((calc) => (
+                <th scope="col" key={calc.id}>
+                  <button
+                    type="button"
+                    ref={keepTile(calc.id)}
+                    className={editing?.id === calc.id ? 'db-calc-heading is-active' : 'db-calc-heading'}
+                    aria-haspopup="dialog"
+                    aria-expanded={editing?.id === calc.id}
+                    title={calc.formula || undefined}
+                    onClick={(event) => toggle(calc.id, event.currentTarget)}
+                  >
+                    {calc.name || 'Untitled'}
+                  </button>
+                </th>
+              ))}
+              <th scope="col" className="db-calc-add-cell">
+                {calcs.length < L.MAX_CALCS && (
+                  <button type="button" className="db-calc-heading is-add" aria-label="Add a calculation" title="Add a calculation" onClick={add}>
+                    <Plus size={14} />
+                  </button>
+                )}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {table.groups.map((group) => (
+              <tr key={group.key ?? ''}>
+                <th scope="row">{group.option ? <OptionTag option={group.option} /> : <span className="db-calc-none">{group.label}</span>}</th>
+                {calcs.map((calc, index) => cell(group.results[index], calc.id))}
+                <td aria-hidden />
+              </tr>
+            ))}
+            {table.groups.length === 0 && (
+              <tr>
+                <td className="db-calc-no-rows" colSpan={calcs.length + 2}>
+                  No rows{view.filters.length ? ' match the filters' : ''}
+                </td>
+              </tr>
+            )}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th>
+              {calcs.map((calc, index) => cell(table.total[index], calc.id))}
+              <td aria-hidden />
+            </tr>
+          </tfoot>
+        </table>
+        {editor}
+      </div>
+    )
+  }
+
   return (
     <div className="db-calcs">
       {calcs.map((calc) => {
-        const result = results.get(calc.id) ?? { ok: false as const, error: '' }
+        const result = results?.get(calc.id) ?? { ok: false as const, error: '' }
         return (
           <button
             type="button"
             key={calc.id}
-            ref={(element) => {
-              if (element) tiles.current.set(calc.id, element)
-              else tiles.current.delete(calc.id)
-            }}
+            ref={keepTile(calc.id)}
             className={editing?.id === calc.id ? 'db-calc is-active' : 'db-calc'}
             aria-haspopup="dialog"
             aria-expanded={editing?.id === calc.id}
             title={calc.formula || undefined}
-            onClick={(event) => setEditing(editing?.id === calc.id ? null : { id: calc.id, anchor: event.currentTarget })}
+            onClick={(event) => toggle(calc.id, event.currentTarget)}
           >
             <span className="db-calc-name">{calc.name || 'Untitled'}</span>
             <span className={result.ok && result.value !== null ? 'db-calc-value' : 'db-calc-value is-empty'}>{resultText(result)}</span>
@@ -207,11 +307,7 @@ export function CalcView({ databaseId, schema, view, rows }: ViewProps): JSX.Ele
           <span>Calculation</span>
         </button>
       )}
-      {editing && edited && (
-        <Floating open anchor={editing.anchor} onClose={() => setEditing(null)}>
-          <CalcEditor key={edited.id} databaseId={databaseId} viewId={view.id} calc={edited} rows={rows} schema={schema} onClose={() => setEditing(null)} />
-        </Floating>
-      )}
+      {editor}
     </div>
   )
 }

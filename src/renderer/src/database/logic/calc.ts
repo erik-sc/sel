@@ -8,9 +8,16 @@
 // A formula is arithmetic (+ - * / and parentheses, `%` after a number) over numbers and
 // functions of one property: sum, avg, min, max, median, and count (the rows that have a
 // value; all rows when it is given nothing). A property is named as it is in the database,
-// in quotes or brackets when the name could be misread.
-import type { Block, PropertySchema, ViewCalc } from '@shared/types'
-import { isEmptyValue, orderedProperties, titleOf, type Schema } from './values'
+// in quotes or brackets when the name could be misread. Rollups and formulas count as what
+// they give when the rows' `CellContext` is known.
+//
+// A view split by a select property computes every figure once per option (the rows that
+// have it) and once over all its rows, the total: a small table of groups by figures.
+import type { Block, DatabaseView, PropertySchema, SelectOption, ViewCalc } from '@shared/types'
+import { filterTypeOf, numberFormatOf, readCell } from './cell'
+import { groupRows } from './query'
+import type { CellContext } from './relation'
+import { isEmptyValue, orderedProperties, propOf, type Schema } from './values'
 
 export type CalcFormat = NonNullable<ViewCalc['format']>
 
@@ -64,6 +71,8 @@ const NOTHING = Symbol('nothing')
 interface Context {
   rows: readonly Block[]
   schema: Schema
+  /** What rollups and formulas are computed from; without it they hold nothing. */
+  ctx?: CellContext
   /** Number formats of the properties the formula reads numbers from. */
   formats: Set<CalcFormat>
   /** Whether the result is a ratio or a count rather than an amount. */
@@ -77,21 +86,22 @@ function findProperty(schema: Schema, name: string): PropertySchema {
   return found
 }
 
-function valueOf(row: Block, prop: PropertySchema): unknown {
-  if (prop.type === 'title') return titleOf(row)
-  const values = row.props.values
-  return values && Object.hasOwn(values, prop.id) ? values[prop.id] : undefined
+/** Whether sum, avg, min, max and median can read `prop`: a number or a checkbox, or a rollup or formula that gives one. */
+export function isCalcNumber(prop: PropertySchema, schema: Schema): boolean {
+  const type = filterTypeOf(prop, schema)
+  return type === 'number' || type === 'checkbox'
 }
 
 function numbersOf(context: Context, prop: PropertySchema): number[] {
-  if (prop.type !== 'number' && prop.type !== 'checkbox') throw new FormulaError(`"${prop.name}" is not a number`)
-  if (prop.type === 'number') context.formats.add(prop.numberFormat ?? 'number')
-  else context.plain = true
+  if (!isCalcNumber(prop, context.schema)) throw new FormulaError(`"${prop.name}" is not a number`)
+  const checkbox = filterTypeOf(prop, context.schema) === 'checkbox'
+  if (checkbox) context.plain = true
+  else context.formats.add(numberFormatOf(prop, context.schema, context.ctx))
   const out: number[] = []
   for (const row of context.rows) {
-    const value = valueOf(row, prop)
+    const value = readCell(row, prop, context.ctx)
     if (typeof value === 'number' && Number.isFinite(value)) out.push(value)
-    else if (prop.type === 'checkbox') out.push(value === true ? 1 : 0)
+    else if (checkbox) out.push(value === true ? 1 : 0)
   }
   return out
 }
@@ -101,11 +111,12 @@ function call(context: Context, fn: CalcFunction, argument: string): number {
     context.plain = true
     if (!argument) return context.rows.length
     const prop = findProperty(context.schema, argument)
+    const checkbox = filterTypeOf(prop, context.schema) === 'checkbox'
     let count = 0
     for (const row of context.rows) {
-      const value = valueOf(row, prop)
+      const value = readCell(row, prop, context.ctx)
       // A checkbox counts when it is ticked; anything else when it holds something.
-      if (prop.type === 'checkbox' ? value === true : !isEmptyValue(value)) count++
+      if (checkbox ? value === true : !isEmptyValue(value)) count++
     }
     return count
   }
@@ -239,10 +250,10 @@ function compute(source: string, context: Context): number {
  * the number property it was computed from (an amount stays an amount); a ratio, a count or
  * a mix of formats is a plain number.
  */
-export function evaluateCalc(calc: Pick<ViewCalc, 'formula' | 'format'>, rows: readonly Block[], schema: Schema): CalcResult {
+export function evaluateCalc(calc: Pick<ViewCalc, 'formula' | 'format'>, rows: readonly Block[], schema: Schema, ctx?: CellContext): CalcResult {
   const formula = typeof calc.formula === 'string' ? calc.formula.trim() : ''
   if (!formula) return { ok: false, error: 'Write a formula, like sum(Amount)' }
-  const context: Context = { rows, schema, formats: new Set(), plain: false }
+  const context: Context = { rows, schema, ctx, formats: new Set(), plain: false }
   const format = (): CalcFormat => calc.format ?? (!context.plain && context.formats.size === 1 ? [...context.formats][0] : 'number')
   try {
     const value = compute(formula, context)
@@ -253,4 +264,38 @@ export function evaluateCalc(calc: Pick<ViewCalc, 'formula' | 'format'>, rows: r
     if (error instanceof FormulaError) return { ok: false, error: error.message }
     throw error
   }
+}
+
+/** The select property a calculations view is split by, when it still has one. */
+export function calcSplitProperty(view: DatabaseView | undefined, schema: Schema): PropertySchema | undefined {
+  const prop = propOf(schema, view?.groupBy)
+  return prop?.type === 'select' ? prop : undefined
+}
+
+export interface CalcGroup {
+  /** Option id, or null for the rows without one. */
+  key: string | null
+  label: string
+  option?: SelectOption
+  /** One per figure, in the view's order. */
+  results: CalcResult[]
+}
+
+export interface CalcSplit {
+  groups: CalcGroup[]
+  /** The figures over all the rows. */
+  total: CalcResult[]
+}
+
+/**
+ * Every figure computed for each option of `by` that some row has (in option order, the
+ * rows without one last) and over all the rows.
+ */
+export function evaluateSplit(calcs: readonly Pick<ViewCalc, 'formula' | 'format'>[], rows: readonly Block[], schema: Schema, by: PropertySchema, ctx?: CellContext): CalcSplit {
+  const run = (subset: readonly Block[]): CalcResult[] => calcs.map((calc) => evaluateCalc(calc, subset, schema, ctx))
+  const [none, ...options] = groupRows([...rows], by, ctx)
+  const groups = [...options, none]
+    .filter((group) => group.rows.length > 0)
+    .map<CalcGroup>((group) => ({ key: group.key, label: group.label, option: group.option, results: run(group.rows) }))
+  return { groups, total: run(rows) }
 }
