@@ -88,6 +88,8 @@ function createWindow(pageId?: string): BrowserWindow {
   const isMac = process.platform === 'darwin'
   const bounds = restoreBounds()
   const others = BrowserWindow.getAllWindows().length
+  // The small quick-add window is not a workspace.
+  const workspaces = BrowserWindow.getAllWindows().filter((w) => !isQuickAddUrl(w.webContents.getURL())).length
   // Cascade additional windows instead of stacking them exactly on top of each other.
   const offset = others * 28
 
@@ -154,13 +156,16 @@ function createWindow(pageId?: string): BrowserWindow {
   })
 
   const page = pageId && isValidId(pageId) ? pageId : undefined
+  // Only the first workspace window keeps the open tabs (`shell.tabs`); any other opens with one
+  // page (?page=) or one blank tab (?extra) and keeps no tabs of its own (see store/tabs.ts).
+  const query: Record<string, string> = page ? { page } : workspaces > 0 ? { extra: '1' } : {}
   let loading: Promise<void>
   if (DEV_URL) {
     const url = new URL(DEV_URL)
-    if (page) url.searchParams.set('page', page)
+    for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value)
     loading = win.loadURL(url.toString())
   } else {
-    loading = win.loadFile(RENDERER_FILE, page ? { query: { page } } : undefined)
+    loading = win.loadFile(RENDERER_FILE, { query })
   }
   loading.catch((err: unknown) => {
     console.error('[main] the window failed to load', err)

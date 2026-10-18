@@ -575,8 +575,10 @@ body.is-resizing .sidebar {
   -webkit-app-region: no-drag;
 }
 
-/* Segmented-control track; tabs are capsules on it. */
+/* Segmented-control track; tabs are capsules on it. Past what fits, it scrolls sideways
+   (the wheel too, see TabBar) with no scroll bar: the ⌄ button lists every tab. */
 .tabs {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -585,7 +587,27 @@ body.is-resizing .sidebar {
   padding: 3px;
   border-radius: var(--radius-pill);
   background: var(--fill-3);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
   -webkit-app-region: no-drag;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* An end with tabs out of sight fades out (TabBar marks it). */
+.tabs[data-more-start] {
+  mask-image: linear-gradient(to right, transparent, #000 24px);
+}
+
+.tabs[data-more-end] {
+  mask-image: linear-gradient(to left, transparent, #000 24px);
+}
+
+.tabs[data-more-start][data-more-end] {
+  mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent);
 }
 
 .tab {
@@ -594,7 +616,8 @@ body.is-resizing .sidebar {
   align-items: center;
   gap: 6px;
   flex: 0 1 180px;
-  min-width: 44px;
+  /* Tabs stop shrinking while their title still reads; past that the strip scrolls. */
+  min-width: 110px;
   height: 100%;
   padding: 0 4px 0 11px;
   border-radius: var(--radius-pill);
@@ -651,6 +674,26 @@ body.is-resizing .sidebar {
 .tab-close:hover {
   background: var(--fill-1);
   color: var(--text);
+}
+
+/* The list of every tab (the ⌄ button). */
+.tab-list {
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+}
+
+.tab-list-row.is-current .ui-menu-label {
+  font-weight: var(--weight-semibold);
+}
+
+.tab-list-row .tab-close {
+  opacity: 0;
+}
+
+.tab-list-row.is-active .tab-close,
+.tab-list-row:hover .tab-close {
+  opacity: 1;
+  color: inherit;
 }
 
 .tabbar-drag {
