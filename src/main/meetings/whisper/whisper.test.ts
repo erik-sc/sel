@@ -492,7 +492,7 @@ const alive = (pid: number): boolean => {
   }
 }
 const gone = async (pid: number): Promise<boolean> => {
-  for (let i = 0; i < 60 && alive(pid); i++) await new Promise((resolve) => setTimeout(resolve, 100))
+  for (let i = 0; i < 300 && alive(pid); i++) await new Promise((resolve) => setTimeout(resolve, 100))
   return !alive(pid)
 }
 const failure = async (work: Promise<unknown>): Promise<WhisperError> => {
@@ -505,11 +505,16 @@ const failure = async (work: Promise<unknown>): Promise<WhisperError> => {
   throw new Error('resolved')
 }
 
+// Each test spawns the stand-in through Node. Alone a run takes a tenth of a second; under the
+// whole suite's load (and on CI's Windows runner) starting a process can take many seconds. A run
+// that is meant to finish gets a wide margin: one that hangs still fails, on its own timeout.
+const RUN_MS = 60_000
+
 describe('running the program (against the stand-in)', () => {
   it('transcribes a file, reports progress and leaves no result file behind', async () => {
     const { dir, args } = setup()
     const seen: number[] = []
-    const output = await runWhisper({ program: FAKE, args, cwd: dir, timeoutMs: 20_000, onProgress: (percent) => seen.push(percent) })
+    const output = await runWhisper({ program: FAKE, args, cwd: dir, timeoutMs: RUN_MS, onProgress: (percent) => seen.push(percent) })
     expect(output.language).toBe('en')
     expect(output.segments.map((segment) => [segment.start, segment.end])).toEqual([
       [0, 5],
@@ -520,24 +525,24 @@ describe('running the program (against the stand-in)', () => {
     expect(seen[0]).toBe(5)
     expect(seen[seen.length - 1]).toBe(100)
     expect(existsSync(`${args.outputBase}.json`)).toBe(false)
-  }, 30_000)
+  }, 90_000)
 
   it('passes the language on', async () => {
     const { dir, args } = setup()
-    const output = await runWhisper({ program: FAKE, args: { ...args, language: 'pt' }, cwd: dir, timeoutMs: 20_000 })
+    const output = await runWhisper({ program: FAKE, args: { ...args, language: 'pt' }, cwd: dir, timeoutMs: RUN_MS })
     expect(output.language).toBe('pt')
     expect(output.segments[0].text).toContain('em português')
-  }, 30_000)
+  }, 90_000)
 
   it('reports a failure with one sanitised line', async () => {
     const { dir, args } = setup('error')
-    const err = await failure(runWhisper({ program: FAKE, args, cwd: dir, timeoutMs: 20_000 }))
+    const err = await failure(runWhisper({ program: FAKE, args, cwd: dir, timeoutMs: RUN_MS }))
     expect(err.reason).toBe('failed')
     expect(err.detail).toBe('error: failed to process audio at …')
     expect(err.detail).not.toContain('secret')
-    const missing = await failure(runWhisper({ program: FAKE, args: { ...args, model: join(dir, 'nope.bin') }, cwd: dir, timeoutMs: 20_000 }))
+    const missing = await failure(runWhisper({ program: FAKE, args: { ...args, model: join(dir, 'nope.bin') }, cwd: dir, timeoutMs: RUN_MS }))
     expect(missing.reason).toBe('failed')
-  }, 30_000)
+  }, 90_000)
 
   it('stops a run that takes too long, with everything it started', async () => {
     const { dir, args } = setup('hang-tree')
@@ -546,7 +551,7 @@ describe('running the program (against the stand-in)', () => {
     const pids = readFileSync(join(dir, 'fake-whisper-pids'), 'utf8').split(',').map(Number)
     expect(pids).toHaveLength(2)
     for (const pid of pids) expect(await gone(pid)).toBe(true)
-  }, 30_000)
+  }, 90_000)
 
   it('kills the program when cancelled', async () => {
     const { dir, args } = setup('hang')
@@ -559,17 +564,17 @@ describe('running the program (against the stand-in)', () => {
     expect(await gone(pid)).toBe(true)
     // Already cancelled: nothing is started.
     expect((await failure(runWhisper({ program: FAKE, args, cwd: dir, timeoutMs: 1000, signal: abort.signal }))).reason).toBe('cancelled')
-  }, 30_000)
+  }, 90_000)
 
   it('survives megabytes of output and refuses a result that is too large or not JSON', async () => {
     const huge = setup('huge')
     expect((await failure(runWhisper({ program: FAKE, args: huge.args, cwd: huge.dir, timeoutMs: 30_000 }))).reason).toBe('failed')
     expect(existsSync(`${huge.args.outputBase}.json`)).toBe(false)
     const bad = setup('bad-json')
-    const err = await failure(runWhisper({ program: FAKE, args: bad.args, cwd: bad.dir, timeoutMs: 20_000 }))
+    const err = await failure(runWhisper({ program: FAKE, args: bad.args, cwd: bad.dir, timeoutMs: RUN_MS }))
     expect(err.reason).toBe('failed')
     expect(err.detail).toMatch(/not JSON/)
-  }, 60_000)
+  }, 120_000)
 
   it('says so when the program cannot be started', async () => {
     const { dir, args } = setup()
