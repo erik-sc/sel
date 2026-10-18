@@ -13,6 +13,7 @@ import type { NotebookApi } from './notebook'
 import type { PomodoroApi } from './pomodoro'
 import type { SkyApi } from './sky'
 import type { TemplatesApi } from './templates/model'
+import type { DataApi } from './data'
 import type {
   Block,
   ChangeEvent,
@@ -226,6 +227,12 @@ export interface Api {
 
   /** Templates of pages and databases (see shared/templates): making one is a single transaction. */
   templates: TemplatesApi
+
+  /**
+   * Backups of the database kept on this computer, restoring one, and the whole workspace as
+   * Markdown files. Files are chosen in native dialogs; no path crosses over. See shared/data.ts.
+   */
+  data: DataApi
 
   /**
    * Bug reports and suggestions the user writes in the app, kept as files on this computer for
@@ -458,6 +465,12 @@ export const INVOKE = {
   'notebook:review': true,
 
   'templates:create': true,
+
+  'data:status': true,
+  'data:backUp': true,
+  'data:restore': true,
+  'data:showBackups': true,
+  'data:exportMarkdown': true,
 
   'feedback:list': true,
   'feedback:create': true,

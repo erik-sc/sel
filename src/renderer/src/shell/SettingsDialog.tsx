@@ -14,6 +14,7 @@ import { takeSettingsSection } from '@/briefing/route'
 import { TodaySection } from '@/briefing/TodaySettings'
 import { UpdatesGroup } from '@/updates/UpdatesSettings'
 import { HomeSettingsRows } from '@/home/HomeSettings'
+import { DataSettingsRows } from '@/backup/DataSettings'
 import { importMarkdown } from './actions'
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -216,6 +217,7 @@ function GeneralSection() {
           <h3 className="ap-group-title">Data</h3>
         </div>
         <div className="ap-list">
+          <DataSettingsRows />
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Import Markdown</span>
