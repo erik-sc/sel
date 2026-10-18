@@ -215,6 +215,7 @@ const INVOKE_CHANNELS = [
   'notebook:review',
   'notebook:write',
   'pages:ancestors',
+  'pages:backlinks',
   'pages:deleteForever',
   'pages:duplicate',
   'pages:exportMarkdown',

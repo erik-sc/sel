@@ -65,6 +65,75 @@
   cursor: text;
 }
 
+/* ---- linked from (below the page) ---- */
+
+.pe-backlinks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 12px;
+  padding-bottom: 32px;
+  font-size: var(--text-md);
+}
+
+.pe-backlinks-heading {
+  padding: 14px 8px 6px;
+  border-top: var(--hairline) solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-ui);
+}
+
+.pe-root .pe-backlink {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: var(--radius-s);
+  text-align: left;
+}
+
+.pe-root .pe-backlink:hover {
+  background: var(--bg-hover);
+}
+
+.pe-backlink-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pe-backlink-icon {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 18px;
+  color: var(--text-secondary);
+}
+
+.pe-backlink-title {
+  overflow: hidden;
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pe-backlink-path,
+.pe-backlink-snippet {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pe-backlink-snippet {
+  padding-left: 26px;
+  color: var(--text-secondary);
+}
+
 /* ---- cover / header ---- */
 
 .pe-cover {

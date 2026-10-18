@@ -332,6 +332,58 @@ describe('search', () => {
   })
 })
 
+describe('backlinks', () => {
+  const linkTo = (words: string, target: string, parentId: string, before = 'veja ', hash = ''): Block =>
+    repo.create({
+      type: 'text',
+      parentId,
+      props: { title: [[before], [words, [['a', `sel://page/${target}${hash}`]]], [' depois']] }
+    })
+
+  it('lists each page that links here once, with the text around the link', () => {
+    const target = page('Orçamento')
+    const plan = repo.create({ type: 'page', parentId: null, props: { title: [['Planejamento']], icon: '🗺️' } })
+    const sub = page('Reunião', plan.id)
+    const first = linkTo('o orçamento', target.id, sub.id)
+    linkTo('de novo', target.id, sub.id)
+    const other = page('Ideias')
+    linkTo('um bloco dele', target.id, other.id, 'e ', '#b-1')
+
+    const found = repo.backlinks(target.id)
+    expect(found.map((r) => r.pageId).sort()).toEqual([sub.id, other.id].sort())
+    expect(found.find((r) => r.pageId === sub.id)).toMatchObject({
+      id: first.id,
+      title: 'Reunião',
+      path: ['Planejamento'],
+      snippet: 'veja o orçamento depois'
+    })
+  })
+
+  it('leaves out the page itself, the trash, other targets and plain text', () => {
+    const target = page('Alvo')
+    linkTo('aqui mesmo', target.id, target.id)
+    const prefixed = repo.create({ id: `${target.id}x`, type: 'page', parentId: null, props: { title: [['Outro']] } })
+    const elsewhere = page('Em outro lugar')
+    linkTo('outro alvo', prefixed.id, elsewhere.id)
+    text(`sel://page/${target.id} escrito sem link`, elsewhere.id)
+    const trashed = page('Lixo')
+    linkTo('no lixo', target.id, trashed.id)
+    repo.delete(trashed.id)
+
+    expect(repo.backlinks(target.id)).toEqual([])
+    expect(repo.backlinks(prefixed.id).map((r) => r.pageId)).toEqual([elsewhere.id])
+    expect(repo.backlinks('not an id!')).toEqual([])
+  })
+
+  it('marks a linking page that is archived, as search does', () => {
+    const target = page('Alvo')
+    const old = page('Antigo')
+    linkTo('alvo', target.id, old.id)
+    repo.update(old.id, { props: { archivedAt: Date.now() } })
+    expect(repo.backlinks(target.id)).toMatchObject([{ pageId: old.id, archived: true }])
+  })
+})
+
 describe('duplicate', () => {
   it('deep-copies with fresh ids next to the original', () => {
     const p = page('P')

@@ -151,6 +151,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     'pages:restore': ([a]) => repo.restore(arg.id(a)),
     'pages:deleteForever': ([a]) => repo.deleteForever(arg.id(a)),
     'pages:ancestors': ([a]) => repo.ancestors(arg.id(a)),
+    'pages:backlinks': ([a]) => repo.backlinks(arg.id(a)),
     'pages:duplicate': ([a]) => repo.duplicate(arg.id(a)),
     // Both go through a native dialog: the renderer never names a path.
     // The markdown converter is only loaded the first time one of them is used.
