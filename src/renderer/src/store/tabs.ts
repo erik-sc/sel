@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { cleanHome, cleanStartup, HOME_SETTING, homeTarget, STARTUP_SETTING, type Home, type StartupMode } from '@shared/home'
+import { NOTEBOOK_ID } from '@shared/notebook'
+import { SKY_ID } from '@shared/sky'
 import { notifyError } from '../ui/toast'
 import { addCacheRoots, fetchBlocks, newId, scheduleSweep } from './blocks'
 
@@ -15,7 +17,7 @@ interface TabsState {
   activeId: string | null
   /** False until persisted tabs were restored. */
   ready: boolean
-  /** Secondary windows (opened with ?page=) do not overwrite the persisted tab set. */
+  /** Every window but the main one (opened with ?page= or ?extra) leaves the persisted tab set alone. */
   ephemeral: boolean
 }
 
@@ -47,11 +49,33 @@ export function isBlockId(value: unknown): value is string {
   return typeof value === 'string' && ID_PATTERN.test(value) && value !== '__proto__'
 }
 
+/**
+ * Pages that are shown as a screen, by the screen's route: the notebook's and the Sky's own
+ * pages, which a search result or a link may open. The one place for such aliases.
+ */
+const ALIASES = new Map<string, string>([
+  [NOTEBOOK_ID, NOTEBOOK_ROUTE],
+  [SKY_ID, SKY_ROUTE]
+])
+
+/**
+ * What a tab shows, the same way however it was reached: one page (or screen), one key. Tabs
+ * hold only these keys, and a window never has two tabs with the same one.
+ */
+export function tabKey(pageId: string): string {
+  return ALIASES.get(pageId) ?? pageId
+}
+
 /** `?page=<id>` opens that page in a window of its own (see api.app.newWindow). */
 export function initialPageId(): string | null {
   const id = new URLSearchParams(window.location.search).get('page')
   // The query string is input like any other: only something shaped like an id is used.
   return isBlockId(id) ? id : null
+}
+
+/** `?extra`: a window opened beside the main one, with a blank tab (see createWindow in main). */
+function isExtraWindow(): boolean {
+  return new URLSearchParams(window.location.search).has('extra')
 }
 
 export const useTabs = create<TabsState>(() => ({
@@ -87,10 +111,22 @@ useTabs.subscribe((state, previous) => {
 })
 
 function makeTab(pageId?: string | null): Tab {
-  return { id: newId(), history: pageId ? [pageId] : [], index: 0 }
+  return { id: newId(), history: pageId ? [tabKey(pageId)] : [], index: 0 }
 }
 
+/** The tab of this window that shows the page (or screen), if any. */
+export function tabShowing(pageId: string, state: TabsState = useTabs.getState()): Tab | undefined {
+  const key = tabKey(pageId)
+  return state.tabs.find((t) => tabPage(t) === key)
+}
+
+/** A new tab next to the active one; a page already open somewhere is shown there instead. */
 export function newTab(pageId?: string | null, opts?: { background?: boolean }): void {
+  const existing = pageId ? tabShowing(pageId) : undefined
+  if (existing) {
+    if (!opts?.background) activateTab(existing.id)
+    return
+  }
   const tab = makeTab(pageId)
   useTabs.setState((state) => {
     const at = state.tabs.findIndex((t) => t.id === state.activeId)
@@ -100,15 +136,25 @@ export function newTab(pageId?: string | null, opts?: { background?: boolean }):
   })
 }
 
+/**
+ * Shows a page: the tab that already has it (whatever `newTab` says: one page, one tab), else the
+ * active tab navigates to it, or a new tab opens with it when asked (Ctrl/middle click).
+ */
 export function openPage(pageId: string, opts?: { newTab?: boolean }): void {
   const state = useTabs.getState()
   const current = activeTab(state)
-  if (opts?.newTab || !current) {
-    newTab(pageId)
+  const key = tabKey(pageId)
+  if (tabPage(current) === key) return
+  const existing = tabShowing(key, state)
+  if (existing) {
+    activateTab(existing.id)
     return
   }
-  if (tabPage(current) === pageId) return
-  const history = [...current.history.slice(0, current.index + 1), pageId].slice(-MAX_HISTORY)
+  if (opts?.newTab || !current) {
+    newTab(key)
+    return
+  }
+  const history = [...current.history.slice(0, current.index + 1), key].slice(-MAX_HISTORY)
   const next: Tab = { ...current, history, index: history.length - 1 }
   useTabs.setState({ tabs: state.tabs.map((t) => (t.id === current.id ? next : t)) })
 }
@@ -116,7 +162,7 @@ export function openPage(pageId: string, opts?: { newTab?: boolean }): void {
 /** Shows a built-in screen: the tab that already has it, the blank tab in front, or a new tab. */
 export function openScreen(route: string): void {
   const state = useTabs.getState()
-  const existing = state.tabs.find((tab) => tabPage(tab) === route)
+  const existing = tabShowing(route, state)
   if (existing) activateTab(existing.id)
   else if (activeTab(state) && !tabPage(activeTab(state))) openPage(route)
   else newTab(route)
@@ -130,9 +176,16 @@ export function activateTab(id: string): void {
 const closedTabs: { tab: Tab; at: number }[] = []
 const MAX_CLOSED = 10
 
+/** Brings back the tab closed last, or shows the tab that has its page by now. */
 export function reopenTab(): void {
   const closed = closedTabs.pop()
   if (!closed) return
+  const page = tabPage(closed.tab)
+  const existing = page ? tabShowing(page) : undefined
+  if (existing) {
+    activateTab(existing.id)
+    return
+  }
   useTabs.setState((state) => {
     const tabs = [...state.tabs]
     tabs.splice(Math.min(closed.at, tabs.length), 0, closed.tab)
@@ -147,15 +200,18 @@ export function selectTabAt(position: number): void {
   if (tab) useTabs.setState({ activeId: tab.id })
 }
 
+function rememberClosed(tab: Tab, at: number): void {
+  if (!tabPage(tab)) return
+  closedTabs.push({ tab, at })
+  if (closedTabs.length > MAX_CLOSED) closedTabs.shift()
+}
+
 export function closeTab(id?: string | null): void {
   useTabs.setState((state) => {
     const target = id ?? state.activeId
     const at = state.tabs.findIndex((t) => t.id === target)
     if (at < 0) return state
-    if (tabPage(state.tabs[at])) {
-      closedTabs.push({ tab: state.tabs[at], at })
-      if (closedTabs.length > MAX_CLOSED) closedTabs.shift()
-    }
+    rememberClosed(state.tabs[at], at)
     const tabs = state.tabs.filter((t) => t.id !== target)
     let activeId = state.activeId
     if (activeId === target) activeId = (tabs[at] ?? tabs[at - 1])?.id ?? null
@@ -167,6 +223,18 @@ export function closeOtherTabs(id: string): void {
   useTabs.setState((state) =>
     state.tabs.some((t) => t.id === id) ? { tabs: state.tabs.filter((t) => t.id === id), activeId: id } : state
   )
+}
+
+/** Closes every tab after this one; the active tab, if it was one of them, becomes this one. */
+export function closeTabsToRight(id: string): void {
+  useTabs.setState((state) => {
+    const at = state.tabs.findIndex((t) => t.id === id)
+    if (at < 0 || at === state.tabs.length - 1) return state
+    // Most recent last: reopening brings back the nearest one first.
+    for (let i = state.tabs.length - 1; i > at; i--) rememberClosed(state.tabs[i], i)
+    const tabs = state.tabs.slice(0, at + 1)
+    return { tabs, activeId: tabs.some((t) => t.id === state.activeId) ? state.activeId : id }
+  })
 }
 
 /** Moves a tab so that it ends up at `toIndex` in the resulting array. */
@@ -195,7 +263,12 @@ function step(delta: number): void {
   if (!current) return
   const index = current.index + delta
   if (index < 0 || index >= current.history.length) return
-  useTabs.setState({ tabs: state.tabs.map((t) => (t.id === current.id ? { ...t, index } : t)) })
+  // A page that another tab shows by now stays here: this tab's history wins, the other tab
+  // closes (Back never jumps to another tab).
+  const page = current.history[index]
+  useTabs.setState({
+    tabs: state.tabs.flatMap((t) => (t.id === current.id ? [{ ...t, index }] : tabPage(t) === page ? [] : [t]))
+  })
 }
 
 export function goBack(): void {
@@ -221,8 +294,10 @@ export interface PersistedTabs {
 
 /**
  * Rebuilds a tab set from a stored setting, which is treated as untrusted: ids must look like
- * ids and be unique, histories keep only page ids (the position follows what was removed) and
- * are capped, and the number of tabs is capped.
+ * ids and be unique, histories keep only page ids (the position follows what was removed),
+ * spelled as tab keys, and are capped, and the number of tabs is capped. Two tabs showing the
+ * same page (saved before one page meant one tab) become the first of them, which is then the
+ * active tab if either was.
  */
 export function sanitizeTabs(value: unknown): PersistedTabs | null {
   if (!value || typeof value !== 'object') return null
@@ -230,6 +305,9 @@ export function sanitizeTabs(value: unknown): PersistedTabs | null {
   if (!Array.isArray(raw.tabs)) return null
   const tabs: Tab[] = []
   const seen = new Set<string>()
+  // The tab kept for each page, and the tab each dropped duplicate became.
+  const showing = new Map<string, string>()
+  const became = new Map<string, string>()
   for (const entry of raw.tabs as unknown[]) {
     if (tabs.length >= MAX_RESTORED_TABS) break
     if (!entry || typeof entry !== 'object') continue
@@ -241,14 +319,39 @@ export function sanitizeTabs(value: unknown): PersistedTabs | null {
     ;(t.history as unknown[]).forEach((page, at) => {
       if (!isBlockId(page)) return
       if (at <= wanted) index = history.length
-      history.push(page)
+      history.push(tabKey(page))
     })
     // Keep the newest entries, like openPage does.
     const cut = Math.max(0, history.length - MAX_HISTORY)
     seen.add(t.id)
-    tabs.push({ id: t.id, history: history.slice(cut), index: Math.max(0, index - cut) })
+    const tab = { id: t.id, history: history.slice(cut), index: Math.max(0, index - cut) }
+    const page = tabPage(tab)
+    const first = page ? showing.get(page) : undefined
+    if (first) {
+      became.set(tab.id, first)
+      continue
+    }
+    if (page) showing.set(page, tab.id)
+    tabs.push(tab)
   }
-  const activeId = typeof raw.activeId === 'string' && seen.has(raw.activeId) ? raw.activeId : null
+  const wantedActive = typeof raw.activeId === 'string' && seen.has(raw.activeId) ? raw.activeId : null
+  const activeId = wantedActive ? (became.get(wantedActive) ?? wantedActive) : null
+  return { tabs, activeId }
+}
+
+/**
+ * Tabs opened while the stored ones were restored (an early menu command, a link), after them by
+ * the same rule: a page the restored tabs already show is shown there, not twice.
+ */
+export function mergeEarlyTabs(restored: PersistedTabs, early: PersistedTabs): PersistedTabs {
+  const tabs = [...restored.tabs]
+  let activeId = early.activeId ?? restored.activeId
+  for (const tab of early.tabs) {
+    const page = tabPage(tab)
+    const existing = page ? tabs.find((t) => tabPage(t) === page) : undefined
+    if (!existing) tabs.push(tab)
+    else if (activeId === tab.id) activeId = existing.id
+  }
   return { tabs, activeId }
 }
 
@@ -266,14 +369,21 @@ export function initTabs(initialPageId: string | null): Promise<void> {
 }
 
 async function restoreTabs(initialPageId: string | null): Promise<void> {
-  if (initialPageId) {
+  // A window beside the main one has one tab, its page or a blank one, and leaves `shell.tabs`
+  // to the main window: two windows saving one tab set would undo each other.
+  if (initialPageId || isExtraWindow()) {
     const tab = makeTab(initialPageId)
-    useTabs.setState({ tabs: [tab], activeId: tab.id, ready: true, ephemeral: true })
+    useTabs.setState((state) => {
+      const merged = mergeEarlyTabs({ tabs: [tab], activeId: tab.id }, state)
+      return { ...merged, ready: true, ephemeral: true }
+    })
     return
   }
   let restored: PersistedTabs | null = null
   let startup: StartupMode = 'tabs'
   let home: Home = null
+  // A stored set that was not clean (saved with a page twice, say) is saved clean once restored.
+  let unclean = false
   try {
     const [stored, storedStartup, storedHome] = await Promise.all([
       window.api.app.getSetting(SETTING_KEY),
@@ -281,6 +391,7 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
       window.api.app.getSetting(HOME_SETTING)
     ])
     restored = sanitizeTabs(stored)
+    unclean = !!restored && JSON.stringify(restored) !== JSON.stringify(stored)
     startup = cleanStartup(storedStartup)
     if (startup !== 'tabs') home = cleanHome(storedHome) ?? null
     const pageIds = (restored?.tabs ?? []).map(tabPage).filter((id): id is string => !!id)
@@ -311,17 +422,14 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
   const target = homeTarget(home)
   if (target !== null) {
     // The home in front: the restored tab that already shows it, or a new one.
-    const first = (startup === 'both' ? tabs.find((t) => tabPage(t) === target) : undefined) ?? makeTab(target)
+    const first = (startup === 'both' ? tabs.find((t) => tabPage(t) === tabKey(target)) : undefined) ?? makeTab(target)
     tabs = startup === 'both' ? [first, ...tabs.filter((t) => t !== first)] : [first]
     activeId = first.id
   }
-  // Tabs opened while restoring (e.g. an early menu command) are kept after the restored ones.
-  useTabs.setState((state) => ({
-    tabs: [...tabs, ...state.tabs],
-    activeId: state.activeId ?? activeId,
-    ready: true
-  }))
+  useTabs.setState((state) => ({ ...mergeEarlyTabs({ tabs, activeId }, state), ready: true }))
   startPersisting()
+  // Not with only the home open: that would put the home in place of the stored tabs.
+  if (unclean && startup !== 'home') schedulePersist()
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null
@@ -336,13 +444,17 @@ function persistNow(): void {
     .catch((error) => notifyError('Your open tabs could not be saved.', error))
 }
 
+function schedulePersist(): void {
+  if (persistTimer !== null) clearTimeout(persistTimer)
+  persistTimer = setTimeout(persistNow, PERSIST_DELAY)
+}
+
 /** Called once per window, for its whole life: the subscription is never torn down. */
 function startPersisting(): void {
   useTabs.subscribe((state, previous) => {
     if (state.ephemeral || !state.ready) return
     if (state.tabs === previous.tabs && state.activeId === previous.activeId) return
-    if (persistTimer !== null) clearTimeout(persistTimer)
-    persistTimer = setTimeout(persistNow, PERSIST_DELAY)
+    schedulePersist()
   })
   // Do not lose a change made just before the window closes.
   window.addEventListener('pagehide', persistNow)

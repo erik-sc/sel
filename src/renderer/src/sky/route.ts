@@ -1,8 +1,8 @@
 // The small part of the Sky that is always loaded: its route, the way to reach it, its name on a
 // tab, and whether it is on (`sky.enabled`). The screen itself is a chunk of its own (Host.tsx).
 import { create } from 'zustand'
-import { SKY_ENABLED_KEY, SKY_ID, skyEnabled } from '@shared/sky'
-import { openScreen, SKY_ROUTE } from '@/store/tabs'
+import { SKY_ENABLED_KEY, skyEnabled } from '@shared/sky'
+import { openScreen, SKY_ROUTE, tabKey } from '@/store/tabs'
 
 export { SKY_ROUTE }
 
@@ -10,10 +10,11 @@ export const SKY_TITLE = 'Sky'
 
 /**
  * True when a tab shows the Sky: its route, or the Sky's own page, which a search result or a link
- * may open. That page is never shown as an ordinary page: it holds what happened, not notes.
+ * may open (tabKey makes it the route). That page is never shown as an ordinary page: it holds
+ * what happened, not notes.
  */
 export function isSkyRoute(pageId: string | null | undefined): boolean {
-  return pageId === SKY_ROUTE || pageId === SKY_ID
+  return !!pageId && tabKey(pageId) === SKY_ROUTE
 }
 
 export function skyRouteTitle(pageId: string | null | undefined): string | null {
