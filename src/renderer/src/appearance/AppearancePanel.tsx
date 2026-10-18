@@ -20,8 +20,10 @@ import {
   resetAll,
   resetGroup,
   setCustomCss,
+  setSkin,
   useAppearance
 } from './store'
+import { SKINS } from './skins'
 
 const SCOPES: { value: ThemeName; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -46,6 +48,7 @@ export function AppearancePanel() {
   const [scope, setScope] = useState<ThemeName>(() => resolveTheme(useUi.getState().theme))
   const [query, setQuery] = useState('')
   const total = useAppearance(countOverrides)
+  const skinned = useAppearance((state) => state.skin !== null)
 
   // Follow the user's theme when it changes underneath the panel (menu command, OS setting aside).
   useEffect(() => setScope(resolveTheme(userTheme)), [userTheme])
@@ -93,7 +96,7 @@ export function AppearancePanel() {
           <Segmented label="Theme being edited" value={scope} options={SCOPES} onChange={setScope} />
           <div className="ap-toolbar-end">
             {total > 0 && <span className="ap-badge">{changes(total)}</span>}
-            {total > 0 && <ConfirmButton label="Reset all" confirmLabel="Reset everything?" onConfirm={resetAll} />}
+            {(total > 0 || skinned) && <ConfirmButton label="Reset all" confirmLabel="Reset everything?" onConfirm={resetAll} />}
           </div>
         </div>
         <Preview />
@@ -199,16 +202,17 @@ function sameMap(a: Record<string, string>, b: Record<string, string>): boolean 
  * picked before Zen became the default look) no longer add up to the preset they name.
  */
 function selectedPreset(state: AppearanceData): string | null {
-  if (countOverrides(state) === 0) return PRESETS[0].id
+  if (countOverrides(state) === 0 && state.skin === null) return PRESETS[0].id
   const preset = state.presetId === null ? undefined : PRESET_MAP[state.presetId]
   if (!preset) return null
   const expected = sanitizeAppearance(preset)
   const same = (['light', 'dark', 'shared'] as const).every((bucket) => sameMap(state[bucket], expected[bucket]))
-  return same ? preset.id : null
+  return same && state.skin === (preset.skin ?? null) ? preset.id : null
 }
 
 function PresetGallery({ scope }: { scope: ThemeName }) {
   const selected = useAppearance(selectedPreset)
+  const skin = useAppearance((state) => state.skin)
   return (
     <section className="ap-group" aria-label="Presets">
       <div className="ap-group-head">
@@ -224,7 +228,7 @@ function PresetGallery({ scope }: { scope: ThemeName }) {
             title={preset.description}
             onClick={() => applyPreset(preset.id)}
           >
-            <span className="ap-preset-thumb ap-wall" style={thumbStyle(preset, scope)}>
+            <span className="ap-preset-thumb ap-wall" data-skin={preset.skin} style={thumbStyle(preset, scope)}>
               <span className="ap-preset-side" />
               <span className="ap-preset-sheet">
                 <i />
@@ -237,6 +241,27 @@ function PresetGallery({ scope }: { scope: ThemeName }) {
         ))}
       </div>
       <p className="ap-note">Choosing a preset replaces your changes in both themes. Custom CSS is kept.</p>
+      <div className="ap-row">
+        <div className="ap-row-text">
+          <span className="ap-row-label">Window style</span>
+          <span className="ap-row-help">Bevels, title bars and buttons drawn over the colours below.</span>
+        </div>
+        <div className="ap-row-control">
+          <select
+            className="ap-field ap-select"
+            aria-label="Window style"
+            value={skin ?? ''}
+            onChange={(event) => setSkin(event.target.value || null)}
+          >
+            <option value="">Standard</option>
+            {SKINS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
     </section>
   )
 }
