@@ -6,6 +6,7 @@ import type { Mark } from '@shared/types'
 import { getBlock } from '@/store/blocks'
 import { Code as CodeIcon, Link as LinkIcon, ChevronDown, ChevronRight } from '@/ui/icons'
 import { useEditor } from './context'
+import { LinkPanel } from './LinkPanel'
 import { TURN_INTO } from './blockTypes'
 import { COLOR_NAMES, markValueAt, rangeHasMark, selectionRect } from './richtext-dom'
 import { AI_LANGUAGES, AI_LANGUAGE_LABELS, AI_TONES, AI_TONE_LABELS, type AiAction } from '@shared/ai'
@@ -223,41 +224,21 @@ export function SelectionToolbar(): JSX.Element | null {
         </button>
       </div>
       {panel === 'link' && (
-        <form
-          className="pe-tb-panel pe-tb-link"
-          onSubmit={(e) => {
-            e.preventDefault()
-            applyLink(url.trim() || null)
+        <LinkPanel
+          value={url}
+          invalid={urlInvalid}
+          hasLink={has('a')}
+          pageId={ctrl.pageId}
+          onChange={(value) => {
+            setUrl(value)
+            setUrlInvalid(false)
           }}
-        >
-          <input
-            autoFocus
-            value={url}
-            placeholder="https://..."
-            aria-label="Link URL"
-            aria-invalid={urlInvalid}
-            className={urlInvalid ? 'is-invalid' : undefined}
-            onChange={(e) => {
-              setUrl(e.target.value)
-              setUrlInvalid(false)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                e.preventDefault()
-                setPanel(null)
-                ctrl.focusBlock(range.id, range.start, range.end)
-              }
-            }}
-          />
-          <button type="submit" className="pe-tb-btn pe-tb-wide">
-            Apply
-          </button>
-          {has('a') && (
-            <button type="button" className="pe-tb-btn pe-tb-wide" onClick={() => applyLink(null)}>
-              Remove
-            </button>
-          )}
-        </form>
+          onApply={applyLink}
+          onCancel={() => {
+            setPanel(null)
+            ctrl.focusBlock(range.id, range.start, range.end)
+          }}
+        />
       )}
       {panel === 'color' && (
         <div className="pe-tb-panel pe-tb-colors">

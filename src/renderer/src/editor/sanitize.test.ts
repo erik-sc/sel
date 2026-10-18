@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_URL_LENGTH, coverStyle, cssImage, imageExtension, isSafeImageUrl, isUrl, sanitizeHref } from './sanitize'
+import { MAX_URL_LENGTH, coverStyle, cssImage, imageExtension, isSafeImageUrl, isUrl, sanitizeHref, sanitizeLink } from './sanitize'
 
 describe('sanitizeHref', () => {
   it('allows http, https and mailto', () => {
@@ -95,6 +95,27 @@ describe('sanitizeHref', () => {
       expect(once).not.toBeNull()
       expect(sanitizeHref(once)).toBe(once)
     }
+  })
+})
+
+describe('sanitizeLink', () => {
+  const page = 'sel://page/6f1c0a4e-1111-4222-8333-444455556666'
+
+  it('takes a link to a page as it is, and everything sanitizeHref takes', () => {
+    expect(sanitizeLink(page)).toBe(page)
+    expect(sanitizeLink(` ${page}#b-1 `)).toBe(`${page}#b-1`)
+    expect(sanitizeLink('example.com')).toBe('https://example.com')
+    expect(sanitizeLink('mailto:a@example.com')).toBe('mailto:a@example.com')
+  })
+
+  it('refuses any other sel:// address and what sanitizeHref refuses', () => {
+    for (const url of ['sel://settings', 'sel://page/', `${page}?x=1`, 'javascript:alert(1)', null, undefined, '']) {
+      expect(sanitizeLink(url)).toBeNull()
+    }
+  })
+
+  it('leaves sanitizeHref (bookmarks, the system) without page links', () => {
+    expect(sanitizeHref(page)).toBeNull()
   })
 })
 

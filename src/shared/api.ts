@@ -72,6 +72,8 @@ export interface Api {
     deleteForever(id: string): Promise<void>
     /** Ancestor pages of a block, root first, excluding the block itself. */
     ancestors(id: string): Promise<Block[]>
+    /** Pages whose text links to this one, each once with the text around the link; not the trash. */
+    backlinks(id: string): Promise<SearchResult[]>
     duplicate(id: string): Promise<Block>
     exportMarkdown(id: string): Promise<{ saved: boolean; path?: string }>
     importMarkdown(parentId: string | null): Promise<Block | null>
@@ -365,6 +367,7 @@ export const INVOKE = {
   'pages:restore': true,
   'pages:deleteForever': true,
   'pages:ancestors': true,
+  'pages:backlinks': true,
   'pages:duplicate': true,
   'pages:exportMarkdown': true,
   'pages:importMarkdown': true,

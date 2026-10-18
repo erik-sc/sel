@@ -295,6 +295,93 @@ describe('search', () => {
     expect(repo.search('tomatoes').map((h) => h.id)).toEqual([sub.id])
     expect(repo.search('prune', 1)).toHaveLength(1)
   })
+
+  it('lists each page once: its title hit, or else its best block', () => {
+    const log = page('Diário de bordo')
+    const lines = Array.from({ length: 12 }, (_, i) => text(`Dia ${i}: conversa com o cliente`, log.id))
+    const client = page('Cliente novo')
+    text('O cliente pediu um orçamento', client.id)
+    const other = page('Outra página')
+    text('Sem nada a ver', other.id)
+    const late = text('Ligar para o cliente amanhã', other.id)
+
+    const hits = repo.search('cliente')
+    expect(hits).toHaveLength(3)
+    // The title hit stands for its page and comes first; block hits only add a row for pages not listed yet.
+    expect(hits[0]).toMatchObject({ id: client.id, pageId: client.id })
+    expect(hits[0].snippet).toBeUndefined()
+    const fromLog = hits.find((h) => h.pageId === log.id)!
+    expect(lines.map((b) => b.id)).toContain(fromLog.id)
+    expect(fromLog.snippet).toContain('cliente')
+    expect(hits.find((h) => h.pageId === other.id)).toMatchObject({ id: late.id, title: 'Outra página' })
+    // The limit counts pages.
+    expect(new Set(repo.search('cliente', 2).map((h) => h.pageId)).size).toBe(2)
+  })
+
+  it('keeps marking archived pages and leaving the trash out when it groups', () => {
+    const kept = page('Arquivo morto')
+    text('notas do arquivo', kept.id)
+    repo.update(kept.id, { props: { archivedAt: Date.now() } })
+    const gone = page('Lixo')
+    text('arquivo velho', gone.id)
+    repo.delete(gone.id)
+
+    const hits = repo.search('arquivo')
+    expect(hits).toHaveLength(1)
+    expect(hits[0]).toMatchObject({ id: kept.id, archived: true })
+  })
+})
+
+describe('backlinks', () => {
+  const linkTo = (words: string, target: string, parentId: string, before = 'veja ', hash = ''): Block =>
+    repo.create({
+      type: 'text',
+      parentId,
+      props: { title: [[before], [words, [['a', `sel://page/${target}${hash}`]]], [' depois']] }
+    })
+
+  it('lists each page that links here once, with the text around the link', () => {
+    const target = page('Orçamento')
+    const plan = repo.create({ type: 'page', parentId: null, props: { title: [['Planejamento']], icon: '🗺️' } })
+    const sub = page('Reunião', plan.id)
+    const first = linkTo('o orçamento', target.id, sub.id)
+    linkTo('de novo', target.id, sub.id)
+    const other = page('Ideias')
+    linkTo('um bloco dele', target.id, other.id, 'e ', '#b-1')
+
+    const found = repo.backlinks(target.id)
+    expect(found.map((r) => r.pageId).sort()).toEqual([sub.id, other.id].sort())
+    expect(found.find((r) => r.pageId === sub.id)).toMatchObject({
+      id: first.id,
+      title: 'Reunião',
+      path: ['Planejamento'],
+      snippet: 'veja o orçamento depois'
+    })
+  })
+
+  it('leaves out the page itself, the trash, other targets and plain text', () => {
+    const target = page('Alvo')
+    linkTo('aqui mesmo', target.id, target.id)
+    const prefixed = repo.create({ id: `${target.id}x`, type: 'page', parentId: null, props: { title: [['Outro']] } })
+    const elsewhere = page('Em outro lugar')
+    linkTo('outro alvo', prefixed.id, elsewhere.id)
+    text(`sel://page/${target.id} escrito sem link`, elsewhere.id)
+    const trashed = page('Lixo')
+    linkTo('no lixo', target.id, trashed.id)
+    repo.delete(trashed.id)
+
+    expect(repo.backlinks(target.id)).toEqual([])
+    expect(repo.backlinks(prefixed.id).map((r) => r.pageId)).toEqual([elsewhere.id])
+    expect(repo.backlinks('not an id!')).toEqual([])
+  })
+
+  it('marks a linking page that is archived, as search does', () => {
+    const target = page('Alvo')
+    const old = page('Antigo')
+    linkTo('alvo', target.id, old.id)
+    repo.update(old.id, { props: { archivedAt: Date.now() } })
+    expect(repo.backlinks(target.id)).toMatchObject([{ pageId: old.id, archived: true }])
+  })
 })
 
 describe('duplicate', () => {

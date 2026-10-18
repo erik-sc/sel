@@ -2,6 +2,7 @@
 // Content reaches the editor from paste, drag-drop, Markdown import and other
 // windows, so every url is validated where it is *used*, not only where it is set.
 // Pure; unit tested.
+import { parsePageLink } from '@shared/pageLink'
 import { isCssCover } from './blockTypes'
 
 export const MAX_URL_LENGTH = 2048
@@ -45,6 +46,16 @@ export function sanitizeHref(raw: string | undefined | null): string | null {
     return isWebUrl(full) ? full : null
   }
   return null
+}
+
+/**
+ * What a link mark in text may point at: what `sanitizeHref` allows, or another page of the
+ * workspace (`sel://page/<id>`, see @shared/pageLink). Bookmarks and other things handed to
+ * the system keep to `sanitizeHref`.
+ */
+export function sanitizeLink(raw: string | undefined | null): string | null {
+  const url = typeof raw === 'string' ? raw.trim() : ''
+  return parsePageLink(url) ? url : sanitizeHref(url)
 }
 
 export function isUrl(text: string): boolean {

@@ -10,6 +10,7 @@ import { EditorController } from './controller'
 import type { DropTarget } from './types'
 import { isTextType } from './blockTypes'
 import { BlockList } from './BlockView'
+import { Backlinks } from './Backlinks'
 import { PageHeader } from './PageHeader'
 import { BlockMenu, SlashMenu, SourcePickerPopover } from './menus'
 import { SelectionToolbar } from './SelectionToolbar'
@@ -34,7 +35,7 @@ export function PageEditor(props: PageEditorProps): JSX.Element {
 }
 
 /** Areas inside the editor that manage their own input (embedded database, row properties). */
-const FOREIGN = '.blk-database-box, .pe-rowprops, .ai-slot, .mt-slot'
+const FOREIGN = '.blk-database-box, .pe-rowprops, .ai-slot, .mt-slot, .pe-backlinks'
 const INTERACTIVE = '.rt, textarea, input, select, button, a, .blk-bookmark, .blk-pagelink'
 /** Vertical mouse travel (px) before a press on empty space becomes a block-selection drag. */
 const DRAG_SELECT_THRESHOLD = 6
@@ -466,6 +467,7 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
                 if (loaded) ctrl.focusTail()
               }}
             />
+            {loaded && <Backlinks pageId={page.id} />}
           </>
         ) : (
           <div className="pe-content pe-body pe-loading">

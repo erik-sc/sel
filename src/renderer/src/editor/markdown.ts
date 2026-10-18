@@ -1,7 +1,7 @@
 // Markdown shortcut detection and plain-text paste parsing. Pure; unit tested.
 import type { BlockProps, BlockType, Mark, RichText } from '@shared/types'
 import { addMark, normalize, replaceRange, slice, rtLength } from './richtext-dom'
-import { sanitizeHref } from './sanitize'
+import { sanitizeLink } from './sanitize'
 import type { ClipNode } from './clipboard'
 
 export interface BlockShortcut {
@@ -104,7 +104,7 @@ export function parseInlineMarkdown(text: string): RichText {
     else if (m[4] !== undefined) out.push([m[4], [['c']]])
     else if (italic !== undefined) out.push([italic, [['i']]])
     else if (m[7] !== undefined) {
-      const href = sanitizeHref(m[8])
+      const href = sanitizeLink(m[8])
       out.push(href ? [m[7], [['a', href]]] : [m[0]])
     }
     last = m.index + m[0].length

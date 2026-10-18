@@ -39,7 +39,7 @@ import {
 } from './blocks'
 import type { SqlDriver, SqlStatement } from './driver'
 import { configure, migrate } from './schema'
-import { searchBlocks } from './search'
+import { backlinksTo, searchBlocks, type SearchSource } from './search'
 import { searchText } from './text'
 import { buildSnapshot, BulkChange, formatStamp, RESTORE_LABEL_PREFIX, VersionStore } from './versions'
 import { archivedFilter, byIdsSql, LINEAGE_SQL, liveFilter, pagesAbove, pick, subtreeSql, walk, type Link, type TreeNode } from './tree'
@@ -1274,15 +1274,20 @@ export class Repository {
   // ------------------------------------------------------------------ search
 
   search(text: string, limit = 20): SearchResult[] {
-    return searchBlocks(
-      {
-        all: (sql, ...params) => this.stmt(sql).all(...params),
-        lineage: (ids) => this.lineage(ids),
-        getMany: (ids) => this.getMany(ids)
-      },
-      text,
-      limit
-    )
+    return searchBlocks(this.searchSource(), text, limit)
+  }
+
+  /** Pages whose text links to `pageId`, each once (see ./search). */
+  backlinks(pageId: string): SearchResult[] {
+    return isValidId(pageId) ? backlinksTo(this.searchSource(), pageId) : []
+  }
+
+  private searchSource(): SearchSource {
+    return {
+      all: (sql, ...params) => this.stmt(sql).all(...params),
+      lineage: (ids) => this.lineage(ids),
+      getMany: (ids) => this.getMany(ids)
+    }
   }
 
   // ---------------------------------------------------------------- versions

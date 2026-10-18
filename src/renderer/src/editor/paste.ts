@@ -17,6 +17,7 @@ import { isPlainTextType, isTextType } from './blockTypes'
 import { MAX_HTML_LENGTH, htmlToNodes } from './html'
 import { parseMarkdownNodes } from './markdown'
 import { rtLength, textOf } from './richtext-dom'
+import { parsePageLink } from '@shared/pageLink'
 import { imageExtension, isUrl } from './sanitize'
 import { isEditable, liveChildren, placeForDrop, topLevel } from './structure'
 import { END, textSel, type DropTarget, type Place } from './types'
@@ -153,7 +154,8 @@ export function handlePaste(ctrl: EditorController, dt: DataTransfer, targetId: 
       ctrl.replaceText(inline.id, inline.start, inline.end, spans)
       return true
     }
-    if (isUrl(text) && inline.end > inline.start && ctrl.setLink(inline, text.trim())) return true
+    const link = isUrl(text) || parsePageLink(text.trim()) !== null
+    if (link && inline.end > inline.start && ctrl.setLink(inline, text.trim())) return true
   }
   const html = htmlBlocks(dt, text)
   if (html && inline && oneLine) {
