@@ -16,7 +16,8 @@ import {
   textOf,
   toHtml
 } from './richtext-dom'
-import { sanitizeHref } from './sanitize'
+import { parsePageLink } from '@shared/pageLink'
+import { sanitizeLink } from './sanitize'
 import { TEXT_DEBOUNCE_MS, type Sel } from './types'
 
 export interface EditableTextProps {
@@ -231,8 +232,12 @@ export const EditableText = memo(function EditableText({
     const a = (e.target as HTMLElement).closest('a')
     if (!a) return
     e.preventDefault()
-    const href = sanitizeHref(a.getAttribute('href'))
-    if (href && (e.ctrlKey || e.metaKey)) void window.api.app.openExternal(href)
+    const href = sanitizeLink(a.getAttribute('href'))
+    if (!href || !(e.ctrlKey || e.metaKey)) return
+    const page = parsePageLink(href)
+    // Another page of the workspace opens here, in the app; anything else goes to the system.
+    if (page) ctrl.onOpenPage(page.pageId)
+    else void window.api.app.openExternal(href)
   }
 
   return (
@@ -276,7 +281,11 @@ export const EditableText = memo(function EditableText({
       onCut={(e) => handleCopy(e, true)}
       onClick={handleClick}
       onAuxClick={(e) => {
-        if ((e.target as HTMLElement).closest('a')) e.preventDefault()
+        const a = (e.target as HTMLElement).closest('a')
+        if (!a) return
+        e.preventDefault()
+        const page = e.button === 1 ? parsePageLink(a.getAttribute('href')) : null
+        if (page) ctrl.onOpenPage(page.pageId, { newTab: true })
       }}
     />
   )

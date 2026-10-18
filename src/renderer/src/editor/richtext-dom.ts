@@ -1,7 +1,8 @@
 // Rich text helpers. The first half is pure (no DOM) and unit tested; the second
 // half converts between the RichText model and the contenteditable DOM.
 import type { Mark, RichText, Span } from '@shared/types'
-import { sanitizeHref } from './sanitize'
+import { parsePageLink } from '@shared/pageLink'
+import { sanitizeLink } from './sanitize'
 
 export const COLOR_NAMES = [
   'gray',
@@ -203,7 +204,7 @@ export function toHtml(rt: RichText | undefined | null): string {
       else if (m[0] === 's') html = `<s>${html}</s>`
       else if (m[0] === 'c') html = `<code>${html}</code>`
       else if (m[0] === 'a') {
-        const href = sanitizeHref(m[1])
+        const href = sanitizeLink(m[1])
         if (href) html = `<a href="${escapeHtml(href)}">${html}</a>`
       }
     }
@@ -227,7 +228,7 @@ export function isColorValue(value: unknown): value is string {
 /**
  * Validates marks coming from untrusted data (clipboard JSON, `data-m` attributes,
  * blocks written by another window). Unknown kinds are dropped, link targets must
- * pass `sanitizeHref` and colours must be palette names.
+ * pass `sanitizeLink` and colours must be palette names.
  */
 export function parseMarks(value: unknown): Mark[] {
   if (!Array.isArray(value)) return []
@@ -238,7 +239,7 @@ export function parseMarks(value: unknown): Mark[] {
     const v: unknown = m[1]
     if (k === 'b' || k === 'i' || k === 'u' || k === 's' || k === 'c') out.push([k])
     else if (k === 'a' && typeof v === 'string') {
-      const href = sanitizeHref(v)
+      const href = sanitizeLink(v)
       if (href) out.push(['a', href])
     } else if (k === 'h' && isColorValue(v)) out.push(['h', v])
   }
@@ -291,7 +292,7 @@ function spanToNode(doc: Document, span: Span): Node {
   if (href) {
     el.setAttribute('href', href)
     el.setAttribute('rel', 'noreferrer noopener')
-    el.setAttribute('title', `${href} (Ctrl+click)`)
+    el.setAttribute('title', parsePageLink(href) ? 'Page link (Ctrl+click)' : `${href} (Ctrl+click)`)
   }
   el.className = classesForMarks(marks).join(' ')
   el.setAttribute('data-m', JSON.stringify(marks))
@@ -340,7 +341,7 @@ function marksOfElement(el: Element): Mark[] {
     case 'CODE':
       return [['c']]
     case 'A': {
-      const href = sanitizeHref(el.getAttribute('href'))
+      const href = sanitizeLink(el.getAttribute('href'))
       return href ? [['a', href]] : []
     }
     default:
