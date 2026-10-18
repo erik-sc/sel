@@ -25,7 +25,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 ### Organise
 
-**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters. A relation links rows to pages of another database (or of the same one), one way or both; a rollup sums up the linked pages: counts, totals, averages, the latest date, of all of them or only those of a period ("this month", "last month") or an option. A Calculations view keeps the figures you work out from a database, such as `sum(Amount) / 12`. A formula property works out a value for each row from its other properties, like `prop("Price") * prop("Qty")`: the editor lists the functions and shows the result as you type, rows filter and sort by what it gives, and renaming a property never breaks it. Select rows in a table to change one property on all of them at once; rows you delete can be brought back in place with Undo. A view's search looks through every property it shows, not only the titles. A chart can group rows by a relation, a rollup or a formula and add up a formula, such as spending by category. Charts and other database blocks can sit side by side: choose "Place beside the previous block" from a block's menu.
+**Organise.** Databases with table, board, list, gallery, calendar and chart views. Show the same database in several pages, each with its own filters. A relation links rows to pages of another database (or of the same one), one way or both; a rollup sums up the linked pages: counts, totals, averages, the latest date, of all of them or only those of a period ("this month", "last month") or an option. A Calculations view keeps the figures you work out from a database, such as `sum(Amount) / 12`, and they can read rollups and formulas; split by a select property, it becomes a small table with one row per option and a total, such as planned and actual spending per budget group with what is left of the salary. A formula property works out a value for each row from its other properties, like `prop("Price") * prop("Qty")`: the editor lists the functions and shows the result as you type, rows filter and sort by what it gives, and renaming a property never breaks it. Select rows in a table to change one property on all of them at once; rows you delete can be brought back in place with Undo. A view's search looks through every property it shows, not only the titles. A chart can group rows by a relation, a rollup or a formula and add up a formula, such as spending by category. Charts and other database blocks can sit side by side: choose "Place beside the previous block" from a block's menu.
 
 **Start from a template.** New page ▸ From a template offers seven, made with care in English and Portuguese: personal finances (your take-home pay and a plan that says what to look at, entries, this month's budget per category next to last month, accounts), home (chores, upkeep, inventory, services), a trip (day by day, bookings, packing, budget), a project, a library of books and films, studies, and a kitchen (recipes, the week's menu, the shopping list). Each comes with examples or empty, as you prefer, and is yours to change.
 
@@ -165,12 +165,12 @@ To try the update flow in development, serve a folder with a `latest.yml` on `ht
 
 ## Releasing
 
-A tag publishes a release. For version `0.6.2`:
+A tag publishes a release. For version `0.6.3`:
 
-1. Raise `version` in `package.json` to `0.6.2`, update this README with what changed, commit and merge it.
-2. Tag that commit `v0.6.2` (a `v`, then the version exactly) and push the tag: `git tag v0.6.2 && git push origin v0.6.2`.
+1. Raise `version` in `package.json` to `0.6.3`, update this README with what changed, commit and merge it.
+2. Tag that commit `v0.6.3` (a `v`, then the version exactly) and push the tag: `git tag v0.6.3 && git push origin v0.6.3`.
 
-The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.6.2-setup.exe`, `sel-0.6.2-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
+The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.6.3-setup.exe`, `sel-0.6.3-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
 
 To build by hand, `npm run dist` writes the same three files into `release/` and uploads nothing.
 
