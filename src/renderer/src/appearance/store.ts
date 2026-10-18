@@ -21,6 +21,7 @@ import {
 import type { AppearanceData, AppearanceMessage } from './sanitize'
 import { TOKENS, TOKEN_MAP, defaultValue } from './schema'
 import type { ThemeName, TokenGroup } from './schema'
+import { isSkin } from './skins'
 
 export type { AppearanceData } from './sanitize'
 export type TokenScope = ThemeName | 'current'
@@ -50,6 +51,9 @@ function paint(data: AppearanceData): void {
   }
   const css = buildCss(data)
   if (el.textContent !== css) el.textContent = css
+  const root = document.documentElement
+  if (data.skin === null) delete root.dataset.skin
+  else if (root.dataset.skin !== data.skin) root.dataset.skin = data.skin
   // Stylesheets injected later (lazy chunks, hot reload) must not end up after the overrides.
   keepLast(el)
 }
@@ -205,12 +209,12 @@ export function resetGroup(group: TokenGroup, scope?: TokenScope): void {
   commit({ ...state, light, dark, shared, presetId: null })
 }
 
-/** Removes every token override in both themes. Custom CSS is kept. */
+/** Removes every token override in both themes and the window style. Custom CSS is kept. */
 export function resetAll(): void {
   commit({ ...emptyAppearance(), customCss: useAppearance.getState().customCss })
 }
 
-/** Replaces all token overrides with a preset's. Custom CSS is kept. */
+/** Replaces all token overrides and the window style with a preset's. Custom CSS is kept. */
 export function applyPreset(id: string): boolean {
   const preset = PRESET_MAP[id]
   if (!preset) return false
@@ -220,9 +224,18 @@ export function applyPreset(id: string): boolean {
       dark: preset.dark,
       shared: preset.shared,
       customCss: useAppearance.getState().customCss,
-      presetId: id
+      presetId: id,
+      skin: preset.skin ?? null
     })
   )
+  return true
+}
+
+/** Switches the window style, keeping the colours. Null is the plain style. */
+export function setSkin(skin: string | null): boolean {
+  if (skin !== null && !isSkin(skin)) return false
+  const state = useAppearance.getState()
+  if (state.skin !== skin) commit({ ...state, skin })
   return true
 }
 
@@ -248,7 +261,7 @@ export function importJson(text: string): { ok: boolean; error?: string } {
     return { ok: false, error: 'The file is not a sel theme.' }
   }
   const record = parsed as Record<string, unknown>
-  const hasContent = ['light', 'dark', 'shared', 'customCss'].some((key) => key in record)
+  const hasContent = ['light', 'dark', 'shared', 'customCss', 'skin'].some((key) => key in record)
   if (!hasContent || ('format' in record && record.format !== FILE_FORMAT && record.format !== LEGACY_FILE_FORMAT)) {
     return { ok: false, error: 'The file is not a sel theme.' }
   }

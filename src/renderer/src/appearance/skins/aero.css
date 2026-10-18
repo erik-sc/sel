@@ -1,0 +1,235 @@
+/*
+ * Frutiger Aero: glossy glass over a sky, with bokeh in the frosted wallpaper, gel tabs and
+ * buttons split by a highlight line, and Windows 7 caption buttons. Glass tints and the accent
+ * come from the tokens.
+ */
+:root[data-skin='aero'] {
+  /* The shine on the upper half of every glossy surface. */
+  --sk-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.55) 49%, rgba(255, 255, 255, 0.18) 50%, rgba(255, 255, 255, 0.45));
+  --sk-gloss-soft: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.2) 49%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.18));
+  --sk-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 90px);
+  --sk-edge: rgba(255, 255, 255, 0.85);
+  --sk-line: rgba(30, 100, 160, 0.38);
+  --sk-glow: rgba(70, 170, 255, 0.55);
+  --sk-panel-shadow: 0 10px 34px rgba(0, 70, 140, 0.25), 0 1px 3px rgba(0, 50, 100, 0.2);
+  --sk-orbs: rgba(255, 255, 255, 0.9);
+
+  /* Bokeh, under the same blur as a wallpaper image. */
+  & body::after {
+    background-image:
+      radial-gradient(circle at 18% 28%, var(--sk-orbs) 0, transparent 7%),
+      radial-gradient(circle at 34% 62%, var(--sk-orbs) 0, transparent 5%),
+      radial-gradient(circle at 63% 18%, var(--sk-orbs) 0, transparent 9%),
+      radial-gradient(circle at 80% 55%, var(--sk-orbs) 0, transparent 6%),
+      radial-gradient(circle at 52% 86%, var(--sk-orbs) 0, transparent 8%),
+      radial-gradient(ellipse 80% 22% at 50% 102%, rgba(130, 220, 90, 0.85), transparent),
+      var(--wall-image);
+  }
+
+  /* ---- glass windows ---- */
+  & .sidebar,
+  & .main,
+  & .assistant {
+    border: 1px solid var(--sk-edge);
+    background-image: var(--sk-sheen);
+    box-shadow: var(--sk-panel-shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+  }
+
+  & .tree-row.is-active,
+  & .sidebar-action.is-active {
+    border: 1px solid var(--sk-line);
+    background: var(--sk-gloss-soft), var(--accent-soft);
+    color: var(--text);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  & .tree-row.is-active .page-icon:not(.is-emoji),
+  & .tree-row.is-active .tree-toggle {
+    color: var(--accent);
+  }
+
+  & .tree-row:hover,
+  & .sidebar-action:hover {
+    background: var(--sk-gloss-soft), var(--bg-hover);
+  }
+
+  & .sidebar-action.is-search {
+    border: 1px solid var(--sk-line);
+    background: rgba(255, 255, 255, 0.6);
+    box-shadow: inset 0 1px 2px rgba(0, 40, 80, 0.15);
+  }
+
+  /* ---- gel tabs ---- */
+  & .tabs {
+    background: rgba(255, 255, 255, 0.25);
+    box-shadow: inset 0 1px 2px rgba(0, 40, 80, 0.18), 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  & .tab:hover {
+    background: var(--sk-gloss-soft), var(--bg-hover);
+  }
+
+  & .tab.is-active {
+    border: 1px solid var(--sk-line);
+    background: var(--sk-gloss), var(--accent-soft);
+    box-shadow: 0 0 8px var(--sk-glow), inset 0 1px 0 #ffffff;
+  }
+
+  /* ---- Windows 7 caption buttons ---- */
+  & .window-controls {
+    gap: 0;
+    padding: 0;
+    border-radius: 5px;
+    box-shadow: 0 0 0 1px rgba(0, 30, 70, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  }
+
+  & .window-controls button {
+    width: 28px;
+    height: 19px;
+    border-radius: 0;
+    background: var(--sk-gloss-soft), rgba(160, 200, 235, 0.45);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  }
+
+  & .window-controls button:first-child {
+    border-radius: 5px 0 0 5px;
+  }
+
+  & .window-controls button + button {
+    border-left: 1px solid rgba(0, 30, 70, 0.35);
+  }
+
+  & .window-controls button:hover {
+    background: var(--sk-gloss-soft), rgba(110, 190, 255, 0.85);
+    color: var(--text);
+    box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.8);
+  }
+
+  & .window-controls button.is-close {
+    width: 44px;
+    border-radius: 0 5px 5px 0;
+    background: var(--sk-gloss-soft), #c75050;
+    color: #ffffff;
+  }
+
+  & .window-controls button.is-close:hover {
+    background: var(--sk-gloss-soft), #e04b3a;
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(255, 90, 60, 0.8), inset 0 0 6px rgba(255, 255, 255, 0.6);
+  }
+
+  /* ---- glossy controls ---- */
+  & .ui-button {
+    border: 1px solid var(--sk-line);
+    background-image: var(--sk-gloss);
+    box-shadow: 0 1px 2px rgba(0, 50, 100, 0.18);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  & .ui-button:hover:not(:disabled) {
+    background-image: var(--sk-gloss);
+    box-shadow: 0 0 8px var(--sk-glow), 0 1px 2px rgba(0, 50, 100, 0.18);
+  }
+
+  & .ui-button:active:not(:disabled) {
+    background-image: var(--sk-gloss-soft);
+  }
+
+  & .ui-button.is-primary {
+    border-color: rgba(0, 60, 120, 0.55);
+    text-shadow: 0 -1px 0 rgba(0, 40, 90, 0.4);
+  }
+
+  & .ui-button.is-ghost {
+    border-color: transparent;
+    background-image: none;
+    box-shadow: none;
+  }
+
+  & .ui-icon-button:hover:not(:disabled) {
+    background: var(--sk-gloss-soft), var(--bg-hover);
+    box-shadow: inset 0 0 0 1px var(--sk-line);
+  }
+
+  & .ui-input,
+  & .ap-field {
+    border: 1px solid var(--sk-line);
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: inset 0 1px 2px rgba(0, 40, 80, 0.15);
+  }
+
+  & .ui-input:focus,
+  & .ap-field:focus {
+    box-shadow: 0 0 0 3px var(--focus-ring), 0 0 10px var(--sk-glow);
+  }
+
+  /* ---- menus and dialogs ---- */
+  & .glass-thick {
+    border-color: var(--sk-edge);
+    background-image: var(--sk-sheen);
+  }
+
+  & .ui-menu-item.is-active {
+    border: 1px solid var(--sk-line);
+    background: var(--sk-gloss-soft), var(--accent-soft);
+    color: var(--text);
+  }
+
+  & .ui-menu-item.is-active .ui-menu-icon {
+    color: var(--accent);
+  }
+
+  /* ---- scroll bars: glass gel ---- */
+  & ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.85), rgba(170, 215, 245, 0.85) 50%, rgba(120, 185, 235, 0.85))
+      padding-box;
+    box-shadow: inset 0 0 0 1px var(--sk-line);
+  }
+
+  & ::-webkit-scrollbar-thumb:hover {
+    border-width: 2px;
+    background: linear-gradient(90deg, #ffffff, #9fd4ff 50%, #5cb2f5) padding-box;
+  }
+}
+
+:root[data-skin='aero'][data-theme='dark'] {
+  --sk-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.14) 49%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.12));
+  --sk-gloss-soft: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06) 49%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.06));
+  --sk-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 90px);
+  --sk-edge: rgba(160, 220, 255, 0.3);
+  --sk-line: rgba(140, 210, 255, 0.35);
+  --sk-glow: rgba(60, 170, 255, 0.5);
+  --sk-panel-shadow: 0 10px 34px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --sk-orbs: rgba(120, 210, 255, 0.55);
+
+  & .sidebar-action.is-search,
+  & .ui-input,
+  & .ap-field {
+    background: rgba(0, 20, 40, 0.45);
+  }
+
+  & .window-controls button {
+    background: var(--sk-gloss-soft), rgba(40, 90, 140, 0.55);
+  }
+
+  & .ui-button {
+    text-shadow: none;
+  }
+
+  & ::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, rgba(120, 190, 240, 0.5), rgba(40, 110, 180, 0.6)) padding-box;
+  }
+}
+
+/* ---- preset thumbnail ---- */
+.ap-preset-thumb[data-skin='aero'] .ap-preset-side,
+.ap-preset-thumb[data-skin='aero'] .ap-preset-sheet {
+  border-color: rgba(255, 255, 255, 0.85);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 45%);
+}
+
+.ap-preset-thumb[data-skin='aero'] .ap-preset-sheet i:last-child {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 49%, rgba(255, 255, 255, 0.1) 50%);
+}

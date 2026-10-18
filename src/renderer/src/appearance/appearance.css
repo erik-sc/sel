@@ -634,6 +634,12 @@
   box-shadow: 0 0 0 var(--ap-ring) color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
+.ap-field.ap-select {
+  width: auto;
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+}
+
 .ap-field.is-wide {
   flex: 1;
   width: auto;

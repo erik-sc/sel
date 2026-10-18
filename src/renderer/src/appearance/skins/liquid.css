@@ -1,0 +1,162 @@
+/*
+ * Full glass: every surface a clear, rounded lens over a vivid wallpaper. Panels get a bright
+ * specular rim (a gradient border) and an inner glow; tabs, toolbar groups and buttons float
+ * as glass capsules. Tints and blur strength come from the tokens.
+ */
+:root[data-skin='liquid'] {
+  --sk-rim: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.2) 30%, rgba(255, 255, 255, 0.06) 60%,
+      rgba(255, 255, 255, 0.75));
+  --sk-glow: inset 0 0 22px rgba(255, 255, 255, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  --sk-lift: 0 12px 40px rgba(20, 30, 80, 0.18), 0 2px 6px rgba(20, 30, 80, 0.1);
+  --sk-capsule: rgba(255, 255, 255, 0.32);
+  --sk-capsule-strong: rgba(255, 255, 255, 0.62);
+
+  /* Colour in the middle of the wallpaper too, not only in its corners. */
+  & body::after {
+    background-image:
+      radial-gradient(circle at 38% 42%, rgba(150, 110, 255, 0.55), transparent 32%),
+      radial-gradient(circle at 68% 64%, rgba(255, 120, 150, 0.5), transparent 30%),
+      radial-gradient(circle at 55% 15%, rgba(80, 200, 255, 0.45), transparent 28%),
+      var(--wall-image);
+  }
+
+  /* ---- lenses ---- */
+  & .sidebar,
+  & .main,
+  & .assistant,
+  & .glass-thick {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--sk-fill, var(--glass-bg)), var(--sk-fill, var(--glass-bg))) padding-box,
+      var(--sk-rim) border-box;
+    box-shadow: var(--sk-lift), var(--sk-glow);
+  }
+
+  & .sidebar {
+    --sk-fill: var(--bg-sidebar);
+  }
+
+  & .main,
+  & .assistant {
+    --sk-fill: var(--bg);
+  }
+
+  & .glass-thick {
+    --sk-fill: var(--glass-thick-bg);
+  }
+
+  /* ---- capsules ---- */
+  & .tabs,
+  & .topbar-nav,
+  & .topbar-actions,
+  & .window-controls {
+    padding: 3px;
+    border-radius: var(--radius-pill);
+    background: var(--sk-capsule);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7), inset 0 -1px 1px rgba(255, 255, 255, 0.2), 0 2px 8px rgba(20, 30, 80, 0.1);
+  }
+
+  & .topbar-nav,
+  & .topbar-actions {
+    height: var(--control-height);
+  }
+
+  & .topbar-nav .ui-icon-button,
+  & .topbar-actions .ui-icon-button {
+    width: calc(var(--control-height) - 6px);
+    height: calc(var(--control-height) - 6px);
+  }
+
+  & .tab.is-active {
+    background: var(--sk-capsule-strong);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 2px 8px rgba(20, 30, 80, 0.15);
+  }
+
+  & .window-controls {
+    gap: 4px;
+  }
+
+  & .window-controls button {
+    background: transparent;
+  }
+
+  & .window-controls button:hover {
+    background: var(--sk-capsule-strong);
+  }
+
+  & .tree-row.is-active,
+  & .sidebar-action.is-active {
+    background: var(--sk-capsule-strong);
+    color: var(--text);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 2px 8px rgba(20, 30, 80, 0.1);
+  }
+
+  & .tree-row.is-active .page-icon:not(.is-emoji),
+  & .tree-row.is-active .tree-toggle {
+    color: var(--accent);
+  }
+
+  & .sidebar-action.is-search {
+    border-radius: var(--radius-pill);
+    background: var(--sk-capsule);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7);
+  }
+
+  & .ui-button {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.08));
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.85), inset 0 -1px 1px rgba(255, 255, 255, 0.2), 0 2px 8px rgba(20, 30, 80, 0.12);
+  }
+
+  & .ui-button:hover:not(:disabled) {
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.16));
+  }
+
+  & .ui-button.is-ghost {
+    background-image: none;
+    box-shadow: none;
+  }
+
+  & .ui-input,
+  & .ap-field {
+    background: var(--sk-capsule);
+    box-shadow: inset 0 1px 2px rgba(20, 30, 80, 0.12), inset 0 -1px 1px rgba(255, 255, 255, 0.5);
+  }
+
+  & .ui-menu-item.is-active {
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  }
+
+  & ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.55) padding-box;
+    box-shadow: inset 0 0 0 3px transparent;
+  }
+}
+
+:root[data-skin='liquid'][data-theme='dark'] {
+  --sk-rim: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.08) 30%, rgba(255, 255, 255, 0.02) 60%,
+      rgba(255, 255, 255, 0.35));
+  --sk-glow: inset 0 0 22px rgba(255, 255, 255, 0.06), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  --sk-lift: 0 12px 40px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --sk-capsule: rgba(255, 255, 255, 0.08);
+  --sk-capsule-strong: rgba(255, 255, 255, 0.18);
+
+  & body::after {
+    background-image:
+      radial-gradient(circle at 38% 42%, rgba(110, 60, 230, 0.6), transparent 32%),
+      radial-gradient(circle at 68% 64%, rgba(220, 60, 120, 0.5), transparent 30%),
+      radial-gradient(circle at 55% 15%, rgba(30, 140, 230, 0.5), transparent 28%),
+      var(--wall-image);
+  }
+
+  & ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25) padding-box;
+  }
+}
+
+/* ---- preset thumbnail ---- */
+.ap-preset-thumb[data-skin='liquid'] .ap-preset-side,
+.ap-preset-thumb[data-skin='liquid'] .ap-preset-sheet {
+  border-color: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.4);
+}
