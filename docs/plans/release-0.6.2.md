@@ -1,6 +1,6 @@
 # Release 0.6.2 — specs
 
-Status: **decidido** · 2026-10-18 · branch `release/0.6.2` (de main @ 2d14a2c, v0.6.1)
+Status: **integrada** (PRs #57–#60), README e versão 0.6.2 · 2026-10-18 · branch `release/0.6.2` (de main @ 2d14a2c, v0.6.1)
 
 Cada feature vira uma branch própria, cortada de `release/0.6.2`, com PR para `release/0.6.2`.
 Marcadores: **❓** = decisão pendente do Érik · **✅** = decidido. Regras gerais, registros compartilhados e
@@ -8,11 +8,11 @@ pegadinhas de teste: as mesmas de `docs/plans/release-0.6.0.md`. Toda release at
 
 | # | Feature | Estado |
 |---|---|---|
-| 1 | Abas sem duplicação | ✅ decidido, despachada |
-| 2 | Melhorias: busca e navegação (era 10d da 0.6.0) | despachada; mini-spec no PR (não mexe em abas) |
-| 3 | Melhorias: reuniões e transcrição (era 10e) | despachada; mini-spec no PR (inclui os 2 testes instáveis) |
-| 4 | Melhorias: dados e confiança (era 10f) | despachada; mini-spec no PR |
-| 5 | README | último passo |
+| 1 | Abas sem duplicação | ✅ PR #60 |
+| 2 | Melhorias: busca e navegação (era 10d da 0.6.0) | PR #58 |
+| 3 | Melhorias: reuniões e transcrição (era 10e) | PR #59 |
+| 4 | Melhorias: dados e confiança (era 10f) | PR #57 |
+| 5 | README | ✅ |
 
 ---
 

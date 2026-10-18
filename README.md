@@ -39,11 +39,13 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 ### Find and go back
 
-**Find.** `Ctrl+P` searches everything; `Ctrl+F` finds a word in the page in front of you, accents or not. `Ctrl+K` lists everything the app can do: type a few letters and press Enter. With text selected in a page, `Ctrl+K` adds a link instead. `Ctrl+/` shows every shortcut.
+**Find.** `Ctrl+P` searches everything, one line per page, titles first; `Ctrl+F` finds a word in the page in front of you, accents or not. `Ctrl+K` lists everything the app can do: type a few letters and press Enter. With text selected in a page, `Ctrl+K` adds a link instead. The link field also finds pages: type a few letters of one to link to it. At the foot of a page, "Linked from" lists the pages that link to it. `Ctrl+/` shows every shortcut.
 
-**Keep it tidy.** Archive a page you are done with: it leaves the sidebar, keeps its place, and is still found by search, marked Archived. Set any page, or Today, Tasks, Calendar or Meditations, as your home: the Home button and `Ctrl+Alt+H` take you there, and Settings → General can open it when sel starts. Every item of the sidebar can be moved or hidden in Settings → Sidebar, or with a right click; whatever is hidden is still a command away.
+**Keep it tidy.** Archive a page you are done with: it leaves the sidebar, keeps its place, and is still found by search, marked Archived. Set any page, or Today, Tasks, Calendar or Meditations, as your home: the Home button and `Ctrl+Alt+H` take you there, and Settings → General can open it when sel starts. Every item of the sidebar can be moved or hidden in Settings → Sidebar, or with a right click; whatever is hidden is still a command away. A page or a screen opens in one tab only: opening it again, from anywhere, takes you to the tab that already shows it. When tabs no longer fit, the bar scrolls and ⌄ lists them all.
 
 **Go back.** Every page keeps a version history. Compare, restore, or restore as a copy.
+
+**Keep it safe.** Once a day sel makes a copy of your notes and checks that it opens before keeping it; the last few days and weeks are kept. Settings → General → Data restores one, after saving the present state first. If the notes file is ever damaged, sel offers the latest good copy when it starts, and never deletes the damaged file. The same place exports everything as Markdown: a file per page, sub-pages in folders, images alongside, links between pages that still work.
 
 | | |
 |---|---|
@@ -86,7 +88,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
 
-**Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. The audio never leaves the computer.
+**Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. Playing the recording back marks the paragraph being heard. A meeting made from a calendar event lists who was invited. The audio never leaves the computer.
 
 | | |
 |---|---|
@@ -163,12 +165,12 @@ To try the update flow in development, serve a folder with a `latest.yml` on `ht
 
 ## Releasing
 
-A tag publishes a release. For version `0.6.1`:
+A tag publishes a release. For version `0.6.2`:
 
-1. Raise `version` in `package.json` to `0.6.1`, update this README with what changed, commit and merge it.
-2. Tag that commit `v0.6.1` (a `v`, then the version exactly) and push the tag: `git tag v0.6.1 && git push origin v0.6.1`.
+1. Raise `version` in `package.json` to `0.6.2`, update this README with what changed, commit and merge it.
+2. Tag that commit `v0.6.2` (a `v`, then the version exactly) and push the tag: `git tag v0.6.2 && git push origin v0.6.2`.
 
-The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.6.1-setup.exe`, `sel-0.6.1-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
+The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.6.2-setup.exe`, `sel-0.6.2-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
 
 To build by hand, `npm run dist` writes the same three files into `release/` and uploads nothing.
 
