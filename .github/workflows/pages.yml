@@ -1,0 +1,47 @@
+# Publishes the website (site/) to GitHub Pages.
+#
+# The page is static and has no build step: the job copies site/ and the screenshots the page
+# shows from docs/screens/ into one folder and hands it to Pages. Nothing else in docs/ is published.
+#
+# Runs when site/ or docs/screens/ changes on main, and by hand from the Actions tab. Pages must be set
+# to "GitHub Actions" in the repository's Settings → Pages once.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'docs/screens/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer one waits instead of cancelling one in progress.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Put the page and its screenshots together
+        run: |
+          mkdir -p _site/docs/screens
+          cp -r site/. _site/
+          cp docs/screens/*.webp _site/docs/screens/
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v5
