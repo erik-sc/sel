@@ -156,15 +156,24 @@ describe('state sanitisation', () => {
       dark: { '--accent': '#00ff00', '--text': 7 },
       shared: { '--glass-blur': '10px', '--accent': '#000000', '--radius-m': t('--radius-m').light, '--font-scale': '1.1' },
       customCss: '@import "x";.a{}',
-      presetId: 'bad id!'
+      presetId: 'bad id!',
+      skin: 'geocities'
     })
     expect(data).toEqual({
       light: { '--accent': '#ff0000' },
       dark: { '--accent': '#00ff00' },
       shared: { '--glass-blur': '10px', '--font-scale': '1.1' },
       customCss: '.a{}',
-      presetId: null
+      presetId: null,
+      skin: null
     })
+  })
+
+  it('keeps a window style only when it is one the app ships', () => {
+    expect(sanitizeAppearance({ skin: 'win98' }).skin).toBe('win98')
+    for (const skin of ['', 'WIN98', 'win98 ', '__proto__', 'constructor', 7, null, ['win98'], { id: 'win98' }]) {
+      expect(sanitizeAppearance({ skin }).skin).toBeNull()
+    }
   })
 
   it('builds one stylesheet with shared and light in :root, dark in its own rule, custom css last', () => {

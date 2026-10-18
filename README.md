@@ -30,7 +30,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Ask his council.** Press Council and he first asks a few other voices (a skeptic, a strategist, a builder, an editor, a keeper), each answering from one point of view, then gives you one answer of his own with theirs above it. Each seat can run on a model of its own, or on another program you connect in Settings → Herman: Codex CLI, Gemini CLI, Ollama, or anything that reads a prompt and prints an answer.
 
-**Make it yours.** Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance.
+**Make it yours.** Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance. Presets with a window style of their own redraw the chrome as Frutiger Aero, Windows 98, Windows XP, Aqua, Mac OS 9, Full glass or a phosphor Terminal.
 
 | | |
 |---|---|
