@@ -8,12 +8,11 @@
 // bucket ever depends on the machine's timezone or on a DST transition. Only the
 // computed "created" / "last edited" timestamps are mapped to the local day they fell on.
 import type { Block, ChartAggregate, ChartConfig, ChartDateBucket, ChartKind, PropertySchema, PropertyValue } from '../../../../shared/types'
-import { filterTypeOf, readCell } from './cell'
+import { filterTypeOf, numberFormatOf, readCell } from './cell'
 import { CHART_KIND_LABELS, chartKindCanAccumulate, chartKindHasSeries, normalizeChartConfig } from './chartConfig'
 import { binEdge, binIndex, niceBins, type Bins } from './chartScale'
 import { bucketLabel, bucketStart, dayKey, diffDays, nextBucketStart, todayISO, type FormatOptions } from './dates'
 import type { CellContext } from './relation'
-import { resolveRollup } from './rollup'
 import {
   OPTION_COLORS,
   defaultCurrency,
@@ -374,21 +373,6 @@ function readerOf(prop: PropertySchema, ctx: CellContext | undefined): Read {
   return (row) => readCell(row, prop, ctx)
 }
 
-/**
- * The number format of what a property gives: its own for a number or a formula, the
- * related property's for a rollup that sums, averages or picks numbers from it.
- */
-function valueFormatOf(prop: PropertySchema | undefined, schema: Schema, ctx: CellContext | undefined): NonNullable<PropertySchema['numberFormat']> {
-  if (!prop) return 'number'
-  if (prop.type === 'rollup') {
-    const fn = prop.rollup?.function
-    if (fn === 'percent_checked') return 'percent'
-    if (!ctx || (fn !== 'sum' && fn !== 'average' && fn !== 'min' && fn !== 'max' && fn !== 'range')) return 'number'
-    return resolveRollup(prop, schema, ctx).target?.numberFormat ?? 'number'
-  }
-  return prop.type === 'number' || prop.type === 'formula' ? (prop.numberFormat ?? 'number') : 'number'
-}
-
 function createGrouper(prop: PropertySchema, input: GrouperInput): Grouper {
   const read = readerOf(prop, input.ctx)
   if (prop.type === 'relation') return relationGrouper(prop, read, input.ctx)
@@ -396,7 +380,7 @@ function createGrouper(prop: PropertySchema, input: GrouperInput): Grouper {
   const type = filterTypeOf(prop, input.schema)
   if (isSelectType(type)) return optionGrouper(prop, read)
   if (type === 'checkbox') return checkboxGrouper(prop, read)
-  if (type === 'number') return numberGrouper(prop, read, input.rows, valueFormatOf(prop, input.schema, input.ctx), input.opts)
+  if (type === 'number') return numberGrouper(prop, read, input.rows, numberFormatOf(prop, input.schema, input.ctx), input.opts)
   if (isDateLikeType(type)) return dateGrouper(prop, read, input.rows, input.bucket ?? 'month', input.today, input.opts)
   return textGrouper(prop, read)
 }
@@ -547,7 +531,7 @@ function yFormatOf(aggregate: ChartAggregate, prop: PropertySchema | undefined, 
   if (aggregate === 'count' || aggregate === 'count_unique') return { numberFormat: 'number', integer: true }
   if (aggregate === 'percent_checked') return { numberFormat: 'percent', integer: false }
   const checkbox = !!prop && filterTypeOf(prop, schema) === 'checkbox'
-  return { numberFormat: valueFormatOf(prop, schema, ctx), integer: checkbox && aggregate !== 'average' && aggregate !== 'median' }
+  return { numberFormat: numberFormatOf(prop, schema, ctx), integer: checkbox && aggregate !== 'average' && aggregate !== 'median' }
 }
 
 // ---------------------------------------------------------------------------

@@ -10,7 +10,7 @@ import type { Block, PropertySchema, PropertyType, PropertyValue } from '../../.
 import { formatDate, type FormatOptions } from './dates'
 import { computeFormula, formulaCellValue, formulaText, formulaValueType } from './formula'
 import { linkedIds, linkedTitles, type CellContext } from './relation'
-import { computeRollup, rollupValue, rollupValueType } from './rollup'
+import { computeRollup, resolveRollup, rollupValue, rollupValueType } from './rollup'
 import { formatNumber, formatValue, getCellValue, type Schema } from './values'
 
 /**
@@ -56,4 +56,19 @@ export function filterTypeOf(prop: PropertySchema, schema?: Schema): PropertyTyp
   if (prop.type === 'rollup') return rollupValueType(prop.rollup)
   if (prop.type === 'formula') return formulaValueType(prop, schema)
   return prop.type
+}
+
+/**
+ * The number format of what a property gives: its own for a number or a formula, the
+ * related property's for a rollup that sums, averages or picks numbers from it.
+ */
+export function numberFormatOf(prop: PropertySchema | undefined, schema: Schema, ctx: CellContext | undefined): NonNullable<PropertySchema['numberFormat']> {
+  if (!prop) return 'number'
+  if (prop.type === 'rollup') {
+    const fn = prop.rollup?.function
+    if (fn === 'percent_checked') return 'percent'
+    if (!ctx || (fn !== 'sum' && fn !== 'average' && fn !== 'min' && fn !== 'max' && fn !== 'range')) return 'number'
+    return resolveRollup(prop, schema, ctx).target?.numberFormat ?? 'number'
+  }
+  return prop.type === 'number' || prop.type === 'formula' ? (prop.numberFormat ?? 'number') : 'number'
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Block, DatabaseView, PropertySchema } from '../../../../shared/types'
-import { evaluateCalc } from './calc'
+import { calcSplitProperty, evaluateCalc, evaluateSplit, isCalcNumber } from './calc'
+import { cellContext } from './resolve'
 import { calcRef, defaultCalcs, MAX_CALCS, sanitizeCalcs } from './calcConfig'
 import { sanitizeViews } from './normalize'
 import { createDefaultView } from './views'
@@ -166,5 +167,108 @@ describe('the calculations a view stores', () => {
     const table = { ...clean, type: 'table' } as DatabaseView
     expect(sanitizeViews([table], SCHEMA)[0].calcs).toEqual(clean.calcs)
     expect(sanitizeViews([{ ...table, calcs: 'junk' } as unknown as DatabaseView], SCHEMA)[0].calcs).toBeUndefined()
+  })
+})
+
+describe('figures from rollups and formulas, split by a select property', () => {
+  const GROUP: PropertySchema = {
+    id: 'group',
+    name: 'Grupo',
+    type: 'select',
+    options: [
+      { id: 'income', name: 'Renda', color: 'gray' },
+      { id: 'needs', name: 'Essencial', color: 'blue' },
+      { id: 'wants', name: 'Estilo de vida', color: 'purple' },
+      { id: 'future', name: 'Futuro', color: 'green' }
+    ]
+  }
+  const CATEGORIES: Record<string, PropertySchema> = {
+    title: { id: 'title', name: 'Categoria', type: 'title' },
+    group: GROUP,
+    budget: { id: 'budget', name: 'Orçamento', type: 'number', numberFormat: 'currency' },
+    entries: { id: 'entries', name: 'Lançamentos', type: 'relation', relation: { databaseId: 'entries', syncedPropertyId: 'category' } },
+    spent: { id: 'spent', name: 'Gasto', type: 'rollup', rollup: { relationId: 'entries', propertyId: 'expense', function: 'sum' } },
+    received: { id: 'received', name: 'Recebido', type: 'rollup', rollup: { relationId: 'entries', propertyId: 'income', function: 'sum' } },
+    planned: {
+      id: 'planned',
+      name: 'Planejado',
+      type: 'formula',
+      formula: { expression: 'if(prop("group") == "Renda", prop("budget"), 0 - prop("budget"))' },
+      numberFormat: 'currency'
+    },
+    actual: { id: 'actual', name: 'Realizado', type: 'formula', formula: { expression: 'prop("received") - prop("spent")' }, numberFormat: 'currency' }
+  }
+  const ENTRIES: Record<string, PropertySchema> = {
+    title: { id: 'title', name: 'Descrição', type: 'title' },
+    income: { id: 'income', name: 'Entrada', type: 'number', numberFormat: 'currency' },
+    expense: { id: 'expense', name: 'Saída', type: 'number', numberFormat: 'currency' },
+    category: { id: 'category', name: 'Categoria', type: 'relation', relation: { databaseId: 'categories', syncedPropertyId: 'entries' } }
+  }
+  const block = (id: string, parentId: string | null, type: Block['type'], props: Block['props'], content: string[] = []): Block =>
+    ({ id, type, parentId, content, props, createdAt: 1, updatedAt: 1, trashedAt: null }) as Block
+  const category = (id: string, title: string, values: Record<string, unknown>): Block => block(id, 'categories', 'page', { title: [[title]], values } as Block['props'])
+  const entry = (id: string, values: Record<string, unknown>): Block => block(id, 'entries', 'page', { title: [[id]], values } as Block['props'])
+
+  const cats = [
+    category('salary', 'Salário', { group: 'income', budget: 10000, entries: ['e1'] }),
+    category('rent', 'Aluguel', { group: 'needs', budget: 3000, entries: ['e2'] }),
+    category('food', 'Comida', { group: 'needs', budget: 1000, entries: ['e3', 'e4'] }),
+    category('fun', 'Lazer', { group: 'wants', budget: 500, entries: ['e5'] }),
+    category('other', 'Outros', { entries: ['e6'] })
+  ]
+  const entries = [
+    entry('e1', { income: 10500, category: ['salary'] }),
+    entry('e2', { expense: 3000, category: ['rent'] }),
+    entry('e3', { expense: 700, category: ['food'] }),
+    entry('e4', { expense: 450, category: ['food'] }),
+    entry('e5', { expense: 900, category: ['fun'] }),
+    entry('e6', { expense: 100, category: ['other'] })
+  ]
+  const blocks = [
+    block('categories', null, 'database', { schema: CATEGORIES, views: [] } as unknown as Block['props'], cats.map((c) => c.id)),
+    block('entries', null, 'database', { schema: ENTRIES, views: [] } as unknown as Block['props'], entries.map((e) => e.id)),
+    ...cats,
+    ...entries
+  ]
+  const byId = new Map(blocks.map((b) => [b.id, b]))
+  const ctx = cellContext({ get: (id) => byId.get(id) })
+  const calcs = [
+    { formula: 'sum(Planejado)' },
+    { formula: 'sum(Realizado)' },
+    { formula: 'sum(Realizado) - sum(Planejado)' }
+  ]
+
+  it('sums what rollups and formulas give, written like what they read', () => {
+    expect(evaluateCalc({ formula: 'sum(Gasto)' }, cats, CATEGORIES, ctx)).toEqual({ ok: true, value: 5150, format: 'currency' })
+    expect(evaluateCalc({ formula: 'sum(Planejado)' }, cats, CATEGORIES, ctx)).toEqual({ ok: true, value: 5500, format: 'currency' })
+    expect(evaluateCalc({ formula: 'count(Gasto)' }, cats, CATEGORIES, ctx)).toMatchObject({ value: 5 })
+    // Without the related rows there is nothing to compute them from.
+    expect(evaluateCalc({ formula: 'sum(Gasto)' }, cats, CATEGORIES)).toMatchObject({ ok: true, value: 0 })
+    expect(isCalcNumber(CATEGORIES.spent, CATEGORIES)).toBe(true)
+    expect(isCalcNumber(CATEGORIES.planned, CATEGORIES)).toBe(true)
+    expect(isCalcNumber(CATEGORIES.group, CATEGORIES)).toBe(false)
+  })
+
+  it('computes each figure per option that has rows, the rows without one last, and over all of them', () => {
+    const split = evaluateSplit(calcs, cats, CATEGORIES, GROUP, ctx)
+    const values = (results: ReturnType<typeof evaluateCalc>[]): unknown[] => results.map((r) => (r.ok ? r.value : r.error))
+    expect(split.groups.map((g) => [g.key, g.label, values(g.results)])).toEqual([
+      ['income', 'Renda', [10000, 10500, 500]],
+      ['needs', 'Essencial', [-4000, -4150, -150]],
+      ['wants', 'Estilo de vida', [-500, -900, -400]],
+      [null, 'No Grupo', [0, -100, -100]]
+    ])
+    expect(split.groups[1].option).toBe(GROUP.options![1])
+    expect(values(split.total)).toEqual([5500, 5350, -150])
+  })
+
+  it('splits only by a select property the schema still has', () => {
+    const view = { id: 'v', name: 'Plano', type: 'calc', visibleProperties: ['title'], filters: [], sorts: [] } as DatabaseView
+    expect(calcSplitProperty(view, CATEGORIES)).toBeUndefined()
+    expect(calcSplitProperty({ ...view, groupBy: 'group' }, CATEGORIES)).toBe(GROUP)
+    expect(calcSplitProperty({ ...view, groupBy: 'budget' }, CATEGORIES)).toBeUndefined()
+    expect(calcSplitProperty({ ...view, groupBy: 'gone' }, CATEGORIES)).toBeUndefined()
+    // The choice survives the view's repair.
+    expect(sanitizeViews([{ ...view, calcs: [], groupBy: 'group' }], CATEGORIES)[0].groupBy).toBe('group')
   })
 })

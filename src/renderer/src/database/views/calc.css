@@ -98,6 +98,118 @@
   }
 }
 
+/* ---- split by a select property: groups by figures, with a total ---- */
+
+.db-calc-split {
+  overflow-x: auto;
+  padding: 2px 2px 4px;
+}
+
+.db-calc-table {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-md);
+}
+
+.db-calc-table th,
+.db-calc-table td {
+  height: var(--table-row-height);
+  padding: 0 10px;
+  border-bottom: var(--hairline) solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.db-calc-table th[scope='row'],
+.db-calc-table thead th:first-child {
+  text-align: left;
+}
+
+.db-calc-table thead th {
+  background: var(--fill-4);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.db-calc-table th[scope='row'] {
+  font-weight: var(--weight-medium);
+}
+
+.db-calc-table td {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.db-calc-table td.is-empty {
+  color: var(--text-tertiary);
+}
+
+/* The total closes the table: set apart by a heavier rule, not by colour. */
+.db-calc-table tfoot th,
+.db-calc-table tfoot td {
+  border-top: calc(var(--hairline) * 2) solid var(--border-strong);
+  border-bottom: none;
+  font-weight: var(--weight-title);
+}
+
+.db-calc-none {
+  color: var(--text-secondary);
+}
+
+.db-calc-no-rows {
+  color: var(--text-tertiary);
+  text-align: left !important;
+}
+
+/* A figure's name heads its column and opens its editor, like a tile does. */
+.db-root .db-calc-heading {
+  max-width: 220px;
+  margin: 0 -6px;
+  padding: 2px 6px;
+  overflow: hidden;
+  border-radius: var(--radius-s);
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.db-root .db-calc-heading:hover,
+.db-root .db-calc-heading.is-active {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.db-root .db-calc-heading:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.db-calc-table .db-calc-add-cell {
+  width: 1%;
+}
+
+.db-root .db-calc-heading.is-add {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  color: var(--text-tertiary);
+}
+
+@media (hover: hover) {
+  .db-root.is-inline .db-calc-heading.is-add {
+    opacity: 0;
+    transition:
+      opacity var(--duration-fast) var(--ease),
+      background-color var(--duration-fast) var(--ease);
+  }
+
+  .db-root.is-inline:is(:hover, :focus-within, .is-engaged) .db-calc-heading.is-add {
+    opacity: 1;
+  }
+}
+
 /* ---- the editor of one calculation ---- */
 
 .db-calc-editor {

@@ -415,8 +415,10 @@ export function DatabaseView(props: {
   const isChart = view.type === 'chart'
   // Figures are computed from all the rows the filters let through: their order and columns do not matter.
   const ordersRows = !isChart && view.type !== 'calc'
-  // A panel only stays open on a view that has it (the chart panel on charts, sorts and properties on the views that order rows).
-  const openPanel: Panel | null = panel === 'filter' || (panel === 'chart' ? isChart : ordersRows) ? panel : null
+  // A panel only stays open on a view that has it (the chart panel on charts, sorts and properties on the views that order rows,
+  // and the properties panel, which holds "Split by" there, on calculations).
+  const openPanel: Panel | null =
+    panel === 'filter' || (panel === 'chart' ? isChart : panel === 'properties' ? ordersRows || view.type === 'calc' : ordersRows) ? panel : null
   const panelAnchor =
     openPanel === 'filter'
       ? filterRef.current
@@ -641,13 +643,13 @@ export function DatabaseView(props: {
               <Search size={14} />
             </button>
           )}
-          {ordersRows && (
+          {(ordersRows || view.type === 'calc') && (
             <button
               type="button"
               ref={propsRef}
               className="db-tool"
-              aria-label="Properties"
-              title="Properties"
+              aria-label={view.type === 'calc' ? 'Split by' : 'Properties'}
+              title={view.type === 'calc' ? 'Split by' : 'Properties'}
               onPointerEnter={preloadPanels}
               onFocus={preloadPanels}
               onClick={() => togglePanel('properties')}
