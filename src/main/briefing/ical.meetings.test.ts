@@ -33,6 +33,33 @@ describe('meetings in a calendar', () => {
     expect(isMeetingEvent(found['alone'])).toBe(false)
   })
 
+  it('keeps the names of the invited: the one the calendar gives, else the address', () => {
+    const found = occurrences(
+      calendar(
+        timed(
+          'named',
+          'ORGANIZER;CN=Me:mailto:me@example.com',
+          'ATTENDEE;CN=Me;PARTSTAT=ACCEPTED:mailto:me@example.com',
+          'ATTENDEE;CN="Souza, Ana";PARTSTAT=ACCEPTED:mailto:ana@example.com',
+          'ATTENDEE;PARTSTAT=NEEDS-ACTION:mailto:Bo@Example.com',
+          'ATTENDEE;CN=Bo again:mailto:bo@example.com',
+          'ATTENDEE;CN=Carla;PARTSTAT=DECLINED:mailto:carla@example.com',
+          'ATTENDEE;CN=Room 4;CUTYPE=ROOM:mailto:room-4@resource.calendar.google.com',
+          'ATTENDEE;CN="  Dan\\nTab\t ":urn:uuid:1234'
+        ),
+        timed('alone')
+      )
+    )
+    // Who declined still counts as invited (the alarms ask about it), but is not listed as coming.
+    expect(found['named'].attendees).toBe(4)
+    expect(found['named'].people).toEqual(['Souza, Ana', 'bo@example.com', 'Dan Tab'])
+    expect(found['alone'].people).toBeUndefined()
+    const many = Array.from({ length: 60 }, (_, i) => `ATTENDEE;CN=${'x'.repeat(100)}${i}:mailto:p${i}@example.com`)
+    const crowd = occurrences(calendar(timed('crowd', 'ORGANIZER:mailto:me@example.com', ...many)))['crowd']
+    expect(crowd.people).toHaveLength(50)
+    expect(crowd.people?.every((name) => name.length <= 80)).toBe(true)
+  })
+
   it('takes the organizer for the owner when the calendar does not say whose it is', () => {
     const text = calendar(timed('invited', 'ORGANIZER:mailto:boss@example.com', 'ATTENDEE:mailto:boss@example.com', 'ATTENDEE:mailto:someone@example.com')).replace('X-WR-CALNAME:me@example.com\r\n', '')
     expect(occurrences(text)['invited'].attendees).toBe(1)

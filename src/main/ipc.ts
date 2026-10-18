@@ -321,6 +321,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // reaches the windows like any other change, from the origin `meetings` that no window has.
   const meetings = registerMeetingsIpc({
     repo,
+    eventPeople: async (uid, start) => (await briefing.occurrence(uid, start))?.people ?? [],
     flushChanges: () => {
       const ids = repo.drainChanges()
       changes.add('meetings', ids, repo.drainResets())

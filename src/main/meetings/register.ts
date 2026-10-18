@@ -22,6 +22,8 @@ export interface MeetingsIpcContext {
   repo: Repository
   /** Broadcasts what a background step (a transcript written) changed in the database. */
   flushChanges(): void
+  /** Who is invited to an occurrence of a calendar event, from the stored agenda (nothing is fetched). */
+  eventPeople?(uid: string, start: number): Promise<readonly string[]>
 }
 
 export interface MeetingsHooks {
@@ -37,11 +39,19 @@ export interface MeetingsHooks {
 
 const PRUNE_IDLE_MS = 30_000
 
-export function registerMeetingsIpc({ repo, flushChanges }: MeetingsIpcContext): MeetingsHooks & { handlers: Handlers<'meetings'> } {
+export function registerMeetingsIpc({ repo, flushChanges, eventPeople }: MeetingsIpcContext): MeetingsHooks & { handlers: Handlers<'meetings'> } {
   let bridge: MeetingsBridge | null = null
   const meetings = async (): Promise<MeetingsBridge> => (bridge ??= new (await import('./index')).MeetingsBridge(repo, flushChanges))
   const windowOf = (event: { sender: Electron.WebContents }): BrowserWindow | null => BrowserWindow.fromWebContents(event.sender)
   app.on('will-quit', () => void bridge?.dispose())
+  // The people of the event a meeting is made for. Only looked up here; the service checks what it is given.
+  const peopleFor = async (input: unknown): Promise<readonly string[]> => {
+    const event = input !== null && typeof input === 'object' ? (input as { event?: unknown }).event : undefined
+    if (!eventPeople || event === null || typeof event !== 'object') return []
+    const { uid, start } = event as { uid?: unknown; start?: unknown }
+    if (typeof uid !== 'string' || typeof start !== 'number') return []
+    return eventPeople(uid, start).catch(() => [])
+  }
 
   const handlers: Handlers<'meetings'> = {
     // Every window asks this at start-up. Until something was recorded there is nothing to load:
@@ -59,7 +69,10 @@ export function registerMeetingsIpc({ repo, flushChanges }: MeetingsIpcContext):
       }
       return idle
     },
-    'meetings:create': async ([input]) => (await meetings()).service.create(input),
+    'meetings:create': async ([input]) => {
+      const people = await peopleFor(input)
+      return (await meetings()).service.create(input, people)
+    },
 
     // ---- the transcription engine
     'meetings:engine.status': async () => (await meetings()).engine.status(),
