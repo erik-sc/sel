@@ -14,6 +14,7 @@ import { Popover } from '@/ui/Popover'
 import { ChevronDown, Mic, MoreHorizontal, Sparkle } from '@/ui/icons'
 import { Pause, Play, Stop } from './icons'
 import { notifyError, toast } from '@/ui/toast'
+import { TranscriptFollower } from './follow'
 import { openMeetingSetup, useMeetings } from './gate'
 import { Player, type PlayerHandle } from './Player'
 import { abandonRecording, levels, listenForStop, listMicrophones, pauseRecording, resumeRecording, startRecording, stopRecording, useRecorder } from './recorder'
@@ -212,7 +213,10 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
   const [menuOpen, setMenuOpen] = useState(false)
   const [note, setNote] = useState<string | null>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
   const player = useRef<PlayerHandle>(null)
+  // The paragraph being heard, marked in the transcript below the bar.
+  const [follower] = useState(() => new TranscriptFollower(() => barRef.current?.closest('.pe-root') ?? null))
   const sources = useSources()
 
   const refresh = useCallback(() => {
@@ -260,6 +264,7 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
     document.addEventListener('click', onClick)
     return () => document.removeEventListener('click', onClick)
   }, [info.tracks.length])
+  useEffect(() => () => follower.stop(), [follower, info.tracks.length])
 
   const transcribe = useCallback(async (): Promise<void> => {
     try {
@@ -416,7 +421,7 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
     body = (
       <>
         {info.tracks.length > 0 ? (
-          <Player ref={player} tracks={info.tracks} seconds={info.seconds} speakers={info.speakers} />
+          <Player ref={player} tracks={info.tracks} seconds={info.seconds} speakers={info.speakers} onTime={(seconds) => follower.at(seconds)} />
         ) : (
           <div className="mt-state">
             <span className="mt-state-text is-quiet">
@@ -462,7 +467,7 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
     (info.state === 'ready' && role === 'meeting' && !aiOn ? 'Turn on AI in Settings to have the notes written up from the transcript.' : null)
 
   return (
-    <div className={`mt-bar${live && session.state === 'recording' ? ' is-live' : ''}`} role="region" aria-label="Meeting recording" contentEditable={false}>
+    <div ref={barRef} className={`mt-bar${live && session.state === 'recording' ? ' is-live' : ''}`} role="region" aria-label="Meeting recording" contentEditable={false}>
       <div className="mt-row">{body}</div>
       {hint && (
         <p className="mt-hint" role="status">

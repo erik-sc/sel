@@ -59,7 +59,7 @@ describe('archiving a page', () => {
     archive(sub.id)
     const hits = repo.search('otters')
     expect(hits.find((h) => h.id === a.id)?.archived).toBeUndefined()
-    expect(hits.filter((h) => h.pageId === sub.id).map((h) => h.archived)).toEqual([true, true])
+    expect(hits.filter((h) => h.pageId === sub.id).map((h) => h.archived)).toEqual([true])
   })
 
   it('puts the page back where it was when it is unarchived', () => {

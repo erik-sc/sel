@@ -7,7 +7,7 @@
 import type { BlockType, Mark, RichText } from '@shared/types'
 import { parseClipNodes, type ClipNode } from './clipboard'
 import { normalize, normalizeMarks } from './richtext-dom'
-import { sanitizeHref } from './sanitize'
+import { sanitizeLink } from './sanitize'
 
 /** The part of a DOM node the conversion reads. */
 export interface HtmlNode {
@@ -103,7 +103,7 @@ function marksFor(el: HtmlNode, tag: string, inherited: readonly Mark[]): Mark[]
   if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') add(['s'])
   if (tag === 'CODE' || tag === 'KBD' || tag === 'SAMP' || tag === 'TT') add(['c'])
   if (tag === 'A') {
-    const href = sanitizeHref(attr(el, 'href'))
+    const href = sanitizeLink(attr(el, 'href'))
     if (href) add(['a', href])
   }
   if (weight === true) add(['b'])

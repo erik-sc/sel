@@ -39,7 +39,7 @@ import {
 } from './blocks'
 import type { SqlDriver, SqlStatement } from './driver'
 import { configure, migrate } from './schema'
-import { searchBlocks } from './search'
+import { backlinksTo, searchBlocks, type SearchSource } from './search'
 import { searchText } from './text'
 import { buildSnapshot, BulkChange, formatStamp, RESTORE_LABEL_PREFIX, VersionStore } from './versions'
 import { archivedFilter, byIdsSql, LINEAGE_SQL, liveFilter, pagesAbove, pick, subtreeSql, walk, type Link, type TreeNode } from './tree'
@@ -163,6 +163,22 @@ export class Repository {
       /* best effort: the WAL is replayed on the next open anyway */
     }
     this.db.close()
+  }
+
+  /**
+   * Writes a compact, consistent copy of the whole database to `file`, which must not exist yet
+   * (`VACUUM INTO`): what is committed, WAL included, as one ordinary file. Not inside a transaction.
+   */
+  copyTo(file: string): void {
+    if (this.depth > 0) throw new Error('A copy cannot be made inside a transaction')
+    this.db.prepare('VACUUM INTO ?').run(file)
+  }
+
+  /** The size of the database's pages in bytes: about what a copy needs on disk, at most. */
+  byteSize(): number {
+    const count = this.db.prepare('PRAGMA page_count').get() as { page_count: number } | undefined
+    const size = this.db.prepare('PRAGMA page_size').get() as { page_size: number } | undefined
+    return Number(count?.page_count ?? 0) * Number(size?.page_size ?? 0)
   }
 
   // ---------------------------------------------------------------- plumbing
@@ -1274,15 +1290,20 @@ export class Repository {
   // ------------------------------------------------------------------ search
 
   search(text: string, limit = 20): SearchResult[] {
-    return searchBlocks(
-      {
-        all: (sql, ...params) => this.stmt(sql).all(...params),
-        lineage: (ids) => this.lineage(ids),
-        getMany: (ids) => this.getMany(ids)
-      },
-      text,
-      limit
-    )
+    return searchBlocks(this.searchSource(), text, limit)
+  }
+
+  /** Pages whose text links to `pageId`, each once (see ./search). */
+  backlinks(pageId: string): SearchResult[] {
+    return isValidId(pageId) ? backlinksTo(this.searchSource(), pageId) : []
+  }
+
+  private searchSource(): SearchSource {
+    return {
+      all: (sql, ...params) => this.stmt(sql).all(...params),
+      lineage: (ids) => this.lineage(ids),
+      getMany: (ids) => this.getMany(ids)
+    }
   }
 
   // ---------------------------------------------------------------- versions

@@ -195,6 +195,15 @@ describe('serialising and validating', () => {
     expect(parseRichText([['x', [['a', 'javascript:alert(1)'], ['b']]]])).toEqual([['x', [['b']]]])
   })
 
+  it('keeps links to other pages of the workspace, and only those of sel://', () => {
+    const page = 'sel://page/6f1c0a4e-1111-4222-8333-444455556666'
+    expect(parseMarks([['a', page]])).toEqual([['a', page]])
+    expect(parseMarks([['a', `${page}#b-1`]])).toEqual([['a', `${page}#b-1`]])
+    expect(parseMarks([['a', 'sel://settings']])).toEqual([])
+    expect(parseMarks([['a', `${page}/../x`]])).toEqual([])
+    expect(toHtml([['see', [['a', page]]]])).toBe(`<a href="${page}">see</a>`)
+  })
+
   it('parseMarks only keeps palette colours', () => {
     expect(parseMarks([['h', 'blue'], ['h', 'red_background']])).toEqual([['h', 'blue'], ['h', 'red_background']])
     expect(parseMarks([['h', 'x" onload="y']])).toEqual([])

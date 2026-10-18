@@ -18,7 +18,7 @@ import { History } from './history'
 import { invertOps } from './ops'
 import * as paste from './paste'
 import { addMark, marksAt, removeMark, replaceRange, rtLength, toggleMark } from './richtext-dom'
-import { sanitizeHref } from './sanitize'
+import { sanitizeLink } from './sanitize'
 import { SelectionManager } from './selection'
 import {
   backspacePlan,
@@ -345,7 +345,7 @@ export class EditorController {
 
   /** Links the range (null removes the link). Returns false, changing nothing, when the url is not allowed. */
   setLink(range: TextRange, url: string | null): boolean {
-    const href = url === null ? null : sanitizeHref(url)
+    const href = url === null ? null : sanitizeLink(url)
     if (url !== null && !href) return false
     this.setMark(range, 'a', href ? ['a', href] : null)
     return true

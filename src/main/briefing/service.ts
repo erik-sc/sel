@@ -128,6 +128,11 @@ export class BriefingService {
     return calendars.events(from, to)
   }
 
+  /** One occurrence of a stored event, by its UID and start, for a meeting page made for it. Reads nothing. */
+  occurrence(uid: string, start: number): BriefingEvent | null {
+    return this.deps.calendars.events(start, start + 1).find((event) => event.uid === uid && event.start === start) ?? null
+  }
+
   build(): Briefing {
     const nowMs = this.now()
     const now = new Date(nowMs)

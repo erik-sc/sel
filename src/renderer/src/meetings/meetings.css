@@ -330,6 +330,11 @@
   margin-left: 0;
 }
 
+/* The paragraph of the transcript being heard (see follow.ts). */
+::highlight(meeting-now) {
+  background-color: var(--accent-soft);
+}
+
 .mt-scrub {
   flex: 1;
   min-width: 60px;

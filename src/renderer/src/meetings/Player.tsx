@@ -1,5 +1,6 @@
 // A compact player for the audio of a meeting: the two streams play together, each can be
-// muted, and a time clicked in the transcript moves both. Part of the recording bar's chunk.
+// muted, a time clicked in the transcript moves both, and where it is goes to `onTime` (which
+// marks the paragraph being heard). Part of the recording bar's chunk.
 import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import type { JSX, Ref } from 'react'
 import { clockTime, type MeetingStream, type MeetingTrack } from '@shared/meetings'
@@ -14,7 +15,19 @@ const RATES = [1, 1.5, 2] as const
 /** Streams further apart than this (seconds) are brought back together. */
 const DRIFT_S = 0.25
 
-export function Player({ tracks, seconds, speakers, ref }: { tracks: MeetingTrack[]; seconds: number; speakers: Record<MeetingStream, string>; ref?: Ref<PlayerHandle> }): JSX.Element {
+export function Player({
+  tracks,
+  seconds,
+  speakers,
+  onTime: report,
+  ref
+}: {
+  tracks: MeetingTrack[]
+  seconds: number
+  speakers: Record<MeetingStream, string>
+  onTime?(seconds: number): void
+  ref?: Ref<PlayerHandle>
+}): JSX.Element {
   const elements = useRef(new Map<MeetingStream, HTMLAudioElement>())
   const [playing, setPlaying] = useState(false)
   const [time, setTime] = useState(0)
@@ -61,6 +74,7 @@ export function Player({ tracks, seconds, speakers, ref }: { tracks: MeetingTrac
     const main = lead()
     if (!main) return
     setTime(main.currentTime)
+    report?.(main.currentTime)
     for (const other of all().slice(1)) if (Math.abs(other.currentTime - main.currentTime) > DRIFT_S) other.currentTime = main.currentTime
   }
 

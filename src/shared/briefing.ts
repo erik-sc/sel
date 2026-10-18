@@ -96,6 +96,8 @@ export interface BriefingEvent {
   transparent?: boolean
   /** How many people other than the calendar's owner are invited, when any are. */
   attendees?: number
+  /** What those people are called (the name the calendar gives, else the address), less those who declined. */
+  people?: string[]
   /** The link of the call (Meet, Teams or Zoom), when it has one. https only. */
   meetingUrl?: string
 }

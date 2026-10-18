@@ -5,6 +5,7 @@ import { SIDEBAR_SETTING } from '../shared/sidebar'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
+import { registerDataIpc } from './data/register'
 import { registerExternalIpc, type ExternalHooks } from './external/register'
 import { registerFeedbackIpc } from './feedback/register'
 import { registerTasksIpc } from './tasks/register'
@@ -151,6 +152,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     'pages:restore': ([a]) => repo.restore(arg.id(a)),
     'pages:deleteForever': ([a]) => repo.deleteForever(arg.id(a)),
     'pages:ancestors': ([a]) => repo.ancestors(arg.id(a)),
+    'pages:backlinks': ([a]) => repo.backlinks(arg.id(a)),
     'pages:duplicate': ([a]) => repo.duplicate(arg.id(a)),
     // Both go through a native dialog: the renderer never names a path.
     // The markdown converter is only loaded the first time one of them is used.
@@ -321,6 +323,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // reaches the windows like any other change, from the origin `meetings` that no window has.
   const meetings = registerMeetingsIpc({
     repo,
+    eventPeople: async (uid, start) => (await briefing.occurrence(uid, start))?.people ?? [],
     flushChanges: () => {
       const ids = repo.drainChanges()
       changes.add('meetings', ids, repo.drainResets())
@@ -378,6 +381,9 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   // ---- templates (pages and databases made from a template in one transaction; see ./templates)
   const templatesHandlers = registerTemplatesIpc({ repo })
 
+  // ---- data (backups of the database, restoring one, the workspace as Markdown; see ./data)
+  const dataIpc = registerDataIpc({ repo, busy: () => meetings.recordingWindow() !== null })
+
   // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
   const feedbackHandlers = registerFeedbackIpc()
 
@@ -426,7 +432,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...alarmsIpc.handlers,
     ...pomodoroIpc.handlers,
     ...skyIpc.handlers,
-    ...templatesHandlers
+    ...templatesHandlers,
+    ...dataIpc.handlers
   }
   for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
 
@@ -443,6 +450,8 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     meetings,
     alarms: alarmsIpc,
     start() {
+      // The daily backup, like sync, waits until the first window is on screen.
+      dataIpc.start()
       if (typeof repo.getSetting(SYNC_URL_KEY) !== 'string') return
       sync().then(
         (bridge) => bridge.start(),

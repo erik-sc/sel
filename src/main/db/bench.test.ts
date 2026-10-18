@@ -117,6 +117,7 @@ describe.skipIf(!enabled)('benchmark (SEL_BENCH=1)', () => {
     time('search "proj des" (two terms)', 15, () => repo.search('proj des', 20), results)
     time('search "zebrafinch" (substring fallback)', 15, () => repo.search('zebrafinch', 20), results)
     time('search "nothingmatches" (miss)', 15, () => repo.search('nothingmatches', 20), results)
+    time('backlinks (scans every block)', 15, () => repo.backlinks(big), results)
     expect(repo.search('zebrafinch', 20)).toHaveLength(1)
 
     // Typing: one small update per transaction, on blocks inside the big page.

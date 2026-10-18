@@ -1,13 +1,17 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync, appendFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { MEETING_LIMITS, PCM } from '../../shared/meetings'
 import { FrameGate } from './frames'
 import { GrantStore } from './grant'
 import { parseRange, recordingUrl, resolveRecordingUrl, serveRecording } from './serve'
 import { patchedHead, patchWebmDuration } from './webm'
 import { parseWavHeader, peakOf, readWavInfo, repairWav, sliceWav, WAV_HEADER_BYTES, wavHeader, WavWriter } from './wav'
+
+// Real files in the temp folder: instant alone, but under the whole suite's load (and on CI's
+// Windows runner, where every new file is scanned) a few of them can take longer than vitest's 5 s.
+vi.setConfig({ testTimeout: 60_000 })
 
 const ROOT = mkdtempSync(join(tmpdir(), 'sel-meetings-audio-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true }))
@@ -60,10 +64,10 @@ describe('wav files', () => {
 
   it('recovers a file whose recording never stopped, dropping a torn last sample', async () => {
     const file = fresh('crash.wav')
-    const writer = new WavWriter(file)
-    writer.append(tone(2))
-    // The process died here: no close. And the last write was cut in the middle of a sample.
-    appendFileSync(file, Buffer.from([0x12]))
+    // What a WavWriter leaves when the process dies before `close`: the header of an empty file and
+    // the samples after it (written here directly, so that no handle stays open). And the last
+    // write was cut in the middle of a sample.
+    writeFileSync(file, Buffer.concat([wavHeader(0), tone(2), Buffer.from([0x12])]))
     expect((await readWavInfo(file))?.seconds).toBe(0)
     expect(repairWav(file)).toEqual({ sampleRate: 16_000, dataBytes: 64_000, seconds: 2 })
     expect(statSync(file).size).toBe(WAV_HEADER_BYTES + 64_000)

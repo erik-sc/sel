@@ -7,6 +7,7 @@ import { SourcePicker, preloadSourcePicker } from '@/database/lazy'
 import { Popover } from '@/ui/Popover'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import type { Block } from '@shared/types'
+import { pageLink } from '@shared/pageLink'
 import { Columns, Copy, Link as LinkIcon, Trash } from '@/ui/icons'
 import { useEditor } from './context'
 import { besideChoice } from './layout'
@@ -237,7 +238,8 @@ export function BlockMenu(): JSX.Element | null {
       id: 'link',
       label: 'Copy link to block',
       icon: <LinkIcon size={14} />,
-      onSelect: () => void navigator.clipboard.writeText(`sel://${ctrl.pageId}#${menu.id}`)
+      // Pasted over text, or into the link field, it links to this block's page.
+      onSelect: () => void navigator.clipboard.writeText(pageLink(ctrl.pageId, menu.id))
     }
   ]
   return (

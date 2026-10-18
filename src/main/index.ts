@@ -3,6 +3,7 @@ import { app, BrowserWindow, dialog, nativeTheme, screen, session, shell, type S
 import { isQuickAddUrl } from './alarms/windows'
 import { APPEARANCE_KEY, windowBackground } from './background'
 import { DEFAULT_SIZE, fitBounds, MIN_SIZE, type SavedBounds } from './bounds'
+import { applyStagedRestore } from './data/backups'
 import { openDatabase, type Repository } from './db'
 import { isValidId } from './db/blocks'
 import { ensureTasksDatabase } from './db/tasks'
@@ -21,6 +22,8 @@ const BOUNDS_KEY = 'windowBounds'
 const ALLOWED_PERMISSIONS: ReadonlySet<string> = new Set(['clipboard-sanitized-write'])
 
 let repo: Repository | null = null
+/** Why the database did not open, for the recovery that follows (see ./data/startup.ts). */
+let openError: unknown = null
 let syncHooks: SyncHooks | null = null
 /** How long after the first window is shown the first sync starts. */
 const SYNC_START_DELAY_MS = 1500
@@ -88,6 +91,8 @@ function createWindow(pageId?: string): BrowserWindow {
   const isMac = process.platform === 'darwin'
   const bounds = restoreBounds()
   const others = BrowserWindow.getAllWindows().length
+  // The small quick-add window is not a workspace.
+  const workspaces = BrowserWindow.getAllWindows().filter((w) => !isQuickAddUrl(w.webContents.getURL())).length
   // Cascade additional windows instead of stacking them exactly on top of each other.
   const offset = others * 28
 
@@ -154,13 +159,16 @@ function createWindow(pageId?: string): BrowserWindow {
   })
 
   const page = pageId && isValidId(pageId) ? pageId : undefined
+  // Only the first workspace window keeps the open tabs (`shell.tabs`); any other opens with one
+  // page (?page=) or one blank tab (?extra) and keeps no tabs of its own (see store/tabs.ts).
+  const query: Record<string, string> = page ? { page } : workspaces > 0 ? { extra: '1' } : {}
   let loading: Promise<void>
   if (DEV_URL) {
     const url = new URL(DEV_URL)
-    if (page) url.searchParams.set('page', page)
+    for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value)
     loading = win.loadURL(url.toString())
   } else {
-    loading = win.loadFile(RENDERER_FILE, page ? { query: { page } } : undefined)
+    loading = win.loadFile(RENDERER_FILE, { query })
   }
   loading.catch((err: unknown) => {
     console.error('[main] the window failed to load', err)
@@ -308,16 +316,38 @@ function scheduleHistoryMaintenance(store: Repository): void {
  * the stored bounds, theme and background colour before it can be created.
  */
 function openStore(): Repository | null {
+  const userData = app.getPath('userData')
   try {
-    const opened = openDatabase(join(app.getPath('userData'), DB_FILE))
+    // A backup chosen in Settings → Data takes the database's place before it is opened.
+    if (applyStagedRestore(userData)) mark('backup put in place')
+  } catch (err) {
+    console.error('[main] could not put the chosen backup in place', err)
+  }
+  try {
+    const opened = openDatabase(join(userData, DB_FILE))
     mark('db open')
     return opened
   } catch (err) {
     console.error('[main] could not open the database', err)
-    dialog.showErrorBox('sel could not open its database', err instanceof Error ? err.message : String(err))
-    app.exit(1)
+    openError = err
     return null
   }
+}
+
+/** The database did not open: say why, and offer a backup when it is damaged (./data/startup.ts). */
+function recoverStore(): void {
+  import('./data/startup')
+    .then(({ recoverDatabase }) => recoverDatabase(openError, app.getPath('userData')))
+    .then((store) => {
+      if (!store) return app.exit(1)
+      repo = store
+      start(store)
+    })
+    .catch((err: unknown) => {
+      console.error('[main] could not recover the database', err)
+      dialog.showErrorBox('sel could not open its database', err instanceof Error ? err.message : String(err))
+      app.exit(1)
+    })
 }
 
 /**
@@ -449,4 +479,5 @@ if (!adoptEarlierNotes()) {
 } else {
   repo = openStore()
   if (repo) start(repo)
+  else recoverStore()
 }
