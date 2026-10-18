@@ -13,6 +13,7 @@ import { AiSection } from '@/ai/AiSettings'
 import { takeSettingsSection } from '@/briefing/route'
 import { TodaySection } from '@/briefing/TodaySettings'
 import { UpdatesGroup } from '@/updates/UpdatesSettings'
+import { HomeSettingsRows } from '@/home/HomeSettings'
 import { importMarkdown } from './actions'
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -31,21 +32,33 @@ type Section = SettingsSection
 const SECTIONS: { value: Section; label: string }[] = [
   { value: 'general', label: 'General' },
   { value: 'appearance', label: 'Appearance' },
+  { value: 'sidebar', label: 'Sidebar' },
   { value: 'history', label: 'History' },
   { value: 'ai', label: 'AI' },
   { value: 'herman', label: 'Herman' },
+  { value: 'notifications', label: 'Notifications' },
   { value: 'sync', label: 'Sync' }
 ,
   { value: 'today', label: 'Today' },
-  { value: 'meetings', label: 'Meetings' }
+  { value: 'meetings', label: 'Meetings' },
+  { value: 'pomodoro', label: 'Pomodoro' },
+  { value: 'mcp', label: 'MCP' }
 ]
 
 // Sync settings are a chunk of their own: most people open Settings for something else.
 const SyncSection = lazy(() => import('@/sync/SyncSettings').then((module) => ({ default: module.SyncSection })))
 // Herman's settings bring his figure and his stylesheet with them.
 const HermanSection = lazy(() => import('@/herman/HermanSettings').then((module) => ({ default: module.HermanSection })))
+// And so are the notifications (reminders, events, the tray).
+const NotificationsSection = lazy(() => import('@/alarms/NotificationSettings').then((module) => ({ default: module.NotificationsSection })))
 // And so are the meetings settings.
 const MeetingsSection = lazy(() => import('@/meetings/MeetingsSettings').then((module) => ({ default: module.MeetingsSection })))
+// And so are the pomodoro's.
+const PomodoroSection = lazy(() => import('@/pomodoro/PomodoroSettings').then((module) => ({ default: module.PomodoroSection })))
+// And so is the sidebar's layout.
+const SidebarSection = lazy(() => import('./SidebarSettings').then((module) => ({ default: module.SidebarSection })))
+// And so are the settings for connecting other apps.
+const McpSection = lazy(() => import('@/external/McpSettings').then((module) => ({ default: module.McpSection })))
 
 export function SettingsDialog() {
   const open = useUi((state) => state.settingsOpen)
@@ -102,6 +115,10 @@ function SettingsBody() {
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
               <HermanSection />
             </Suspense>
+          ) : section === 'notifications' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <NotificationsSection />
+            </Suspense>
           ) : section === 'sync' ? (
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
               <SyncSection />
@@ -109,6 +126,18 @@ function SettingsBody() {
           ) : section === 'meetings' ? (
             <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
               <MeetingsSection />
+            </Suspense>
+          ) : section === 'mcp' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <McpSection />
+            </Suspense>
+          ) : section === 'pomodoro' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <PomodoroSection />
+            </Suspense>
+          ) : section === 'sidebar' ? (
+            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+              <SidebarSection />
             </Suspense>
           ) : section === 'today' ? (
             <TodaySection />
@@ -178,6 +207,7 @@ function GeneralSection() {
               />
             </div>
           </div>
+          <HomeSettingsRows />
         </div>
       </section>
 

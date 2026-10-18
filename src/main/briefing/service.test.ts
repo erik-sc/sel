@@ -7,7 +7,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { BRIEFING_KEYS, cleanBriefingSetting, localDay } from '../../shared/briefing'
 import type { PropertySchema } from '../../shared/types'
 import { buildBriefingPrompt } from '../ai/prompts'
+import { ensureTasksDatabase } from '../db/tasks'
 import { openTestRepository } from '../db/testing'
+import { TASK_PROPS } from '../../shared/tasks'
 import type { Repository } from '../db/repository'
 import * as arg from '../validate'
 import { CalendarService } from './calendars'
@@ -174,6 +176,25 @@ describe('the briefing', () => {
     expect(service.databases()).toEqual([{ id: tasks, name: 'Tasks', detected: true }])
   })
 
+  it('leaves out the tasks of an archived database, and of one inside an archived page', async () => {
+    const id = tasksDatabase()
+    const { service } = make()
+    expect(service.build().tasks.today.length).toBeGreaterThan(0)
+    repo.update(id, { props: { archivedAt: now } })
+    const archived = service.build().tasks
+    expect([...archived.overdue, ...archived.today]).toEqual([])
+    expect((await service.agenda('2026-09-27', '2026-10-31')).tasks).toEqual([])
+
+    // Inside an archived page, the same.
+    repo.update(id, { props: { archivedAt: null } })
+    const project = repo.create({ type: 'page', parentId: null, props: { title: [['Project']] } })
+    repo.move(id, project.id)
+    expect(service.build().tasks.overdue.map((task) => task.title)).toEqual(['Pay the rent'])
+    repo.update(project.id, { props: { archivedAt: now } })
+    expect(service.build().tasks.overdue).toEqual([])
+    expect((await service.agenda('2026-09-27', '2026-10-31')).tasks).toEqual([])
+  })
+
   it('completes a task through the ordinary write path, and takes it back', () => {
     const db = tasksDatabase()
     const { service } = make()
@@ -193,6 +214,31 @@ describe('the briefing', () => {
     expect(() => service.undoCompleteTask(token)).toThrow('no longer be undone')
     // The page keeps a version history like any edited page.
     expect(repo.get(db)).not.toBeNull()
+  })
+
+  it('notes when a task of the built-in Tasks database was completed, and forgets it on undo', () => {
+    const db = ensureTasksDatabase(repo)
+    const row = repo.create({ type: 'page', parentId: db, props: { title: [['Water the plants']], values: { [TASK_PROPS.due]: { start: '2026-10-13T09:00' } } } })
+    const { service } = make()
+    expect(service.build().tasks.today.map((item) => item.title)).toContain('Water the plants')
+    const { token } = service.completeTask(row.id)
+    expect(repo.get(row.id)!.props.values).toEqual({ [TASK_PROPS.due]: { start: '2026-10-13T09:00' }, [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-13T08:05' } })
+    service.undoCompleteTask(token)
+    expect(repo.get(row.id)!.props.values).toEqual({ [TASK_PROPS.due]: { start: '2026-10-13T09:00' } })
+  })
+
+  it('moves a repeating task of the Tasks database on instead of closing it, and takes that back', () => {
+    const db = ensureTasksDatabase(repo)
+    const recurrence = JSON.stringify({ rule: 'FREQ=WEEKLY;BYDAY=MO,TU', from: 'due', text: 'toda seg e ter' })
+    const values = { [TASK_PROPS.due]: { start: '2026-10-13T07:00' }, [TASK_PROPS.recurrence]: recurrence }
+    const row = repo.create({ type: 'page', parentId: db, props: { title: [['Gym']], values } })
+    const { service } = make()
+    const result = service.completeTask(row.id)
+    expect(result.next).toBe('2026-10-19T07:00')
+    expect(repo.get(row.id)!.props.values).toEqual({ ...values, [TASK_PROPS.due]: { start: '2026-10-19T07:00' }, [TASK_PROPS.completedAt]: { start: '2026-10-13T08:05' } })
+    expect(service.build().tasks.today.map((item) => item.title)).not.toContain('Gym')
+    service.undoCompleteTask(result.token)
+    expect(repo.get(row.id)!.props.values).toEqual(values)
   })
 
   it('completes a to-do block, and refuses what is not a task', () => {

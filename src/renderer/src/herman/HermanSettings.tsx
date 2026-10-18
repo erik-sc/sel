@@ -16,6 +16,7 @@ import {
 } from '@shared/herman'
 import { ConfirmButton, Segmented } from '@/appearance/controls'
 import { notifyError, toast } from '@/ui/toast'
+import { AlarmSettings } from '@/alarms/AlarmSettings'
 import { CouncilSettings } from './CouncilSettings'
 import { Figure } from './Figure'
 import { useHerman } from './gate'
@@ -193,6 +194,8 @@ export function HermanSection(): JSX.Element {
           on this device.
         </p>
       </section>
+
+      <AlarmSettings />
 
       <CouncilSettings enabled={enabled} />
     </div>

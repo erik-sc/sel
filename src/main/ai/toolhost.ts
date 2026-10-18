@@ -1,5 +1,4 @@
 import { randomBytes } from 'node:crypto'
-import { existsSync } from 'node:fs'
 import { rm, writeFile } from 'node:fs/promises'
 import { createServer, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -16,17 +15,33 @@ import { callTool, ToolError, toolActivity, type ToolSource } from './tools'
  * request. The tools read; nothing that arrives here can change anything.
  *
  * Protocol: one JSON object per line. The script sends {token, id, name, args}; this side
- * answers {id, text} or {id, error}.
+ * answers {id, text} or {id, error}. Other apps the user connects in Settings ask the same
+ * script through an endpoint of their own (../external), which may also write.
  */
 
+export { toolScript } from './toolscript'
+
 /**
- * Where the bundled server script of the workspace tools is: next to the main bundle, which is
- * the folder of the code that asks or, when that code was split into a chunk of its own, the
- * folder above.
+ * Answers a connection one line at a time: each line in is a JSON call, each line out the
+ * answer `answer` gives it. A line longer than `maxLine` closes the connection.
  */
-export function toolScript(dir: string, exists: (path: string) => boolean = existsSync): string {
-  const candidates = [join(dir, 'mcp.js'), join(dir, '..', 'mcp.js')]
-  return candidates.find((path) => exists(path)) ?? candidates[0]
+export function serveLines(socket: Socket, maxLine: number, answer: (line: string) => unknown): void {
+  socket.setEncoding('utf8')
+  let buffer = ''
+  socket.on('data', (chunk: string) => {
+    buffer += chunk
+    if (buffer.length > maxLine && !buffer.slice(0, maxLine + 1).includes('\n')) {
+      socket.destroy()
+      return
+    }
+    let end: number
+    while ((end = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, end)
+      buffer = buffer.slice(end + 1)
+      if (line.trim() && !socket.destroyed) socket.write(`${JSON.stringify(answer(line))}\n`)
+    }
+  })
+  socket.on('error', () => undefined)
 }
 
 export interface ToolHostOptions {
@@ -91,22 +106,7 @@ export class ToolHost {
 
   private serve(socket: Socket): void {
     this.sockets.add(socket)
-    socket.setEncoding('utf8')
-    let buffer = ''
-    socket.on('data', (chunk: string) => {
-      buffer += chunk
-      if (buffer.length > MAX_LINE && !buffer.includes('\n')) {
-        socket.destroy()
-        return
-      }
-      let end: number
-      while ((end = buffer.indexOf('\n')) >= 0) {
-        const line = buffer.slice(0, end)
-        buffer = buffer.slice(end + 1)
-        if (line.trim()) socket.write(`${JSON.stringify(this.answer(line))}\n`)
-      }
-    })
-    socket.on('error', () => undefined)
+    serveLines(socket, MAX_LINE, (line) => this.answer(line))
     socket.on('close', () => this.sockets.delete(socket))
   }
 

@@ -227,7 +227,9 @@ describe('sorting', () => {
     ]
     for (const propertyId of ['txt', 'num', 'sel', 'date']) {
       expect(ids(L.applySorts(rows, schema, [{ propertyId, direction: 'asc' }]))).toEqual(['a1', 'a2', 'b1', 'b2', 'e1', 'e2'])
-      expect(ids(L.applySorts(rows, schema, [{ propertyId, direction: 'desc' }]))).toEqual(['b1', 'b2', 'a1', 'a2', 'e1', 'e2'])
+      // A time of day sorts after the same day without one, so it comes first going down.
+      const desc = propertyId === 'date' ? ['b1', 'b2', 'a2', 'a1', 'e1', 'e2'] : ['b1', 'b2', 'a1', 'a2', 'e1', 'e2']
+      expect(ids(L.applySorts(rows, schema, [{ propertyId, direction: 'desc' }]))).toEqual(desc)
     }
     expect(ids(rows)).toEqual(['e1', 'b1', 'a1', 'b2', 'e2', 'a2'])
   })

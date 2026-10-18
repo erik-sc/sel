@@ -22,7 +22,8 @@ export const BLOCK_TYPES: readonly BlockType[] = [
   'divider',
   'image',
   'bookmark',
-  'database'
+  'database',
+  'equation'
 ]
 const BLOCK_TYPE_SET: ReadonlySet<string> = new Set(BLOCK_TYPES)
 

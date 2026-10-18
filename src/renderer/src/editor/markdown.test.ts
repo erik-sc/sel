@@ -4,7 +4,8 @@ import {
   detectBlockShortcut,
   detectInlineShortcut,
   parseInlineMarkdown,
-  parseMarkdownBlocks
+  parseMarkdownBlocks,
+  parseMarkdownNodes
 } from './markdown'
 import { defaultDatabaseProps, filterSlashItems, isCssCover, COVER_PRESETS } from './blockTypes'
 
@@ -117,6 +118,12 @@ describe('parseInlineMarkdown', () => {
     expect(parseInlineMarkdown('2 * 3 = 6')).toEqual([['2 * 3 = 6']])
     expect(parseInlineMarkdown('')).toEqual([])
   })
+
+  it('reads underscore emphasis, but not inside snake_case words', () => {
+    expect(parseInlineMarkdown('__forte__ e _leve_')).toEqual([['forte', [['b']]], [' e '], ['leve', [['i']]]])
+    expect(parseInlineMarkdown('call my_var_name now')).toEqual([['call my_var_name now']])
+    expect(parseInlineMarkdown('ação_x_y')).toEqual([['ação_x_y']])
+  })
 })
 
 describe('parseMarkdownBlocks', () => {
@@ -159,6 +166,50 @@ describe('parseMarkdownBlocks', () => {
   it('applies inline marks inside lines', () => {
     expect(parseMarkdownBlocks('## a **b**')[0]).toEqual({ type: 'heading_2', title: [['a '], ['b', [['b']]]] })
   })
+
+  it('joins consecutive quote lines and maps deeper headings to the smallest', () => {
+    expect(parseMarkdownBlocks('> one\n> two\n>\n> three\nafter')).toEqual([
+      { type: 'quote', title: [['one\ntwo\n\nthree']] },
+      { type: 'text', title: [['after']] }
+    ])
+    expect(parseMarkdownBlocks('#### four\n###### six').map((b) => b.type)).toEqual(['heading_3', 'heading_3'])
+  })
+})
+
+describe('parseMarkdownNodes', () => {
+  const outline = (nodes: ReturnType<typeof parseMarkdownNodes>): unknown[] =>
+    nodes.map((n) => {
+      const head = `${n.type}: ${(n.props.title ?? []).map((s) => s[0]).join('')}`
+      return n.children.length ? [head, outline(n.children)] : head
+    })
+
+  it('nests indented list items under the item above', () => {
+    const nodes = parseMarkdownNodes(['- one', '  - one.a', '    1. deep', '  - one.b', '- two', '\t- tabbed', '- [x] done'].join('\n'))
+    expect(outline(nodes)).toEqual([
+      ['bulleted_list: one', [['bulleted_list: one.a', ['numbered_list: deep']], 'bulleted_list: one.b']],
+      ['bulleted_list: two', ['bulleted_list: tabbed']],
+      'to_do: done'
+    ])
+    expect(nodes[2].props.checked).toBe(true)
+  })
+
+  it('keeps a code fence inside a list item, without the item indentation', () => {
+    const nodes = parseMarkdownNodes(['1. step', '   ```sh', '   npm test', '     --watch', '   ```', '2. next'].join('\n'))
+    expect(outline(nodes)).toEqual([['numbered_list: step', ['code: npm test\n  --watch']], 'numbered_list: next'])
+    expect(nodes[0].children[0].props.language).toBe('sh')
+  })
+
+  it('leaves plain lines, headings and indented text outside of lists flat', () => {
+    const nodes = parseMarkdownNodes(['- item', '## Heading', '  indented', 'Rua A, 1', 'São Paulo'].join('\n'))
+    expect(outline(nodes)).toEqual(['bulleted_list: item', 'heading_2: Heading', 'text: indented', 'text: Rua A, 1', 'text: São Paulo'])
+  })
+
+  it('stays within the clipboard depth on absurd indentation', () => {
+    const lines = Array.from({ length: 200 }, (_, i) => `${' '.repeat(i)}- level ${i}`)
+    let depth = 0
+    for (let n = parseMarkdownNodes(lines.join('\n')); n.length; n = n[0].children) depth++
+    expect(depth).toBeLessThanOrEqual(32)
+  })
 })
 
 describe('block catalogue', () => {
@@ -173,6 +224,29 @@ describe('block catalogue', () => {
     }
     expect(filterSlashItems('linked')[0].id).toBe('db-linked')
     expect(filterSlashItems('zzzz')).toEqual([])
+  })
+
+  it('finds slash items by their Portuguese words, accents and case aside', () => {
+    const first = (query: string): string | undefined => filterSlashItems(query)[0]?.id
+    expect(first('titulo')).toBe('h1')
+    expect(first('Título')).toBe('h1')
+    expect(first('subtitulo')).toBe('h2')
+    expect(first('tarefa')).toBe('todo')
+    expect(first('citacao')).toBe('quote')
+    expect(first('imagem')).toBe('image')
+    expect(first('codigo')).toBe('code')
+    expect(first('divisor')).toBe('divider')
+    expect(first('reuniao')).toBe('meeting')
+    expect(first('grafico')).toBe('chart')
+    expect(filterSlashItems('lista').map((i) => i.id).slice(0, 3)).toEqual(['bullet', 'number', 'todo'])
+    expect(filterSlashItems('banco de dados').map((i) => i.id)).toEqual(['db-table', 'db-board', 'db-list', 'db-linked'])
+    expect(filterSlashItems('resumir', true)[0].id).toBe('ai-summarize')
+    expect(filterSlashItems('resumir', false)).toEqual([])
+    // With AI on, a block still comes before an AI action that shares the word.
+    for (const query of ['tarefa', 'lista', 'texto', 'titulo']) expect(filterSlashItems(query, true)[0].kind).not.toBe('ai')
+    // English stays as it was: an item whose label starts with the query comes first.
+    expect(first('to')).toBe('todo')
+    expect(first('c')).toBe('callout')
   })
 
   it('builds a default database schema', () => {

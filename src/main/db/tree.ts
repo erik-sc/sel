@@ -133,6 +133,47 @@ export function liveFilter(links: Map<string, Link>): (id: string) => boolean {
   }
 }
 
+/** True for the raw props of a page that is archived (the substring test skips the JSON parser for the rest). */
+export function hasArchivedAt(props: string | null): boolean {
+  if (!props || !props.includes('"archivedAt":')) return false
+  try {
+    const value: unknown = (JSON.parse(props) as { archivedAt?: unknown }).archivedAt
+    return typeof value === 'number'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * A test for "archived" over the blocks in `links` (see LINEAGE_SQL): true when the block, or
+ * any page or database above it, is archived. What lies inside an archived page goes with it.
+ */
+export function archivedFilter(links: Map<string, Link>): (id: string) => boolean {
+  const cache = new Map<string, boolean>()
+  return (id) => {
+    const chain = new Set<string>()
+    let cur: string | null = id
+    let archived = false
+    while (cur !== null) {
+      const known = cache.get(cur)
+      if (known !== undefined) {
+        archived = known
+        break
+      }
+      const link = links.get(cur)
+      if (!link || chain.has(cur)) break
+      chain.add(cur)
+      if (hasArchivedAt(link.props)) {
+        archived = true
+        break
+      }
+      cur = link.parent_id
+    }
+    for (const c of chain) cache.set(c, archived)
+    return archived
+  }
+}
+
 /** The pages/databases above `id`, root first, excluding `id` itself. */
 export function pagesAbove(id: string, links: Map<string, Link>): Link[] {
   const out: Link[] = []

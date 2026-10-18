@@ -35,7 +35,7 @@ export function readCell(row: Block, prop: PropertySchema, ctx?: CellContext): P
 /** A cell as plain text: titles of the linked rows for a relation, the formatted result for a rollup or a formula. */
 export function cellText(row: Block, prop: PropertySchema, ctx?: CellContext, opts: FormatOptions = {}): string {
   if (prop.type === 'relation' && ctx) return linkedTitles(row, prop, ctx).join(', ')
-  if (prop.type === 'formula') return ctx ? formulaText(computeFormula(row, prop, ctx, { locale: opts.locale }), opts) : ''
+  if (prop.type === 'formula') return ctx ? formulaText(computeFormula(row, prop, ctx, { locale: opts.locale }), opts, prop.numberFormat) : ''
   if (prop.type === 'rollup') {
     const result = ctx ? computeRollup(row, prop, ctx) : null
     if (!result) return ''

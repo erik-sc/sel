@@ -135,8 +135,13 @@ export function updateRollup(schema: Schema, propertyId: string, patch: Partial<
   if (!prop || prop.type !== 'rollup') return schema
   const current = prop.rollup ?? DEFAULT_ROLLUP
   const next: RollupConfig = { ...current, ...patch }
-  if (patch.relationId !== undefined && patch.relationId !== current.relationId && patch.propertyId === undefined) delete next.propertyId
-  for (const key of ['relationId', 'propertyId'] as const) if (next[key] === undefined) delete next[key]
+  if (patch.relationId !== undefined && patch.relationId !== current.relationId) {
+    // What was read and kept belongs to the database the relation pointed at before.
+    if (patch.propertyId === undefined) delete next.propertyId
+    if (patch.filters === undefined) delete next.filters
+  }
+  for (const key of ['relationId', 'propertyId', 'filters'] as const) if (next[key] === undefined) delete next[key]
+  if (next.filters && !next.filters.length) delete next.filters
   const clean = sanitizeRollupConfig(next)
   return sameValue(clean, current) ? schema : { ...schema, [propertyId]: { ...prop, rollup: clean } }
 }

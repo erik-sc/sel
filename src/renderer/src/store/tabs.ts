@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { cleanHome, cleanStartup, HOME_SETTING, homeTarget, STARTUP_SETTING, type Home, type StartupMode } from '@shared/home'
 import { notifyError } from '../ui/toast'
 import { addCacheRoots, fetchBlocks, newId, scheduleSweep } from './blocks'
 
@@ -30,6 +31,14 @@ const PERSIST_DELAY = 250
 export const TODAY_ROUTE = '_today'
 /** The calendar screen, likewise. */
 export const CALENDAR_ROUTE = '_calendar'
+/** The Tasks screen (tasks/gate.ts). */
+export const TASKS_ROUTE = '_tasks'
+/** The ink notebook (see notebook/route.ts). */
+export const NOTEBOOK_ROUTE = '_notebook'
+/** The ritual that closes the day, likewise. */
+export const CLOSE_ROUTE = '_close'
+/** The Sky (see sky/route.ts). */
+export const SKY_ROUTE = '_sky'
 /** The shape of every block id (the backend enforces the same). */
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 
@@ -102,6 +111,15 @@ export function openPage(pageId: string, opts?: { newTab?: boolean }): void {
   const history = [...current.history.slice(0, current.index + 1), pageId].slice(-MAX_HISTORY)
   const next: Tab = { ...current, history, index: history.length - 1 }
   useTabs.setState({ tabs: state.tabs.map((t) => (t.id === current.id ? next : t)) })
+}
+
+/** Shows a built-in screen: the tab that already has it, the blank tab in front, or a new tab. */
+export function openScreen(route: string): void {
+  const state = useTabs.getState()
+  const existing = state.tabs.find((tab) => tabPage(tab) === route)
+  if (existing) activateTab(existing.id)
+  else if (activeTab(state) && !tabPage(activeTab(state))) openPage(route)
+  else newTab(route)
 }
 
 export function activateTab(id: string): void {
@@ -235,8 +253,10 @@ export function sanitizeTabs(value: unknown): PersistedTabs | null {
 }
 
 /**
- * Restores the persisted tabs (dropping those whose page is gone or trashed), or opens
- * just `initialPageId` when the window was created for a specific page.
+ * Start-up, as `shell.startup` asks on this device: the persisted tabs are restored (dropping
+ * those whose page is gone or trashed), or the home opens instead of them, or both with the home
+ * first. A home that cannot open (its page is in the Trash or not on this device) leaves the
+ * tabs restored. A window created for a specific page (`initialPageId`) opens just that page.
  */
 let initPromise: Promise<void> | null = null
 
@@ -252,27 +272,49 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
     return
   }
   let restored: PersistedTabs | null = null
+  let startup: StartupMode = 'tabs'
+  let home: Home = null
   try {
-    restored = sanitizeTabs(await window.api.app.getSetting(SETTING_KEY))
+    const [stored, storedStartup, storedHome] = await Promise.all([
+      window.api.app.getSetting(SETTING_KEY),
+      window.api.app.getSetting(STARTUP_SETTING),
+      window.api.app.getSetting(HOME_SETTING)
+    ])
+    restored = sanitizeTabs(stored)
+    startup = cleanStartup(storedStartup)
+    if (startup !== 'tabs') home = cleanHome(storedHome) ?? null
+    const pageIds = (restored?.tabs ?? []).map(tabPage).filter((id): id is string => !!id)
+    if (home?.kind === 'page') pageIds.push(home.id)
+    // Through the cache: the tab strip and the page host need these blocks right away.
+    const blocks = pageIds.length ? await fetchBlocks(() => window.api.blocks.getMany([...new Set(pageIds)])) : []
+    const alive = new Set(blocks.filter((b) => !b.trashedAt).map((b) => b.id))
+    alive.add(TODAY_ROUTE)
+    alive.add(CALENDAR_ROUTE)
+    alive.add(TASKS_ROUTE)
+    alive.add(NOTEBOOK_ROUTE)
+    alive.add(CLOSE_ROUTE)
+    alive.add(SKY_ROUTE)
     if (restored) {
-      const pageIds = restored.tabs.map(tabPage).filter((id): id is string => !!id)
-      // Through the cache: the tab strip and the page host need these blocks right away.
-      const blocks = pageIds.length ? await fetchBlocks(() => window.api.blocks.getMany([...new Set(pageIds)])) : []
-      const alive = new Set(blocks.filter((b) => !b.trashedAt).map((b) => b.id))
-      alive.add(TODAY_ROUTE)
-      alive.add(CALENDAR_ROUTE)
       restored.tabs = restored.tabs.filter((t) => {
         const page = tabPage(t)
         return page !== null && alive.has(page)
       })
     }
+    if (!alive.has(homeTarget(home) ?? '')) home = null
   } catch (error) {
     console.error('could not restore tabs', error)
   }
-  const tabs = restored?.tabs ?? []
-  const activeId = tabs.some((t) => t.id === restored?.activeId)
+  let tabs = restored?.tabs ?? []
+  let activeId = tabs.some((t) => t.id === restored?.activeId)
     ? restored!.activeId
     : (tabs[0]?.id ?? null)
+  const target = homeTarget(home)
+  if (target !== null) {
+    // The home in front: the restored tab that already shows it, or a new one.
+    const first = (startup === 'both' ? tabs.find((t) => tabPage(t) === target) : undefined) ?? makeTab(target)
+    tabs = startup === 'both' ? [first, ...tabs.filter((t) => t !== first)] : [first]
+    activeId = first.id
+  }
   // Tabs opened while restoring (e.g. an early menu command) are kept after the restored ones.
   useTabs.setState((state) => ({
     tabs: [...tabs, ...state.tabs],

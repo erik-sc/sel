@@ -25,6 +25,8 @@ import { decide, feedback, forDay, forget, FREQUENCIES, IDLE_MS, isQuiet, readMe
 
 /** The one setting under `herman.` that only this process writes. */
 export const MEMORY_KEY = 'herman.memory'
+/** The day he last said something about the Sky (only this process writes it). */
+export const SKY_SAID_KEY = 'sky.hermanSaid'
 
 /** The first start of a day counts as "just now" for this long. */
 const LAUNCH_WINDOW_MS = 15 * 60_000
@@ -234,6 +236,29 @@ export class HermanService {
     return reply.nudge
   }
 
+  /**
+   * A line about the Sky (a month that became a constellation, a rare night), written in advance in
+   * ./lines.ts. Once a day at most, and only when he may speak at all: a line he cannot say now is
+   * not kept for later.
+   */
+  sky(line: (locale: HermanLocale) => string, busy = false): HermanNudge | null {
+    const now = this.now()
+    const stored = this.memory()
+    const decision = decide(this.config(), stored, { now, idleMs: Number.MAX_SAFE_INTEGER, busy, enabled: this.nudgesOn() })
+    if (!decision.ok || !stored.met) return null
+    const today = localDay(now)
+    if (this.setting(SKY_SAID_KEY) === today) return null
+    const memory = forDay(stored, now)
+    const nudge: HermanNudge = { id: randomUUID(), kind: 'sky', text: line(this.locale()) }
+    this.remember({ ...memory, shown: memory.shown + 1, lastAt: now })
+    try {
+      this.deps.setSetting(SKY_SAID_KEY, today)
+    } catch (err) {
+      console.error('[herman] could not remember the sky', err)
+    }
+    return nudge
+  }
+
   /** A completion was taken back. */
   uncompleted(): void {
     this.completions.pop()
@@ -279,7 +304,7 @@ export class HermanService {
     if (!counsel) return { nudge: null, waitMs: fast ? fast.idleMs : RETRY_MS }
 
     const nudge: HermanNudge = { id: randomUUID(), kind: counsel.kind, text: counsel.text, ...(counsel.action ? { action: counsel.action } : {}) }
-    this.remember(record(memory, { id: nudge.id, kind: nudge.kind, variant: counsel.variant }, now))
+    this.remember(record(memory, { id: nudge.id, kind: counsel.kind, variant: counsel.variant }, now))
     return { nudge, waitMs: config.gapMs }
   }
 

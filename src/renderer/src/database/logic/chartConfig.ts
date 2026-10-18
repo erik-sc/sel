@@ -3,6 +3,7 @@
 // aggregation engine (./chart.ts) is only loaded with the chart view.
 import type { ChartAggregate, ChartConfig, ChartDateBucket, ChartKind, DatabaseView, PropertySchema } from '../../../../shared/types'
 import { DEFAULT_CHART_CONFIG, sanitizeChartConfig } from '../../../../shared/chart'
+import { filterTypeOf } from './cell'
 import { getTitleProperty, isDateLikeType, orderedProperties, propOf, type Schema } from './values'
 
 // ---------------------------------------------------------------------------
@@ -64,8 +65,12 @@ export function aggregateNeedsProperty(aggregate: ChartAggregate): boolean {
  * values are computed from other databases or properties, which a chart (and its Markdown
  * export) does not read.
  */
+/**
+ * Any property can be an axis or a split: a relation by the rows it links to, a rollup or
+ * a formula by what it gives (see ./chart.ts).
+ */
 export function isChartAxisProperty(prop: PropertySchema | undefined): prop is PropertySchema {
-  return !!prop && prop.type !== 'relation' && prop.type !== 'rollup' && prop.type !== 'formula'
+  return !!prop
 }
 
 /** The properties a chart can group by, in schema order. */
@@ -73,24 +78,28 @@ export function chartAxisProperties(schema: Schema): PropertySchema[] {
   return orderedProperties(schema).filter(isChartAxisProperty)
 }
 
-/** Whether a property can be the value of an aggregate. */
-export function isChartValueProperty(prop: PropertySchema | undefined, aggregate: ChartAggregate): boolean {
+/**
+ * Whether a property can be the value of an aggregate. A rollup or a formula counts as
+ * what it gives; a formula's result type depends on `schema` (without it, text).
+ */
+export function isChartValueProperty(prop: PropertySchema | undefined, aggregate: ChartAggregate, schema?: Schema): boolean {
   if (!isChartAxisProperty(prop)) return false
+  const type = filterTypeOf(prop, schema)
   switch (aggregate) {
     case 'count':
       return false
     case 'count_unique':
       return true
     case 'percent_checked':
-      return prop.type === 'checkbox'
+      return type === 'checkbox'
     default:
-      return prop.type === 'number' || prop.type === 'checkbox'
+      return type === 'number' || type === 'checkbox'
   }
 }
 
 /** The properties offered as the value of an aggregate, in schema order. */
 export function chartValueProperties(schema: Schema, aggregate: ChartAggregate): PropertySchema[] {
-  return orderedProperties(schema).filter((prop) => isChartValueProperty(prop, aggregate))
+  return orderedProperties(schema).filter((prop) => isChartValueProperty(prop, aggregate, schema))
 }
 
 function firstOfType(schema: Schema, test: (prop: PropertySchema) => boolean): PropertySchema | undefined {
@@ -135,7 +144,7 @@ export function normalizeChartConfig(raw: unknown, schema: Schema): ChartConfig 
 
   let aggregate = clean.y.aggregate
   let valueProp = aggregateNeedsProperty(aggregate) ? propOf(schema, clean.y.property) : undefined
-  if (aggregateNeedsProperty(aggregate) && !isChartValueProperty(valueProp, aggregate)) {
+  if (aggregateNeedsProperty(aggregate) && !isChartValueProperty(valueProp, aggregate, schema)) {
     valueProp = aggregate === 'count_unique' ? getTitleProperty(schema) : chartValueProperties(schema, aggregate)[0]
     if (!valueProp) aggregate = 'count'
   }

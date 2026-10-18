@@ -1,7 +1,7 @@
 import type { Block, BlockProps, SearchResult } from '../../shared/types'
 import { isPageLike, parseProps } from './blocks'
 import { ftsQuery, likePattern, makeSnippet, safePlain, searchText } from './text'
-import { liveFilter, pagesAbove, type Link } from './tree'
+import { archivedFilter, liveFilter, pagesAbove, type Link } from './tree'
 
 const MAX_QUERY_CHARS = 200
 
@@ -88,6 +88,8 @@ export function searchBlocks(source: SearchSource, text: string, limit = 20): Se
     return p
   }
   const blocks = new Map(source.getMany(hits.filter((h) => h.id !== h.page.id).map((h) => h.id)).map((b) => [b.id, b]))
+  // Archived pages are found like any other; the result says so.
+  const archived = archivedFilter(links)
   return hits.map((hit) => {
     const page = propsOf(hit.page)
     const result: SearchResult = {
@@ -99,6 +101,7 @@ export function searchBlocks(source: SearchSource, text: string, limit = 20): Se
     if (typeof page.icon === 'string') result.icon = page.icon
     const block = blocks.get(hit.id)
     if (block) result.snippet = makeSnippet(searchText(block.props), query)
+    if (archived(hit.page.id)) result.archived = true
     return result
   })
 }

@@ -2,12 +2,12 @@
 // current, and the rows an event and a task are drawn as. Styled by today.css.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import type { BriefingCalendar, BriefingEvent, BriefingTask } from '@shared/briefing'
+import { localDay, type BriefingCalendar, type BriefingEvent, type BriefingTask } from '@shared/briefing'
 import { newMeeting } from '@/meetings/gate'
 import { openPage } from '@/store/tabs'
 import { setSettingsOpen, useUi } from '@/store/ui'
 import { notifyError, toast } from '@/ui/toast'
-import { dueLabel, untilMidnight, type EventMoment } from './format'
+import { dueLabel, tickedKey, untilMidnight, type EventMoment } from './format'
 import { requestTodaySettings } from './route'
 
 /** Data older than this is fetched again when the window gets the focus back. */
@@ -144,7 +144,7 @@ export function EventRow({ event, calendar, moment, time }: { event: BriefingEve
         <button
           type="button"
           className="today-event-notes"
-          onClick={() => void newMeeting({ event: { title: event.title, start: event.start, end: event.end, ...(event.location ? { location: event.location } : {}), ...(event.description ? { description: event.description } : {}) } })}
+          onClick={() => void newMeeting({ event: { title: event.title, start: event.start, end: event.end, ...(event.uid ? { uid: event.uid } : {}), ...(event.location ? { location: event.location } : {}), ...(event.description ? { description: event.description } : {}) } })}
         >
           Take notes
         </button>
@@ -167,23 +167,26 @@ export function TaskRow({ task, day, onComplete }: { task: BriefingTask; day: st
 }
 
 /**
- * Marking tasks done from a list. `done` holds those ticked here, to hide at once; the next
- * load no longer has them. A toast offers to take it back.
+ * Marking tasks done from a list. `done` holds the `tickedKey` of those ticked here, to hide at
+ * once; the next load no longer has them, or has a repeating one on its next date. A toast
+ * offers to take it back.
  */
 export function useCompleteTask(): { done: ReadonlySet<string>; complete: (task: BriefingTask) => void } {
   const [done, setDone] = useState<ReadonlySet<string>>(() => new Set())
 
   const complete = useCallback((task: BriefingTask): void => {
-    setDone((current) => new Set(current).add(task.id))
+    const key = tickedKey(task)
+    setDone((current) => new Set(current).add(key))
     const restore = (): void =>
       setDone((current) => {
         const next = new Set(current)
-        next.delete(task.id)
+        next.delete(key)
         return next
       })
     window.api.briefing.completeTask(task.id).then(
-      ({ token }) => {
-        toast('Marked as done.', {
+      ({ token, next }) => {
+        // A repeating task stays open with a later date: it is off today's list all the same.
+        toast(next ? `Done. Next: ${dueLabel(next.slice(0, 10), localDay())}.` : 'Marked as done.', {
           action: {
             label: 'Undo',
             run: () => {

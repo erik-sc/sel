@@ -1,0 +1,478 @@
+<title>Céu do sel · animações</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one column; three galleries (the chosen animations, the figures, the rare nights) of small skies. */
+:root {
+  --wall: #f0ede6;
+  --bg: #faf8f4;
+  --ink: #24221d;
+  --ink-2: #615d54;
+  --ink-3: #7c766a;
+  --rule: rgba(70, 58, 36, 0.11);
+  --rule-strong: rgba(70, 58, 36, 0.22);
+  --accent: #3b4f7d;
+  --accent-soft: rgba(59, 79, 125, 0.11);
+  --moon: rgba(196, 163, 58, 0.22);
+  --copper: rgba(168, 84, 44, 0.32);
+  --umbra: rgba(36, 34, 29, 0.28);
+  --dim: #e6e1d6;
+  --font-display: 'Iowan Old Style', 'Sitka Heading', 'Palatino Linotype', Palatino, Georgia, Cambria, serif;
+  --font-serif: 'Iowan Old Style', 'Sitka Text', 'Palatino Linotype', Palatino, Georgia, Cambria, serif;
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, system-ui, sans-serif;
+  /* the app's own motion tokens (src/renderer/src/styles/tokens.css) */
+  --duration: 0.3s;
+  --ease: cubic-bezier(0.25, 0.7, 0.2, 1);
+  --t: 1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --wall: #171614; --bg: #1d1c1a; --ink: #e8e3d9; --ink-2: #a8a297; --ink-3: #7f7a70;
+    --rule: rgba(232, 222, 200, 0.09); --rule-strong: rgba(232, 222, 200, 0.2);
+    --accent: #a3b1d9; --accent-soft: rgba(163, 177, 217, 0.15); --moon: rgba(232, 214, 160, 0.3);
+    --copper: rgba(214, 120, 74, 0.34); --umbra: rgba(0, 0, 0, 0.45); --dim: #121110;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --wall: #171614; --bg: #1d1c1a; --ink: #e8e3d9; --ink-2: #a8a297; --ink-3: #7f7a70;
+  --rule: rgba(232, 222, 200, 0.09); --rule-strong: rgba(232, 222, 200, 0.2);
+  --accent: #a3b1d9; --accent-soft: rgba(163, 177, 217, 0.15); --moon: rgba(232, 214, 160, 0.3);
+  --copper: rgba(214, 120, 74, 0.34); --umbra: rgba(0, 0, 0, 0.45); --dim: #121110;
+  color-scheme: dark;
+}
+body { background: var(--wall); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; }
+.page { max-width: 1040px; margin: 0 auto; padding-block: 56px 120px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 52px; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.006em; text-wrap: balance; margin: 0; }
+h1 { font-size: 40px; line-height: 1.15; }
+h2 { font-size: 26px; }
+h3 { font-size: 17px; }
+p { margin: 0; }
+.kicker { color: var(--ink-3); font-size: 12px; margin-bottom: 8px; }
+.lede { font-family: var(--font-serif); font-size: 18px; line-height: 1.6; color: var(--ink-2); max-width: 66ch; margin-top: 12px; }
+.muted { color: var(--ink-3); }
+.rules { margin: 6px 0 0; padding-left: 1.2em; display: grid; gap: 4px; color: var(--ink-2); max-width: 72ch; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--wall); padding-block: 12px; border-bottom: 1px solid var(--rule); }
+.ctl { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.seg-label { font-size: 11px; color: var(--ink-3); }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--rule); flex-wrap: wrap; }
+.seg button { font: inherit; font-size: 13px; color: var(--ink-2); background: transparent; border: 0; border-radius: 6px; padding: 5px 11px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--bg); color: var(--ink); box-shadow: 0 0 0 0.5px var(--rule-strong); }
+.btn { font: inherit; font-size: 13px; color: var(--ink); background: transparent; border: 1px solid var(--rule-strong); border-radius: 7px; padding: 5px 12px; cursor: pointer; }
+.btn:hover { background: var(--accent-soft); }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.part { display: grid; gap: 20px; }
+.part-head { display: grid; gap: 6px; max-width: 72ch; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { background: var(--bg); border-radius: 10px; box-shadow: 0 0 0 0.5px var(--rule-strong); padding: 14px 16px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.card-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.tag { font-size: 11px; color: var(--ink-3); }
+.card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 12.5px; }
+.card dt { color: var(--ink-3); }
+.card dd { margin: 0; color: var(--ink-2); min-width: 0; }
+.card .desc { font-size: 13.5px; }
+.sky { display: block; width: 100%; height: auto; border-radius: 6px; background: var(--bg); overflow: hidden; }
+
+.figs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.fig { margin: 0; background: var(--bg); border-radius: 10px; box-shadow: 0 0 0 0.5px var(--rule-strong); padding: 10px 10px 12px; display: grid; gap: 4px; justify-items: center; text-align: center; min-width: 0; }
+.fig svg { width: 100%; max-width: 150px; height: auto; display: block; }
+.fig b { font-family: var(--font-serif); font-style: italic; font-weight: 400; font-size: 14px; }
+.fig span { font-size: 11px; color: var(--ink-3); }
+.fig-group { grid-column: 1 / -1; font-family: var(--font-display); font-size: 17px; color: var(--ink-2); margin-top: 6px; }
+
+/* ---- the drawing ---- */
+.sky path, .fig path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.sky *, .fig * { transform-box: fill-box; transform-origin: center; }
+.grid-l { stroke: var(--ink-3); stroke-width: 0.6; opacity: 0.22; }
+.fs { fill: var(--ink-3); opacity: 0.45; }
+.cl { stroke: var(--ink-2); stroke-width: 0.9; }
+.st { fill: var(--ink); }
+.n-star { fill: var(--ink); }
+.sparkle { fill: none; stroke: var(--accent); stroke-width: 0.9; opacity: 0; }
+.meteor { stroke: var(--ink); stroke-width: 1; opacity: 0; }
+.meteor-tail { stroke: var(--ink-3); stroke-width: 2.4; opacity: 0; }
+.halo { fill: none; stroke: var(--accent); stroke-width: 0.8; opacity: 0.4; }
+.ring { fill: none; stroke: var(--accent); stroke-width: 0.8; }
+.lbl { fill: var(--ink-3); font-family: var(--font-serif); font-style: italic; font-size: 10px; }
+.cap { fill: var(--ink-3); font-family: var(--font-serif); font-style: italic; font-size: 8.5px; }
+.grain { fill: var(--ink-2); opacity: 0.6; }
+.moonw { fill: var(--moon); stroke: none; }
+.moonl { fill: none; stroke: var(--ink-2); stroke-width: 0.9; }
+.moonr { fill: none; stroke: var(--ink-3); stroke-width: 0.6; opacity: 0.5; }
+.copper { fill: var(--copper); }
+.umbra { fill: var(--umbra); }
+.dim { fill: var(--dim); }
+.words { fill: var(--ink-2); font-family: var(--font-display); font-size: 20px; }
+.hint { fill: var(--ink-3); font-size: 7px; font-family: var(--font-sans); }
+.cloud { fill: var(--bg); stroke: var(--ink-3); stroke-width: 0.9; }
+.bird { stroke: var(--ink-2); stroke-width: 0.8; }
+.fly { fill: var(--accent); }
+.burst { stroke: var(--accent); stroke-width: 0.8; opacity: 0; }
+.sat { fill: var(--ink); }
+.comet-head { fill: var(--ink); }
+.comet-tail { stroke: var(--ink-3); stroke-width: 0.8; }
+.accent-star { fill: var(--accent); }
+.pulse { animation: pulse calc(var(--duration) * 14 * var(--t)) ease-in-out infinite; }
+.pulse.b { animation-delay: calc(var(--duration) * -7 * var(--t)); }
+.flicker { animation: flicker var(--d, 3s) ease-in-out var(--o, 0s) infinite; }
+
+/* Every card rests on its last frame; .play runs it from the start. Durations are multiples of the app's --duration. */
+@keyframes draw { from { stroke-dashoffset: 1.02; } to { stroke-dashoffset: 0; } }
+@keyframes fadein { from { opacity: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.2); } }
+@keyframes sparkle { 0% { opacity: 0; transform: scale(0) rotate(-40deg); } 45% { opacity: 1; transform: scale(1.2) rotate(0); } 100% { opacity: 0; transform: scale(0.15) rotate(22deg); } }
+@keyframes inkset { 0% { fill: var(--accent); } 100% { fill: var(--ink); } }
+@keyframes handoff { 0%, 100% { fill: var(--ink); transform: none; } 30% { fill: var(--accent); transform: scale(1.5); } }
+@keyframes breathe { 0%, 100% { transform: none; } 45% { transform: scale(1.8); fill: var(--accent); } }
+@keyframes glowline { 0%, 100% { stroke: var(--ink-2); } 45% { stroke: var(--accent); } }
+@keyframes write { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes land { 0% { opacity: 0; transform: translate(26px, 18px); } 70% { opacity: 0.9; transform: scale(1.9); } 100% { opacity: 0.6; transform: none; } }
+@keyframes trail { 0% { opacity: 0.7; stroke-dashoffset: 1.02; } 60% { opacity: 0.5; stroke-dashoffset: 0; } 100% { opacity: 0; stroke-dashoffset: 0; } }
+@keyframes meteor { 0% { opacity: 1; stroke-dashoffset: 0.28; } 100% { opacity: 0; stroke-dashoffset: -1; } }
+@keyframes settle { 0% { opacity: 0.9; stroke-dashoffset: 1.02; } 60% { opacity: 0.9; stroke-dashoffset: 0; } 100% { opacity: 0.4; stroke-dashoffset: 0; } }
+@keyframes pulse { 0%, 100% { opacity: 0.1; transform: scale(0.7); } 50% { opacity: 0.7; transform: scale(1.35); } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+@keyframes open { from { opacity: 0; transform: translateY(4px); } }
+@keyframes dimdown { from { opacity: 0; } }
+@keyframes acrossfade { 0% { opacity: 0; transform: translateX(var(--from, -360px)); } 10%, 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(var(--to, 360px)); } }
+@keyframes shadow { from { transform: translateX(-90px); } to { transform: none; } }
+@keyframes flicker { 0%, 100% { opacity: 0.05; } 50% { opacity: 0.85; } }
+@keyframes burst { 0% { opacity: 0; stroke-dashoffset: 1.02; } 30% { opacity: 1; } 100% { opacity: 0; stroke-dashoffset: 0; } }
+@keyframes cometmove { from { transform: translate(18px, -8px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes sweep { 0% { stroke: var(--ink-3); opacity: 0.22; } 40% { stroke: var(--accent); opacity: 0.7; } 100% { stroke: var(--ink-3); opacity: 0.22; } }
+
+.play .dash { stroke-dasharray: 1 2; animation: draw calc(var(--duration) * var(--n, 6) * var(--t)) ease-in-out calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .fade { animation: fadein calc(var(--duration) * var(--n, 3) * var(--t)) var(--ease) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .pop { animation: pop calc(var(--duration) * var(--n, 2) * var(--t)) var(--ease) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .sparkle { animation: sparkle calc(var(--duration) * var(--n, 4.5) * var(--t)) var(--ease) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .handoff { animation: handoff calc(var(--duration) * var(--n, 4) * var(--t)) var(--ease) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .breathe { animation: breathe calc(var(--duration) * var(--n, 7) * var(--t)) ease-in-out calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .glowline { animation: glowline calc(var(--duration) * var(--n, 9) * var(--t)) ease-in-out calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .write { animation: write calc(var(--duration) * var(--n, 6) * var(--t)) ease-in-out calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .land { animation: land calc(var(--duration) * var(--n, 5) * var(--t)) var(--ease) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .trail { stroke-dasharray: 1 2; animation: trail calc(var(--duration) * var(--n, 4) * var(--t)) ease-out calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .meteor, .play .meteor-tail { stroke-dasharray: 0.28 1.3; animation: meteor calc(var(--duration) * var(--n, 4) * var(--t)) cubic-bezier(0.3, 0.1, 0.5, 1) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .settle { stroke-dasharray: 1 2; animation: settle calc(var(--duration) * var(--n, 5) * var(--t)) ease-in-out calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .rise { animation: rise calc(var(--duration) * var(--n, 6) * var(--t)) var(--ease) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .open { animation: open calc(var(--duration) * var(--n, 2) * var(--t)) var(--ease) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .dimdown { animation: dimdown calc(var(--duration) * var(--n, 8) * var(--t)) var(--ease) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .across { animation: acrossfade calc(var(--duration) * var(--n, 40) * var(--t)) linear calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .shadow { animation: shadow calc(var(--duration) * var(--n, 16) * var(--t)) ease-in-out calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .burst { stroke-dasharray: 1 2; animation: burst calc(var(--duration) * var(--n, 5) * var(--t)) ease-out calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .cometmove { animation: cometmove calc(var(--duration) * var(--n, 10) * var(--t)) var(--ease) calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .sweep { animation: sweep calc(var(--duration) * var(--n, 10) * var(--t)) ease-in-out calc(var(--duration) * var(--w, 0) * var(--t)) both; }
+.play .n-star.pop { animation-name: pop, inkset; animation-duration: calc(var(--duration) * 2 * var(--t)), calc(var(--duration) * 16 * var(--t)); animation-timing-function: var(--ease), ease-in; animation-delay: calc(var(--duration) * var(--w, 0) * var(--t)), calc(var(--duration) * (var(--w, 0) + 0.5) * var(--t)); animation-fill-mode: both, both; }
+.across-rest { opacity: 0; }
+
+/* Reduced motion: nothing travels, grows or blinks; what is new is simply there, after a short fade. */
+.reduced .play .anim-root { animation: fadein 0.5s ease both; }
+.reduced .play .anim-root *, .reduced .pulse, .reduced .flicker { animation: none !important; }
+.reduced .ephemeral { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .play .anim-root { animation: fadein 0.5s ease both; }
+  .play .anim-root *, .pulse, .flicker { animation: none !important; }
+  .ephemeral { display: none; }
+}
+@media (max-width: 720px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 32px; }
+}
+</style>
+
+<div class="page">
+  <header>
+    <p class="kicker">sel 0.6.0 · Céu · protótipo · nada aqui é código do app</p>
+    <h1>Como o céu se mexe</h1>
+    <p class="lede">As animações que você escolheu, refinadas e juntas onde pertencem; as 45 figuras que o céu pode desenhar; e as noites raras que podem acontecer. Todas as durações são múltiplos do <code>--duration</code> do app (0,3 s), e cada uma tem a sua versão sem movimento.</p>
+  </header>
+
+  <div class="controls" role="toolbar" aria-label="Controles">
+    <div class="ctl"><span class="seg-label">Velocidade</span><div class="seg" id="ctl-speed"></div></div>
+    <div class="ctl"><span class="seg-label">Movimento</span><div class="seg" id="ctl-motion"></div></div>
+    <div class="ctl"><span class="seg-label">Tema</span><div class="seg" id="ctl-theme"></div></div>
+    <button class="btn" id="play-all" type="button">Tocar tudo de novo</button>
+  </div>
+
+  <section class="part" aria-labelledby="p1">
+    <div class="part-head">
+      <p class="kicker">1 · As animações</p>
+      <h2 id="p1">Oito momentos, uma animação cada</h2>
+      <p class="lede">Das nove que você marcou, a caneta e as quatro pontas viraram uma só: a linha chega, o brilho abre. O critério de todas: acontece uma vez, por causa de algo que você fez; é desenho de linha; não mede nada; depois de terminar, nada fica se mexendo (a única exceção é o anel do Neste dia, bem lento).</p>
+    </div>
+    <div class="grid" id="moments"></div>
+  </section>
+
+  <section class="part" aria-labelledby="p2">
+    <div class="part-head">
+      <p class="kicker">2 · As constelações</p>
+      <h2 id="p2">45 figuras, quase quatro anos sem repetir</h2>
+      <p class="lede">Cada figura é uma lista de estrelas escrita à mão, como as poses do Herman, numa caixa de 100 por 100, com as linhas que as ligam. A ordem das estrelas é a ordem em que elas acendem. Um terço das figuras é do Brasil.</p>
+      <div class="ctl"><span class="seg-label">Mostrar</span><div class="seg" id="ctl-figs"></div></div>
+    </div>
+    <div class="figs" id="figs"></div>
+  </section>
+
+  <section class="part" aria-labelledby="p3">
+    <div class="part-head">
+      <p class="kicker">3 · Noites raras</p>
+      <h2 id="p3">Coisas que às vezes acontecem no céu</h2>
+      <p class="lede">Eventos que não dependem do que você fez: vêm do calendário ou do acaso. Regras:</p>
+      <ul class="rules">
+        <li>O acaso é a data: o mesmo dia sorteia o mesmo evento em todos os seus computadores, e nada é guardado.</li>
+        <li>No máximo um evento por noite. Os do calendário (eclipse, chuva de meteoros, solstício, ano novo, aniversário da primeira estrela) têm prioridade sobre os sorteados.</li>
+        <li>O que se mexe toca uma vez, quando o Céu abre naquele dia. Nunca vira notificação, e não existe “você perdeu”.</li>
+        <li>Juntos, aparecem em mais ou menos uma noite a cada seis.</li>
+      </ul>
+    </div>
+    <div class="grid" id="events"></div>
+  </section>
+</div>
+
+<script>
+// A copy of docs/plans/sky/figures.js, inlined so the page also opens on its own.
+// The figures of sel's sky. Each one is drawn on a 100 by 100 box, y pointing down.
+// `stars` are listed in the order they light up: the first Meditation of a month lights star 0,
+// the next one star 1, and so on. `lines` are polylines over star indices; a segment appears
+// as soon as both of its stars are lit. Once every star is lit, further days of that month
+// become loose stars around the figure (see docs/plans/sky.md).
+// Authored by hand, like Herman's anchors, so the sky never depends on a renderer's path maths.
+// Plain script (no module) so the prototypes can load it from file:// as well.
+var SKY_FIGURES = [
+  // ---- the desk ----
+  { id: 'boat', pt: 'o Barco', en: 'the Boat', stars: [[50, 10], [78, 50], [50, 55], [14, 66], [88, 66], [76, 84], [26, 84], [50, 66]], lines: [[0, 1, 2], [0, 2, 7], [3, 4, 5, 6, 3]] },
+  { id: 'fish', pt: 'o Peixe', en: 'the Fish', stars: [[8, 50], [30, 34], [60, 36], [72, 48], [92, 30], [92, 70], [60, 64], [30, 66], [24, 47]], lines: [[0, 1, 2, 3, 4, 5, 3, 6, 7, 0]] },
+  { id: 'lantern', pt: 'a Lanterna', en: 'the Lantern', stars: [[50, 6], [50, 18], [32, 24], [24, 50], [32, 78], [68, 78], [76, 50], [68, 24]], lines: [[0, 1], [1, 2, 3, 4, 5, 6, 7, 1]] },
+  { id: 'cup', pt: 'a Xícara', en: 'the Cup', stars: [[50, 8], [44, 20], [52, 30], [18, 42], [76, 42], [66, 78], [30, 78], [90, 54]], lines: [[0, 1, 2], [3, 4, 5, 6, 3], [4, 7, 5]] },
+  { id: 'feather', pt: 'a Pena', en: 'the Feather', stars: [[88, 8], [62, 24], [42, 44], [24, 70], [10, 92], [72, 40], [52, 62], [66, 8], [40, 30]], lines: [[4, 3, 2, 1, 0], [0, 5, 6, 3], [0, 7, 8, 2]] },
+  { id: 'candle', pt: 'a Vela', en: 'the Candle', stars: [[50, 6], [43, 18], [50, 28], [57, 18], [36, 34], [64, 34], [64, 92], [36, 92]], lines: [[0, 1, 2, 3, 0], [4, 5, 6, 7, 4]] },
+  { id: 'key', pt: 'a Chave', en: 'the Key', stars: [[30, 10], [44, 24], [30, 38], [16, 24], [30, 68], [44, 68], [30, 92], [44, 92]], lines: [[0, 1, 2, 3, 0], [2, 4, 6], [4, 5], [6, 7]] },
+  { id: 'bell', pt: 'o Sino', en: 'the Bell', stars: [[50, 6], [50, 16], [30, 26], [24, 62], [12, 76], [88, 76], [76, 62], [70, 26], [50, 88]], lines: [[0, 1], [1, 2, 3, 4, 5, 6, 7, 1]] },
+  { id: 'hourglass', pt: 'a Ampulheta', en: 'the Hourglass', stars: [[20, 8], [80, 8], [54, 50], [80, 92], [20, 92], [46, 50], [50, 80]], lines: [[0, 1, 2, 3, 4, 5, 0]] },
+  { id: 'book', pt: 'o Livro', en: 'the Book', stars: [[50, 24], [10, 16], [10, 76], [50, 86], [90, 76], [90, 16]], lines: [[0, 1, 2, 3, 4, 5, 0, 3]] },
+  { id: 'spectacles', pt: 'os Óculos', en: 'the Spectacles', stars: [[12, 50], [28, 36], [44, 50], [28, 64], [56, 50], [72, 36], [88, 50], [72, 64]], lines: [[0, 1, 2, 3, 0], [2, 4], [4, 5, 6, 7, 4]] },
+  { id: 'staff', pt: 'o Cajado', en: 'the Staff', stars: [[46, 96], [48, 62], [50, 30], [44, 16], [52, 6], [64, 14], [58, 26], [50, 22]], lines: [[0, 1, 2, 3, 4, 5, 6, 7]] },
+  { id: 'teapot', pt: 'o Bule', en: 'the Teapot', stars: [[50, 14], [30, 30], [70, 30], [82, 58], [66, 84], [34, 84], [18, 58], [96, 32], [6, 46]], lines: [[1, 0, 2], [1, 6, 5, 4, 3, 2], [3, 7], [6, 8, 1]] },
+  // ---- outside the window ----
+  { id: 'mountain', pt: 'a Montanha', en: 'the Mountain', stars: [[4, 86], [34, 30], [50, 54], [64, 40], [96, 86], [26, 44], [36, 50], [42, 44]], lines: [[0, 1, 2, 3, 4, 0], [5, 6, 7]] },
+  { id: 'wave', pt: 'a Onda', en: 'the Wave', stars: [[4, 62], [22, 34], [44, 30], [50, 46], [40, 56], [36, 44], [56, 40], [76, 58], [96, 60]], lines: [[0, 1, 2, 3, 4, 5, 6, 7, 8]] },
+  { id: 'house', pt: 'a Casa', en: 'the House', stars: [[8, 48], [50, 12], [92, 48], [80, 48], [80, 90], [20, 90], [20, 48], [42, 90], [42, 66], [58, 66], [58, 90]], lines: [[0, 1, 2], [3, 4, 5, 6], [7, 8, 9, 10]] },
+  { id: 'bridge', pt: 'a Ponte', en: 'the Bridge', stars: [[4, 42], [96, 42], [4, 82], [26, 58], [50, 50], [74, 58], [96, 82]], lines: [[0, 1], [2, 3, 4, 5, 6], [0, 2], [1, 6]] },
+  { id: 'lighthouse', pt: 'o Farol', en: 'the Lighthouse', stars: [[36, 92], [42, 34], [40, 26], [50, 12], [60, 26], [58, 34], [64, 92], [96, 14]], lines: [[0, 1, 2, 3, 4, 5, 6, 0], [1, 5], [4, 7]] },
+  { id: 'umbrella', pt: 'o Guarda-chuva', en: 'the Umbrella', stars: [[8, 48], [24, 26], [50, 14], [76, 26], [92, 48], [72, 42], [50, 48], [28, 42], [50, 86], [40, 92]], lines: [[0, 1, 2, 3, 4, 5, 6, 7, 0], [6, 8, 9]] },
+  { id: 'ladder', pt: 'a Escada', en: 'the Ladder', stars: [[30, 94], [70, 94], [30, 66], [70, 66], [30, 38], [70, 38], [30, 10], [70, 10]], lines: [[0, 2, 4, 6], [1, 3, 5, 7], [0, 1], [2, 3], [4, 5], [6, 7]] },
+  // ---- what grows ----
+  { id: 'leaf', pt: 'a Folha', en: 'the Leaf', stars: [[12, 88], [14, 50], [40, 20], [88, 12], [80, 52], [52, 82], [56, 40]], lines: [[0, 1, 2, 3, 4, 5, 0], [0, 6, 3]] },
+  { id: 'sprout', pt: 'o Broto', en: 'the Sprout', stars: [[50, 96], [50, 54], [20, 30], [30, 50], [82, 34], [68, 52]], lines: [[0, 1], [1, 3, 2, 1], [1, 5, 4, 1]] },
+  { id: 'araucaria', pt: 'a Araucária', en: 'the Araucaria', stars: [[50, 96], [50, 56], [50, 30], [22, 44], [14, 26], [78, 44], [86, 26], [34, 26], [30, 12], [66, 26], [70, 12]], lines: [[0, 1, 2], [1, 3, 4], [1, 5, 6], [2, 7, 8], [2, 9, 10]] },
+  { id: 'ipe', pt: 'o Ipê', en: 'the Ipê Tree', stars: [[50, 96], [50, 62], [32, 44], [68, 44], [16, 30], [30, 12], [50, 8], [70, 12], [84, 30], [50, 34]], lines: [[0, 1, 2, 4, 5, 6, 7, 8, 3, 1], [2, 9, 3]] },
+  { id: 'palm', pt: 'o Coqueiro', en: 'the Coconut Palm', stars: [[62, 96], [56, 66], [50, 36], [14, 44], [22, 18], [54, 8], [86, 22], [88, 48], [56, 44]], lines: [[0, 1, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7]] },
+  { id: 'mandacaru', pt: 'o Mandacaru', en: 'the Mandacaru', stars: [[50, 96], [50, 64], [50, 10], [28, 64], [28, 32], [50, 46], [74, 46], [74, 20]], lines: [[0, 1, 5, 2], [1, 3, 4], [5, 6, 7]] },
+  { id: 'banana', pt: 'a Bananeira', en: 'the Banana Tree', stars: [[50, 96], [50, 50], [12, 34], [32, 12], [70, 10], [90, 34], [62, 60], [66, 74]], lines: [[0, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6, 7]] },
+  { id: 'waterlily', pt: 'a Vitória-régia', en: 'the Water Lily', stars: [[8, 62], [28, 74], [72, 74], [92, 62], [72, 50], [28, 50], [50, 42], [50, 26]], lines: [[0, 1, 2, 3, 4, 6, 5, 0], [6, 7]] },
+  { id: 'cashew', pt: 'o Caju', en: 'the Cashew', stars: [[34, 14], [64, 14], [74, 46], [56, 72], [34, 56], [58, 86], [42, 92]], lines: [[0, 1, 2, 3, 4, 0], [3, 5, 6]] },
+  // ---- who lives here ----
+  { id: 'hummingbird', pt: 'o Beija-flor', en: 'the Hummingbird', stars: [[4, 34], [28, 32], [40, 42], [62, 8], [52, 36], [88, 74], [74, 84], [56, 58]], lines: [[0, 1, 2, 7, 5], [7, 6], [2, 4, 3]] },
+  { id: 'toucan', pt: 'o Tucano', en: 'the Toucan', stars: [[6, 44], [36, 30], [36, 50], [48, 24], [72, 36], [94, 72], [62, 70], [56, 86]], lines: [[0, 1, 3, 4, 5, 6, 2, 0], [6, 7]] },
+  { id: 'turtle', pt: 'a Tartaruga', en: 'the Turtle', stars: [[18, 56], [34, 34], [66, 34], [82, 56], [66, 70], [34, 70], [96, 48], [24, 84], [76, 84], [6, 62]], lines: [[0, 1, 2, 3, 4, 5, 0], [3, 6], [5, 7], [4, 8], [0, 9]] },
+  { id: 'whale', pt: 'a Baleia', en: 'the Whale', stars: [[6, 54], [28, 36], [64, 38], [80, 52], [94, 34], [96, 62], [64, 70], [28, 70], [36, 18]], lines: [[0, 1, 2, 3, 4, 5, 3, 6, 7, 0], [1, 8]] },
+  { id: 'heron', pt: 'a Garça', en: 'the Heron', stars: [[46, 98], [50, 64], [30, 54], [70, 54], [64, 34], [54, 22], [60, 10], [34, 14]], lines: [[0, 1, 2, 3, 1], [3, 4, 5, 6, 7]] },
+  { id: 'owl', pt: 'a Coruja', en: 'the Owl', stars: [[28, 10], [40, 26], [60, 26], [72, 10], [76, 56], [62, 88], [38, 88], [24, 56], [40, 42], [60, 42]], lines: [[0, 1, 2, 3, 4, 5, 6, 7, 0]] },
+  { id: 'cat', pt: 'o Gato', en: 'the Cat', stars: [[30, 94], [34, 50], [30, 24], [40, 34], [56, 34], [66, 24], [62, 50], [72, 94], [92, 70]], lines: [[0, 1, 2, 3, 4, 5, 6, 7, 0], [7, 8]] },
+  { id: 'snail', pt: 'o Caracol', en: 'the Snail', stars: [[52, 50], [44, 44], [40, 56], [56, 66], [70, 50], [60, 30], [34, 32], [8, 82], [94, 82], [90, 62]], lines: [[0, 1, 2, 3, 4, 5, 6], [7, 8, 9]] },
+  // ---- what we play ----
+  { id: 'kite', pt: 'a Pipa', en: 'the Kite', stars: [[50, 6], [82, 36], [50, 72], [18, 36], [56, 82], [46, 90], [56, 98]], lines: [[0, 1, 2, 3, 0, 2], [3, 1], [2, 4, 5, 6]] },
+  { id: 'top', pt: 'o Pião', en: 'the Spinning Top', stars: [[50, 96], [20, 56], [34, 36], [66, 36], [80, 56], [50, 36], [50, 14]], lines: [[0, 1, 2, 3, 4, 0], [5, 6]] },
+  { id: 'pinwheel', pt: 'o Cata-vento', en: 'the Pinwheel', stars: [[50, 44], [50, 8], [70, 24], [86, 44], [70, 64], [50, 80], [30, 64], [14, 44], [30, 24], [50, 98]], lines: [[0, 1, 2, 0], [0, 3, 4, 0], [0, 5, 6, 0], [0, 7, 8, 0], [5, 9]] },
+  { id: 'guitar', pt: 'o Violão', en: 'the Guitar', stars: [[50, 96], [24, 82], [34, 62], [26, 46], [50, 40], [74, 46], [66, 62], [76, 82], [50, 6], [50, 64]], lines: [[0, 1, 2, 3, 4, 5, 6, 7, 0], [4, 8]] },
+  { id: 'berimbau', pt: 'o Berimbau', en: 'the Berimbau', stars: [[36, 4], [22, 34], [22, 66], [36, 96], [36, 70], [50, 74], [50, 88]], lines: [[0, 1, 2, 3, 4, 0], [4, 5, 6, 4]] },
+  { id: 'hammock', pt: 'a Rede', en: 'the Hammock', stars: [[8, 92], [8, 26], [28, 58], [50, 66], [72, 58], [92, 26], [92, 92]], lines: [[0, 1, 2, 3, 4, 5, 6]] },
+  { id: 'jangada', pt: 'a Jangada', en: 'the Raft', stars: [[8, 76], [92, 76], [82, 88], [18, 88], [50, 76], [50, 8], [82, 58]], lines: [[0, 1, 2, 3, 0], [4, 5, 6, 4]] },
+  { id: 'strawhat', pt: 'o Chapéu de palha', en: 'the Straw Hat', stars: [[4, 70], [30, 62], [36, 34], [64, 34], [70, 62], [96, 70], [50, 76]], lines: [[0, 1, 2, 3, 4, 5, 6, 0], [1, 4]] }
+]
+if (typeof module !== 'undefined') module.exports = { SKY_FIGURES }
+</script>
+<script>
+'use strict'
+function hash(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16; return h >>> 0 }
+function rng(seed) { let a = hash(seed); return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }
+const f = (v) => Math.round(v * 10) / 10
+// timing in multiples of --duration: n = length, w = wait before starting
+const tm = (n, w = 0) => ` style="--n:${n};--w:${w}"`
+const FIG = Object.fromEntries(SKY_FIGURES.map((x) => [x.id, x]))
+const cap1 = (s) => s[0].toUpperCase() + s.slice(1)
+
+// ---------- drawing helpers ----------
+const seg = (a, b, cls = 'cl', extra = '') => `<path class="${cls}" pathLength="1" d="M${f(a[0])} ${f(a[1])}L${f(b[0])} ${f(b[1])}"${extra}/>`
+const dot = (p, r, cls, extra = '') => `<circle class="${cls}" cx="${f(p[0])}" cy="${f(p[1])}" r="${r}"${extra}/>`
+function place(fig, cx, cy, size, rot = 0) {
+  const c = Math.cos(rot), s = Math.sin(rot)
+  return fig.stars.map(([x, y]) => { const dx = ((x - 50) * size) / 100, dy = ((y - 50) * size) / 100; return [cx + dx * c - dy * s, cy + dx * s + dy * c] })
+}
+// the segments of a figure, each with the index of the star that completes it
+function segments(fig) {
+  const out = [], seen = new Set()
+  for (const line of fig.lines) for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1], b = line[i], key = a < b ? a + '-' + b : b + '-' + a
+    if (seen.has(key)) continue
+    seen.add(key); out.push({ a, b, at: Math.max(a, b) })
+  }
+  return out
+}
+function figure(fig, pts, lit, starR = 1.5) {
+  let o = ''
+  for (const sgm of segments(fig)) if (sgm.at < lit) o += seg(pts[sgm.a], pts[sgm.b])
+  for (let i = 0; i < lit; i++) o += dot(pts[i], starR, 'st')
+  return o
+}
+function ground(seed, w = 320, h = 200) {
+  let o = ''
+  for (const r of [230, 300, 370]) o += `<path class="grid-l" pathLength="1" d="M${160 - r} ${h + 220}A${r} ${r} 0 0 1 ${160 + r} ${h + 220}"/>`
+  for (const a of [-125, -105, -90, -75, -55]) { const t = (a * Math.PI) / 180; o += `<path class="grid-l" pathLength="1" d="M${f(160 + Math.cos(t) * 230)} ${f(h + 220 + Math.sin(t) * 230)}L${f(160 + Math.cos(t) * 520)} ${f(h + 220 + Math.sin(t) * 520)}"/>` }
+  const R = rng('field' + seed)
+  for (let i = 0; i < 24; i++) o += dot([R() * w, R() * h], f(0.4 + R() * 0.5), 'fs')
+  return o
+}
+function moonD(cx, cy, r, p, south = true) {
+  const k = Math.cos(2 * Math.PI * p), rx = Math.abs(k) * r, right = (p < 0.5) !== south, bulgeRight = k > 0 ? right : !right
+  return `M${cx} ${cy - r}A${r} ${r} 0 0 ${right ? 1 : 0} ${cx} ${cy + r}A${f(rx)} ${r} 0 0 ${bulgeRight ? 0 : 1} ${cx} ${cy - r}Z`
+}
+const moon = (cx, cy, r, p, cls = '', extra = '') => `<g class="${cls}"${extra}><circle class="moonr" cx="${cx}" cy="${cy}" r="${r}"/><path class="moonw" d="${moonD(cx, cy, r, p)}"/><path class="moonl" d="${moonD(cx, cy, r, p)}"/></g>`
+const glint = ([x, y], r) => `M${f(x)} ${f(y - r)}Q${f(x + 1)} ${f(y - 1)} ${f(x + r)} ${f(y)}Q${f(x + 1)} ${f(y + 1)} ${f(x)} ${f(y + r)}Q${f(x - 1)} ${f(y + 1)} ${f(x - r)} ${f(y)}Q${f(x - 1)} ${f(y - 1)} ${f(x)} ${f(y - r)}Z`
+const sparkle = (p, r, w) => `<path class="sparkle" d="${glint(p, r)}"${tm(4.5, w)}/>`
+const open = () => `<svg class="sky" viewBox="0 0 320 200" role="img" aria-hidden="true"><g class="anim-root">`
+const close = '</g></svg>'
+// The new star: yesterday's star answers with a small accent, the pen draws the line from it, and where
+// it arrives a four-pointed glint opens and closes, leaving the star in accent that settles into ink.
+function newStar(fig, pts, idx, w = 0) {
+  let o = dot(pts[idx - 1], 1.5, 'st handoff', tm(4, w))
+  for (const sgm of segments(fig)) if (sgm.at === idx) o += seg(pts[sgm.a === idx ? sgm.b : sgm.a], pts[idx], 'cl dash', tm(6, w + 0.8))
+  o += sparkle(pts[idx], 10, w + 6.2)
+  o += dot(pts[idx], 1.9, 'n-star pop', tm(2, w + 6.6))
+  return o
+}
+
+// ---------- part 1: the moments ----------
+const BOAT = FIG.boat
+const boatPts = (cx = 160, cy = 96, size = 130, rot = -0.08) => place(BOAT, cx, cy, size, rot)
+const MOMENTS = [
+  { tag: '1 + 6', title: 'Uma estrela nova', when: 'Uma Meditação é escrita: no Fechar o dia, ou na tela das Meditações. Se o Céu não estava aberto, toca na próxima vez que ele abre.', dur: '≈ 2,8 s (a linha leva 6 × --duration)', reduced: 'A estrela e a linha aparecem com um fade de 0,5 s.',
+    desc: 'A estrela de ontem responde com um toque de destaque, a caneta sai dela e desenha a linha até o lugar novo. Quando chega, um brilho de quatro pontas abre e fecha, e a estrela fica na cor de destaque, assentando em tinta ao longo de alguns segundos.',
+    build: () => { const p = boatPts(); return open() + ground('a') + figure(BOAT, p, 5) + newStar(BOAT, p, 5, 0.5) + close } },
+  { tag: '8', title: 'O mês vira constelação', when: 'Primeira abertura do Céu depois que o mês acaba.', dur: '≈ 4,5 s', reduced: 'O nome aparece com fade; as estrelas não se mexem.',
+    desc: 'Uma onda passa pela figura na ordem em que as estrelas acenderam: cada uma cresce e volta, as linhas acendem em destaque e voltam ao traço. No fim, o nome se escreve embaixo, da esquerda para a direita, como à mão.',
+    build: () => { const p = boatPts(160, 88, 124); let o = open() + ground('b'); for (const sgm of segments(BOAT)) o += seg(p[sgm.a], p[sgm.b], 'cl glowline', tm(9, 0.5 + sgm.at * 0.4)); p.forEach((pt, i) => { o += dot(pt, 1.5, 'st breathe', tm(7, 0.5 + i * 0.4)) }); return o + `<text class="lbl write" x="160" y="180" text-anchor="middle" style="--n:6;--w:7;font-size:12px">O Barco</text>` + close } },
+  { tag: '9', title: 'Poeira de estrelas', when: 'Uma task é concluída (Tasks, ou um to-do marcado).', dur: '≈ 1,5 s cada', reduced: 'O grão aparece no lugar.',
+    desc: 'Um grão chega com um rastro curto, brilha um instante maior ao pousar e assenta na faixa da Via Láctea. Aqui, quatro tasks seguidas.',
+    build: () => { const R = rng('dust'), band = (t) => [-10 + t * 340, 185 - t * 150]; let o = open() + ground('c') + figure(BOAT, boatPts(), 8); for (let i = 0; i < 80; i++) { const [x, y] = band(R()); o += dot([x + (R() - 0.5) * 20, y + (R() + R() + R() - 1.5) * 18], f(0.5 + R() * 0.4), 'grain') } for (let i = 0; i < 4; i++) { const [x, y] = band(0.22 + i * 0.16), yy = y + (R() - 0.5) * 14; o += `<path class="trail" pathLength="1" d="M${f(x + 26)} ${f(yy + 18)}L${f(x)} ${f(yy)}"${tm(4, 1 + i * 4)}/>` + dot([x, yy], 1, 'grain land', tm(5, 1 + i * 4)) } return o + close } },
+  { tag: '10', title: 'Fim de um pomodoro', when: 'Uma fase de foco do pomodoro termina (o evento pomodoro:completed da feature 5).', dur: '≈ 3 s', reduced: 'Sem a estrela cadente; o halo aparece com fade.',
+    desc: 'Uma estrela cadente risca o céu, com um rastro mais largo e apagado atrás da cabeça. Quando ela some, a caneta desenha um halo fino em volta da estrela de hoje, que fica, mais fraco.',
+    build: () => { const p = boatPts(); return open() + ground('d') + figure(BOAT, p, 6) + `<g class="ephemeral"><path class="meteor-tail" pathLength="1" d="M300 16L178 70"${tm(4.4, 0.5)}/><path class="meteor" pathLength="1" d="M300 16L178 70"${tm(4, 0.5)}/></g>` + `<circle class="halo settle" pathLength="1" cx="${f(p[5][0])}" cy="${f(p[5][1])}" r="5"${tm(5, 4.4)}/>` + close } },
+  { tag: '12', title: 'Neste dia', when: 'Há uma estrela de um ano atrás (ou de mais anos), na mesma data. Enquanto o Céu estiver aberto nesse dia.', dur: 'contínuo, 4,2 s por ciclo', reduced: 'Um anel parado em volta da estrela.',
+    desc: 'A estrela daquele dia fica em destaque e dois anéis respiram em volta dela, desencontrados, bem devagar. Embaixo do céu, a linha que você escreveu naquele dia.',
+    build: () => { const p = boatPts(); return open() + ground('e') + figure(BOAT, p, 8) + dot(p[2], 1.9, 'accent-star') + `<circle class="ring pulse" cx="${f(p[2][0])}" cy="${f(p[2][1])}" r="7"/><circle class="ring pulse b" cx="${f(p[2][0])}" cy="${f(p[2][1])}" r="7"/>` + `<text class="cap fade" x="160" y="190" text-anchor="middle"${tm(4, 1)}>Há um ano, neste dia, você escreveu: “O céu ficou laranja às seis.”</text>` + close } },
+  { tag: '14', title: 'Até amanhã', when: 'Último passo do Fechar o dia, no lugar da tela escura de hoje.', dur: '≈ 8 s', reduced: 'A janela escurece com o céu já pronto e as palavras aparecem.',
+    desc: 'A janela escurece devagar. O céu do mês aparece por baixo, a lua sobe um pouco, e a linha que você acabou de escrever vira a estrela nova (a mesma animação 1). Só depois vêm “Até amanhã” e a dica.',
+    build: () => { const p = boatPts(160, 74, 104); return open() + `<rect class="dim dimdown" x="0" y="0" width="320" height="200"${tm(8, 0)}/><g class="fade"${tm(5, 4)}>${ground('f')}${figure(BOAT, p, 6)}</g>${moon(278, 34, 12, 0.3, 'rise', tm(6, 5))}${newStar(BOAT, p, 6, 9)}<text class="words fade" x="160" y="164" text-anchor="middle"${tm(5, 18)}>Até amanhã</text><text class="hint fade" x="160" y="182" text-anchor="middle"${tm(4, 21)}>Aperte qualquer tecla para voltar</text>` + close } },
+  { tag: '15', title: 'A primeira abertura', when: 'A primeira vez que o Céu abre neste computador, com todas as Meditações que já existem. Uma vez na vida.', dur: '≈ 9 s', reduced: 'O céu aparece pronto, com fade.',
+    desc: 'A carta celeste se desenha. Depois, todas as estrelas já escritas acendem em ordem de data, rápido, cada uma puxando a sua linha. Cada mês que fecha ganha o nome. Por último, a lua sobe.',
+    build: () => {
+      let o = open(); const R = rng('field-g')
+      o += [230, 300, 370].map((r, i) => `<path class="grid-l dash" pathLength="1" d="M${160 - r} 420A${r} ${r} 0 0 1 ${160 + r} 420"${tm(5, i)}/>`).join('')
+      for (let i = 0; i < 24; i++) o += dot([R() * 320, R() * 200], f(0.4 + R() * 0.5), 'fs fade', tm(3, 3))
+      let k = 0
+      for (const [id, x, y, size, rot] of [['fish', 62, 62, 82, 0.15], ['lantern', 160, 116, 80, -0.05], ['owl', 258, 66, 80, 0.1]]) {
+        const fg = FIG[id], pts = place(fg, x, y, size, rot), at = pts.map(() => 6 + k++ * 0.75)
+        for (const sgm of segments(fg)) o += seg(pts[sgm.a], pts[sgm.b], 'cl dash', tm(1.2, at[sgm.at]))
+        pts.forEach((pt, i) => { o += dot(pt, 1.4, 'st pop', tm(1.5, at[i])) })
+        o += `<text class="lbl write" x="${x}" y="${f(y + size * 0.62)}" text-anchor="middle" style="--n:3;--w:${at[pts.length - 1] + 1.5}">${cap1(fg.pt)}</text>`
+      }
+      return o + moon(296, 24, 10, 0.3, 'rise', tm(6, 6 + k * 0.75 + 2)) + close
+    } },
+  { tag: '20', title: 'Abrir a tela', when: 'Toda vez que o Céu abre. Se houver estrela nova desde a última visita, a animação 1 toca logo depois, só para ela.', dur: '0,6 s (2 × --duration)', reduced: 'Fade de 0,5 s; a estrela nova já está lá.',
+    desc: 'O mesmo fade curto do Hoje e das Meditações, subindo 4 px. Nada se mexe depois, a não ser a estrela que você ainda não tinha visto.',
+    build: () => { const p = boatPts(170, 86, 118); return `<svg class="sky" viewBox="0 0 320 200" role="img" aria-hidden="true"><g class="anim-root open"${tm(2, 0.3)}>${ground('h')}${figure(BOAT, p, 6)}${figure(FIG.fish, place(FIG.fish, 58, 150, 60, 0.2), 9)}<text class="lbl" x="58" y="190" text-anchor="middle">O Peixe</text>${newStar(BOAT, p, 6, 3)}</g></svg>` } }
+]
+
+// ---------- part 3: the rare nights ----------
+const EVENTS = [
+  { title: 'Chuva de meteoros', rule: 'Calendário fixo: Quadrântidas (3–4 jan), Líridas (22 abr), Eta Aquáridas (5–6 mai), Delta Aquáridas (29–30 jul), Perseidas (12–13 ago), Oriônidas (21 out), Leônidas (17 nov), Geminídeas (13–14 dez).', freq: '≈ 13 noites por ano', stays: 'Nada; toca uma vez ao abrir.', herman: '“Hoje é noite das Perseidas.”', reduced: 'Não toca; só a fala do Herman, se ligado.',
+    build: () => { const R = rng('shower'); let o = open() + ground('m1') + figure(FIG.whale, place(FIG.whale, 90, 120, 90, 0.1), 9); for (let i = 0; i < 8; i++) { const a = 2.0 + R() * 1.1, len = 50 + R() * 50, x0 = 250 + Math.cos(a) * (10 + R() * 26), y0 = 30 + Math.sin(a) * (6 + R() * 16); o += `<path class="meteor ephemeral" pathLength="1" d="M${f(x0)} ${f(y0)}L${f(x0 + Math.cos(a) * len)} ${f(y0 + Math.sin(a) * len)}"${tm(3.4, 1 + i * 2.2 + R() * 1.5)}/>` } return o + `<text class="cap" x="250" y="190" text-anchor="middle">Perseidas</text>` + close } },
+  { title: 'Eclipse da lua', rule: 'Calendário fixo, de uma tabela de eclipses lunares (ex.: 3 mar 2026 total, 28 ago 2026 parcial).', freq: '1 a 3 por ano', stays: 'A lua fica cor de cobre a noite toda; a sombra passa só ao abrir.', herman: '“Eclipse esta noite. A lua fica cor de cobre.”', reduced: 'A lua já aparece eclipsada.',
+    build: () => `${open()}${ground('m2')}<defs><clipPath id="mclip"><circle cx="160" cy="92" r="40"/></clipPath></defs><circle class="moonr" cx="160" cy="92" r="40"/><circle class="moonw" cx="160" cy="92" r="40"/><g clip-path="url(#mclip)"><circle class="umbra shadow" cx="166" cy="92" r="46"${tm(16, 0.5)}/><circle class="copper fade" cx="160" cy="92" r="40"${tm(8, 10)}/></g><circle class="moonl" cx="160" cy="92" r="40"/><text class="cap" x="160" y="168" text-anchor="middle">Eclipse total da lua</text>${close}` },
+  { title: 'Halo da lua cheia', rule: 'Lua cheia, sorteada pela data (uma em cada três).', freq: '≈ 4 noites por ano', stays: 'O halo fica a noite toda.', herman: '—', reduced: 'O halo já está lá.',
+    build: () => `${open()}${ground('m3')}${moon(160, 96, 22, 0.5)}<circle class="halo settle" pathLength="1" cx="160" cy="96" r="58" style="--n:10;--w:0.5;stroke-width:0.7"/><circle class="halo settle" pathLength="1" cx="160" cy="96" r="62" style="--n:10;--w:1.5;stroke-width:0.4"/>${close}` },
+  { title: 'Cometa', rule: 'Sorteado pela data, uma visita por ano em média; fica sete noites seguidas, andando um pouco a cada noite.', freq: '≈ 1 por ano, 7 noites', stays: 'O cometa fica no céu durante a visita.', herman: '“Tem um cometa passando. Fica alguns dias.”', reduced: 'O cometa aparece no lugar da noite, sem deslizar.',
+    build: () => { let o = open() + ground('m4') + figure(FIG.kite, place(FIG.kite, 70, 100, 80, -0.1), 7) + `<g class="cometmove"${tm(10, 0.5)}>`; for (const [dx, dy] of [[70, -40], [78, -28], [62, -48]]) o += `<path class="comet-tail" d="M200 100Q${200 + dx * 0.5} ${100 + dy * 0.4} ${200 + dx} ${100 + dy}"/>`; return o + dot([200, 100], 2.2, 'comet-head') + '</g>' + `<text class="cap" x="230" y="150" text-anchor="middle">terceira noite de sete</text>` + close } },
+  { title: 'Estrela cadente sozinha', rule: 'Sorteada pela data.', freq: '≈ 1 noite em 45', stays: 'Nada.', herman: '—', reduced: 'Não toca.',
+    build: () => open() + ground('m5') + figure(FIG.cat, place(FIG.cat, 110, 104, 90, 0.05), 9) + `<g class="ephemeral"><path class="meteor-tail" pathLength="1" d="M60 30L250 110"${tm(5, 1)}/><path class="meteor" pathLength="1" d="M60 30L250 110"${tm(4.6, 1)}/></g>` + close },
+  { title: 'Satélite', rule: 'Sorteado pela data.', freq: '≈ 1 noite em 60', stays: 'Nada.', herman: '—', reduced: 'Não toca.',
+    build: () => open() + ground('m6') + figure(FIG.lighthouse, place(FIG.lighthouse, 240, 110, 90, 0), 8) + `<g class="across across-rest ephemeral" style="--n:40;--w:1;--from:-40px;--to:360px"><circle class="sat" cx="0" cy="54" r="1.1"/></g>` + close },
+  { title: 'Nuvem passando', rule: 'Sorteada pela data; mais comum nos meses de chuva do hemisfério.', freq: '≈ 1 noite em 40 (1 em 30 nos meses de chuva)', stays: 'Nada; ela cruza uma vez, devagar, e esconde estrelas no caminho.', herman: '—', reduced: 'Não toca.',
+    build: () => open() + ground('m7') + figure(BOAT, boatPts(), 8) + `<g class="across across-rest ephemeral" style="--n:44;--w:1;--from:-120px;--to:360px"><path class="cloud" d="M18 88.5a16 16 0 0 1-2-32 22 22 0 0 1 42.4-5.2A18.8 18.8 0 0 1 58 88.5Z"/></g>` + close },
+  { title: 'Revoada', rule: 'Sorteada pela data, só nos meses de outono do hemisfério.', freq: '≈ 1 noite em 40, no outono', stays: 'Nada.', herman: '—', reduced: 'Não toca.',
+    build: () => { let o = open() + ground('m8') + figure(FIG.heron, place(FIG.heron, 80, 104, 90, 0), 8) + `<g class="across across-rest ephemeral" style="--n:30;--w:1;--from:360px;--to:-80px">`; [[0, 0], [10, 6], [10, -6], [20, 12], [20, -12]].forEach(([dx, dy]) => { o += `<path class="bird" d="M${dx} ${60 + dy}q3 -4 6 -1q3 -3 6 1"/>` }); return o + '</g>' + close } },
+  { title: 'Vaga-lumes', rule: 'Sorteados pela data, só nas noites de verão do hemisfério.', freq: '≈ 1 noite em 15, no verão', stays: 'Piscam devagar, perto da borda de baixo, enquanto o Céu estiver aberto naquela noite.', herman: '—', reduced: 'Pontos parados, bem fracos.',
+    build: () => { const R = rng('flies'); let o = open() + ground('m9') + figure(FIG.ipe, place(FIG.ipe, 160, 90, 110, 0), 10); for (let i = 0; i < 7; i++) o += `<circle class="fly flicker" cx="${f(30 + R() * 260)}" cy="${f(160 + R() * 32)}" r="1.3" style="--d:${f(2.4 + R() * 3)}s;--o:${f(-R() * 4)}s;opacity:.2"/>`; return o + close } },
+  { title: 'Aniversário da primeira estrela', rule: 'Todo ano, na data da primeira Meditação.', freq: '1 por ano', stays: 'A primeira estrela fica com as quatro pontas a noite toda.', herman: '“A primeira estrela faz aniversário hoje.”', reduced: 'As quatro pontas já estão lá.',
+    build: () => { const p = place(FIG.fish, 160, 96, 140, 0.1), q = p[0]; return open() + ground('m10') + figure(FIG.fish, p, 9) + sparkle(q, 12, 0.5) + sparkle(q, 12, 4.5) + `<path class="cl fade" d="${glint(q, 8)}"${tm(3, 8)}/>` + dot(q, 2.2, 'accent-star') + close } },
+  { title: 'Solstício e equinócio', rule: 'Calendário fixo, quatro vezes por ano, com o nome certo para o hemisfério.', freq: '4 por ano', stays: 'O nome aparece embaixo do céu naquele dia.', herman: '“A noite mais longa do ano.” (solstício de inverno)', reduced: 'Só o nome.',
+    build: () => { let o = open(); [230, 300, 370].forEach((r, i) => { o += `<path class="grid-l sweep" d="M${160 - r} 420A${r} ${r} 0 0 1 ${160 + r} 420"${tm(10, 0.5 + i * 1.5)}/>` }); const R = rng('m11'); for (let i = 0; i < 24; i++) o += dot([R() * 320, R() * 200], f(0.4 + R() * 0.5), 'fs'); return o + figure(FIG.owl, place(FIG.owl, 160, 92, 100, 0), 10) + `<text class="cap fade" x="160" y="190" text-anchor="middle"${tm(4, 3)}>Solstício de inverno · a noite mais longa do ano</text>` + close } },
+  { title: 'Ano novo', rule: 'Calendário fixo: 1º de janeiro.', freq: '1 por ano', stays: 'Nada; os fogos são longe e pequenos.', herman: '“Feliz ano novo. O céu de 2027 começa vazio, como uma página.”', reduced: 'Não toca; só a fala.',
+    build: () => { let o = open() + ground('m12'); [[70, 150, 0.5], [190, 130, 3], [260, 160, 5.5]].forEach(([x, y, w]) => { for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; o += `<path class="burst ephemeral" pathLength="1" d="M${f(x + Math.cos(a) * 4)} ${f(y + Math.sin(a) * 4)}L${f(x + Math.cos(a) * 16)} ${f(y + Math.sin(a) * 16)}"${tm(5, w)}/>` } }); return o + `<text class="cap" x="160" y="40" text-anchor="middle">o céu de 2027, ainda sem estrelas</text>` + close } },
+  { title: 'Noite sem lua', rule: 'Lua nova (pela fase calculada). É um estado do céu: não conta como evento e convive com qualquer outro.', freq: '≈ 12 noites por ano', stays: 'A noite toda: o dobro de estrelas de fundo, bem fracas.', herman: '—', reduced: 'As estrelas já estão lá.',
+    build: () => { const R = rng('dark'); let o = open() + ground('m13') + `<circle class="moonr" cx="270" cy="34" r="12"/>`; for (let i = 0; i < 40; i++) o += dot([R() * 320, R() * 200], f(0.3 + R() * 0.4), 'fs fade', tm(6, 0.5 + R() * 6)); return o + figure(FIG.toucan, place(FIG.toucan, 140, 100, 110, 0), 8) + `<text class="cap" x="160" y="190" text-anchor="middle">Lua nova: aparecem mais estrelas.</text>` + close } }
+]
+
+// ---------- page ----------
+const state = { t: 1, motion: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduced' : 'normal', theme: 'system', figs: 'full' }
+try { const saved = JSON.parse(localStorage.getItem('sel-sky-anim2') || '{}'); if (saved.theme) state.theme = saved.theme } catch {}
+const $ = (id) => document.getElementById(id)
+const save = () => { try { localStorage.setItem('sel-sky-anim2', JSON.stringify({ theme: state.theme })) } catch {} }
+function segCtl(id, items, current, pick) {
+  const box = $(id)
+  box.innerHTML = ''
+  for (const [value, label] of items) { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.setAttribute('aria-pressed', String(value === current)); b.addEventListener('click', () => pick(value)); box.appendChild(b) }
+}
+function controls() {
+  segCtl('ctl-speed', [[1, 'Calma'], [1.6, 'Mais lenta'], [0.6, 'Rápida']], state.t, (x) => { state.t = x; document.documentElement.style.setProperty('--t', String(x)); controls() })
+  segCtl('ctl-motion', [['normal', 'Normal'], ['reduced', 'Reduzido']], state.motion, (x) => { state.motion = x; document.body.classList.toggle('reduced', x === 'reduced'); controls() })
+  segCtl('ctl-theme', [['system', 'Sistema'], ['light', 'Claro'], ['dark', 'Escuro']], state.theme, (x) => { state.theme = x; theme(); controls(); save() })
+  segCtl('ctl-figs', [['full', 'Inteiras'], ['half', 'Até a 5ª estrela'], ['draw', 'Desenhar']], state.figs, (x) => { state.figs = x; controls(); figs() })
+}
+function theme() { if (state.theme === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', state.theme) }
+function play(card) { card.classList.remove('play'); void card.offsetWidth; card.classList.add('play') }
+function cards(rootId, list, meta) {
+  const root = $(rootId)
+  root.innerHTML = list.map((c) => `<article class="card"><div class="card-top"><h3>${c.title}</h3>${c.tag ? `<span class="tag">era ${c.tag}</span>` : ''}</div>${c.build()}${c.desc ? `<p class="desc">${c.desc}</p>` : ''}<dl>${meta.map(([k, label]) => (c[k] ? `<dt>${label}</dt><dd>${c[k]}</dd>` : '')).join('')}</dl><div><button class="btn" type="button">Repetir</button></div></article>`).join('')
+  root.querySelectorAll('.card').forEach((card) => card.querySelector('button').addEventListener('click', () => play(card)))
+}
+const GROUPS = [['A mesa', 0, 13], ['Pela janela', 13, 20], ['O que cresce', 20, 29], ['Quem mora aqui', 29, 37], ['Brincar e tocar', 37, 45]]
+function figs() {
+  let html = ''
+  for (const [name, a, b] of GROUPS) {
+    html += `<p class="fig-group">${name}</p>`
+    for (const fg of SKY_FIGURES.slice(a, b)) {
+      const pts = place(fg, 60, 60, 92), lit = state.figs === 'half' ? Math.min(5, pts.length) : pts.length
+      let inner = ''
+      if (state.figs === 'draw') {
+        for (const sgm of segments(fg)) inner += seg(pts[sgm.a], pts[sgm.b], 'cl dash', tm(1.5, 0.5 + sgm.at * 1.6))
+        pts.forEach((p, i) => { inner += dot(p, 1.7, 'st pop', tm(1.5, 0.5 + i * 1.6)) })
+      } else inner = figure(fg, pts, lit, 1.7)
+      html += `<figure class="fig${state.figs === 'draw' ? ' play' : ''}"><svg viewBox="0 0 120 120" role="img" aria-label="${fg.pt}"><g class="anim-root">${inner}</g></svg><b>${cap1(fg.pt)}</b><span>${fg.en} · ${fg.stars.length} estrelas</span></figure>`
+    }
+  }
+  $('figs').innerHTML = html
+}
+function observe() {
+  if (!('IntersectionObserver' in window)) return
+  const seen = new IntersectionObserver((entries) => entries.forEach((e) => { if (e.isIntersecting) { play(e.target); seen.unobserve(e.target) } }), { threshold: 0.6 })
+  document.querySelectorAll('.card').forEach((c) => seen.observe(c))
+}
+$('play-all').addEventListener('click', () => { document.querySelectorAll('.card').forEach(play); if (state.figs === 'draw') figs() })
+document.body.classList.toggle('reduced', state.motion === 'reduced')
+theme(); controls()
+cards('moments', MOMENTS, [['when', 'Quando'], ['dur', 'Duração'], ['reduced', 'Movimento reduzido']])
+cards('events', EVENTS, [['rule', 'Quando'], ['freq', 'Frequência'], ['stays', 'O que fica'], ['herman', 'Herman'], ['reduced', 'Movimento reduzido']])
+figs(); observe()
+</script>

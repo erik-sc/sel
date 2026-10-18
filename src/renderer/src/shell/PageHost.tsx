@@ -5,11 +5,18 @@ import { bootMark } from '@/boot'
 import { DatabaseView } from '@/database/lazy'
 import { PageEditor } from '@/editor/lazy'
 import { fetchBlocks, useBlock, useBlockStatus } from '@/store/blocks'
-import { closeTab, openPage } from '@/store/tabs'
+import { closeTab, openPage, useTabs } from '@/store/tabs'
 import { setQuickFindOpen } from '@/store/ui'
 import { Button } from '@/ui/Button'
-import { Plus, Search, Trash, Undo } from '@/ui/icons'
+import { Archive, Board, Home, Plus, Search, Trash, Undo } from '@/ui/icons'
+import { isArchived, unarchivePage } from '@/archive/actions'
+import { useArchiveCopy } from '@/archive/locale'
+import { goHome, useHomeCopy, useHomeStatus } from '@/home/store'
+import { openTemplates, useTemplatesCopy } from '@/templates/gate'
+import { preloadTemplates } from '@/templates/Host'
 import { PageSkeleton } from '@/ui/Skeleton'
+import { isLatexDocument } from '@/latex/gate'
+import { LatexDocument } from '@/latex/lazy'
 import { createPage, deletePageForever, logError, pageTitle, reportError, restorePage } from './actions'
 import { isLinkedView } from './linked'
 import { PageIcon } from './PageIcon'
@@ -68,6 +75,20 @@ function TrashBanner({ block }: { block: Block }) {
   )
 }
 
+/** Over an archived page: only a notice, the page stays editable (the Trash banner wins when both apply). */
+function ArchiveBanner({ block }: { block: Block }) {
+  const copy = useArchiveCopy()
+  return (
+    <div className="archive-banner" role="status">
+      <Archive />
+      <span>{copy.banner}</span>
+      <Button icon={<Undo />} onClick={() => void unarchivePage(block.id)}>
+        {copy.unarchive}
+      </Button>
+    </div>
+  )
+}
+
 function NotFound() {
   return (
     <div className="page-state">
@@ -88,6 +109,15 @@ const RECENT_PAGES = 6
 
 export function EmptyState() {
   const [recent, setRecent] = useState<Block[]>([])
+  const homeCopy = useHomeCopy()
+  const templatesCopy = useTemplatesCopy()
+  const home = useHomeStatus()
+  const noTabs = useTabs((state) => state.tabs.length === 0)
+
+  // A window with nothing open shows the home, when there is one it can open.
+  useEffect(() => {
+    if (noTabs && home.status === 'ready') goHome()
+  }, [noTabs, home.status])
 
   useEffect(() => {
     let alive = true
@@ -120,6 +150,14 @@ export function EmptyState() {
           >
             New page
           </Button>
+          <Button icon={<Board />} onPointerEnter={preloadTemplates} onFocus={preloadTemplates} onClick={() => openTemplates()}>
+            {templatesCopy.command}
+          </Button>
+          {home.home !== null && (
+            <Button icon={<Home />} disabled={home.status !== 'ready'} onClick={goHome}>
+              {homeCopy.openHome}
+            </Button>
+          )}
           <Button icon={<Search />} onClick={() => setQuickFindOpen(true)}>
             Search
           </Button>
@@ -169,9 +207,22 @@ export const PageHost = memo(function PageHost({ pageId }: { pageId: string }) {
     )
   }
 
+  const banner = block.trashedAt ? <TrashBanner block={block} /> : isArchived(block) && <ArchiveBanner block={block} />
+  // A LaTeX document fills the page with its own split screen, which scrolls each side itself.
+  if (isLatexDocument(block)) {
+    return (
+      <div className="page-host">
+        {banner}
+        <ErrorBoundary key={pageId}>
+          <LatexDocument pageId={pageId} />
+        </ErrorBoundary>
+      </div>
+    )
+  }
+
   return (
     <div className="page-host">
-      {block.trashedAt && <TrashBanner block={block} />}
+      {banner}
       <div className="page-scroll" key={pageId}>
         <ErrorBoundary>
           {block.type === 'database' ? (

@@ -166,15 +166,16 @@ function sourceOf(repo: Repository, db: Block): Block | null {
 function chartToMarkdown(repo: Repository, db: Block, source: Block, title: string): string[] {
   const schema = normalizeDatabase(source).schema
   const view = sanitizeViews(db.props.views ?? [], schema)[0]
+  // Filter rules, axes and values on relations, rollups and formulas see the related rows.
+  const ctx = exportContext(repo)
   const rows = queryRows(
     repo.children(source.id).filter((row) => row.type === 'page' && row.trashedAt === null),
     schema,
     view,
     '',
-    // Filter rules on relations, rollups and formulas see the related rows.
-    exportContext(repo)
+    ctx
   )
-  const data = buildChartData(rows, schema, chartConfigOf(view, schema))
+  const data = buildChartData(rows, schema, chartConfigOf(view, schema), undefined, {}, ctx)
   const table = chartTable(data)
   const cell = (text: string): string => cellText(escapeText(text))
   const lines: string[] = []
@@ -304,6 +305,11 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
       const longest = Math.max(2, ...(code.match(/`+/g) ?? []).map((r) => r.length))
       const fence = '`'.repeat(longest + 1)
       return [`${fence}${(p.language ?? '').replace(/[^\w+#.-]/g, '')}`, ...code.split('\n'), fence]
+    }
+    case 'equation': {
+      // Display math between `$$` lines, as most Markdown dialects with math write it.
+      const tex = plainText(p.title).trim()
+      return tex ? ['$$', ...tex.split('\n'), '$$'] : []
     }
     case 'divider':
       return ['---']
@@ -579,7 +585,29 @@ function isSafeImageUrl(url: string): boolean {
 }
 
 /** Parses a pragmatic subset of CommonMark/GFM into a block tree. */
-export function parseMarkdown(source: string): { title: string | null; nodes: Node[] } {
+/**
+ * The blocks of a Markdown text. A leading `# heading` is the title of the page it becomes,
+ * unless `keepTitle` keeps it a heading (the text goes into a page that has its own title).
+ */
+/** Display math starting at line `first` (which begins with `$$`): its TeX and the line it ends on. */
+function parseDisplayMath(lines: readonly string[], first: number, indent: number): { tex: string; last: number } | null {
+  const opening = lines[first].trim().slice(2)
+  const oneLine = /^(.*?)\$\$\s*$/.exec(opening)
+  if (oneLine && opening.trim()) return { tex: oneLine[1].trim(), last: first }
+  const body: string[] = opening.trim() ? [opening] : []
+  for (let i = first + 1; i < lines.length; i++) {
+    const line = lines[i].startsWith(' '.repeat(indent)) ? lines[i].slice(indent) : lines[i].trimStart()
+    const end = /^(.*?)\$\$\s*$/.exec(line)
+    if (end) {
+      if (end[1].trim()) body.push(end[1])
+      return { tex: body.join('\n').trim(), last: i }
+    }
+    body.push(line)
+  }
+  return null
+}
+
+export function parseMarkdown(source: string, { keepTitle = false }: { keepTitle?: boolean } = {}): { title: string | null; nodes: Node[] } {
   scanBudget = INLINE_SCAN_BUDGET
   const lines = source.replace(/^﻿/, '').replace(/\r\n?/g, '\n').replace(/\t/g, INDENT).split('\n')
   const root: Node[] = []
@@ -635,12 +663,24 @@ export function parseMarkdown(source: string): { title: string | null; nodes: No
       continue
     }
 
+    // `$$ … $$` on one line, or `$$` lines around display math: an equation block. Without a
+    // closing `$$` the text stays a paragraph.
+    if (text.startsWith('$$')) {
+      const math = parseDisplayMath(lines, i, indent)
+      if (math) {
+        flush()
+        container(indent).push({ type: 'equation', props: { title: math.tex ? [[math.tex]] : [] }, children: [] })
+        i = math.last
+        continue
+      }
+    }
+
     const heading = /^(#{1,6})\s+(.*)$/.exec(text)
     if (heading) {
       flush()
       stack = []
       const content = headingText(heading[2])
-      if (heading[1].length === 1 && title === null && root.length === 0) {
+      if (!keepTitle && heading[1].length === 1 && title === null && root.length === 0) {
         title = plainText(inline(content))
       } else {
         const level = Math.min(3, heading[1].length) as 1 | 2 | 3
@@ -716,23 +756,44 @@ export function parseMarkdown(source: string): { title: string | null; nodes: No
   return { title, nodes: root }
 }
 
-/** Creates a new page under `parentId` from Markdown source, atomically. */
-export function importMarkdownText(
-  repo: Repository,
-  source: string,
-  parentId: string | null,
-  fallbackTitle = 'Untitled'
-): Block {
+/** Refuses a text too large to import, or one that parses into too many blocks. */
+function checkImport(source: string, nodes: readonly Node[]): void {
   if (source.length > MAX_IMPORT_BYTES) throw new Error(TOO_LARGE)
-  const { title, nodes } = parseMarkdown(source)
   let count = 0
   const pending = [...nodes]
   for (let node = pending.pop(); node; node = pending.pop()) {
     if (++count > MAX_IMPORT_BLOCKS) throw new Error('The file has too many blocks to import')
     for (const child of node.children) pending.push(child)
   }
-  const pageTitle = (title ?? fallbackTitle).trim().slice(0, MAX_TITLE_CHARS) || 'Untitled'
-  return repo.createTree({ type: 'page', props: { title: [[pageTitle]] }, children: nodes }, parentId)
+}
+
+/**
+ * Creates a new page under `parentId` from Markdown source, atomically. With `title`, the page
+ * is called that and a leading `# heading` of the text stays a heading.
+ */
+export function importMarkdownText(
+  repo: Repository,
+  source: string,
+  parentId: string | null,
+  fallbackTitle = 'Untitled',
+  title?: string
+): Block {
+  if (source.length > MAX_IMPORT_BYTES) throw new Error(TOO_LARGE)
+  const parsed = parseMarkdown(source, { keepTitle: title !== undefined })
+  checkImport(source, parsed.nodes)
+  const pageTitle = (title ?? parsed.title ?? fallbackTitle).trim().slice(0, MAX_TITLE_CHARS) || 'Untitled'
+  return repo.createTree({ type: 'page', props: { title: [[pageTitle]] }, children: parsed.nodes }, parentId)
+}
+
+/** Adds the blocks of a Markdown text to the end of page `pageId`, atomically. Returns how many top-level blocks were added. */
+export function appendMarkdownText(repo: Repository, pageId: string, source: string): number {
+  if (source.length > MAX_IMPORT_BYTES) throw new Error(TOO_LARGE)
+  const { nodes } = parseMarkdown(source, { keepTitle: true })
+  checkImport(source, nodes)
+  repo.transaction(() => {
+    for (const node of nodes) repo.createTree(node, pageId)
+  })
+  return nodes.length
 }
 
 // ================================================================== dialogs

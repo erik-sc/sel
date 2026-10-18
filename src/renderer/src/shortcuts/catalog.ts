@@ -66,10 +66,17 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { id: 'tab-position', label: 'Go to tab 1 to 8', keys: ['CmdOrCtrl+1…8'], notMac: true },
       { id: 'tab-last', label: 'Go to the last tab', keys: ['CmdOrCtrl+9'], notMac: true },
       { id: 'open-in-tab', label: 'Open a page in a new tab, from the sidebar', keys: ['CmdOrCtrl+Click', 'CmdOrCtrl+Enter'] },
+      { id: 'go-home', label: 'Home', command: 'go-home', keywords: ['start', 'início'] },
       { id: 'open-today', label: 'Today', command: 'open-today', keywords: ['briefing', 'agenda'] },
       { id: 'open-calendar', label: 'Calendar', command: 'open-calendar', keywords: ['events'] },
+      { id: 'open-tasks', label: 'Tasks', command: 'open-tasks', keywords: ['todo'] },
+      { id: 'add-task', label: 'Add a task', command: 'add-task', keywords: ['quick add', 'todo'] },
+      { id: 'add-task-here', label: 'Add a task, on the Tasks screen', keys: ['Q'], keywords: ['quick add'] },
+      { id: 'open-notebook', label: 'Meditations', command: 'open-notebook', keywords: ['meditações', 'journal', 'diary', 'notebook', 'ink', 'caderno'] },
+      { id: 'open-sky', label: 'Sky', command: 'open-sky', keywords: ['céu', 'stars', 'estrelas', 'constellations', 'garden', 'jardim'] },
       { id: 'calendar-day', label: 'A day earlier or later, in the calendar', keys: ['Left', 'Right'] },
-      { id: 'calendar-week', label: 'A week earlier or later, in the calendar', keys: ['Up', 'Down'] }
+      { id: 'calendar-week', label: 'A week earlier or later, in the calendar', keys: ['Up', 'Down'] },
+      { id: 'start-pomodoro', label: 'Start a pomodoro, or show its controls', command: 'start-pomodoro', keywords: ['timer', 'focus', 'break'] }
     ]
   },
   {

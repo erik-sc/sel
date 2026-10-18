@@ -172,6 +172,8 @@ export const TOKENS: TokenDef[] = [
   color('Accents', '--accent-soft', 'Soft accent', 'rgba(59, 79, 125, 0.11)', 'rgba(163, 177, 217, 0.15)'),
   color('Accents', '--danger', 'Danger', '#b0432f', '#dc7a68'),
   color('Accents', '--success', 'Success', '#55794c', '#92b586'),
+  color('Accents', '--moon', 'Moon', 'rgba(196, 163, 58, 0.22)', 'rgba(232, 214, 160, 0.3)', 'The lit part of the moon in the Sky.'),
+  color('Accents', '--copper', 'Copper moon', 'rgba(168, 84, 44, 0.32)', 'rgba(214, 120, 74, 0.34)', 'The moon on the night of an eclipse, in the Sky.'),
   color('Accents', '--focus-ring', 'Focus ring', 'rgba(59, 79, 125, 0.7)', 'rgba(163, 177, 217, 0.7)'),
 
   // ---- typography ----

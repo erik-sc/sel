@@ -1,5 +1,5 @@
 import { app, BrowserWindow, type WebContents } from 'electron'
-import { HERMAN_NUDGE_CHANNEL, type HermanNudgeReply } from '../../shared/herman'
+import { HERMAN_NUDGE_CHANNEL, type HermanLocale, type HermanNudgeReply } from '../../shared/herman'
 import type { Repository } from '../db/repository'
 import { devFastMode, HermanService, type HermanDay } from './service'
 
@@ -26,7 +26,8 @@ export class HermanBridge {
       day,
       pageExists: (id) => {
         const block = repo.get(id)
-        return !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database')
+        // An archived page was put away on purpose: he does not suggest going back to it.
+        return !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database') && !repo.archivedAmong([id]).has(id)
       },
       systemLocale: () => app.getLocale(),
       fast
@@ -43,6 +44,16 @@ export class HermanBridge {
 
   next(signals: unknown, sender: WebContents): Promise<HermanNudgeReply> {
     return this.service.next(signals, this.busy(sender))
+  }
+
+  /** The Sky played a moment he may remark on: said in `sender`, when he may speak at all. */
+  sky(sender: WebContents, line: (locale: HermanLocale) => string): void {
+    try {
+      const nudge = this.service.sky(line, this.busy(sender))
+      if (nudge && !sender.isDestroyed()) sender.send(HERMAN_NUDGE_CHANNEL, nudge)
+    } catch (err) {
+      console.error('[herman] could not remark on the sky', err)
+    }
   }
 
   /** A task was ticked in `sender`: when that makes a streak, he says so there and nowhere else. */

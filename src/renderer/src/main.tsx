@@ -22,7 +22,12 @@ import { preloadHerman } from './herman/Host'
 import { initSync } from './sync/store'
 import { initMeetings } from './meetings/gate'
 import { initUpdates } from './updates/store'
+import { initAlarms } from './alarms/gate'
+import { initPomodoro } from './pomodoro/gate'
+import { initSky } from './sky/route'
 import { openTodayOnLaunch, routeTitle } from './briefing/route'
+import { isQuickAddWindow } from './tasks/gate'
+import { initHome } from './home/store'
 
 bootMark('start')
 
@@ -43,39 +48,54 @@ const settings = Promise.all([
   initUi().catch((error) => console.error('could not load ui settings', error)),
   initAppearance().catch((error) => console.error('could not load appearance', error))
 ]).then(() => bootMark('settings'))
-void initTree()
-// Whether the AI entry points exist at all (`ai.enabled`); they stay hidden until this answers.
-void initAi()
-// Whether Herman, the assistant's face, is on (`herman.enabled`); his figure is fetched when the app is idle.
-const herman = initHerman()
-// The state of sync, for the indicator in the sidebar (nothing is loaded for it unless this device syncs).
-void initSync()
-initMeetings()
-// What the main process knows about a new version, for the notice and Settings. Reading it asks nothing of the network.
-initUpdates()
-void initTabs(initialPageId()).then(() => {
-  // The page about to be shown: fetch its blocks while the editor's code loads.
-  const pageId = tabPage(activeTab())
-  if (pageId && !routeTitle(pageId) && getBlock(pageId)?.type !== 'database') prefetchTree(pageId)
-  // Today opens by itself on the first launch of the day (`briefing.openOnLaunch`).
-  void openTodayOnLaunch()
-})
+// The small window of the system-wide quick add (tasks/QuickAddWindow.tsx) shows that input
+// alone: none of the workspace below is loaded there, and its tabs are not touched.
+if (isQuickAddWindow()) void settings.finally(() => void import('./tasks/QuickAddWindow').then((module) => module.mountQuickAddWindow()))
+else bootWorkspace()
 
-function mount(): void {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>
-  )
-  // Code that is not needed for the first frame but very likely soon after it.
-  whenIdle(() => {
-    preloadEditor()
-    preloadQuickFind()
-    preloadPalette()
-    preloadShortcuts()
-    void herman.then(preloadHerman)
+function bootWorkspace(): void {
+  void initTree()
+  // Whether the AI entry points exist at all (`ai.enabled`); they stay hidden until this answers.
+  void initAi()
+  // Whether Herman, the assistant's face, is on (`herman.enabled`); his figure is fetched when the app is idle.
+  const herman = initHerman()
+  // The state of sync, for the indicator in the sidebar (nothing is loaded for it unless this device syncs).
+  void initSync()
+  initMeetings()
+  // What the main process knows about a new version, for the notice and Settings. Reading it asks nothing of the network.
+  initUpdates()
+  // What the alarms' clock in the main process has to say (a briefing at one of its times, a reminder).
+  initAlarms()
+  // The home (synced) and what start-up does on this device, for the Home button and Settings.
+  initHome()
+  // The pomodoro the main process keeps: the widget shows it while one is on (and after a reload).
+  initPomodoro()
+  // Whether the Sky is on: its button, command and shortcut follow.
+  initSky()
+  void initTabs(initialPageId()).then(() => {
+    // The page about to be shown: fetch its blocks while the editor's code loads.
+    const pageId = tabPage(activeTab())
+    if (pageId && !routeTitle(pageId) && getBlock(pageId)?.type !== 'database') prefetchTree(pageId)
+    // Today opens by itself on the first launch of the day (`briefing.openOnLaunch`).
+    void openTodayOnLaunch()
   })
-}
 
-if (mirrored) mount()
-else void settings.finally(mount)
+  function mount(): void {
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    )
+    // Code that is not needed for the first frame but very likely soon after it.
+    whenIdle(() => {
+      preloadEditor()
+      preloadQuickFind()
+      preloadPalette()
+      preloadShortcuts()
+      void herman.then(preloadHerman)
+    })
+  }
+
+  if (mirrored) mount()
+  else void settings.finally(mount)
+}

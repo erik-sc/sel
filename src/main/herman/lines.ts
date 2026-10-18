@@ -68,16 +68,6 @@ const EN: Record<HermanNudgeKind, Line[]> = {
     line((w) => `${w.N} for today. Just the first ten minutes.`),
     line(() => 'What did you promise yourself today?')
   ],
-  'event-soon': [
-    titled((w) => `“${w.title}” in ${w.minutes} minutes. Close this thought first.`),
-    titled((w) => `${w.Minutes} minutes to “${w.title}”. What do you want from it?`),
-    titled((w) => `“${w.title}” in ${w.minutes} minutes. Water, a breath, go.`),
-    titled((w) => `Nearly time for “${w.title}”. One line on what you need?`),
-    line((w) => `${w.Minutes} minutes to the next thing. Note where you stopped.`),
-    titled((w) => `“${w.title}” is close. Arrive a minute early.`),
-    titled((w) => `${w.Minutes} minutes before “${w.title}”. Start nothing big.`),
-    titled((w) => `Soon: “${w.title}”. A page for the notes?`)
-  ],
   'free-block': [
     line((w) => `Nothing scheduled ${w.until}. What deserves it?`),
     line((w) => `${w.Span} free. Give it to deep work.`),
@@ -119,13 +109,14 @@ const EN: Record<HermanNudgeKind, Line[]> = {
     line(() => 'Another morning. Begin small.'),
     line(() => 'Good morning. Start with what is in front of you.')
   ],
+  // Each is an invitation to close the day: its button opens the ritual.
   evening: [
     line(() => 'Enough for today. What is worth keeping?'),
-    line(() => 'The day is closing. Note where you stopped.'),
-    line(() => 'Evening. The unfinished can wait.'),
-    line(() => 'A good place to end. What went well?'),
-    line(() => 'Late enough. Leave tomorrow a note.'),
-    line(() => 'What is the last small thing?'),
+    line(() => 'The day is closing. Shall we close it properly?'),
+    line(() => 'Evening. The unfinished can wait until tomorrow.'),
+    line(() => 'A good place to end. One line for your Meditations?'),
+    line(() => 'Late enough. Leave tomorrow three small things.'),
+    line(() => 'Close the day before it closes you.'),
     line(() => 'Day’s end. One thing you would repeat?'),
     line(() => 'You gave today what you had. Close gently.')
   ],
@@ -163,16 +154,6 @@ const PT: Record<HermanNudgeKind, Line[]> = {
     line(() => 'A lista de hoje dá para terminar.'),
     line((w) => `${w.N} para hoje. Só os primeiros dez minutos.`),
     line(() => 'O que você prometeu a si para hoje?')
-  ],
-  'event-soon': [
-    titled((w) => `“${w.title}” em ${w.minutes} minutos. Feche este pensamento antes.`),
-    titled((w) => `${w.Minutes} minutos até “${w.title}”. O que quer de lá?`),
-    titled((w) => `“${w.title}” em ${w.minutes} minutos. Água, um respiro, e vá.`),
-    titled((w) => `Quase hora de “${w.title}”. Uma linha sobre o que precisa?`),
-    line((w) => `${w.Minutes} minutos até a próxima. Anote onde parou.`),
-    titled((w) => `“${w.title}” está perto. Chegue um minuto antes.`),
-    titled((w) => `${w.Minutes} minutos antes de “${w.title}”. Nada grande agora.`),
-    titled((w) => `Daqui a pouco: “${w.title}”. Abro uma página de notas?`)
   ],
   'free-block': [
     line((w) => `Nada na agenda ${w.until}. O que merece esse tempo?`),
@@ -217,11 +198,11 @@ const PT: Record<HermanNudgeKind, Line[]> = {
   ],
   evening: [
     line(() => 'Chega por hoje. O que vale guardar?'),
-    line(() => 'O dia está fechando. Anote onde parou.'),
-    line(() => 'Fim de tarde. O inacabado pode esperar.'),
-    line(() => 'Bom lugar para parar. O que deu certo?'),
-    line(() => 'Já é tarde. Deixe um bilhete para amanhã.'),
-    line(() => 'Qual é a última coisa pequena?'),
+    line(() => 'O dia está fechando. Vamos fechá-lo direito?'),
+    line(() => 'Fim de tarde. O inacabado pode esperar até amanhã.'),
+    line(() => 'Bom lugar para parar. Uma linha para as Meditações?'),
+    line(() => 'Já é tarde. Deixe três coisas pequenas para amanhã.'),
+    line(() => 'Feche o dia antes que ele feche você.'),
     line(() => 'Fim do dia. Uma coisa que você repetiria?'),
     line(() => 'Você deu a hoje o que tinha. Feche com calma.')
   ],
@@ -244,8 +225,9 @@ export const PHRASES: Record<
   HermanLocale,
   {
     openToday: string
+    /** The evening invitation's button: it opens the ritual that closes the day. */
+    closeDay: string
     openTask: string
-    takeNotes: string
     ask: string
     notNow: string
     fewer: string
@@ -256,34 +238,31 @@ export const PHRASES: Record<
     /** Questions he writes into the conversation for the user to send or change. */
     askFirst: string
     askPage: string
-    askDay: string
   }
 > = {
   en: {
     openToday: 'Open Today',
+    closeDay: 'Close the day',
     openTask: 'Open it',
-    takeNotes: 'Take notes',
     ask: 'Ask Herman',
     notNow: 'Not now',
     fewer: 'Fewer like this',
     greeting: 'Hello. I am Herman.',
     aiOff: 'AI is off in Settings.',
     askFirst: 'What should I do first today?',
-    askPage: 'What is this page really about?',
-    askDay: 'What is worth carrying over to tomorrow?'
+    askPage: 'What is this page really about?'
   },
   'pt-BR': {
     openToday: 'Abrir Hoje',
+    closeDay: 'Fechar o dia',
     openTask: 'Abrir',
-    takeNotes: 'Fazer anotações',
     ask: 'Perguntar ao Herman',
     notNow: 'Agora não',
     fewer: 'Menos como esta',
     greeting: 'Olá. Sou o Herman.',
     aiOff: 'A IA está desligada em Settings.',
     askFirst: 'O que devo fazer primeiro hoje?',
-    askPage: 'Sobre o que é esta página, de verdade?',
-    askDay: 'O que vale levar para amanhã?'
+    askPage: 'Sobre o que é esta página, de verdade?'
   }
 }
 
@@ -346,4 +325,58 @@ export function spanWords(minutes: number, locale: HermanLocale): string {
   const count = numberWord(hours, locale, true)
   if (pt) return `${count} horas${half ? ' e meia' : ''}`
   return half ? `${count} and a half hours` : `${count} hours`
+}
+
+// ---- the Sky ------------------------------------------------------------------------
+//
+// What he says about the Sky (shared/sky): rarely, once a day at most, and only about something
+// that happened there. Never about what is missing, never with a count. Outside the counsel: the
+// Sky decides the moment and these lines say it.
+
+export type SkyLineMoment =
+  | { kind: 'named'; month: string; name: string; given: boolean }
+  | { kind: 'meteors'; shower: string }
+  | { kind: 'eclipse' }
+  | { kind: 'comet' }
+  | { kind: 'anniversary' }
+  | { kind: 'longest-night' }
+  | { kind: 'new-year'; year: number }
+
+export const SKY_LINES: Record<HermanLocale, (moment: SkyLineMoment) => string> = {
+  en: (m) => {
+    switch (m.kind) {
+      case 'named':
+        return m.given ? `${m.month} became “${m.name}”.` : `${m.month} became ${m.name}.`
+      case 'meteors':
+        return `Tonight is the night of the ${m.shower}.`
+      case 'eclipse':
+        return 'An eclipse tonight. The moon turns copper.'
+      case 'comet':
+        return 'A comet is passing. It stays a few days.'
+      case 'anniversary':
+        return 'The first star has its birthday today.'
+      case 'longest-night':
+        return 'The longest night of the year.'
+      case 'new-year':
+        return `Happy new year. The sky of ${m.year} begins empty, like a page.`
+    }
+  },
+  'pt-BR': (m) => {
+    switch (m.kind) {
+      case 'named':
+        return m.given ? `${m.month} virou “${m.name}”.` : `${m.month} virou ${m.name}.`
+      case 'meteors':
+        return `Hoje é noite das ${m.shower}.`
+      case 'eclipse':
+        return 'Eclipse esta noite. A lua fica cor de cobre.'
+      case 'comet':
+        return 'Tem um cometa passando. Fica alguns dias.'
+      case 'anniversary':
+        return 'A primeira estrela faz aniversário hoje.'
+      case 'longest-night':
+        return 'A noite mais longa do ano.'
+      case 'new-year':
+        return `Feliz ano novo. O céu de ${m.year} começa vazio, como uma página.`
+    }
+  }
 }

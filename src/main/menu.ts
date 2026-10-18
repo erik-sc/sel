@@ -51,6 +51,7 @@ export function buildMenu(): void {
       label: 'File',
       submenu: [
         item('New Page', 'new-page'),
+        item('New Page from Template…', 'new-from-template'),
         item('New Tab', 'new-tab'),
         item('New Meeting', 'new-meeting'),
         { type: 'separator' },
@@ -92,8 +93,15 @@ export function buildMenu(): void {
       submenu: [
         item('Command Palette…', 'command-palette'),
         { type: 'separator' },
+        item('Home', 'go-home'),
         item('Today', 'open-today'),
         item('Calendar', 'open-calendar'),
+        item('Tasks', 'open-tasks'),
+        item('Add a Task…', 'add-task'),
+        item('Meditations', 'open-notebook'),
+        item('Sky', 'open-sky'),
+        item('Close the Day', 'close-day'),
+        item('Start a Pomodoro', 'start-pomodoro'),
         { type: 'separator' },
         item('Toggle Sidebar', 'toggle-sidebar'),
         item('Toggle Assistant', 'toggle-assistant'),

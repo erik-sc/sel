@@ -2,6 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { lstat, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
+import { cleanBriefingSetting } from '../../shared/briefing'
+import { cleanHome } from '../../shared/home'
+import { cleanSidebar } from '../../shared/sidebar'
 import { plainText } from '../../shared/richtext'
 import {
   checkRemoteUrl,
@@ -22,6 +25,7 @@ import type { Repository, SyncChange } from '../db/repository'
 import { createEncryption, exportKeys, hiddenName, importKeys, keysMatch, open, seal, unlockEncryption, WrongKeyError, type Keys } from './crypto'
 import {
   APP,
+  cleanCalendars,
   FILE_NAME_RE,
   fingerprintPages,
   FORMAT,
@@ -29,9 +33,16 @@ import {
   imageNames,
   LEGACY,
   mergeAppearance,
+  mergeHome,
+  mergeSidebar,
+  mergeCalendars,
+  noCalendars,
   pagesOf,
   pageTree,
   parseAppearance,
+  parseHome,
+  parseSidebar,
+  parseCalendars,
   parseMeta,
   parsePage,
   parseRoot,
@@ -39,6 +50,9 @@ import {
   README_MARK,
   README_TEXT,
   serializeAppearance,
+  serializeHome,
+  serializeSidebar,
+  serializeCalendars,
   serializeMeta,
   serializePage,
   serializeRoot,
@@ -46,6 +60,10 @@ import {
   workspaceFromPages,
   workspaceFromRows,
   type AppearanceFile,
+  type HomeFile,
+  type SidebarFile,
+  type CalendarsFile,
+  type CalendarSync,
   type EncryptionParams,
   type RepoMeta
 } from './format'
@@ -95,6 +113,11 @@ export interface SyncEngineOptions {
   onStatus?: (status: SyncStatus) => void
   /** The database was changed by a sync: time to tell the windows. */
   onApplied?: () => void
+  /**
+   * This device's connected calendars. They go into the repository, and come out of it, only
+   * when it is encrypted: their addresses are credentials. Loaded only for such a repository.
+   */
+  calendars?: () => CalendarSync | Promise<CalendarSync>
   /** Tests: runs before each step; throwing simulates a crash right there. */
   beforeStep?: (step: SyncStep) => void | Promise<void>
   /** Tests: every git argument array and environment. */
@@ -116,14 +139,26 @@ const KEYS = {
   activity: 'sync.activity',
   useAnyway: 'sync.useAnyway',
   appearanceAt: 'sync.appearanceAt',
+  /** When the home was last changed: decides which device's choice stands. */
+  homeAt: 'sync.homeAt',
+  /** When the sidebar's layout was last changed: decides which device's layout stands. */
+  sidebarAt: 'sync.sidebarAt',
   encrypted: 'sync.encrypted',
   /** `replace` until the first download: this device's pages give way to the workspace. */
-  firstMode: 'sync.firstMode'
+  firstMode: 'sync.firstMode',
+  /** When `briefing.databases` was last changed: decides which device's choice stands. */
+  briefingAt: 'sync.briefingAt'
 } as const
 const APPEARANCE_KEY = 'appearance'
+const HOME_KEY = 'home'
+const SIDEBAR_KEY = 'sidebar'
+const DATABASES_KEY = 'briefing.databases'
 /** Entries of `sync_state` that are not pages. `~` cannot be part of a block id. */
 const STATE_ROOT = '~root'
 const STATE_APPEARANCE = '~appearance'
+const STATE_HOME = '~home'
+const STATE_SIDEBAR = '~sidebar'
+const STATE_CALENDARS = '~calendars'
 const STATE_META = '~meta'
 const DIRTY = ''
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024
@@ -194,6 +229,13 @@ interface RepoTree {
   rootText: string | null
   appearanceText: string | null
   appearance: AppearanceFile | null
+  homeText: string | null
+  home: HomeFile | null
+  sidebarText: string | null
+  sidebar: SidebarFile | null
+  /** Read only from an encrypted tree: anywhere else the file is ignored. */
+  calendarsText: string | null
+  calendars: CalendarsFile | null
   ws: Workspace
   /** Files that are not sel's. */
   foreign: number
@@ -210,7 +252,7 @@ interface Outcome {
 }
 
 function emptyTree(): RepoTree {
-  return { commit: null, meta: null, codec: PLAIN, entries: new Map(), pages: new Map(), rootText: null, appearanceText: null, appearance: null, ws: emptyWorkspace(), foreign: 0, author: 'another device' }
+  return { commit: null, meta: null, codec: PLAIN, entries: new Map(), pages: new Map(), rootText: null, appearanceText: null, appearance: null, homeText: null, home: null, sidebarText: null, sidebar: null, calendarsText: null, calendars: null, ws: emptyWorkspace(), foreign: 0, author: 'another device' }
 }
 
 function isOurPath(path: string): boolean {
@@ -222,6 +264,9 @@ function isOurPath(path: string): boolean {
     path === LEGACY.readmeAlt ||
     path === PATHS.workspace ||
     path === PATHS.appearance ||
+    path === PATHS.home ||
+    path === PATHS.sidebar ||
+    path === PATHS.calendars ||
     path.startsWith(PATHS.pages) ||
     path.startsWith(PATHS.files)
   )
@@ -595,9 +640,13 @@ export class SyncEngine {
     if (metaSha) for (const [path, sha] of tree.entries) if (path.startsWith(PATHS.pages)) pageShas.push(sha)
     const rootSha = metaSha ? tree.entries.get(PATHS.workspace) : undefined
     const appearanceSha = metaSha ? tree.entries.get(PATHS.appearance) : undefined
+    const homeSha = metaSha ? tree.entries.get(PATHS.home) : undefined
+    const sidebarSha = metaSha ? tree.entries.get(PATHS.sidebar) : undefined
+    const calendarsSha = metaSha ? tree.entries.get(PATHS.calendars) : undefined
     const missing = pageShas.filter((sha) => !this.blobs.has(sha))
     // Everything in one go: the commit itself (who made it), the meta file, and the files not seen before.
-    const blobs = await this.readBlobs(git, [commit, ...(metaSha ? [metaSha] : []), ...missing, ...(rootSha ? [rootSha] : []), ...(appearanceSha ? [appearanceSha] : [])])
+    const settingShas = [rootSha, appearanceSha, homeSha, sidebarSha, calendarsSha].filter((sha): sha is string => sha !== undefined)
+    const blobs = await this.readBlobs(git, [commit, ...(metaSha ? [metaSha] : []), ...missing, ...settingShas])
     const author = /^author (.*?) <[^>]*> \d+ [+-]\d{4}$/m.exec((blobs.get(commit) ?? Buffer.alloc(0)).toString('utf8').split('\n\n', 1)[0])
     tree.author = cleanDeviceName(author?.[1], 'another device')
     if (!metaSha) return tree
@@ -633,6 +682,15 @@ export class SyncEngine {
     tree.rootText = text(rootSha, PATHS.workspace)
     tree.appearanceText = text(appearanceSha, PATHS.appearance)
     tree.appearance = tree.appearanceText === null ? null : parseAppearance(tree.appearanceText)
+    tree.homeText = text(homeSha, PATHS.home)
+    tree.home = tree.homeText === null ? null : parseHome(tree.homeText)
+    tree.sidebarText = text(sidebarSha, PATHS.sidebar)
+    tree.sidebar = tree.sidebarText === null ? null : parseSidebar(tree.sidebarText)
+    // Calendars are taken only from where sel puts them: sealed with the workspace's key.
+    if (tree.codec.encrypted) {
+      tree.calendarsText = text(calendarsSha, PATHS.calendars)
+      tree.calendars = tree.calendarsText === null ? null : parseCalendars(tree.calendarsText)
+    }
     tree.ws = workspaceFromPages(
       [...tree.pages.values()].map((page) => page.blocks),
       tree.rootText === null ? null : parseRoot(tree.rootText)
@@ -674,6 +732,49 @@ export class SyncEngine {
   private appearanceNow(): AppearanceFile {
     const at = this.setting<unknown>(KEYS.appearanceAt)
     return { updatedAt: typeof at === 'number' && Number.isFinite(at) ? at : 0, value: this.setting(APPEARANCE_KEY) }
+  }
+
+  private homeNow(): HomeFile {
+    const at = this.setting<unknown>(KEYS.homeAt)
+    return { updatedAt: typeof at === 'number' && Number.isFinite(at) ? at : 0, value: cleanHome(this.setting(HOME_KEY)) ?? null }
+  }
+
+  private sidebarNow(): SidebarFile {
+    const at = this.setting<unknown>(KEYS.sidebarAt)
+    return { updatedAt: typeof at === 'number' && Number.isFinite(at) ? at : 0, value: cleanSidebar(this.setting(SIDEBAR_KEY)) ?? null }
+  }
+
+  /** The calendars of this device, or null when there are none to carry (no hook, or it failed to load). */
+  private async calendarHook(): Promise<CalendarSync | null> {
+    if (!this.options.calendars) return null
+    try {
+      return await this.options.calendars()
+    } catch (err) {
+      console.error('[sync] the calendars could not be loaded', err)
+      return null
+    }
+  }
+
+  /**
+   * True when the calendars of an encrypted repository were left out of the last merge (this
+   * device could not read its own then) and now can be: the commit already merged is merged again.
+   */
+  private async calendarsBehind(): Promise<boolean> {
+    if (this.setting(KEYS.encrypted) !== true || this.repo.syncStates().has(STATE_CALENDARS)) return false
+    const hook = await this.calendarHook()
+    return hook !== null && hook.export() !== null
+  }
+
+  /** This device's calendars and task databases as the repository would hold them; null when they cannot be read here. */
+  private calendarsNow(hook: CalendarSync): CalendarsFile | null {
+    const mine = hook.export()
+    if (!mine) return null
+    const at = this.setting<unknown>(KEYS.briefingAt)
+    const value = cleanBriefingSetting(DATABASES_KEY, this.setting(DATABASES_KEY))
+    return {
+      ...cleanCalendars(mine.calendars, mine.removed),
+      databases: { updatedAt: typeof at === 'number' && Number.isFinite(at) && at > 0 ? Math.floor(at) : 0, value: Array.isArray(value) ? (value as string[]) : null }
+    }
   }
 
   /** Copies the images the downloaded pages show, and this device does not have, out of the repository. */
@@ -733,6 +834,7 @@ export class SyncEngine {
         : null) ?? emptyTree()
     const from = remote.author
     await this.importImages(git, remote)
+    const hook = remote.codec.encrypted ? await this.calendarHook() : null
     await this.step('apply')
 
     // ---- no awaits from here to the end of the transaction
@@ -758,6 +860,33 @@ export class SyncEngine {
       settings[APPEARANCE_KEY] = appearance.value
       settings[KEYS.appearanceAt] = appearance.updatedAt
       outcome.appearance = true
+    }
+    const localHome = this.homeNow()
+    const home = mergeHome(baseTree.home, localHome, remote.home)
+    if (home !== localHome && serializeHome(home) !== serializeHome(localHome)) {
+      settings[HOME_KEY] = home.value
+      settings[KEYS.homeAt] = home.updatedAt
+    }
+    const localSidebar = this.sidebarNow()
+    const sidebar = mergeSidebar(baseTree.sidebar, localSidebar, remote.sidebar)
+    if (sidebar !== localSidebar && serializeSidebar(sidebar) !== serializeSidebar(localSidebar)) {
+      settings[SIDEBAR_KEY] = sidebar.value
+      settings[KEYS.sidebarAt] = sidebar.updatedAt
+    }
+
+    // Calendars: only out of an encrypted tree, and only on a device that can read its own.
+    const localCalendars = hook ? this.calendarsNow(hook) : null
+    const calendars = localCalendars ? mergeCalendars(baseTree.calendars, localCalendars, remote.calendars) : null
+    const calendarsText = calendars ? serializeCalendars(calendars) : null
+    let calendarsChanged = false
+    let databasesChanged = false
+    if (calendars && localCalendars) {
+      calendarsChanged = serializeCalendars({ ...calendars, databases: localCalendars.databases }) !== serializeCalendars(localCalendars)
+      databasesChanged = calendars.databases !== localCalendars.databases
+      if (databasesChanged) {
+        settings[DATABASES_KEY] = calendars.databases.value
+        settings[KEYS.briefingAt] = calendars.databases.updatedAt
+      }
     }
 
     // Pages whose content changes here, and the pages that hold a block both devices changed.
@@ -796,6 +925,10 @@ export class SyncEngine {
     const resultPages = pagesOf(result)
     const rootText = serializeRoot(result)
     const appearanceText = serializeAppearance(appearance)
+    const homeText = serializeHome(home)
+    const sidebarText = serializeSidebar(sidebar)
+    // Before the database: should this fail, nothing was applied and the next sync merges again.
+    if (calendars && calendarsChanged) hook?.import(calendars)
     this.repo.applySync(change, () => {
       // What the repository already has of the merged state does not need to be uploaded again.
       const prints = fingerprintPages(this.repo.syncRows())
@@ -808,11 +941,17 @@ export class SyncEngine {
       for (const pageId of remote.pages.keys()) if (!states.has(pageId)) states.set(pageId, DIRTY)
       states.set(STATE_ROOT, remote.rootText === rootText ? sha1(rootText) : DIRTY)
       states.set(STATE_APPEARANCE, remote.appearanceText === appearanceText || (remote.appearanceText === null && appearance.value == null) ? sha1(appearanceText) : DIRTY)
+      states.set(STATE_HOME, remote.homeText === homeText || (remote.homeText === null && home.value === null) ? sha1(homeText) : DIRTY)
+      states.set(STATE_SIDEBAR, remote.sidebarText === sidebarText || (remote.sidebarText === null && sidebar.value === null) ? sha1(sidebarText) : DIRTY)
+      if (calendars && calendarsText !== null) {
+        states.set(STATE_CALENDARS, remote.calendarsText === calendarsText || (remote.calendarsText === null && noCalendars(calendars)) ? sha1(calendarsText) : DIRTY)
+      }
       // A repository still under the app's earlier name counts as not written yet: the upload renames it.
       if (!remote.entries.has(LEGACY.meta)) states.set(STATE_META, remoteHead)
       return states
     })
     this.options.onApplied?.()
+    if (databasesChanged && !calendarsChanged) hook?.changed()
 
     outcome.received = touched.size
     outcome.from = from
@@ -830,6 +969,8 @@ export class SyncEngine {
    * went up, or `rejected` when the remote moved in the meantime (the caller starts over).
    */
   private async upload(git: Git, config: Config, base: string | null, remoteHead: string | null): Promise<{ sent: number; rejected: boolean }> {
+    // The calendars are looked at only when the repository is (or is about to be) encrypted.
+    const hook = this.setting(KEYS.encrypted) === true || this.secrets().pending ? await this.calendarHook() : null
     // ---- one consistent look at the database, nothing awaited
     const rows = this.repo.syncRows()
     const prints = fingerprintPages(rows)
@@ -839,6 +980,10 @@ export class SyncEngine {
     const rootText = serializeRoot(ws)
     const appearance = this.appearanceNow()
     const appearanceText = serializeAppearance(appearance)
+    const home = this.homeNow()
+    const homeText = serializeHome(home)
+    const sidebar = this.sidebarNow()
+    const sidebarText = serializeSidebar(sidebar)
     const changed = new Map<string, string>()
     const removed: string[] = []
     for (const [pageId, print] of prints) {
@@ -850,6 +995,13 @@ export class SyncEngine {
     for (const pageId of states.keys()) if (!pageId.startsWith('~') && !prints.has(pageId)) removed.push(pageId)
     const rootDirty = states.get(STATE_ROOT) !== sha1(rootText)
     const appearanceDirty = states.get(STATE_APPEARANCE) !== sha1(appearanceText) && (appearance.value != null || states.has(STATE_APPEARANCE))
+    // A home that was set and then cleared is written too, so that the other devices clear theirs.
+    const homeDirty = states.get(STATE_HOME) !== sha1(homeText) && (home.value !== null || states.has(STATE_HOME))
+    // So is a layout put back to the default.
+    const sidebarDirty = states.get(STATE_SIDEBAR) !== sha1(sidebarText) && (sidebar.value !== null || states.has(STATE_SIDEBAR))
+    const calendars = hook ? this.calendarsNow(hook) : null
+    let calendarsText = calendars ? serializeCalendars(calendars) : null
+    const calendarsDirty = calendars !== null && calendarsText !== null && states.get(STATE_CALENDARS) !== sha1(calendarsText) && (!noCalendars(calendars) || states.has(STATE_CALENDARS))
     const first = !states.has(STATE_META)
     this.pending = changed.size + removed.length
     const recorded = (): Map<string, string> => {
@@ -857,10 +1009,13 @@ export class SyncEngine {
       // A page that could not be written (nothing reaches it) is not looked at again until it changes.
       next.set(STATE_ROOT, sha1(rootText))
       next.set(STATE_APPEARANCE, sha1(appearanceText))
+      next.set(STATE_HOME, sha1(homeText))
+      next.set(STATE_SIDEBAR, sha1(sidebarText))
+      if (calendarsText !== null) next.set(STATE_CALENDARS, sha1(calendarsText))
       next.set(STATE_META, 'written')
       return next
     }
-    if (!changed.size && !removed.length && !rootDirty && !appearanceDirty && !first && (remoteHead !== null || base === null)) return { sent: 0, rejected: false }
+    if (!changed.size && !removed.length && !rootDirty && !appearanceDirty && !homeDirty && !sidebarDirty && !calendarsDirty && !first && (remoteHead !== null || base === null)) return { sent: 0, rejected: false }
 
     await this.step('write')
     await this.prepareTree(git, config.branch, base)
@@ -913,6 +1068,19 @@ export class SyncEngine {
     if (appearance.value != null && (appearanceDirty || !exists(PATHS.appearance))) {
       await this.writeTreeFile(PATHS.appearance, codec.encode(PATHS.appearance, Buffer.from(appearanceText, 'utf8')))
     }
+    if (homeDirty || (home.value !== null && !exists(PATHS.home))) {
+      await this.writeTreeFile(PATHS.home, codec.encode(PATHS.home, Buffer.from(homeText, 'utf8')))
+    }
+    if (sidebarDirty || (sidebar.value !== null && !exists(PATHS.sidebar))) {
+      await this.writeTreeFile(PATHS.sidebar, codec.encode(PATHS.sidebar, Buffer.from(sidebarText, 'utf8')))
+    }
+    if (!codec.encrypted) {
+      // Addresses of calendars are credentials: never in a repository that is not encrypted.
+      calendarsText = null
+      await rm(join(this.repoDir, PATHS.calendars), { force: true })
+    } else if (calendars && calendarsText !== null && (calendarsDirty || (!noCalendars(calendars) && !exists(PATHS.calendars)))) {
+      await this.writeTreeFile(PATHS.calendars, codec.encode(PATHS.calendars, Buffer.from(calendarsText, 'utf8')))
+    }
     // Images the changed pages show, when the repository does not have them yet.
     const names = imageNames(appearanceText)
     for (const text of changed.values()) imageNames(text, names)
@@ -964,7 +1132,7 @@ export class SyncEngine {
       await this.step('fetch')
       const remoteHead = await this.fetch(git, config.branch)
       let base = this.lastCommit()
-      if (remoteHead && remoteHead !== base) {
+      if (remoteHead && (remoteHead !== base || (await this.calendarsBehind()))) {
         const got = await this.download(git, config, base, remoteHead)
         total.received += got.received
         total.conflicts.push(...got.conflicts)
@@ -1236,6 +1404,8 @@ export class SyncEngine {
           const logical = decoded.logical ?? path
           if (logical.startsWith(PATHS.files) && FILE_NAME_RE.test(logical.slice(PATHS.files.length))) images.set(logical, decoded.bytes)
         }
+        // Calendars go only into an encrypted repository: turning encryption off removes them.
+        const hook = passphrase !== null ? await this.calendarHook() : null
         await this.step('write')
         // ---- one consistent look at the database
         const rows = this.repo.syncRows()
@@ -1245,10 +1415,18 @@ export class SyncEngine {
         const rootText = serializeRoot(ws)
         const appearance = this.appearanceNow()
         const appearanceText = serializeAppearance(appearance)
+        const home = this.homeNow()
+        const homeText = serializeHome(home)
+        const sidebar = this.sidebarNow()
+        const sidebarText = serializeSidebar(sidebar)
+        const calendars = hook ? this.calendarsNow(hook) : null
+        const calendarsText = calendars && !noCalendars(calendars) ? serializeCalendars(calendars) : null
 
         await this.prepareTree(git, config.branch, base)
         for (const path of old.entries.keys()) {
-          if (path.startsWith(PATHS.pages) || path.startsWith(PATHS.files) || path === PATHS.workspace || path === PATHS.appearance || path === LEGACY.meta) await rm(join(this.repoDir, path), { force: true })
+          if (path.startsWith(PATHS.pages) || path.startsWith(PATHS.files) || path === PATHS.workspace || path === PATHS.appearance || path === PATHS.home || path === PATHS.sidebar || path === PATHS.calendars || path === LEGACY.meta) {
+            await rm(join(this.repoDir, path), { force: true })
+          }
         }
         const meta: RepoMeta = { app: APP, format: FORMAT, workspaceId: old.meta.workspaceId ?? randomUUID(), createdBy: old.meta.createdBy ?? config.device }
         if (params) meta.encryption = params
@@ -1259,6 +1437,11 @@ export class SyncEngine {
         }
         await this.writeTreeFile(PATHS.workspace, codec.encode(PATHS.workspace, Buffer.from(rootText, 'utf8')))
         if (appearance.value != null) await this.writeTreeFile(PATHS.appearance, codec.encode(PATHS.appearance, Buffer.from(appearanceText, 'utf8')))
+        if (home.value !== null || old.homeText !== null) await this.writeTreeFile(PATHS.home, codec.encode(PATHS.home, Buffer.from(homeText, 'utf8')))
+        if (sidebar.value !== null || old.sidebarText !== null) await this.writeTreeFile(PATHS.sidebar, codec.encode(PATHS.sidebar, Buffer.from(sidebarText, 'utf8')))
+        // A new passphrase keeps the calendars: this device's, or (when it cannot read its own) those that were there.
+        const carried = codec.encrypted ? (calendars ? calendarsText : old.calendarsText) : null
+        if (carried !== null) await this.writeTreeFile(PATHS.calendars, codec.encode(PATHS.calendars, Buffer.from(carried, 'utf8')))
         for (const [logical, bytes] of images) await this.writeTreeFile(codec.pathOf(logical), codec.encode(logical, bytes))
 
         await this.step('commit')
@@ -1277,6 +1460,9 @@ export class SyncEngine {
         const states = new Map<string, string>(prints)
         states.set(STATE_ROOT, sha1(rootText))
         states.set(STATE_APPEARANCE, sha1(appearanceText))
+        states.set(STATE_HOME, sha1(homeText))
+        states.set(STATE_SIDEBAR, sha1(sidebarText))
+        if (codec.encrypted && calendars) states.set(STATE_CALENDARS, sha1(serializeCalendars(calendars)))
         states.set(STATE_META, 'written')
         this.repo.setSyncStates(states, { [KEYS.lastCommit]: head, [KEYS.lastSyncAt]: this.clock(), [KEYS.encrypted]: params ? true : null })
         this.lastError = undefined

@@ -45,6 +45,12 @@ const ICON_SIZE_INLINE = 16
 const activeViews = new Map<string, string>()
 const settingKey = (databaseId: string): string => `database.activeView.${databaseId}`
 
+/** Makes `viewId` the view a database opens on when it is next mounted (the Tasks screen links to views). */
+export function chooseView(databaseId: string, viewId: string): void {
+  activeViews.set(databaseId, viewId)
+  window.api.app.setSetting(settingKey(databaseId), viewId).catch(() => undefined)
+}
+
 type Panel = 'filter' | 'sort' | 'properties' | 'chart'
 /** Popovers opened from the database menu ("⋯" in the header). */
 type LinkPanel = 'menu' | 'locations' | 'link'
@@ -401,7 +407,7 @@ export function DatabaseView(props: {
           label: 'Delete',
           icon: <Trash size={14} />,
           danger: true,
-          onSelect: () => actions.deleteRows([rowMenu.rowId])
+          onSelect: () => actions.trashRows(databaseId, [rowMenu.rowId])
         }
       ]
     : []
@@ -601,8 +607,8 @@ export function DatabaseView(props: {
                 ref={searchRef}
                 autoFocus
                 value={search}
-                placeholder="Search titles…"
-                aria-label="Search titles"
+                placeholder="Search…"
+                aria-label="Search rows"
                 onChange={(event) => setSearch(event.target.value)}
                 onBlur={() => {
                   if (!search) setSearchOpen(false)

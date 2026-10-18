@@ -16,10 +16,15 @@ import {
   type Tradition
 } from '@shared/briefing'
 import { plainText } from '@shared/richtext'
+import { bellOn, NOTEBOOK_BELL_KEY } from '@shared/notebook'
+import { SKY_ENABLED_KEY, SKY_EVENTS_KEY, SKY_HEMISPHERE_KEY, type Hemisphere } from '@shared/sky'
+import { COPY as SKY_COPY } from '@/sky/copy'
+import { setSkyEnabled } from '@/sky/route'
 import { ConfirmButton, Segmented } from '@/appearance/controls'
 import { openPage } from '@/store/tabs'
 import { refreshTree } from '@/store/tree'
 import { setSettingsOpen } from '@/store/ui'
+import { openSyncSettings, useSync } from '@/sync/store'
 import { Button } from '@/ui/Button'
 import { notifyError } from '@/ui/toast'
 import { updatedLabel } from './format'
@@ -115,6 +120,7 @@ function Calendars(): JSX.Element {
   const [color, setColor] = useState<CalendarColor>('blue')
   const [adding, setAdding] = useState(false)
   const [problem, setProblem] = useState('')
+  const sync = useSync((state) => state.status)
 
   const reload = useCallback((): void => {
     window.api.briefing.calendars.list().then(setCalendars, (error: unknown) => console.error('calendars failed to load', error))
@@ -277,9 +283,21 @@ function Calendars(): JSX.Element {
         </ol>
         <p>
           Outlook calls it “Publish a calendar” (the ICS link); iCloud, “Public Calendar”. Anyone who has the address can read the calendar, so sel keeps it
-          encrypted on this computer and never shows it again. To take access away, reset the secret address in your calendar’s settings.
+          encrypted on this computer and never shows it again. Sync carries it to your other devices only inside a repository encrypted with your passphrase.
+          To take access away, reset the secret address in your calendar’s settings.
         </p>
       </details>
+      {sync.configured &&
+        (sync.encrypted ? (
+          <p className="ap-note">Your calendars sync to your other devices, encrypted with your sync passphrase.</p>
+        ) : (
+          <p className="ap-note">
+            Turn on sync encryption to carry calendars to your other devices.{' '}
+            <Button variant="ghost" onClick={openSyncSettings}>
+              Sync settings
+            </Button>
+          </p>
+        ))}
       <p className="ap-note">
         Connecting a calendar is the one thing that makes sel go online by itself: it reads the address above every 15 minutes or so, over https, and sends
         nothing else. With no calendar connected, it makes no request at all.
@@ -293,6 +311,46 @@ function count(n: number, word: string): string {
 }
 
 // ---- the section --------------------------------------------------------------
+
+// ---- closing the day --------------------------------------------------------------
+
+/** Whether closing the day rings its soft bell (notebook/bell.ts). */
+function CloseDaySettings(): JSX.Element {
+  const [bell, setBell] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    window.api.app.getSetting(NOTEBOOK_BELL_KEY).then(
+      (stored) => alive && setBell(bellOn(stored)),
+      (error: unknown) => console.error('the bell setting failed to load', error)
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const choose = (value: 'on' | 'off'): void => {
+    const next = value === 'on'
+    setBell(next)
+    window.api.app.setSetting(NOTEBOOK_BELL_KEY, next).catch((error: unknown) => {
+      setBell(!next)
+      failed(error)
+    })
+  }
+
+  return (
+    <section className="ap-group">
+      <div className="ap-group-head">
+        <h3 className="ap-group-title">Closing the day</h3>
+      </div>
+      <div className="ap-list">
+        <Row label="Bell" help="A soft bell when the window rests at the end of Close the day.">
+          <Segmented label="Bell" value={bell ? 'on' : 'off'} options={ON_OFF} onChange={choose} />
+        </Row>
+      </div>
+    </section>
+  )
+}
 
 export function TodaySection(): JSX.Element {
   const [values, setValues] = useState<Values>(DEFAULTS)
@@ -508,6 +566,92 @@ export function TodaySection(): JSX.Element {
           you love to your own phrases, where they are yours alone.
         </p>
       </section>
+
+      <CloseDaySettings />
+      <SkySettings />
     </div>
+  )
+}
+
+/**
+ * The Sky: on or off (its button, command and shortcut follow; what it records goes on being
+ * recorded), the hemisphere it is seen from, and its rare nights. All three stay on this computer.
+ * Settings speaks English, like the rest of this window; the Sky's own screen speaks both.
+ */
+function SkySettings(): JSX.Element {
+  const copy = SKY_COPY.en
+  const [enabled, setEnabled] = useState(true)
+  const [hemisphere, setHemisphere] = useState<Hemisphere>('north')
+  const [events, setEvents] = useState(true)
+
+  useEffect(() => {
+    let alive = true
+    // The view knows the defaults (the hemisphere follows the language until it is chosen).
+    window.api.sky.view().then(
+      (view) => {
+        if (!alive) return
+        setEnabled(view.enabled)
+        setHemisphere(view.hemisphere)
+        setEvents(view.events)
+      },
+      (error: unknown) => console.error('the sky settings failed to load', error)
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const chooseEnabled = (value: 'on' | 'off'): void => {
+    const next = value === 'on'
+    setEnabled(next)
+    setSkyEnabled(next)
+    window.api.app.setSetting(SKY_ENABLED_KEY, next).catch((error: unknown) => {
+      setEnabled(!next)
+      setSkyEnabled(!next)
+      failed(error)
+    })
+  }
+  const chooseHemisphere = (value: Hemisphere): void => {
+    const before = hemisphere
+    setHemisphere(value)
+    window.api.app.setSetting(SKY_HEMISPHERE_KEY, value).catch((error: unknown) => {
+      setHemisphere(before)
+      failed(error)
+    })
+  }
+  const chooseEvents = (value: 'on' | 'off'): void => {
+    const next = value === 'on'
+    setEvents(next)
+    window.api.app.setSetting(SKY_EVENTS_KEY, next).catch((error: unknown) => {
+      setEvents(!next)
+      failed(error)
+    })
+  }
+
+  return (
+    <section className="ap-group">
+      <div className="ap-group-head">
+        <h3 className="ap-group-title">Sky</h3>
+      </div>
+      <div className="ap-list">
+        <Row label={copy.settingsShow} help={copy.settingsShowHelp}>
+          <Segmented label={copy.settingsShow} value={enabled ? 'on' : 'off'} options={ON_OFF} onChange={chooseEnabled} />
+        </Row>
+        <Row label={copy.settingsHemisphere} help={copy.settingsHemisphereHelp}>
+          <Segmented
+            label={copy.settingsHemisphere}
+            value={hemisphere}
+            options={[
+              { value: 'south', label: copy.southern },
+              { value: 'north', label: copy.northern }
+            ]}
+            onChange={chooseHemisphere}
+          />
+        </Row>
+        <Row label={copy.settingsEvents} help={copy.settingsEventsHelp}>
+          <Segmented label={copy.settingsEvents} value={events ? 'on' : 'off'} options={ON_OFF} onChange={chooseEvents} />
+        </Row>
+      </div>
+    </section>
   )
 }

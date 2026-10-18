@@ -1,6 +1,9 @@
 import { Suspense, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import type { DatabaseView, PropertySchema, PropertyType } from '@shared/types'
+import { systemKindOf } from '@shared/system'
+import { isTaskCoreProperty } from '@shared/tasks'
+import { RELATIVE_DATES } from '@shared/types'
+import type { DatabaseView, PropertySchema, PropertyType, ViewFilter } from '@shared/types'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import type { PopoverAnchor, PopoverPlacement } from '@/ui/Popover'
 import { ArrowUpRight, Check, Filter, Formula, Sigma, Sort, Trash } from '@/ui/icons'
@@ -198,8 +201,69 @@ function rollupItems(databaseId: string, prop: PropertySchema, schema: L.Schema,
         icon: check(fn === config.function),
         onSelect: () => actions.updateRollup(databaseId, prop.id, { function: fn })
       }))
-    }
+    },
+    rollupRowsItem(databaseId, prop, targetSchema, sources)
   ]
+}
+
+/** One rule a rollup keeps rows by, in words: "Date: This month", "Group: Needs". */
+function rollupRuleText(rule: ViewFilter, schema: L.Schema): string {
+  const target = L.propOf(schema, rule.propertyId)
+  if (!target) return ''
+  if (rule.operator === 'date_is' && L.isRelativeDate(rule.value)) return `${target.name}: ${L.relativeDateLabel(rule.value)}`
+  if (rule.operator === 'checked' || rule.operator === 'unchecked') return `${target.name}: ${rule.operator === 'checked' ? 'checked' : 'unchecked'}`
+  const option = typeof rule.value === 'string' ? L.optionsOf(target).find((o) => o.id === rule.value) : undefined
+  return `${target.name} ${L.operatorLabel(rule.operator, target.type).toLowerCase()} ${option?.name ?? (rule.value === undefined ? '' : String(rule.value))}`.trim()
+}
+
+/**
+ * The menu entry that limits which linked rows a rollup counts: all of them, or those whose
+ * date falls in a span ("this month"), whose option is one, or whose box is checked.
+ */
+function rollupRowsItem(databaseId: string, prop: PropertySchema, targetSchema: L.Schema | undefined, sources: PropertySchema[]): MenuItem {
+  const config = prop.rollup ?? L.DEFAULT_ROLLUP
+  const rules = L.rollupFilters(config, targetSchema)
+  const keepOnly = (rule: ViewFilter): void => actions.updateRollup(databaseId, prop.id, { filters: [rule] })
+  const isOnly = (rule: ViewFilter): boolean =>
+    rules.length === 1 && rules[0].propertyId === rule.propertyId && rules[0].operator === rule.operator && rules[0].value === rule.value
+  const choice = (id: string, label: string, rule: ViewFilter): MenuItem => ({
+    id,
+    label,
+    icon: isOnly(rule) ? <Check size={14} /> : <span />,
+    onSelect: () => keepOnly(rule)
+  })
+  const choicesFor = (p: PropertySchema): MenuItem[] => {
+    if (L.isDateLikeType(p.type)) {
+      return RELATIVE_DATES.map((span) => choice(`rollup-rows-${p.id}-${span}`, L.relativeDateLabel(span), { propertyId: p.id, operator: 'date_is', value: span }))
+    }
+    if (p.type === 'checkbox') {
+      return (['checked', 'unchecked'] as const).map((operator) =>
+        choice(`rollup-rows-${p.id}-${operator}`, operator === 'checked' ? 'Checked' : 'Unchecked', { propertyId: p.id, operator })
+      )
+    }
+    return L.optionsOf(p).map((o) =>
+      choice(`rollup-rows-${p.id}-${o.id}`, o.name, { propertyId: p.id, operator: p.type === 'select' ? 'equals' : 'contains', value: o.id })
+    )
+  }
+  const keys = sources.filter((p) => L.isDateLikeType(p.type) || p.type === 'checkbox' || p.type === 'select' || p.type === 'multi_select')
+  const label = targetSchema && rules.length ? rules.map((rule) => rollupRuleText(rule, targetSchema)).join(', ') : 'All'
+  return {
+    id: 'rollup-rows',
+    label: `Rows: ${label}`,
+    icon: <Filter size={14} />,
+    disabled: !keys.length,
+    hint: keys.length ? undefined : 'Nothing to keep rows by',
+    submenu: [
+      {
+        id: 'rollup-rows-all',
+        label: 'All linked rows',
+        icon: rules.length ? <span /> : <Check size={14} />,
+        onSelect: () => actions.updateRollup(databaseId, prop.id, { filters: undefined })
+      },
+      { separator: true },
+      ...keys.map((p) => ({ id: `rollup-rows-${p.id}`, label: p.name, icon: <TypeIcon type={p.type} />, submenu: choicesFor(p) }))
+    ]
+  }
 }
 
 /** Property header menu: rename, type, sort, filter, hide, delete. */
@@ -223,6 +287,8 @@ export function PropertyMenu({
 }): JSX.Element {
   const [name, setName] = useState(prop.name)
   const isTitle = prop.type === 'title'
+  // A property the built-in Tasks database is read by keeps its type and stays (the repository refuses too).
+  const locked = isTitle || (isTaskCoreProperty(prop.id) && systemKindOf(actions.snapshot(databaseId).source) === 'tasks')
   const { cells } = useRelated()
   /**
    * The database picker replaces the menu: to point a relation elsewhere, or to turn the
@@ -266,11 +332,12 @@ export function PropertyMenu({
       id: 'type',
       label: `Type: ${L.TYPE_LABELS[prop.type]}`,
       icon: <TypeIcon type={prop.type} />,
-      disabled: isTitle,
-      submenu: isTitle ? undefined : typeItems
+      disabled: locked,
+      submenu: locked ? undefined : typeItems
     }
   ]
-  if (prop.type === 'number') {
+  // A formula that gives a number is written in a number format too (ignored for other results).
+  if (prop.type === 'number' || prop.type === 'formula') {
     items.push({
       id: 'format',
       label: 'Number format',
@@ -320,7 +387,7 @@ export function PropertyMenu({
       label: 'Delete property',
       icon: <Trash size={14} />,
       danger: true,
-      disabled: isTitle,
+      disabled: locked,
       onSelect: () => actions.deleteProperty(databaseId, prop.id)
     }
   )

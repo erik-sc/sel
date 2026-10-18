@@ -5,8 +5,9 @@
  * `Intl` time-zone database and the process's local zone.
  *
  * What is read: VEVENT with DTSTART / DTEND / DURATION (dates and date-times; UTC, floating and
- * TZID), SUMMARY, LOCATION, DESCRIPTION, STATUS, TRANSP, ATTENDEE (to hide what the owner
- * declined), RRULE (FREQ=DAILY/WEEKLY/MONTHLY/YEARLY with INTERVAL, COUNT, UNTIL, BYDAY with
+ * TZID), SUMMARY, LOCATION, DESCRIPTION, URL, STATUS, TRANSP, ATTENDEE and ORGANIZER (to hide
+ * what the owner declined, and to count who else is invited), X-GOOGLE-CONFERENCE (with the
+ * others, for the link of a Meet, Teams or Zoom call), RRULE (FREQ=DAILY/WEEKLY/MONTHLY/YEARLY with INTERVAL, COUNT, UNTIL, BYDAY with
  * ordinals, BYMONTHDAY, BYMONTH, BYSETPOS, WKST), EXDATE, RDATE and RECURRENCE-ID overrides.
  *
  * What is not: VTIMEZONE definitions (zones are resolved by name against the IANA database, with
@@ -18,6 +19,8 @@
  * is skipped, and nothing here throws on any input.
  */
 
+import { civil, dayOf, mod, readRule, RRULE_LIMITS, ruleDays, type RecurrenceRule } from '../../shared/rrule'
+
 export const ICAL_LIMITS = {
   /** Characters of one unfolded line; longer ones are cut. */
   line: 32_768,
@@ -26,9 +29,9 @@ export const ICAL_LIMITS = {
   /** EXDATE / RDATE values kept per event. */
   dates: 2_000,
   /** Periods (days, weeks, months, years) one rule is stepped through. */
-  periods: 30_000,
+  periods: RRULE_LIMITS.periods,
   /** Candidate dates one rule may produce. */
-  candidates: 60_000,
+  candidates: RRULE_LIMITS.candidates,
   /** Time-zone conversions one expansion may make. */
   conversions: 250_000,
   /** Occurrences returned for one window. */
@@ -382,19 +385,7 @@ export interface IcalTime {
   zone: string | null
 }
 
-export interface IcalRule {
-  freq: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
-  interval: number
-  count?: number
-  /** As an instant when written in UTC, otherwise as naive wall time (the end of the day for a date). */
-  until?: { instant?: number; wall?: number }
-  byDay: { ordinal: number; weekday: number }[]
-  byMonthDay: number[]
-  byMonth: number[]
-  bySetPos: number[]
-  /** 0 = Sunday. */
-  weekStart: number
-}
+export type IcalRule = RecurrenceRule
 
 export interface IcalEvent {
   uid: string
@@ -410,6 +401,10 @@ export interface IcalEvent {
   declined: boolean
   /** TRANSP:TRANSPARENT: does not block time. */
   transparent: boolean
+  /** People invited other than the calendar's owner (rooms and other resources not counted). */
+  attendees: number
+  /** The address of the call (Meet, Teams, Zoom), when the event has one. */
+  meetingUrl?: string
   rule?: IcalRule
   /** The rule has parts this reader does not expand: only the first occurrence is kept. */
   ruleUnsupported?: boolean
@@ -425,8 +420,6 @@ export interface ParsedCalendar {
   events: IcalEvent[]
   notes: IcalNote[]
 }
-
-const WEEKDAYS: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 }
 
 function utcDate(year: number, month: number, day: number, hour = 0, minute = 0, second = 0): number | null {
   if (year < 1 || year > 9999 || month < 1 || month > 12 || day < 1 || day > 31) return null
@@ -494,50 +487,13 @@ export function parseDuration(value: string): number | null {
   return sign === '-' ? 0 : Math.min(total, 3660 * DAY_MS)
 }
 
-function intList(value: string | undefined, min: number, max: number, allowNegative: boolean, cap = 64): number[] {
-  if (!value) return []
-  const out: number[] = []
-  for (const part of value.split(',')) {
-    if (out.length >= cap) break
-    if (!/^[+-]?\d{1,4}$/.test(part.trim())) continue
-    const n = Number(part)
-    const size = Math.abs(n)
-    if (n === 0 || size < min || size > max || (n < 0 && !allowNegative)) continue
-    if (!out.includes(n)) out.push(n)
-  }
-  return out
-}
-
 /** An RRULE value. Null when it is malformed; `unsupported` when it uses parts this reader does not expand. */
 export function parseRule(value: string, context: ZoneContext = { notes: new Set(), cache: new Map() }): { rule: IcalRule | null; unsupported: boolean } {
-  const parts: Record<string, string> = Object.create(null) as Record<string, string>
-  for (const piece of value.split(';')) {
-    const eq = piece.indexOf('=')
-    if (eq > 0) parts[piece.slice(0, eq).trim().toUpperCase()] = piece.slice(eq + 1).trim()
+  const { rule, unsupported, until } = readRule(value)
+  if (rule && until) {
+    const time = parseTime(until, {}, context)
+    if (time) rule.until = time.date ? { wall: time.wall + DAY_MS - 1 } : time.zone === 'UTC' ? { instant: time.wall } : { wall: time.wall }
   }
-  const freq = (parts['FREQ'] ?? '').toUpperCase()
-  if (freq === 'SECONDLY' || freq === 'MINUTELY' || freq === 'HOURLY') return { rule: null, unsupported: true }
-  if (freq !== 'DAILY' && freq !== 'WEEKLY' && freq !== 'MONTHLY' && freq !== 'YEARLY') return { rule: null, unsupported: false }
-  const unsupported = ['BYWEEKNO', 'BYYEARDAY', 'BYHOUR', 'BYMINUTE', 'BYSECOND'].some((key) => key in parts)
-  const interval = /^\d{1,4}$/.test(parts['INTERVAL'] ?? '') ? Math.max(1, Number(parts['INTERVAL'])) : 1
-  const rule: IcalRule = { freq, interval, byDay: [], byMonthDay: [], byMonth: [], bySetPos: [], weekStart: 1 }
-  if (/^\d{1,6}$/.test(parts['COUNT'] ?? '')) rule.count = Number(parts['COUNT'])
-  if (parts['UNTIL']) {
-    const until = parseTime(parts['UNTIL'], {}, context)
-    if (until) rule.until = until.date ? { wall: until.wall + DAY_MS - 1 } : until.zone === 'UTC' ? { instant: until.wall } : { wall: until.wall }
-  }
-  for (const part of (parts['BYDAY'] ?? '').split(',')) {
-    const match = /^([+-]?\d{1,2})?(SU|MO|TU|WE|TH|FR|SA)$/i.exec(part.trim())
-    if (!match || rule.byDay.length >= 64) continue
-    const ordinal = match[1] ? Number(match[1]) : 0
-    if (Math.abs(ordinal) > 53) continue
-    rule.byDay.push({ ordinal, weekday: WEEKDAYS[match[2].toUpperCase()] })
-  }
-  rule.byMonthDay = intList(parts['BYMONTHDAY'], 1, 31, true)
-  rule.byMonth = intList(parts['BYMONTH'], 1, 12, false)
-  rule.bySetPos = intList(parts['BYSETPOS'], 1, 366, true)
-  const weekStart = WEEKDAYS[(parts['WKST'] ?? '').toUpperCase()]
-  if (weekStart !== undefined) rule.weekStart = weekStart
   return { rule, unsupported }
 }
 
@@ -552,6 +508,26 @@ function emailOf(value: string): string | null {
   const match = /^mailto:(.+)$/i.exec(value.trim())
   const email = (match ? match[1] : value).trim().toLowerCase()
   return /^[^\s@<>]+@[^\s@<>]+$/.test(email) ? email : null
+}
+
+/** A link to a Meet, Teams or Zoom call: the hosts, and the paths that make a link a call. */
+const MEETING_LINK_RE =
+  /https:\/\/(?:meet\.google\.com\/[a-z]{3,4}-[a-z]{4}-[a-z]{3,4}|(?:[a-z0-9-]+\.)?zoom(?:gov)?\.(?:us|com)\/(?:j|my|w|s)\/[^\s"'<>\\]+|teams\.microsoft\.com\/l\/meetup-join\/[^\s"'<>\\]+|teams\.live\.com\/meet\/[^\s"'<>\\]+)/i
+
+/** The first link to a Meet, Teams or Zoom call in a text, or null. Only ever https. */
+export function meetingLink(text: string | undefined): string | null {
+  if (!text) return null
+  const match = MEETING_LINK_RE.exec(text.length > 20_000 ? text.slice(0, 20_000) : text)
+  if (!match) return null
+  // Found in HTML, the link may carry its entities, and the punctuation of the sentence around it.
+  const raw = entities(match[0]).replace(/[.,;:!?)\]}>]+$/, '')
+  if (raw.length > 1000) return null
+  try {
+    const url = new URL(raw)
+    return url.protocol === 'https:' ? url.href : null
+  } catch {
+    return null
+  }
 }
 
 interface Draft {
@@ -569,6 +545,10 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
   let cancelled = false
   let declined = false
   let transparent = false
+  /** Where a call's link may be, most trusted first. */
+  const links: { conference?: string; url?: string; location?: string; description?: string } = {}
+  const invited = new Set<string>()
+  let organizer: string | null = null
   let rule: IcalRule | undefined
   let ruleUnsupported = false
   let recurrenceId: IcalTime | undefined
@@ -594,9 +574,20 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
         break
       case 'LOCATION':
         location = plainLine(line.value, ICAL_LIMITS.location)
+        links.location = unescapeText(line.value)
         break
       case 'DESCRIPTION':
         description = plainDescription(line.value)
+        links.description = unescapeText(line.value)
+        break
+      case 'URL':
+        links.url = line.value
+        break
+      case 'X-GOOGLE-CONFERENCE':
+        links.conference = line.value
+        break
+      case 'ORGANIZER':
+        organizer = emailOf(line.value)
         break
       case 'STATUS':
         cancelled = line.value.trim().toUpperCase() === 'CANCELLED'
@@ -605,8 +596,10 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
         transparent = line.value.trim().toUpperCase() === 'TRANSPARENT'
         break
       case 'ATTENDEE': {
-        if ((line.params['PARTSTAT'] ?? '').toUpperCase() !== 'DECLINED' || self.size === 0) break
         const email = emailOf(line.value)
+        const kind = (line.params['CUTYPE'] ?? '').toUpperCase()
+        if (kind !== 'RESOURCE' && kind !== 'ROOM' && invited.size < 1000) invited.add(email ?? line.value.trim().toLowerCase())
+        if ((line.params['PARTSTAT'] ?? '').toUpperCase() !== 'DECLINED' || self.size === 0) break
         if (email && self.has(email)) declined = true
         break
       }
@@ -648,6 +641,10 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
     context.notes.add('unsupported-rule')
     if (rule) rule = undefined
   }
+  // The owner is not one of the others: by address when the calendar says whose it is, otherwise
+  // the organizer stands for them (a calendar lists its owner among the guests of anything with guests).
+  for (const email of self) invited.delete(email)
+  if (self.size === 0 && organizer) invited.delete(organizer)
   const event: IcalEvent = {
     uid: uid || `no-uid-${start.wall}-${title.slice(0, 40)}`,
     start,
@@ -657,11 +654,14 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
     cancelled,
     declined,
     transparent,
+    attendees: invited.size,
     exdates,
     rdates
   }
   if (location) event.location = location
   if (description) event.description = description
+  const link = meetingLink(links.conference) ?? meetingLink(links.url) ?? meetingLink(links.location) ?? meetingLink(links.description)
+  if (link) event.meetingUrl = link
   if (rule) event.rule = rule
   if (ruleUnsupported) event.ruleUnsupported = true
   if (recurrenceId) event.recurrenceId = recurrenceId
@@ -752,192 +752,8 @@ export function parseCalendar(text: string, options: ParseOptions = {}): ParsedC
 
 // ---- recurrence ---------------------------------------------------------------
 
-const mod = (n: number, m: number): number => ((n % m) + m) % m
-/** Day number: whole days since 1970-01-01 on the civil calendar. */
-const dayOf = (wall: number): number => Math.floor(wall / DAY_MS)
-/** 0 = Sunday. */
-const weekdayOf = (day: number): number => mod(day + 4, 7)
-
-function civil(day: number): { year: number; month: number; date: number } {
-  const d = new Date(day * DAY_MS)
-  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, date: d.getUTCDate() }
-}
-
-function dayNumber(year: number, month: number, date: number): number {
-  const d = new Date(0)
-  d.setUTCFullYear(year, month - 1, date)
-  return Math.floor(d.getTime() / DAY_MS)
-}
-
-function daysInMonth(year: number, month: number): number {
-  return civil(dayNumber(year, month + 1, 1) - 1).date
-}
-
-/** The days of one month that a rule's BYMONTHDAY / BYDAY select, or the fallback day when it has neither. */
-function monthDays(rule: IcalRule, year: number, month: number, fallbackDate: number, into: number[]): void {
-  const length = daysInMonth(year, month)
-  const first = dayNumber(year, month, 1)
-  if (rule.byMonthDay.length) {
-    for (const n of rule.byMonthDay) {
-      const date = n > 0 ? n : length + 1 + n
-      if (date < 1 || date > length) continue
-      const day = first + date - 1
-      if (rule.byDay.length && !rule.byDay.some((entry) => entry.weekday === weekdayOf(day))) continue
-      into.push(day)
-    }
-  } else if (rule.byDay.length) {
-    for (const { ordinal, weekday } of rule.byDay) {
-      const offset = mod(weekday - weekdayOf(first), 7)
-      if (ordinal === 0) {
-        for (let date = 1 + offset; date <= length; date += 7) into.push(first + date - 1)
-      } else if (ordinal > 0) {
-        const date = 1 + offset + (ordinal - 1) * 7
-        if (date <= length) into.push(first + date - 1)
-      } else {
-        const last = first + length - 1
-        const date = length - mod(weekdayOf(last) - weekday, 7) + (ordinal + 1) * 7
-        if (date >= 1) into.push(first + date - 1)
-      }
-    }
-  } else if (fallbackDate <= length) {
-    into.push(first + fallbackDate - 1)
-  }
-}
-
-/** The days of one year a yearly rule without BYMONTH selects through BYDAY (ordinals count within the year). */
-function yearWeekdays(rule: IcalRule, year: number, into: number[]): void {
-  const first = dayNumber(year, 1, 1)
-  const last = dayNumber(year + 1, 1, 1) - 1
-  for (const { ordinal, weekday } of rule.byDay) {
-    if (ordinal === 0) {
-      for (let day = first + mod(weekday - weekdayOf(first), 7); day <= last; day += 7) into.push(day)
-    } else if (ordinal > 0) {
-      const day = first + mod(weekday - weekdayOf(first), 7) + (ordinal - 1) * 7
-      if (day <= last) into.push(day)
-    } else {
-      const day = last - mod(weekdayOf(last) - weekday, 7) + (ordinal + 1) * 7
-      if (day >= first) into.push(day)
-    }
-  }
-}
-
 interface Budget {
   conversions: number
-}
-
-/**
- * The start days of a rule's occurrences whose day falls in [fromDay, toDay], in order.
- * `accept` decides, for a candidate day, whether it is at or after the start and not past
- * UNTIL (it needs the time of day and the zone, which this function does not know).
- * Counting for COUNT starts at the first occurrence, so a rule with one is walked from its
- * beginning; any other rule jumps close to the window first.
- */
-function ruleDays(
-  rule: IcalRule,
-  startDay: number,
-  fromDay: number,
-  toDay: number,
-  accept: (day: number) => 'before' | 'ok' | 'after'
-): number[] {
-  const out: number[] = []
-  const start = civil(startDay)
-  const interval = rule.interval
-  let remaining = rule.count ?? Infinity
-  let candidates = 0
-  const weekAnchor = startDay - mod(weekdayOf(startDay) - rule.weekStart, 7)
-  const monthIndex = start.year * 12 + (start.month - 1)
-
-  // Where to begin: period 0, or the last period that starts before the window.
-  let k = 0
-  if (rule.count === undefined && fromDay > startDay) {
-    const from = civil(fromDay)
-    const periods =
-      rule.freq === 'DAILY'
-        ? fromDay - startDay
-        : rule.freq === 'WEEKLY'
-          ? Math.floor((fromDay - weekAnchor) / 7)
-          : rule.freq === 'MONTHLY'
-            ? from.year * 12 + (from.month - 1) - monthIndex
-            : from.year - start.year
-    k = Math.max(0, Math.floor(periods / interval) - 1)
-  }
-
-  const set: number[] = []
-  for (let steps = 0; steps < ICAL_LIMITS.periods && remaining > 0; steps++, k++) {
-    set.length = 0
-    let periodStart: number
-    if (rule.freq === 'DAILY') {
-      const day = startDay + k * interval
-      periodStart = day
-      const c = civil(day)
-      let ok = !rule.byMonth.length || rule.byMonth.includes(c.month)
-      if (ok && rule.byMonthDay.length) {
-        const length = daysInMonth(c.year, c.month)
-        ok = rule.byMonthDay.some((n) => (n > 0 ? n : length + 1 + n) === c.date)
-      }
-      if (ok && rule.byDay.length) ok = rule.byDay.some((entry) => entry.weekday === weekdayOf(day))
-      if (ok) set.push(day)
-    } else if (rule.freq === 'WEEKLY') {
-      const week = weekAnchor + k * interval * 7
-      periodStart = week
-      if (rule.byDay.length) {
-        for (const { weekday } of rule.byDay) set.push(week + mod(weekday - rule.weekStart, 7))
-      } else set.push(week + mod(weekdayOf(startDay) - rule.weekStart, 7))
-      if (rule.byMonth.length) {
-        for (let i = set.length - 1; i >= 0; i--) if (!rule.byMonth.includes(civil(set[i]).month)) set.splice(i, 1)
-      }
-    } else if (rule.freq === 'MONTHLY') {
-      const index = monthIndex + k * interval
-      const year = Math.floor(index / 12)
-      const month = mod(index, 12) + 1
-      if (year > 9999) break
-      periodStart = dayNumber(year, month, 1)
-      if (!rule.byMonth.length || rule.byMonth.includes(month)) monthDays(rule, year, month, start.date, set)
-    } else {
-      const year = start.year + k * interval
-      if (year > 9999) break
-      periodStart = dayNumber(year, 1, 1)
-      if (rule.byMonth.length) {
-        for (const month of rule.byMonth) monthDays(rule, year, month, start.date, set)
-      } else if (rule.byMonthDay.length) {
-        for (let month = 1; month <= 12; month++) monthDays(rule, year, month, start.date, set)
-      } else if (rule.byDay.length) {
-        yearWeekdays(rule, year, set)
-      } else {
-        monthDays(rule, year, start.month, start.date, set)
-      }
-    }
-    if (periodStart > toDay) break
-    if (!set.length) continue
-    set.sort((a, b) => a - b)
-    // The same day can be named twice (BYDAY=MO,MO): once is enough.
-    let days = set.filter((day, index) => index === 0 || day !== set[index - 1])
-    if (rule.bySetPos.length) {
-      const picked: number[] = []
-      for (const position of rule.bySetPos) {
-        const day = position > 0 ? days[position - 1] : days[days.length + position]
-        if (day !== undefined && !picked.includes(day)) picked.push(day)
-      }
-      days = picked.sort((a, b) => a - b)
-    }
-    let ended = false
-    for (const day of days) {
-      if (++candidates > ICAL_LIMITS.candidates) return out
-      const verdict = accept(day)
-      if (verdict === 'before') continue
-      if (verdict === 'after') {
-        ended = true
-        break
-      }
-      if (remaining-- <= 0) {
-        ended = true
-        break
-      }
-      if (day >= fromDay && day <= toDay) out.push(day)
-    }
-    if (ended) break
-  }
-  return out
 }
 
 // ---- expansion ----------------------------------------------------------------
@@ -955,6 +771,8 @@ function wallIn(instant: number, zone: string | null): number {
 export interface CalendarOccurrence {
   id: string
   calendarId: string
+  /** The event's UID: the same for every occurrence of a series. */
+  uid: string
   title: string
   /** Epoch ms. All-day: local midnight of the first day, and of the day after the last. */
   start: number
@@ -966,6 +784,11 @@ export interface CalendarOccurrence {
   location?: string
   description?: string
   recurring: boolean
+  /** TRANSP:TRANSPARENT: shown as free. */
+  transparent?: boolean
+  /** People invited other than the calendar's owner, when there are any. */
+  attendees?: number
+  meetingUrl?: string
 }
 
 export interface ExpandOptions {
@@ -1027,6 +850,7 @@ export function expandCalendar(calendar: ParsedCalendar, window: { from: number;
     const occurrence: CalendarOccurrence = {
       id: `${calendarId}:${event.uid}:${start}`.slice(0, 500),
       calendarId,
+      uid: event.uid,
       title: event.title,
       start,
       end,
@@ -1039,6 +863,9 @@ export function expandCalendar(calendar: ParsedCalendar, window: { from: number;
     }
     if (event.location) occurrence.location = event.location
     if (event.description) occurrence.description = event.description
+    if (event.transparent) occurrence.transparent = true
+    if (event.attendees > 0) occurrence.attendees = event.attendees
+    if (event.meetingUrl) occurrence.meetingUrl = event.meetingUrl
     out.push(occurrence)
   }
 

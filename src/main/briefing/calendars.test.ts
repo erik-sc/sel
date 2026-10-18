@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CALENDAR_TIMING, CalendarService } from './calendars'
 import { CalendarError, type FetchOptions, type FetchResult } from './net'
+import { calendarKey } from '../sync/format'
 import { CalendarStore, NO_KEY_STORE, type Cipher } from './secrets'
 
 const SECRET = 'https://calendar.google.com/calendar/ical/me%40example.com/private-SECRETTOKEN123/basic.ics'
@@ -79,7 +80,7 @@ describe('the calendar store', () => {
     expect(existsSync(file())).toBe(false)
   })
 
-  it('updates, disables and removes; the file goes with the last calendar', () => {
+  it('updates, disables and removes; a removed address is not kept', () => {
     const store = new CalendarStore(file(), cipher)
     const a = store.add({ label: 'A', url: SECRET, color: 'blue' })
     const b = store.add({ label: '', url: 'https://outlook.office365.com/owa/calendar/x/y/calendar.ics', color: 'not a colour' })
@@ -95,8 +96,68 @@ describe('the calendar store', () => {
     store.remove(a.id)
     expect(store.list().map((entry) => entry.id)).toEqual([b.id])
     store.remove(b.id)
-    expect(existsSync(file())).toBe(false)
+    expect(store.list()).toEqual([])
+    // What stays is that two calendars were removed (for sync), named by a hash of the address.
+    const kept = cipher.decrypt(readFileSync(file()))
+    expect(kept).not.toContain('SECRETTOKEN')
+    expect(kept).not.toContain('outlook.office365.com')
+    expect(new CalendarStore(file(), cipher).exportForSync()?.removed).toHaveLength(2)
     store.remove('missing')
+  })
+
+  it('leaves no file when the last calendar goes on a computer without a key store', () => {
+    let available = true
+    const store = new CalendarStore(file(), { ...cipher, isAvailable: () => available })
+    const a = store.add({ label: 'A', url: SECRET, color: 'blue' })
+    available = false
+    store.remove(a.id)
+    expect(existsSync(file())).toBe(false)
+  })
+
+  it('hands its calendars to sync, and takes merged ones back keeping the ids it has', () => {
+    let now = 1000
+    const store = new CalendarStore(file(), cipher, () => ({}), () => now)
+    const a = store.add({ label: 'A', url: SECRET, color: 'blue' })
+    now = 2000
+    const b = store.add({ label: 'B', url: 'https://example.com/b.ics', color: 'green' })
+    now = 3000
+    store.update(b.id, { label: 'Bee' })
+    expect(store.exportForSync()).toEqual({
+      calendars: [
+        { url: SECRET, label: 'A', color: 'blue', enabled: true, updatedAt: 1000 },
+        { url: 'https://example.com/b.ics', label: 'Bee', color: 'green', enabled: true, updatedAt: 3000 }
+      ],
+      removed: []
+    })
+    // Another device renamed A, removed B and added C.
+    const gone = store.importFromSync({
+      calendars: [
+        { url: SECRET, label: 'Work', color: 'red', enabled: false, updatedAt: 4000 },
+        { url: 'https://example.com/c.ics', label: 'C', color: 'pink', enabled: true, updatedAt: 4000 },
+        // Checked again on the way in.
+        { url: 'http://example.com/plain.ics', label: 'no', color: 'blue', enabled: true, updatedAt: 4000 }
+      ],
+      removed: [{ key: calendarKey('https://example.com/b.ics'), deletedAt: 4000 }]
+    })
+    expect(gone).toEqual([b.id])
+    const list = store.list()
+    expect(list.map((entry) => entry.label)).toEqual(['Work', 'C'])
+    expect(list[0]).toEqual({ id: a.id, label: 'Work', host: 'calendar.google.com', color: 'red', enabled: false })
+    expect(store.urlOf(list[1].id)).toBe('https://example.com/c.ics')
+    // The same again changes nothing.
+    expect(store.importFromSync(store.exportForSync()!)).toEqual([])
+    expect(store.list()).toEqual(list)
+    // Adding a removed address again takes its removal back.
+    now = 5000
+    store.add({ label: 'B again', url: 'https://example.com/b.ics', color: 'blue' })
+    expect(store.exportForSync()?.removed).toEqual([])
+  })
+
+  it('stays out of sync without a key store', () => {
+    const store = new CalendarStore(file(), { ...cipher, isAvailable: () => false })
+    expect(store.exportForSync()).toBeNull()
+    expect(store.importFromSync({ calendars: [{ url: SECRET, label: 'x', color: 'blue', enabled: true, updatedAt: 1 }], removed: [] })).toBeNull()
+    expect(existsSync(file())).toBe(false)
   })
 
   it('caps the number of calendars', () => {
@@ -368,6 +429,27 @@ describe('the calendar service', () => {
       service.forget(added.id)
       expect(service.span(december, january)).toEqual({ events: [], complete: true })
     })
+  })
+
+  it('keeps what the alarms need, and reads in full a calendar cached before it did', async () => {
+    const meeting = ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:standup@x', 'SUMMARY:Standup', 'DTSTART:20261013T120000Z', 'DTEND:20261013T130000Z', 'ATTENDEE:mailto:a@x.com', 'ATTENDEE:mailto:b@x.com', 'ORGANIZER:mailto:a@x.com', 'LOCATION:https://meet.google.com/abc-defg-hij', 'TRANSP:TRANSPARENT', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
+    const t = setup(() => ({ status: 'ok', text: meeting, etag: '"v2"' }))
+    const added = t.store.add({ label: 'A', url: SECRET, color: 'blue' })
+    writeFileSync(
+      join(dir, 'briefing', 'calendar-cache.json'),
+      JSON.stringify({ version: 1, calendars: { [added.id]: { etag: '"v1"', fetchedAt: NOW, checkedAt: NOW, from: day(-1), to: day(15), events: [{ id: 'old', title: 'Standup', start: day(0) + 1000, end: day(0) + 2000 }] } } })
+    )
+    const service = t.make()
+    // The old cache still answers at once, and is due for a read that asks for the whole file.
+    expect(service.events(day(0), day(1)).map((event) => event.id)).toEqual(['old'])
+    expect(service.stale()).toBe(true)
+    await service.refresh()
+    expect(t.seen[0].options.etag).toBeUndefined()
+    const [event] = service.events(day(0), day(1))
+    expect(event).toMatchObject({ uid: 'standup@x', attendees: 1, meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
+    // And so does the next session, from the file.
+    expect(t.make().events(day(0), day(1))[0]).toMatchObject({ uid: 'standup@x', attendees: 1, meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
+    expect(JSON.parse(readFileSync(join(dir, 'briefing', 'calendar-cache.json'), 'utf8')).version).toBe(2)
   })
 
   it('reads a damaged cache as empty', () => {

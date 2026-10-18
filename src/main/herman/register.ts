@@ -1,4 +1,5 @@
 import type { WebContents } from 'electron'
+import type { HermanLocale } from '../../shared/herman'
 import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import type { HermanDay } from './service'
@@ -23,6 +24,8 @@ export interface HermanHooks {
   /** A task was marked done from `sender` (the Today screen), or that was taken back. */
   taskCompleted(sender: WebContents): void
   taskUncompleted(): void
+  /** The Sky played a moment in `sender`; `line` says it in his language. */
+  sky(sender: WebContents, line: (locale: HermanLocale) => string): void
 }
 
 export function registerHermanIpc({ repo, day, recording }: HermanIpcContext): HermanHooks & { handlers: Handlers<'herman'> } {
@@ -43,6 +46,10 @@ export function registerHermanIpc({ repo, day, recording }: HermanIpcContext): H
     },
     taskUncompleted() {
       bridge?.service.uncompleted()
+    },
+    sky(sender, line) {
+      // Like a streak: nothing of him is loaded for this unless a window has already asked for him.
+      bridge?.sky(sender, line)
     }
   }
 }

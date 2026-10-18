@@ -17,6 +17,8 @@ export interface ToastOptions {
   /** Milliseconds on screen; 0 keeps the toast until it is dismissed. */
   duration?: number
   action?: ToastAction
+  /** Several things to do about it (an alarm: open it, snooze it). Shown after `action`. */
+  actions?: ToastAction[]
 }
 
 export interface ToastItem {
@@ -24,6 +26,7 @@ export interface ToastItem {
   kind: ToastKind
   message: string
   action?: ToastAction
+  actions?: ToastAction[]
 }
 
 const DEFAULT_DURATION = 4000
@@ -63,6 +66,7 @@ export function toast(message: string, options: ToastOptions = {}): string {
   if (!item) {
     item = { id: `toast-${++nextId}`, kind, message: text }
     if (options.action) item.action = options.action
+    if (options.actions?.length) item.actions = options.actions
     const next = [...toasts, item]
     for (const dropped of next.splice(0, Math.max(0, next.length - MAX_TOASTS))) clearTimer(dropped.id)
     useToasts.setState({ toasts: next })
@@ -74,7 +78,7 @@ export function toast(message: string, options: ToastOptions = {}): string {
   }
   const { id } = item
   clearTimer(id)
-  const duration = options.duration ?? (kind === 'error' ? ERROR_DURATION : options.action ? ACTION_DURATION : DEFAULT_DURATION)
+  const duration = options.duration ?? (kind === 'error' ? ERROR_DURATION : options.action || options.actions?.length ? ACTION_DURATION : DEFAULT_DURATION)
   if (duration > 0) {
     timers.set(
       id,

@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { goBack, goForward } from '@/store/tabs'
 import { setFocusMode, setQuickFindOpen, useUi } from '@/store/ui'
-import { openFind } from './findStore'
 import { IS_MAC } from '@/ui/platform'
 import { openPalette } from '@/commands/store'
 import { openShortcuts } from '@/shortcuts/gate'
@@ -29,7 +28,14 @@ export function useShellCommands(): void {
         return
       }
       // Not while an IME is composing, and not once per auto-repeat of a held key.
-      if (event.defaultPrevented || event.isComposing || event.repeat || event.altKey) return
+      if (event.defaultPrevented || event.isComposing || event.repeat) return
+      // Main delivers Ctrl+Alt+N as a command; this catches it when the key reaches the page instead.
+      if (event.altKey && !event.shiftKey && (IS_MAC ? event.metaKey : event.ctrlKey) && event.key.toLowerCase() === 'n') {
+        event.preventDefault()
+        runMenuCommand('open-notebook')
+        return
+      }
+      if (event.altKey) return
       if (!(event.ctrlKey || event.metaKey)) return
       const key = event.key.toLowerCase()
       // Main delivers Ctrl+/ as a command; this catches it when the key reaches the page instead,
@@ -51,7 +57,7 @@ export function useShellCommands(): void {
         // On a Mac, Ctrl+F stays the text fields' "one character forward".
         // Main delivers Ctrl+F as a command; this catches it when the key reaches the page instead.
         event.preventDefault()
-        openFind(window.getSelection()?.toString())
+        runMenuCommand('find-in-page')
       }
     }
 

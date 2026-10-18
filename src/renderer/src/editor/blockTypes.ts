@@ -15,10 +15,15 @@ export const TEXT_TYPES: readonly BlockType[] = [
   'callout'
 ]
 
-export const ALL_TYPES: readonly BlockType[] = [...TEXT_TYPES, 'code', 'divider', 'image', 'bookmark', 'page', 'database']
+export const ALL_TYPES: readonly BlockType[] = [...TEXT_TYPES, 'code', 'equation', 'divider', 'image', 'bookmark', 'page', 'database']
 
 export function isTextType(type: BlockType): boolean {
   return TEXT_TYPES.includes(type)
+}
+
+/** Blocks whose `props.title` is plain text edited in a textarea: code, and an equation's TeX. */
+export function isPlainTextType(type: BlockType): boolean {
+  return type === 'code' || type === 'equation'
 }
 
 /** Types that Enter continues on the next line. */
@@ -69,6 +74,15 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'quote', label: 'Quote', hint: 'Capture a quote', glyph: '”', keywords: 'quote blockquote citation', kind: 'turn', type: 'quote' },
   { id: 'callout', label: 'Callout', hint: 'Make text stand out', glyph: '!', keywords: 'callout note info tip', kind: 'turn', type: 'callout' },
   { id: 'code', label: 'Code', hint: 'Code snippet', glyph: '</>', keywords: 'code snippet pre', kind: 'turn', type: 'code' },
+  {
+    id: 'equation',
+    label: 'Equation',
+    hint: 'Display math in LaTeX',
+    glyph: '√x',
+    keywords: 'equation equação equacao math matemática matematica formula fórmula latex tex katex $$',
+    kind: 'turn',
+    type: 'equation'
+  },
   { id: 'divider', label: 'Divider', hint: 'Visually divide blocks', glyph: '—', keywords: 'divider line hr separator ---', kind: 'insert', type: 'divider' },
   { id: 'image', label: 'Image', hint: 'Upload an image', glyph: '▣', keywords: 'image picture photo img', kind: 'insert', type: 'image' },
   { id: 'bookmark', label: 'Bookmark', hint: 'Save a link as a card', glyph: '↗', keywords: 'bookmark link url web', kind: 'insert', type: 'bookmark' },
@@ -94,18 +108,64 @@ export const AI_SLASH_ITEMS: SlashItem[] = [
 /** Entries offered by "Turn into". */
 export const TURN_INTO: SlashItem[] = SLASH_ITEMS.filter((i) => i.kind === 'turn')
 
+/**
+ * Portuguese words that find each slash item, kept apart from the catalogue so that an
+ * entry added there needs no line here. Labels stay as they are; only the search widens.
+ */
+export const SLASH_KEYWORDS_PT: Readonly<Record<string, string>> = {
+  text: 'texto parágrafo simples',
+  h1: 'título cabeçalho título1 seção',
+  h2: 'título2 subtítulo cabeçalho',
+  h3: 'título3 cabeçalho',
+  bullet: 'lista marcadores tópicos',
+  number: 'lista numerada ordenada números',
+  todo: 'tarefa tarefas lista de tarefas caixa marcar afazer',
+  toggle: 'alternância recolher expandir sanfona detalhes',
+  quote: 'citação aspas',
+  callout: 'destaque aviso nota dica observação',
+  code: 'código trecho programa',
+  divider: 'divisor linha separador',
+  image: 'imagem foto figura',
+  bookmark: 'favorito marcador link endereço site',
+  page: 'página subpágina documento',
+  meeting: 'reunião notas gravar gravação transcrição chamada',
+  'db-table': 'banco de dados tabela planilha',
+  'db-board': 'banco de dados quadro kanban',
+  'db-list': 'banco de dados lista',
+  'db-linked': 'banco de dados vinculado vinculada visão fonte',
+  chart: 'gráfico barras linhas pizza',
+  calc: 'cálculos cálculo fórmula soma total média números',
+  'ai-continue': 'ia continuar escrevendo escrever mais',
+  'ai-summarize': 'ia resumir resumo',
+  'ai-ask': 'ia perguntar pedir escrever rascunho gerar',
+  'ai-actions': 'ia itens de ação pendências',
+  'ai-outline': 'ia estrutura esboço roteiro'
+}
+
+/** Lower case without accents: `Citação` and `citacao` are the same query. */
+export function foldSearch(text: string): string {
+  return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+}
+
+/**
+ * The items for a query, in English or Portuguese, accents and case aside: those whose
+ * label starts with it, then those with a word that does, then those that merely contain it.
+ */
 export function filterSlashItems(query: string, ai = false): SlashItem[] {
   const all = ai ? [...AI_SLASH_ITEMS, ...SLASH_ITEMS] : SLASH_ITEMS
-  const q = query.trim().toLowerCase()
+  const q = foldSearch(query.trim())
   if (!q) return all
-  const starts: SlashItem[] = []
+  const label: SlashItem[] = []
+  const word: SlashItem[] = []
   const contains: SlashItem[] = []
   for (const item of all) {
-    const label = item.label.toLowerCase()
-    if (label.startsWith(q) || item.keywords.split(' ').some((k) => k.startsWith(q))) starts.push(item)
-    else if (label.includes(q) || item.keywords.includes(q)) contains.push(item)
+    const name = foldSearch(item.label)
+    const keywords = foldSearch(`${item.keywords} ${SLASH_KEYWORDS_PT[item.id] ?? ''}`)
+    if (name.startsWith(q)) label.push(item)
+    else if (keywords.split(' ').some((k) => k.startsWith(q))) word.push(item)
+    else if (name.includes(q) || keywords.includes(q)) contains.push(item)
   }
-  return [...starts, ...contains]
+  return [...label, ...word, ...contains]
 }
 
 export const CODE_LANGUAGES = [

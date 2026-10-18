@@ -52,6 +52,33 @@
   border-top: 0;
 }
 
+/* What last night set aside comes first, in its place; the phrase then has its rule again. */
+.today-section.today-plans {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+  margin-bottom: 44px;
+}
+
+.today-section.today-plans + .today-phrase {
+  padding-top: 28px;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.today-plans-list {
+  margin: 0;
+  padding-left: 1.4em;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: var(--leading-body);
+}
+
+.today-plans-list li::marker {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
 .today-label {
   margin: 0 0 16px;
   color: var(--text-tertiary);

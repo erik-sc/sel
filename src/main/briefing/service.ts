@@ -19,6 +19,8 @@ import {
 } from '../../shared/briefing'
 import { CALENDAR_ERROR_TEXT } from '../../shared/briefing'
 import { plainText } from '../../shared/richtext'
+import { systemKindOf } from '../../shared/system'
+import { completeTaskValues } from '../../shared/tasks/recur'
 import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyValue } from '../../shared/types'
 import type { BriefingPromptData } from '../ai/prompts'
 import type { Repository } from '../db/repository'
@@ -115,6 +117,17 @@ export class BriefingService {
     return this.build()
   }
 
+  /**
+   * The stored events of the enabled calendars that overlap [from, to), for the alarms. A
+   * calendar that is due (the same 15 minutes as for the briefing) is read in the background, so
+   * the alarms keep it fresh while no window looks at Today; with none connected nothing is fetched.
+   */
+  upcoming(from: number, to: number): BriefingEvent[] {
+    const { calendars } = this.deps
+    if (calendars.stale()) void calendars.refresh(false)
+    return calendars.events(from, to)
+  }
+
   build(): Briefing {
     const nowMs = this.now()
     const now = new Date(nowMs)
@@ -176,9 +189,11 @@ export class BriefingService {
   /** The task databases the settings allow, each followed by its rows. */
   private taskBlocks(databases: Block[], phrasesDb: Block | null, chosen: readonly string[] | null): TaskBlock[] {
     const wanted = chosen ? new Set(chosen) : null
+    // An archived database (or one inside an archived page) is put away: its tasks are not due anywhere.
+    const archived = this.repo.archivedAmong(databases.map((database) => database.id))
     const blocks: TaskBlock[] = []
     for (const database of databases) {
-      if (database.id === phrasesDb?.id || (wanted && !wanted.has(database.id))) continue
+      if (database.id === phrasesDb?.id || (wanted && !wanted.has(database.id)) || archived.has(database.id)) continue
       // Only databases that can say "done" have their rows loaded.
       if (!detectSignal(database.props)) continue
       blocks.push(database)
@@ -371,7 +386,7 @@ export class BriefingService {
    * to the done option, a to-do block is checked. An ordinary write: history and change events
    * follow as for any edit. The token takes it back for ten minutes.
    */
-  completeTask(rawId: unknown): { token: string } {
+  completeTask(rawId: unknown): { token: string; next?: string } {
     const id = arg.id(rawId, 'task')
     const block = this.repo.get(id)
     if (!block || block.trashedAt !== null) throw new Error('That task no longer exists.')
@@ -384,6 +399,14 @@ export class BriefingService {
       return { token }
     }
     const parent = block.type === 'page' && block.parentId ? this.repo.get(block.parentId) : null
+    // The built-in Tasks database completes the way the Tasks screen does (a repeating task moves on).
+    if (block.type === 'page' && systemKindOf(parent) === 'tasks') {
+      const completion = completeTaskValues(block.props.values, new Date(this.now()))
+      if (!completion) throw new Error('That task is already done.')
+      this.repo.update(id, { props: { values: completion.values } as BlockProps })
+      this.undo.set(token, { id, at: this.now(), previous: completion.previous })
+      return completion.next ? { token, next: completion.next } : { token }
+    }
     const signal = parent && parent.type === 'database' && typeof parent.props.sourceId !== 'string' ? detectSignal(parent.props) : null
     if (!signal) throw new Error('That task cannot be marked done from here.')
     const plan = planCompletion(signal, block.props)

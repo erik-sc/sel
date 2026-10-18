@@ -2,7 +2,10 @@
 // and the calendar), the ways to reach them and the rule for opening Today at start-up. The
 // screens themselves are chunks of their own (see Host.tsx).
 import { localDay, type OpenOnLaunch } from '@shared/briefing'
-import { activateTab, activeTab, CALENDAR_ROUTE, newTab, openPage, tabPage, TODAY_ROUTE, useTabs } from '@/store/tabs'
+import { notebookRouteTitle } from '@/notebook/route'
+import { skyRouteTitle } from '@/sky/route'
+import { CALENDAR_ROUTE, openScreen, TODAY_ROUTE, useTabs } from '@/store/tabs'
+import { TASKS_ROUTE, TASKS_TITLE } from '@/tasks/gate'
 
 export { CALENDAR_ROUTE, TODAY_ROUTE }
 
@@ -20,24 +23,15 @@ export function isCalendarRoute(pageId: string | null | undefined): boolean {
 
 /** The name of the built-in screen a tab shows, or null when it shows a stored page (or nothing). */
 export function routeTitle(pageId: string | null | undefined): string | null {
-  return pageId === TODAY_ROUTE ? TODAY_TITLE : pageId === CALENDAR_ROUTE ? CALENDAR_TITLE : null
-}
-
-/** Shows a built-in screen: the tab that already has it, the blank tab in front, or a new tab. */
-function openRoute(route: string): void {
-  const state = useTabs.getState()
-  const existing = state.tabs.find((tab) => tabPage(tab) === route)
-  if (existing) activateTab(existing.id)
-  else if (activeTab(state) && !tabPage(activeTab(state))) openPage(route)
-  else newTab(route)
+  return pageId === TODAY_ROUTE ? TODAY_TITLE : pageId === CALENDAR_ROUTE ? CALENDAR_TITLE : pageId === TASKS_ROUTE ? TASKS_TITLE : (notebookRouteTitle(pageId) ?? skyRouteTitle(pageId))
 }
 
 export function openToday(): void {
-  openRoute(TODAY_ROUTE)
+  openScreen(TODAY_ROUTE)
 }
 
 export function openCalendar(): void {
-  openRoute(CALENDAR_ROUTE)
+  openScreen(CALENDAR_ROUTE)
 }
 
 /** Which section the settings window opens on next time (the screen links to its own settings). */

@@ -26,7 +26,7 @@ import { buildPrompt, type BriefingPromptData, type PromptContext } from './prom
 import { aiRequest, loadContext } from './request'
 import { AiService, type PromptBuilder, type RunTarget } from './service'
 import { ToolHost, toolScript } from './toolhost'
-import type { ToolSource } from './tools'
+import { repositorySource, type ToolSource } from './tools'
 
 /**
  * The AI service as the app uses it: wired to the repository, the profile directory and the
@@ -124,7 +124,8 @@ export class AiBridge {
         listRoot: () => repo.listRoot(),
         listChildren: (id) => repo.listChildren(id),
         listRecent: (limit) => repo.listRecent(limit),
-        listDatabases: () => repo.listDatabases(),
+        // What the assistant is shown by itself leaves archived pages out; it finds them when it searches.
+        listDatabases: () => repo.listDatabases({ archived: false }),
         search: (text, limit) => repo.search(text, limit),
         pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id)
       },
@@ -135,20 +136,8 @@ export class AiBridge {
 
   /** The repository as the tools read it. */
   private toolSource(): ToolSource {
-    const repo = this.repo
-    const markdown = this.markdown
-    if (!markdown) throw new Error('The Markdown converter is not loaded yet.')
-    return {
-      get: (id) => repo.get(id),
-      ancestors: (id) => repo.ancestors(id),
-      listRoot: () => repo.listRoot(),
-      listChildren: (id) => repo.listChildren(id),
-      listRecent: (limit) => repo.listRecent(limit),
-      listDatabases: () => repo.listDatabases(),
-      search: (text, limit) => repo.search(text, limit),
-      pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id),
-      children: (id) => repo.children(id)
-    }
+    if (!this.markdown) throw new Error('The Markdown converter is not loaded yet.')
+    return repositorySource(this.repo, this.markdown)
   }
 
   status(refresh: unknown): Promise<AiStatus> {

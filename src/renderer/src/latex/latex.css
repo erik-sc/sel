@@ -1,0 +1,917 @@
+/* LaTeX documents: the split screen, the source editor and the preview "paper". Only design
+   tokens; the preview follows the theme on screen and is black on white when printed. */
+
+.latex-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.latex-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.latex-title-input {
+  flex: 1;
+  min-width: 80px;
+  max-width: 360px;
+  height: var(--control-height);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+  text-overflow: ellipsis;
+}
+
+.latex-title-input:hover {
+  background: var(--bg-hover);
+}
+
+.latex-title-input:focus {
+  outline: none;
+  background: var(--bg-hover);
+}
+
+.latex-seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-m);
+  background: var(--bg-hover);
+}
+
+.latex-seg-btn {
+  height: calc(var(--control-height) - 4px);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-md);
+  cursor: pointer;
+}
+
+.latex-seg-btn[aria-pressed='true'] {
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: var(--shadow-control);
+}
+
+.latex-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-height);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.latex-status:disabled {
+  cursor: default;
+}
+
+.latex-status:not(:disabled):hover {
+  background: var(--bg-hover);
+}
+
+.latex-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.latex-status.has-warnings .latex-status-dot {
+  background: var(--c-yellow);
+}
+
+.latex-status.has-errors {
+  color: var(--danger);
+}
+
+.latex-status.has-errors .latex-status-dot {
+  background: var(--danger);
+}
+
+.latex-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* ---- panes */
+
+.latex-panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.latex-source-pane,
+.latex-preview-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.latex-source-pane {
+  flex: 0 0 calc(var(--latex-split, 0.5) * 100%);
+}
+
+.latex-preview-pane {
+  flex: 1;
+}
+
+.latex-screen[data-view='code'] .latex-source-pane {
+  flex: 1;
+}
+
+.latex-screen[data-view='code'] .latex-preview-pane,
+.latex-screen[data-view='preview'] .latex-source-pane,
+.latex-screen:not([data-view='split']) .latex-divider {
+  display: none;
+}
+
+.latex-divider {
+  flex: 0 0 9px;
+  margin: 0 -4px;
+  position: relative;
+  z-index: 1;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.latex-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: var(--hairline);
+  background: var(--border);
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.latex-divider:hover::after,
+.latex-divider:focus-visible::after {
+  left: 3px;
+  width: 3px;
+  background: var(--accent-soft);
+}
+
+.latex-divider:focus-visible {
+  outline: none;
+}
+
+/* ---- source editor: a textarea over a coloured copy of the same text */
+
+.latex-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.latex-editor-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.latex-code {
+  position: relative;
+  min-height: 100%;
+  padding: 12px 0 40vh;
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  line-height: 1.6;
+  tab-size: 4;
+}
+
+.latex-layer,
+.latex-marks,
+.latex-input {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.latex-marks {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  color: transparent;
+  pointer-events: none;
+}
+
+.latex-row {
+  display: grid;
+  grid-template-columns: var(--latex-gutter) minmax(0, 1fr);
+}
+
+.latex-ln {
+  padding-right: 14px;
+  text-align: right;
+  color: var(--text-tertiary);
+  opacity: 0.6;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.latex-lc {
+  min-width: 0;
+  padding-right: 16px;
+}
+
+.latex-row.has-warning .latex-ln {
+  color: var(--c-yellow);
+  opacity: 1;
+}
+
+.latex-row.has-error .latex-ln {
+  color: var(--danger);
+  opacity: 1;
+}
+
+.latex-row.has-error .latex-lc {
+  background: var(--c-red-bg);
+  border-radius: var(--radius-xs);
+}
+
+.latex-input {
+  position: absolute;
+  top: 12px;
+  bottom: 40vh;
+  left: var(--latex-gutter);
+  right: 0;
+  width: calc(100% - var(--latex-gutter));
+  margin: 0;
+  padding: 0 16px 0 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+  font: inherit;
+  line-height: inherit;
+  tab-size: inherit;
+}
+
+.latex-input::selection {
+  background: var(--bg-selection);
+  color: transparent;
+}
+
+.latex-mark {
+  border-radius: 2px;
+  background: var(--c-yellow-bg);
+  color: transparent;
+}
+
+.latex-mark.is-current {
+  background: var(--c-orange-bg);
+  box-shadow: 0 0 0 1px var(--c-orange);
+}
+
+/* Syntax colours. */
+.tex-cmd {
+  color: var(--c-blue);
+}
+
+.tex-env-cmd {
+  color: var(--c-purple);
+}
+
+.tex-env {
+  color: var(--c-purple);
+  font-weight: var(--weight-semibold);
+}
+
+.tex-brace {
+  color: var(--text-tertiary);
+}
+
+.tex-comment {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.tex-math {
+  color: var(--c-green);
+}
+
+.tex-math-delim {
+  color: var(--c-orange);
+}
+
+.tex-special {
+  color: var(--c-orange);
+}
+
+.tex-verbatim {
+  color: var(--text-secondary);
+}
+
+/* Find bar. */
+.latex-find {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.latex-find-input {
+  flex: 1;
+  min-width: 60px;
+  height: 26px;
+  padding: 0 8px;
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-s);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-md);
+}
+
+.latex-find-input:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+.latex-find-count {
+  min-width: 70px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Problems, under the source. */
+.latex-problems {
+  flex: 0 0 auto;
+  max-height: 28%;
+  overflow: auto;
+  border-top: var(--hairline) solid var(--border);
+  padding: 4px 0;
+}
+
+.latex-problem {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 4px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.latex-problem:hover {
+  background: var(--bg-hover);
+}
+
+.latex-problem-line {
+  flex: 0 0 auto;
+  min-width: 58px;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-yellow);
+}
+
+.latex-problem.is-error .latex-problem-line {
+  color: var(--danger);
+}
+
+/* ---- the preview */
+
+.latex-preview-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-hover);
+}
+
+.latex-paper {
+  --latex-ink: var(--text);
+  --latex-rule: var(--border-strong);
+  box-sizing: border-box;
+  max-width: 720px;
+  margin: 24px auto 40vh;
+  padding: 56px 64px 72px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.latex-paper.is-waiting {
+  color: var(--text-tertiary);
+  font-size: var(--text-md);
+}
+
+.latex-doc {
+  color: var(--latex-ink);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.55;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+.latex-doc p {
+  margin: 0;
+  text-align: justify;
+  text-indent: 1.5em;
+}
+
+.latex-doc p.latex-noindent,
+.latex-doc li > p:first-child,
+.latex-doc dd > p:first-child,
+.latex-doc .latex-abstract p,
+.latex-doc .latex-center p,
+.latex-doc .latex-flushleft p,
+.latex-doc .latex-flushright p,
+.latex-doc blockquote p:first-child {
+  text-indent: 0;
+}
+
+.latex-doc .latex-align-center,
+.latex-doc .latex-center {
+  text-align: center;
+}
+
+.latex-doc .latex-align-left,
+.latex-doc .latex-flushleft {
+  text-align: left;
+}
+
+.latex-doc .latex-align-right,
+.latex-doc .latex-flushright {
+  text-align: right;
+}
+
+.latex-titleblock {
+  margin: 0 0 2em;
+  text-align: center;
+}
+
+.latex-title {
+  margin: 0 0 0.6em;
+  font-size: 1.7em;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.latex-authors {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4em 2.5em;
+  font-size: 1.15em;
+}
+
+.latex-date {
+  margin-top: 0.6em;
+  font-size: 1.05em;
+}
+
+.latex-abstract {
+  margin: 0 3em 1.8em;
+  font-size: 0.92em;
+}
+
+.latex-abstract-title {
+  margin-bottom: 0.4em;
+  font-weight: 700;
+  text-align: center;
+}
+
+.latex-doc h2,
+.latex-doc h3,
+.latex-doc h4 {
+  margin: 1.6em 0 0.7em;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.latex-doc h2 {
+  font-size: 1.4em;
+}
+
+.latex-doc h3 {
+  font-size: 1.18em;
+}
+
+.latex-doc h4 {
+  font-size: 1.04em;
+}
+
+.latex-secnum {
+  margin-right: 0.9em;
+}
+
+.latex-runin {
+  font-weight: 700;
+}
+
+.latex-doc ul,
+.latex-doc ol,
+.latex-doc dl {
+  margin: 0.6em 0;
+  padding-left: 2.2em;
+}
+
+.latex-doc li {
+  margin: 0.25em 0;
+}
+
+/* The app resets list styles; a document draws its own. */
+.latex-doc ul {
+  list-style: disc;
+}
+
+.latex-doc ol {
+  list-style: decimal;
+}
+
+.latex-doc ol ol {
+  list-style-type: lower-alpha;
+}
+
+.latex-doc ol ol ol {
+  list-style-type: lower-roman;
+}
+
+.latex-doc ol ol ol ol {
+  list-style-type: upper-alpha;
+}
+
+.latex-doc ul ul {
+  list-style-type: '\2013\00a0\00a0';
+}
+
+.latex-doc li.latex-labeled {
+  list-style: none;
+}
+
+.latex-item-label {
+  display: inline-block;
+  min-width: 1.5em;
+  margin-left: -2em;
+  margin-right: 0.5em;
+  text-align: right;
+}
+
+.latex-doc dt {
+  font-weight: 700;
+}
+
+.latex-doc dd {
+  margin: 0 0 0.4em 1.5em;
+}
+
+.latex-display {
+  margin: 0.9em -2px 0.9em 0;
+  /* KaTeX draws a numbered formula 2px wider than its box: room for it, so no scrollbar shows. */
+  padding-right: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.latex-display .katex-display {
+  margin: 0;
+}
+
+.latex-tabular-wrap {
+  margin: 0.9em 0;
+  overflow-x: auto;
+}
+
+.latex-tabular {
+  margin: 0 auto;
+  border-collapse: collapse;
+}
+
+.latex-tabular td {
+  padding: 0.15em 0.6em;
+  vertical-align: top;
+}
+
+.latex-tabular .latex-col-c {
+  text-align: center;
+}
+
+.latex-tabular .latex-col-r {
+  text-align: right;
+}
+
+.latex-tabular .latex-rule-left {
+  border-left: 1px solid var(--latex-ink);
+}
+
+.latex-tabular .latex-rule-right {
+  border-right: 1px solid var(--latex-ink);
+}
+
+.latex-tabular .latex-rule-top > td {
+  border-top: 1px solid var(--latex-ink);
+}
+
+.latex-tabular .latex-rule-bottom > td {
+  border-bottom: 1px solid var(--latex-ink);
+}
+
+.latex-float {
+  margin: 1.2em 0;
+}
+
+.latex-caption {
+  margin: 0.5em 2em;
+  font-size: 0.95em;
+  text-align: center;
+}
+
+.latex-verbatim {
+  margin: 0.8em 0;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  line-height: 1.5;
+}
+
+.latex-verb,
+.latex-tt,
+.latex-url {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.latex-doc blockquote {
+  margin: 0.8em 2.5em;
+}
+
+.latex-bf {
+  font-weight: 700;
+}
+
+.latex-md {
+  font-weight: 400;
+}
+
+.latex-it,
+.latex-sl {
+  font-style: italic;
+}
+
+.latex-up {
+  font-style: normal;
+}
+
+.latex-sc {
+  font-variant: small-caps;
+}
+
+.latex-sf {
+  font-family: var(--font-sans);
+}
+
+.latex-rm {
+  font-family: var(--font-serif);
+}
+
+.latex-size-tiny {
+  font-size: 0.5em;
+}
+
+.latex-size-scriptsize {
+  font-size: 0.7em;
+}
+
+.latex-size-footnotesize {
+  font-size: 0.8em;
+}
+
+.latex-size-small {
+  font-size: 0.9em;
+}
+
+.latex-size-large {
+  font-size: 1.2em;
+}
+
+.latex-size-Large {
+  font-size: 1.44em;
+}
+
+.latex-size-LARGE {
+  font-size: 1.73em;
+}
+
+.latex-size-huge,
+.latex-size-Huge {
+  font-size: 2.07em;
+}
+
+.latex-nowrap {
+  white-space: nowrap;
+}
+
+.latex-fbox {
+  padding: 0 0.3em;
+  border: 1px solid var(--latex-ink);
+}
+
+.latex-hspace {
+  display: inline-block;
+}
+
+.latex-smallskip {
+  height: 0.3em;
+}
+
+.latex-medskip {
+  height: 0.6em;
+}
+
+.latex-bigskip {
+  height: 1.2em;
+}
+
+.latex-logo {
+  font-family: var(--font-serif);
+}
+
+.latex-logo-a {
+  font-size: 0.75em;
+  vertical-align: 0.25em;
+  margin-left: -0.32em;
+  margin-right: -0.12em;
+}
+
+.latex-logo-e {
+  vertical-align: -0.22em;
+  margin-left: -0.14em;
+  margin-right: -0.1em;
+}
+
+.latex-fnmark {
+  font-size: 0.7em;
+  line-height: 0;
+}
+
+.latex-footnotes {
+  margin-top: 2.5em;
+  padding-top: 0.6em;
+  border-top: 1px solid var(--latex-rule);
+  font-size: 0.85em;
+}
+
+.latex-footnotes ol {
+  margin: 0;
+  padding-left: 1.6em;
+  list-style: decimal;
+}
+
+.latex-toc {
+  margin: 1em 0 2em;
+}
+
+.latex-toc-title {
+  margin-bottom: 0.6em;
+  font-size: 1.4em;
+  font-weight: 700;
+}
+
+.latex-toc-entry {
+  margin: 0.2em 0;
+}
+
+.latex-toc-1 {
+  font-weight: 700;
+}
+
+.latex-toc-2 {
+  padding-left: 1.5em;
+}
+
+.latex-toc-3 {
+  padding-left: 3em;
+}
+
+.latex-pagebreak {
+  margin: 1.5em -64px;
+  border-top: 1px dashed var(--border-strong);
+}
+
+/* What the preview could not draw: marked, with the reason as a tooltip. */
+.latex-unsupported,
+.latex-image {
+  padding: 0 0.15em;
+  border-radius: 2px;
+  background: var(--c-yellow-bg);
+  color: var(--c-yellow);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  text-decoration: underline dotted;
+  cursor: help;
+}
+
+.latex-unsupported-env {
+  margin: 0.8em 0;
+  padding: 0.4em 0.8em;
+  border-left: 2px solid var(--c-yellow);
+}
+
+.latex-unsupported-env::before {
+  content: attr(data-env);
+  display: block;
+  color: var(--c-yellow);
+  font-family: var(--font-mono);
+  font-size: 0.75em;
+}
+
+.latex-math-error,
+.latex-doc .katex-error {
+  color: var(--danger) !important;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}
+
+/* ---- printing (Export PDF): only the copy of the preview put in <body> for the occasion */
+
+.latex-print-root {
+  display: none;
+}
+
+@media print {
+  html.latex-printing,
+  html.latex-printing body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  html.latex-printing body > :not(.latex-print-root) {
+    display: none !important;
+  }
+
+  html.latex-printing .latex-print-root {
+    --latex-ink: #000;
+    --latex-rule: #000;
+    display: block;
+    color: #000;
+  }
+
+  html.latex-printing .latex-doc {
+    font-size: 11pt;
+  }
+
+  html.latex-printing .latex-unsupported,
+  html.latex-printing .latex-image {
+    background: none;
+    color: #000;
+  }
+
+  html.latex-printing .latex-pagebreak {
+    margin: 0;
+    border: 0;
+    break-after: page;
+  }
+
+  html.latex-printing .latex-doc h2,
+  html.latex-printing .latex-doc h3,
+  html.latex-printing .latex-doc h4 {
+    break-after: avoid;
+  }
+
+  html.latex-printing .latex-display,
+  html.latex-printing .latex-tabular-wrap,
+  html.latex-printing .latex-float {
+    break-inside: avoid;
+    overflow: visible;
+  }
+}

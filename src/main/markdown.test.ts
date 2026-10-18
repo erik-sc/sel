@@ -217,6 +217,49 @@ describe('import', () => {
   })
 })
 
+describe('equation blocks', () => {
+  const tex = '\\begin{aligned}\n  a &= b + c \\\\\n  d &= \\frac{e}{f}\n\\end{aligned}'
+
+  it('export as display math between $$ lines', () => {
+    const p = repo.create({ type: 'page', parentId: null, props: { title: [['Math']] } })
+    repo.create({ type: 'equation', parentId: p.id, props: { title: [[tex]] } })
+    repo.create({ type: 'equation', parentId: p.id, props: { title: [] } })
+    repo.create({ type: 'text', parentId: p.id, props: { title: [['after']] } })
+    expect(pageToMarkdown(repo, p.id).markdown).toBe(`# Math\n\n$$\n${tex}\n$$\n\nafter\n`)
+  })
+
+  it('import from $$ lines, one-line $$…$$ and inside a list', () => {
+    const { nodes } = parseMarkdown('$$\nx^2\n$$\n\n$$ E = mc^2 $$\n\n- item\n\n    $$\n    \\sum_i i\n    $$\n\ncost $$5 and $$6')
+    expect(nodes.map((n) => [n.type, plainText(n.props.title)])).toEqual([
+      ['equation', 'x^2'],
+      ['equation', 'E = mc^2'],
+      ['bulleted_list', 'item'],
+      ['text', 'cost $$5 and $$6']
+    ])
+    expect(nodes[2].children.map((n) => [n.type, plainText(n.props.title)])).toEqual([['equation', '\\sum_i i']])
+  })
+
+  it('leave an unclosed $$ as text', () => {
+    const { nodes } = parseMarkdown('$$ no end\n\nmore')
+    expect(nodes.map((n) => n.type)).toEqual(['text', 'text'])
+  })
+
+  it('round-trip through export and import', () => {
+    const p = repo.create({ type: 'page', parentId: null, props: { title: [['Math']] } })
+    repo.create({ type: 'equation', parentId: p.id, props: { title: [[tex]] } })
+    repo.create({ type: 'text', parentId: p.id, props: { title: [['between']] } })
+    repo.create({ type: 'equation', parentId: p.id, props: { title: [['e^{i\\pi} + 1 = 0']] } })
+    const once = pageToMarkdown(repo, p.id).markdown
+    const copy = importMarkdownText(repo, once, null)
+    expect(repo.children(copy.id).map((b) => [b.type, plainText(b.props.title)])).toEqual([
+      ['equation', tex],
+      ['text', 'between'],
+      ['equation', 'e^{i\\pi} + 1 = 0']
+    ])
+    expect(pageToMarkdown(repo, copy.id).markdown).toBe(once)
+  })
+})
+
 describe('hostile input', () => {
   const within = (ms: number, fn: () => void): void => {
     const start = performance.now()

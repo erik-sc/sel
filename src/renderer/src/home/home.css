@@ -1,0 +1,11 @@
+/* The Home button when the home cannot open: in place, dimmed, its tooltip says why. */
+.sidebar-action.home-action[aria-disabled='true'] {
+  color: var(--text-secondary);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.sidebar-action.home-action[aria-disabled='true']:hover,
+.sidebar-action.home-action[aria-disabled='true']:active {
+  background: none;
+}

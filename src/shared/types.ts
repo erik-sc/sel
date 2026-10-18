@@ -1,5 +1,7 @@
 // Data model shared by main, preload and renderer. Everything is a block.
 
+import type { SystemKind } from './system'
+
 export type BlockType =
   | 'page'
   | 'text'
@@ -17,6 +19,8 @@ export type BlockType =
   | 'image'
   | 'bookmark'
   | 'database'
+  /** Display math in LaTeX, drawn by KaTeX; the source is `props.title` as plain text, like code. */
+  | 'equation'
 
 /** Inline formatting: bold, italic, underline, strike, code, link(url), color(name). */
 export type Mark = ['b'] | ['i'] | ['u'] | ['s'] | ['c'] | ['a', string] | ['h', string]
@@ -32,6 +36,11 @@ export interface BlockProps {
   checked?: boolean
   /** code */
   language?: string
+  /**
+   * page: a special kind of page. `'latex'`: a LaTeX document, whose source is the plain text of
+   * its first `code` child (language `latex`), shown as source and preview side by side.
+   */
+  kind?: 'latex'
   /** page, callout, database: emoji */
   icon?: string
   /** page: css gradient/colour or image url */
@@ -46,6 +55,12 @@ export interface BlockProps {
   /** page */
   favorite?: boolean
   fullWidth?: boolean
+  /**
+   * page / database of the tree: when it was archived. An archived page stays where it is
+   * (parent and position kept) but leaves the sidebar, the recent pages and what the AI is
+   * shown by itself; search still finds it (see Repository.listArchived).
+   */
+  archivedAt?: number
   /** database only */
   schema?: Record<string, PropertySchema>
   views?: DatabaseView[]
@@ -55,10 +70,17 @@ export interface BlockProps {
    * its schema and rows are always those of the source, its own `content` stays empty.
    */
   sourceId?: string
+  /**
+   * page / database: makes the block part of the app (the Tasks database). Such a block lives
+   * at the workspace root and cannot be deleted, moved or retyped (see shared/system.ts).
+   */
+  system?: SystemKind
   /** page that is a database row: propertyId -> value */
   values?: Record<string, PropertyValue>
   /** database: drawn in one row with the database block before it (see editor/layout.ts) */
   beside?: boolean
+  /** meeting page: the calendar occurrence it was made for (its UID and start, ms), so it is made once */
+  meetingEvent?: { uid: string; start: number }
 }
 
 export interface Block {
@@ -145,6 +167,12 @@ export interface RollupConfig {
   relationId?: string
   /** A property of the related database; `count` needs none. */
   propertyId?: string
+  /**
+   * Only the linked rows that pass every rule count ("Date is this month"). Rules name
+   * properties of the related database, and only plain ones (no relation, rollup or
+   * formula: no chains). Absent: every linked row.
+   */
+  filters?: ViewFilter[]
   function: RollupFunction
 }
 
@@ -162,7 +190,8 @@ export interface FormulaConfig {
  * title -> stored in block.props.title, not in values.
  * text/url -> string, number -> number, checkbox -> boolean,
  * select -> option id, multi_select -> option ids,
- * date -> { start: ISO date, end?: ISO date }, relation -> ids of the linked rows.
+ * date -> { start, end? }: each `YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm` (a local wall-clock time, no zone);
+ * relation -> ids of the linked rows.
  * A rollup or a formula stores nothing: its value is computed whenever it is read.
  */
 export type PropertyValue = string | number | boolean | string[] | { start: string; end?: string } | null
@@ -227,6 +256,29 @@ export type FilterOperator =
   | 'lt'
   | 'checked'
   | 'unchecked'
+  /** date-like properties: the value falls in a span named relative to today (`RelativeDate`). */
+  | 'date_is'
+
+/**
+ * Spans of days counted from today, for the `date_is` operator. A value that covers several
+ * days is in a span when any of its days is; `overdue` is before today, `by_today` today or before.
+ */
+export const RELATIVE_DATES = [
+  'today',
+  'tomorrow',
+  'yesterday',
+  'overdue',
+  'by_today',
+  'next_7_days',
+  'past_7_days',
+  'this_week',
+  'next_week',
+  'this_month',
+  'last_month',
+  'past_30_days',
+  'this_year'
+] as const
+export type RelativeDate = (typeof RELATIVE_DATES)[number]
 
 export interface ViewFilter {
   propertyId: string
@@ -289,6 +341,8 @@ export interface SearchResult {
   snippet?: string
   /** Titles of ancestor pages, root first. */
   path: string[]
+  /** The page that contains the hit is archived, or lies inside one that is. */
+  archived?: true
 }
 
 export interface ChangeEvent {

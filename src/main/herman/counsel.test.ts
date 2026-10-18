@@ -44,17 +44,9 @@ describe('what he notices', () => {
     expect(compose(base({ tasks: { overdue: [], today: [task('Only one')] } }))?.text).toBe('One for today. When will you do it?')
   })
 
-  it('sees a meeting about to start, and offers a page for its notes', () => {
-    const start = at(10, 10)
-    const counsel = compose(base({ events: [event('Standup', start)] }))
-    expect(counsel).toMatchObject({ kind: 'event-soon', text: '“Standup” in ten minutes. Close this thought first.' })
-    expect(counsel?.action).toEqual({ label: 'Take notes', command: { type: 'new-meeting', event: { title: 'Standup', start, end: start + 30 * MIN } } })
-    // Not when it is an hour away, not once it has begun, and never for an all-day entry.
-    expect(compose(base({ events: [event('Later', at(11))] }))?.kind).not.toBe('event-soon')
-    expect(compose(base({ events: [event('Now', at(9, 59))] }))?.kind).not.toBe('event-soon')
-    expect(compose(base({ events: [{ title: 'Conference', start: at(10, 5), end: at(23), allDay: true }] }))).toBeNull()
-    // An event without a title gets a line that needs none.
-    expect(compose(base({ events: [event('', at(10, 5))] }))).toMatchObject({ kind: 'event-soon', variant: 'event-soon:4', text: 'Five minutes to the next thing. Note where you stopped.' })
+  it('leaves an event about to start to the alarms', () => {
+    // The alarms announce it, and offer to record a meeting: he would only say it twice.
+    expect(compose(base({ events: [event('Standup', at(10, 10))] }))).toBeNull()
   })
 
   it('finds a free stretch on a day that has a calendar', () => {
@@ -91,7 +83,7 @@ describe('what he notices', () => {
     expect(compose(base({ now: at(4, 30), firstLaunch: true }))).toBeNull()
     const evening = compose(base({ now: at(18) }))
     expect(evening).toMatchObject({ kind: 'evening', text: 'Enough for today. What is worth keeping?' })
-    expect(evening?.action?.command).toEqual({ type: 'ask', question: 'What is worth carrying over to tomorrow?' })
+    expect(evening?.action).toEqual({ label: 'Close the day', command: { type: 'close-day' } })
     expect(compose(base({ now: at(17, 29) }))).toBeNull()
     expect(compose(base({ now: at(22) }))).toBeNull()
   })
@@ -117,8 +109,8 @@ describe('what he notices', () => {
       said.push(counsel.kind)
       last = counsel.kind
     }
-    expect(order).toEqual(['event-soon', 'streak', 'long-session', 'reopened', 'morning', 'overdue'])
-    expect(HERMAN_NUDGE_KINDS).toEqual(['event-soon', 'streak', 'long-session', 'reopened', 'morning', 'evening', 'free-block', 'overdue', 'today'])
+    expect(order).toEqual(['streak', 'long-session', 'reopened', 'morning', 'overdue'])
+    expect(HERMAN_NUDGE_KINDS).toEqual(['streak', 'long-session', 'reopened', 'morning', 'evening', 'free-block', 'overdue', 'today'])
   })
 })
 
@@ -185,7 +177,7 @@ describe('his restraint in what he says', () => {
 
   it('respects other thresholds when given them', () => {
     expect(compose(base({ now: at(14), editingMs: 9000, thresholds: { longSessionMs: 8000 } }))?.kind).toBe('long-session')
-    expect(COUNSEL_DEFAULTS).toMatchObject({ longSessionMs: 50 * MIN, untouchedDays: 30, streak: 3, soonToMs: 15 * MIN, freeBlockMs: 90 * MIN })
+    expect(COUNSEL_DEFAULTS).toMatchObject({ longSessionMs: 50 * MIN, untouchedDays: 30, streak: 3, freeBlockMs: 90 * MIN })
   })
 })
 
@@ -222,7 +214,6 @@ describe('Portuguese', () => {
     expect(pt({ tasks: { overdue: [], today: [task('A'), task('B')] } })).toBe('Duas coisas para hoje. Qual vem primeiro?')
     expect(pt({ now: at(14), editingMs: 52 * MIN })).toBe('Cinquenta minutos. Levante-se.')
     expect(pt({ now: at(18) })).toBe('Chega por hoje. O que vale guardar?')
-    expect(pt({ events: [event('Reunião', at(10, 10))] })).toBe('“Reunião” em dez minutos. Feche este pensamento antes.')
     expect(pt({ now: at(13), events: [event('Standup', at(9)), event('Review', at(15))] })).toBe('Nada na agenda até as 15:00. O que merece esse tempo?')
     expect(pt({ now: at(14), reopened: { pageId: 'p', days: 400 } })).toBe('Sem mexer há mais de um ano. Ainda é verdade?')
     const action = compose(base({ locale: 'pt-BR', tasks: { overdue: [task('A', '2026-10-13')], today: [] } }))?.action
@@ -281,6 +272,14 @@ describe('the bank of lines', () => {
       expect(LINES.en[kind].some((line) => !line.title)).toBe(true)
     }
     expect(Object.keys(LINES.en).sort()).toEqual([...HERMAN_NUDGE_KINDS].sort())
+  })
+
+  it('calls the notebook by its name, Meditations / Meditações', () => {
+    for (const locale of locales) {
+      const texts = HERMAN_NUDGE_KINDS.flatMap((kind) => LINES[locale][kind].map((line) => line.text(sample(locale, false))))
+      for (const text of texts) expect(text).not.toMatch(/notebook|caderno|tinta|\bink\b/i)
+      expect(texts.some((text) => text.includes(locale === 'en' ? 'Meditations' : 'Meditações'))).toBe(true)
+    }
   })
 
   it('holds short, finished sentences: no blanks left unfilled, no emoji, no exclamation, nothing quoted', () => {

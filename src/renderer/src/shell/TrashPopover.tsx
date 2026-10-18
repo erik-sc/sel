@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { Popover } from '@/ui/Popover'
+import { Popover, type PopoverAnchor } from '@/ui/Popover'
 
 const load = (): Promise<typeof import('./TrashList')> => import('./TrashList')
 const TrashList = lazy(() => load().then((module) => ({ default: module.TrashList })))
@@ -14,7 +14,7 @@ export function TrashPopover({
   open,
   onClose
 }: {
-  anchor: HTMLElement | null
+  anchor: PopoverAnchor
   open: boolean
   onClose: () => void
 }) {

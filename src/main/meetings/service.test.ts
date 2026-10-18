@@ -152,6 +152,26 @@ describe('the Meetings database', () => {
     ])
   })
 
+  it('makes one page per occurrence of an event, and finds it again by its uid', () => {
+    const w = world()
+    const start = new Date(2026, 9, 14, 9, 30).getTime()
+    const event = { title: 'Standup', start, end: start + 15 * 60_000, uid: 'abc@google.com' }
+    const first = w.service.create({ event })
+    expect(first.existing).toBeUndefined()
+    expect(w.repo.get(first.pageId)?.props.meetingEvent).toEqual({ uid: 'abc@google.com', start })
+    // The alarm's "Record" after "Just notes", or Today's button after the alarm: the same page.
+    expect(w.service.create({ event: { ...event, title: 'Standup (renamed)' } })).toEqual({ pageId: first.pageId, existing: true })
+    // The next day's occurrence of the series is a meeting of its own.
+    const tomorrow = w.service.create({ event: { ...event, start: start + 86_400_000, end: start + 86_400_000 + 15 * 60_000 } })
+    expect(tomorrow.pageId).not.toBe(first.pageId)
+    // A page in the trash is not reused; an event without a uid always makes a new page.
+    w.repo.delete(first.pageId)
+    expect(w.service.create({ event }).pageId).not.toBe(first.pageId)
+    const { uid: _uid, ...plain } = event
+    expect(w.service.create({ event: plain }).pageId).not.toBe(w.service.create({ event: plain }).pageId)
+    expect(meetingInput({ event: { ...event, uid: 'x'.repeat(401) } }).event?.uid).toBeUndefined()
+  })
+
   it.each([
     ['a string', 'meeting'],
     ['an array', []],

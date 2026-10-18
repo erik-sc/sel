@@ -55,6 +55,14 @@ export const BRIEFING_LIMITS = {
   databases: 200
 } as const
 
+/** A calendar's name as it is kept: one line, no control characters, at most `label` long. */
+export function cleanCalendarLabel(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback
+  // eslint-disable-next-line no-control-regex
+  const label = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, BRIEFING_LIMITS.label)
+  return label || fallback
+}
+
 /** A calendar as the renderer knows it: a label and the host of its address, nothing more. */
 export interface BriefingCalendar {
   id: string
@@ -82,6 +90,19 @@ export interface BriefingEvent {
   /** Plain text, capped. */
   description?: string
   recurring: boolean
+  /** The event's UID in its calendar, the same for every occurrence of a series. */
+  uid?: string
+  /** Shown as free (TRANSP:TRANSPARENT): no alarm is given for it. */
+  transparent?: boolean
+  /** How many people other than the calendar's owner are invited, when any are. */
+  attendees?: number
+  /** The link of the call (Meet, Teams or Zoom), when it has one. https only. */
+  meetingUrl?: string
+}
+
+/** A meeting is an event with someone else invited or a link to a call. */
+export function isMeetingEvent(event: Pick<BriefingEvent, 'attendees' | 'meetingUrl'>): boolean {
+  return (event.attendees ?? 0) >= 1 || !!event.meetingUrl
 }
 
 export interface BriefingPhrase {
@@ -194,8 +215,11 @@ export interface BriefingApi {
     /** Reads the calendar now and counts its events today and in the next seven days. */
     test(id: string): Promise<CalendarTestResult>
   }
-  /** Marks a task done in place. The token undoes it for a few minutes. */
-  completeTask(rowId: string): Promise<{ token: string }>
+  /**
+   * Marks a task done in place. The token undoes it for a few minutes. A repeating task of the
+   * Tasks database stays open with its due date moved on: `next` is that date.
+   */
+  completeTask(rowId: string): Promise<{ token: string; next?: string }>
   undoCompleteTask(token: string): Promise<void>
   /** The database of the user's own phrases, created when there is none. */
   ensurePhrasesDatabase(): Promise<{ id: string }>

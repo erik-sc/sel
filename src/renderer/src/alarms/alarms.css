@@ -1,0 +1,75 @@
+/* Settings → Herman → Briefing, and Settings → Notifications. */
+
+/* The times sit under their label: a row of controls per time is too wide to share a line. */
+.ap-row.alarm-times-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.ap-row-control.alarm-times {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.alarm-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alarm-time.is-off .alarm-days,
+.alarm-time.is-off .herman-time {
+  opacity: 0.5;
+}
+
+.alarm-enabled {
+  accent-color: var(--accent);
+}
+
+.alarm-days {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.alarm-day {
+  width: calc(var(--control-height) * 0.85);
+  height: calc(var(--control-height) * 0.85);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--fill-3);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.alarm-day:hover {
+  background: var(--fill-2);
+}
+
+.alarm-day.is-on {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.alarm-day:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.alarm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Settings → Notifications: with the window closed nothing rings. */
+.ap-row-help.alarm-warning {
+  margin-top: 4px;
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
