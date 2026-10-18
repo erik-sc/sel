@@ -295,6 +295,41 @@ describe('search', () => {
     expect(repo.search('tomatoes').map((h) => h.id)).toEqual([sub.id])
     expect(repo.search('prune', 1)).toHaveLength(1)
   })
+
+  it('lists each page once: its title hit, or else its best block', () => {
+    const log = page('Diário de bordo')
+    const lines = Array.from({ length: 12 }, (_, i) => text(`Dia ${i}: conversa com o cliente`, log.id))
+    const client = page('Cliente novo')
+    text('O cliente pediu um orçamento', client.id)
+    const other = page('Outra página')
+    text('Sem nada a ver', other.id)
+    const late = text('Ligar para o cliente amanhã', other.id)
+
+    const hits = repo.search('cliente')
+    expect(hits).toHaveLength(3)
+    // The title hit stands for its page and comes first; block hits only add a row for pages not listed yet.
+    expect(hits[0]).toMatchObject({ id: client.id, pageId: client.id })
+    expect(hits[0].snippet).toBeUndefined()
+    const fromLog = hits.find((h) => h.pageId === log.id)!
+    expect(lines.map((b) => b.id)).toContain(fromLog.id)
+    expect(fromLog.snippet).toContain('cliente')
+    expect(hits.find((h) => h.pageId === other.id)).toMatchObject({ id: late.id, title: 'Outra página' })
+    // The limit counts pages.
+    expect(new Set(repo.search('cliente', 2).map((h) => h.pageId)).size).toBe(2)
+  })
+
+  it('keeps marking archived pages and leaving the trash out when it groups', () => {
+    const kept = page('Arquivo morto')
+    text('notas do arquivo', kept.id)
+    repo.update(kept.id, { props: { archivedAt: Date.now() } })
+    const gone = page('Lixo')
+    text('arquivo velho', gone.id)
+    repo.delete(gone.id)
+
+    const hits = repo.search('arquivo')
+    expect(hits).toHaveLength(1)
+    expect(hits[0]).toMatchObject({ id: kept.id, archived: true })
+  })
 })
 
 describe('duplicate', () => {

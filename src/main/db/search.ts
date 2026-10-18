@@ -16,7 +16,7 @@ export interface SearchSource {
 /**
  * Full-text search over block text: ranked prefix matches first, a substring
  * pass when those are too few. Hits inside the trash are dropped, page titles
- * come before block text.
+ * come before block text, and each page is listed once.
  */
 /** True for a database whose stored props carry a `sourceId` (the substring test skips the JSON parser for the rest). */
 function isLinkedView(link: Link): boolean {
@@ -79,8 +79,15 @@ export function searchBlocks(source: SearchSource, text: string, limit = 20): Se
     else if (chain.length) blockHits.push({ id, page: chain[chain.length - 1], chain: chain.slice(0, -1) })
   }
 
+  // One result per page: opening a hit opens its page, so a page that mentions the words many
+  // times would otherwise fill the list. Its title hit, or else its best block, stands for it.
+  const byPage = new Map<string, Hit>()
+  for (const hit of [...pageHits, ...blockHits]) {
+    if (!byPage.has(hit.page.id)) byPage.set(hit.page.id, hit)
+  }
+
   // Only the hits that are returned are read in full and turned into results.
-  const hits = [...pageHits, ...blockHits].slice(0, n)
+  const hits = [...byPage.values()].slice(0, n)
   const props = new Map<string, BlockProps>()
   const propsOf = (link: Link): BlockProps => {
     let p = props.get(link.id)
