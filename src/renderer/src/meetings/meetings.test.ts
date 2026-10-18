@@ -6,6 +6,7 @@ import { MEETING_LANGUAGES, MEETING_LANGUAGE_LABELS, WHISPER_MODEL_LABELS, WHISP
 import { filterSlashItems } from '../editor/blockTypes'
 import { planAccept } from '../ai/plan'
 import type { Tree } from '../editor/structure'
+import { paragraphAt, stampedRows } from './follow'
 
 const read = (path: string): string => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8')
 
@@ -43,6 +44,54 @@ describe('entry points', () => {
     }
     for (const language of MEETING_LANGUAGES) expect(MEETING_LANGUAGE_LABELS[language]).toBeTruthy()
     expect(MEETING_LANGUAGES).toContain('pt')
+  })
+})
+
+describe('following the transcript while it plays', () => {
+  it('marks the paragraph that started latest at or before the time heard', () => {
+    const starts = [0, 5, 12, 40]
+    expect(paragraphAt(starts, 0)).toBe(0)
+    expect(paragraphAt(starts, 4.9)).toBe(0)
+    expect(paragraphAt(starts, 5)).toBe(1)
+    // A seek to 00:12 can land a hair before it.
+    expect(paragraphAt(starts, 11.97)).toBe(2)
+    expect(paragraphAt(starts, 3600)).toBe(3)
+    expect(paragraphAt([3, 8], 1)).toBe(-1)
+    expect(paragraphAt([], 10)).toBe(-1)
+    // A time the user edited out of order does not hide the paragraphs after it.
+    expect(paragraphAt([0, 50, 10, 20], 25)).toBe(3)
+    expect(paragraphAt([0, 10, 10], 10)).toBe(2)
+  })
+
+  it('takes the rows that begin with a time written as code, and only those', () => {
+    type Fake = { textContent: string; stamp: string | null }
+    const fake = (rows: Fake[]): ParentNode =>
+      ({
+        querySelectorAll: (selector: string) => {
+          expect(selector).toBe('.pe-body .blk[data-block-id] > .blk-row')
+          return rows.map((row) => ({ ...row, querySelector: () => (row.stamp === null ? null : { textContent: row.stamp }) }))
+        }
+      }) as unknown as ParentNode
+    const rows = stampedRows(
+      fake([
+        { textContent: '00:00 Me: Hello.', stamp: '00:00' },
+        { textContent: 'A note of mine', stamp: null },
+        { textContent: 'Run npm test at 01:00', stamp: 'npm test' },
+        { textContent: 'Said at 02:00 by Me', stamp: '02:00' },
+        { textContent: ' 1:02:03 Others: Long call.', stamp: '1:02:03' }
+      ])
+    )
+    expect(rows.map((row) => [row.row.textContent, row.start])).toEqual([
+      ['00:00 Me: Hello.', 0],
+      [' 1:02:03 Others: Long call.', 3723]
+    ])
+  })
+
+  it('marks it with a highlight, never in the editor’s own DOM', () => {
+    const source = read('./follow.ts')
+    expect(source).toContain('CSS.highlights.set')
+    expect(source).not.toMatch(/classList|setAttribute|\.style\b|innerHTML/)
+    expect(read('./meetings.css')).toMatch(/::highlight\(meeting-now\) \{\s*background-color: var\(--accent-soft\);/)
   })
 })
 
