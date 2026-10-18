@@ -10,7 +10,7 @@ import type { Repository } from '../db/repository'
 import { device, pair, remoteFiles, suite, sync } from '../sync/harness'
 import * as arg from '../validate'
 import { GrantStore } from './grant'
-import { meetingInput, MeetingsService } from './service'
+import { attendeesText, meetingInput, MeetingsService } from './service'
 import { cleanSegments, cleanSpeaker, mergeTranscript, paragraphSpans, renameSpeakerSpans, transcriptFromTitles, transcriptText, type Segment } from './transcript'
 import { WhisperEngine } from './whisper/engine'
 import { WhisperError, type WhisperRun } from './whisper/run'
@@ -161,6 +161,41 @@ describe('the Meetings database', () => {
       ['quote', 'Bring the numbers'],
       ['text', '']
     ])
+  })
+
+  it('lists the people the calendar invited in Attendees', () => {
+    const w = world()
+    const start = new Date(2026, 9, 14, 9, 30).getTime()
+    const event = { title: 'Roadmap review', start, end: start + 45 * 60_000, uid: 'roadmap@x' }
+    const people = ['Souza, Ana', 'bo@example.com', 'Souza, Ana', '', 7, null, 'Dan\u0000\nTab ']
+    const { pageId } = w.service.create({ event }, people)
+    expect(w.repo.get(pageId)?.props.values).toEqual({ date: { start: '2026-10-14' }, attendees: 'Souza, Ana, bo@example.com, Dan Tab' })
+    // The same occurrence again is the page made for it, as it is.
+    expect(w.service.create({ event }, ['Someone else'])).toEqual({ pageId, existing: true })
+    expect(w.repo.get(pageId)?.props.values?.['attendees']).toBe('Souza, Ana, bo@example.com, Dan Tab')
+    // Without a calendar event (no uid) names are not taken from anywhere.
+    const { uid: _uid, ...plain } = event
+    expect(w.repo.get(w.service.create({ event: plain }, ['Ana']).pageId)?.props.values?.['attendees']).toBeUndefined()
+    expect(w.repo.get(w.service.create({ title: 'x' }, ['Ana']).pageId)?.props.values?.['attendees']).toBeUndefined()
+    // As many as fit, whole.
+    const crowd = attendeesText(Array.from({ length: 200 }, (_, i) => `Person number ${i}`))
+    expect(crowd.length).toBeLessThanOrEqual(MEETING_LIMITS.attendees)
+    expect(crowd.endsWith(`Person number ${crowd.split(', ').length - 1}`)).toBe(true)
+  })
+
+  it('leaves Attendees alone where the user changed or removed the property', () => {
+    const w = world()
+    const database = w.service.ensureDatabase()
+    const start = new Date(2026, 9, 14, 9, 30).getTime()
+    const schema = { ...database.props.schema }
+    schema['attendees'] = { id: 'attendees', name: 'Who', type: 'number' }
+    w.repo.update(database.id, { props: { schema } })
+    const first = w.service.create({ event: { title: 'a', start, end: start, uid: 'a@x' } }, ['Ana'])
+    expect(w.repo.get(first.pageId)?.props.values?.['attendees']).toBeUndefined()
+    delete schema['attendees']
+    w.repo.update(database.id, { props: { schema } })
+    const second = w.service.create({ event: { title: 'b', start, end: start, uid: 'b@x' } }, ['Ana'])
+    expect(w.repo.get(second.pageId)?.props.values?.['attendees']).toBeUndefined()
   })
 
   it('makes one page per occurrence of an event, and finds it again by its uid', () => {

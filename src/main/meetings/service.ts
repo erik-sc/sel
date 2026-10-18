@@ -140,6 +140,20 @@ function line(value: unknown, max: number): string | undefined {
   return text ? text.slice(0, max) : undefined
 }
 
+/** The Attendees of a meeting: the names, one line each, comma-separated, as many as fit. */
+export function attendeesText(people: readonly unknown[]): string {
+  const names: string[] = []
+  let length = 0
+  for (const person of people.slice(0, 200)) {
+    const name = line(person, 80)
+    if (!name || names.includes(name)) continue
+    if (length + name.length + 2 > MEETING_LIMITS.attendees) break
+    names.push(name)
+    length += name.length + 2
+  }
+  return names.join(', ')
+}
+
 /** A `create` input from a renderer, checked: a title and, from Today, the event it is for. */
 export function meetingInput(value: unknown): { title?: string; event?: MeetingEventContext } {
   if (value === undefined || value === null) return {}
@@ -293,10 +307,10 @@ export class MeetingsService {
 
   /**
    * A new page in the Meetings database. From Today or an event's alarm it carries the event's
-   * title, day and time; when the event has a UID, a page already made for that occurrence is
-   * the one returned.
+   * title, day and time, and `people` (the calendar's invited, looked up by the caller) go into
+   * Attendees; when the event has a UID, a page already made for that occurrence is the one returned.
    */
-  create(rawInput: unknown): { pageId: string; existing?: boolean } {
+  create(rawInput: unknown, people: readonly unknown[] = []): { pageId: string; existing?: boolean } {
     const input = meetingInput(rawInput)
     const database = this.ensureDatabase()
     const uid = input.event?.uid
@@ -308,6 +322,8 @@ export class MeetingsService {
     const title = input.title ?? input.event?.title ?? `Meeting, ${new Date(at).toLocaleDateString('en', { day: 'numeric', month: 'long' })}`
     const values: Record<string, PropertyValue> = {}
     if (database.props.schema?.[SCHEMA_IDS.date]?.type === 'date') values[SCHEMA_IDS.date] = { start: localDay(at) }
+    const attendees = uid ? attendeesText(people) : ''
+    if (attendees && database.props.schema?.[SCHEMA_IDS.attendees]?.type === 'text') values[SCHEMA_IDS.attendees] = attendees
     const children: TreeInput[] = []
     if (input.event) {
       const when = `${clock(input.event.start)}–${clock(input.event.end)}`

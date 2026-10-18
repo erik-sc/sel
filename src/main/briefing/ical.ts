@@ -38,7 +38,10 @@ export const ICAL_LIMITS = {
   occurrences: 2_000,
   title: 300,
   location: 300,
-  description: 500
+  description: 500,
+  /** Names of invited people kept per event, and characters of one. */
+  people: 50,
+  person: 80
 } as const
 
 const DAY_MS = 86_400_000
@@ -403,6 +406,8 @@ export interface IcalEvent {
   transparent: boolean
   /** People invited other than the calendar's owner (rooms and other resources not counted). */
   attendees: number
+  /** The names of those people (CN, else the address), less those who declined; at most `ICAL_LIMITS.people`. */
+  people?: string[]
   /** The address of the call (Meet, Teams, Zoom), when the event has one. */
   meetingUrl?: string
   rule?: IcalRule
@@ -548,6 +553,8 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
   /** Where a call's link may be, most trusted first. */
   const links: { conference?: string; url?: string; location?: string; description?: string } = {}
   const invited = new Set<string>()
+  /** What each of the invited is called, by the same key, for those who did not decline. */
+  const names = new Map<string, string>()
   let organizer: string | null = null
   let rule: IcalRule | undefined
   let ruleUnsupported = false
@@ -598,8 +605,14 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
       case 'ATTENDEE': {
         const email = emailOf(line.value)
         const kind = (line.params['CUTYPE'] ?? '').toUpperCase()
-        if (kind !== 'RESOURCE' && kind !== 'ROOM' && invited.size < 1000) invited.add(email ?? line.value.trim().toLowerCase())
-        if ((line.params['PARTSTAT'] ?? '').toUpperCase() !== 'DECLINED' || self.size === 0) break
+        const key = email ?? line.value.trim().toLowerCase()
+        const declinedHere = (line.params['PARTSTAT'] ?? '').toUpperCase() === 'DECLINED'
+        if (kind !== 'RESOURCE' && kind !== 'ROOM' && invited.size < 1000) {
+          invited.add(key)
+          const name = plainLine(line.params['CN'] ?? '', ICAL_LIMITS.person) || email
+          if (name && !declinedHere && !names.has(key)) names.set(key, name)
+        }
+        if (!declinedHere || self.size === 0) break
         if (email && self.has(email)) declined = true
         break
       }
@@ -643,8 +656,14 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
   }
   // The owner is not one of the others: by address when the calendar says whose it is, otherwise
   // the organizer stands for them (a calendar lists its owner among the guests of anything with guests).
-  for (const email of self) invited.delete(email)
-  if (self.size === 0 && organizer) invited.delete(organizer)
+  for (const email of self) {
+    invited.delete(email)
+    names.delete(email)
+  }
+  if (self.size === 0 && organizer) {
+    invited.delete(organizer)
+    names.delete(organizer)
+  }
   const event: IcalEvent = {
     uid: uid || `no-uid-${start.wall}-${title.slice(0, 40)}`,
     start,
@@ -660,6 +679,7 @@ function buildEvent(draft: Draft, context: ZoneContext, self: ReadonlySet<string
   }
   if (location) event.location = location
   if (description) event.description = description
+  if (names.size) event.people = [...names.values()].slice(0, ICAL_LIMITS.people)
   const link = meetingLink(links.conference) ?? meetingLink(links.url) ?? meetingLink(links.location) ?? meetingLink(links.description)
   if (link) event.meetingUrl = link
   if (rule) event.rule = rule
@@ -788,6 +808,8 @@ export interface CalendarOccurrence {
   transparent?: boolean
   /** People invited other than the calendar's owner, when there are any. */
   attendees?: number
+  /** Their names, when known (see `IcalEvent.people`). */
+  people?: string[]
   meetingUrl?: string
 }
 
@@ -865,6 +887,7 @@ export function expandCalendar(calendar: ParsedCalendar, window: { from: number;
     if (event.description) occurrence.description = event.description
     if (event.transparent) occurrence.transparent = true
     if (event.attendees > 0) occurrence.attendees = event.attendees
+    if (event.people?.length) occurrence.people = event.people
     if (event.meetingUrl) occurrence.meetingUrl = event.meetingUrl
     out.push(occurrence)
   }

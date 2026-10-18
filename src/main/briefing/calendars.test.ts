@@ -437,7 +437,8 @@ describe('the calendar service', () => {
     const added = t.store.add({ label: 'A', url: SECRET, color: 'blue' })
     writeFileSync(
       join(dir, 'briefing', 'calendar-cache.json'),
-      JSON.stringify({ version: 1, calendars: { [added.id]: { etag: '"v1"', fetchedAt: NOW, checkedAt: NOW, from: day(-1), to: day(15), events: [{ id: 'old', title: 'Standup', start: day(0) + 1000, end: day(0) + 2000 }] } } })
+      // Version 2 kept the count of the invited but not their names: it is read again in full too.
+      JSON.stringify({ version: 2, calendars: { [added.id]: { etag: '"v1"', fetchedAt: NOW, checkedAt: NOW, from: day(-1), to: day(15), events: [{ id: 'old', title: 'Standup', start: day(0) + 1000, end: day(0) + 2000, attendees: 1 }] } } })
     )
     const service = t.make()
     // The old cache still answers at once, and is due for a read that asks for the whole file.
@@ -446,10 +447,10 @@ describe('the calendar service', () => {
     await service.refresh()
     expect(t.seen[0].options.etag).toBeUndefined()
     const [event] = service.events(day(0), day(1))
-    expect(event).toMatchObject({ uid: 'standup@x', attendees: 1, meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
+    expect(event).toMatchObject({ uid: 'standup@x', attendees: 1, people: ['b@x.com'], meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
     // And so does the next session, from the file.
-    expect(t.make().events(day(0), day(1))[0]).toMatchObject({ uid: 'standup@x', attendees: 1, meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
-    expect(JSON.parse(readFileSync(join(dir, 'briefing', 'calendar-cache.json'), 'utf8')).version).toBe(2)
+    expect(t.make().events(day(0), day(1))[0]).toMatchObject({ uid: 'standup@x', attendees: 1, people: ['b@x.com'], meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
+    expect(JSON.parse(readFileSync(join(dir, 'briefing', 'calendar-cache.json'), 'utf8')).version).toBe(3)
   })
 
   it('reads a damaged cache as empty', () => {

@@ -32,7 +32,9 @@ export const MEETING_LIMITS = {
   silencePeak: 0.008,
   /** A grant to open the microphone and the computer's audio is good for this long. */
   grantMs: 8000,
-  speaker: 40
+  speaker: 40,
+  /** Characters of the Attendees a meeting page is given from its calendar event. */
+  attendees: 1000
 } as const
 
 export interface MeetingSources {

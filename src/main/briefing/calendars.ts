@@ -31,10 +31,13 @@ export const CALENDAR_TIMING = {
   refetchDays: 3
 } as const
 
-/** 2 keeps what the alarms need of an event (its UID, who is invited, the call's link). */
-const CACHE_VERSION = 2
+/**
+ * 2 keeps what the alarms need of an event (its UID, who is invited, the call's link); 3 also
+ * the names of the invited, which a meeting page made for the event lists.
+ */
+const CACHE_VERSION = 3
 /** A cache written before that is still read, and each of its calendars is read again in full. */
-const OLD_CACHE_VERSION = 1
+const OLD_CACHE_VERSIONS: readonly unknown[] = [1, 2]
 const DAY_MS = 86_400_000
 
 interface CachedEvent {
@@ -53,6 +56,7 @@ interface CachedEvent {
   recurring: boolean
   transparent?: boolean
   attendees?: number
+  people?: string[]
   meetingUrl?: string
 }
 
@@ -115,6 +119,7 @@ function toCached(occurrence: CalendarOccurrence): CachedEvent {
   if (occurrence.uid) event.uid = occurrence.uid
   if (occurrence.transparent) event.transparent = true
   if (occurrence.attendees) event.attendees = occurrence.attendees
+  if (occurrence.people?.length) event.people = occurrence.people
   if (occurrence.meetingUrl) event.meetingUrl = occurrence.meetingUrl
   return event
 }
@@ -133,6 +138,7 @@ function fromCached(calendarId: string, cached: CachedEvent): BriefingEvent | nu
   if (cached.uid) event.uid = cached.uid
   if (cached.transparent) event.transparent = true
   if (cached.attendees) event.attendees = cached.attendees
+  if (cached.people?.length) event.people = cached.people
   if (cached.meetingUrl) event.meetingUrl = cached.meetingUrl
   return event
 }
@@ -151,6 +157,10 @@ function readCachedEvent(value: unknown): CachedEvent | null {
   if (typeof raw['uid'] === 'string') event.uid = raw['uid'].slice(0, 400)
   if (raw['transparent'] === true) event.transparent = true
   if (typeof raw['attendees'] === 'number' && Number.isInteger(raw['attendees']) && raw['attendees'] > 0) event.attendees = Math.min(raw['attendees'], 1000)
+  if (Array.isArray(raw['people'])) {
+    const people = (raw['people'] as unknown[]).filter((name): name is string => typeof name === 'string' && name.length > 0).slice(0, 50).map((name) => name.slice(0, 80))
+    if (people.length) event.people = people
+  }
   if (typeof raw['meetingUrl'] === 'string' && raw['meetingUrl'].startsWith('https://') && raw['meetingUrl'].length <= 1000) event.meetingUrl = raw['meetingUrl']
   return event
 }
@@ -187,7 +197,7 @@ export class CalendarService {
     const cache: CacheFile = { version: CACHE_VERSION, calendars: {} }
     try {
       const parsed = JSON.parse(readFileSync(this.options.cacheFile, 'utf8')) as { version?: unknown; calendars?: unknown }
-      const old = parsed?.version === OLD_CACHE_VERSION
+      const old = OLD_CACHE_VERSIONS.includes(parsed?.version)
       if (parsed && (parsed.version === CACHE_VERSION || old) && parsed.calendars && typeof parsed.calendars === 'object') {
         for (const [id, value] of Object.entries(parsed.calendars as Record<string, unknown>)) {
           if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || !value || typeof value !== 'object') continue
