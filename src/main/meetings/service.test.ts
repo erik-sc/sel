@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { cleanMeetingsSetting, clockTime, MEETING_LIMITS, MEETINGS_KEYS, parseClockTime, PCM, type MeetingsProgress, type MeetingsStatus } from '../../shared/meetings'
 import { plainText } from '../../shared/richtext'
 import { openTestRepository } from '../db/testing'
@@ -14,6 +14,13 @@ import { meetingInput, MeetingsService } from './service'
 import { cleanSegments, cleanSpeaker, mergeTranscript, paragraphSpans, renameSpeakerSpans, transcriptFromTitles, transcriptText, type Segment } from './transcript'
 import { WhisperEngine } from './whisper/engine'
 import { WhisperError, type WhisperRun } from './whisper/run'
+
+// These tests write real files and run a stand-in program as a child process. Alone each takes
+// well under a second; under the load of the whole suite (and on CI's Windows runner) spawning
+// and file access can stall for many seconds. So nothing here waits a fixed time or a fixed
+// number of turns: it waits for what it expects (`until`), and only the timeout bounds that.
+vi.setConfig({ testTimeout: 120_000 })
+const PATIENCE_MS = 90_000
 
 const ROOT = mkdtempSync(join(tmpdir(), 'sel-meetings-service-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true }))
@@ -38,7 +45,15 @@ interface World {
   stops: string[]
   free: { bytes: number }
   clock: { t: number }
-  settled(): Promise<void>
+}
+
+/** Waits until `check` holds; fails with `what` once even a loaded machine would have got there. */
+async function until(check: () => boolean | Promise<boolean>, what: string): Promise<void> {
+  const deadline = Date.now() + PATIENCE_MS
+  while (!(await check())) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
 }
 
 function world(options: { systemAudio?: boolean; engine?: boolean; chunkSeconds?: number; runWhisper?: (run: WhisperRun) => ReturnType<NonNullable<ConstructorParameters<typeof MeetingsService>[0]['runWhisper']>> } = {}): World {
@@ -77,7 +92,7 @@ function world(options: { systemAudio?: boolean; engine?: boolean; chunkSeconds?
     diskCheckMs: 30,
     ...(options.runWhisper ? { runWhisper: options.runWhisper } : {})
   })
-  return { repo, service, grants, dir, statuses, progress, stops, free, clock, settled: () => new Promise((resolve) => setTimeout(resolve, 150)) }
+  return { repo, service, grants, dir, statuses, progress, stops, free, clock }
 }
 
 async function record(w: World, pageId: string, parts: { mic: ArrayBuffer; system?: ArrayBuffer }[], system = true): Promise<string> {
@@ -94,11 +109,7 @@ async function record(w: World, pageId: string, parts: { mic: ArrayBuffer; syste
 
 async function transcribed(w: World, pageId: string): Promise<void> {
   await w.service.transcribe(pageId)
-  for (let i = 0; i < 400; i++) {
-    if (!(await w.service.status()).transcribing) return
-    await new Promise((resolve) => setTimeout(resolve, 25))
-  }
-  throw new Error('transcription did not finish')
+  await until(async () => !(await w.service.status()).transcribing, 'the transcription to finish')
 }
 
 describe('the Meetings database', () => {
@@ -306,7 +317,7 @@ describe('recording', () => {
     const { pageId } = w.service.create({})
     const token = await record(w, pageId, [{ mic: tone(1) }], false)
     w.service.frames(OWNER, token, 5, 'not bytes', null)
-    await w.settled()
+    await until(() => w.statuses.some((status) => status.notice?.reason === 'failed'), 'the recording to end')
     expect((await w.service.status()).recording).toBeNull()
     expect(w.stops).toEqual([pageId])
     expect(w.statuses.some((status) => status.notice?.reason === 'failed')).toBe(true)
@@ -323,7 +334,7 @@ describe('recording', () => {
     for (let seq = 0; seq < batches; seq++) w.service.frames(OWNER, token, seq, big, null)
     expect((await w.service.status()).recording).not.toBeNull()
     w.service.frames(OWNER, token, batches, big, null)
-    await w.settled()
+    await until(() => w.statuses.some((status) => status.notice), 'the recording to stop at its maximum length')
     expect((await w.service.status()).recording).toBeNull()
     expect(w.statuses.find((status) => status.notice)?.notice).toEqual({ pageId, reason: 'max-duration' })
     expect((await w.service.info(pageId)).seconds).toBe(MEETING_LIMITS.maxHours.min * 3600)
@@ -331,7 +342,7 @@ describe('recording', () => {
     const other = w.service.create({}).pageId
     await record(w, other, [{ mic: tone(1) }], false)
     w.free.bytes = MEETING_LIMITS.stopFreeBytes - 1
-    await new Promise((resolve) => setTimeout(resolve, 120))
+    await until(() => w.statuses.some((status) => status.notice?.reason === 'disk-low'), 'the recording to stop on a full disk')
     expect((await w.service.status()).recording).toBeNull()
     expect(w.statuses.some((status) => status.notice?.reason === 'disk-low' && status.notice.pageId === other)).toBe(true)
     expect((await w.service.info(other)).state).toBe('recorded')
@@ -381,7 +392,8 @@ describe('recording', () => {
     await record(w, pageId, [{ mic: tone(2) }], false)
     await w.service.ownerGone(OWNER)
     expect(await w.service.info(pageId)).toMatchObject({ state: 'recorded', seconds: 2 })
-    expect(w.statuses[w.statuses.length - 1]?.notice ?? (await w.settled(), w.statuses[w.statuses.length - 1]?.notice)).toEqual({ pageId, reason: 'interrupted' })
+    await until(() => w.statuses.some((status) => status.notice), 'the notice')
+    expect(w.statuses[w.statuses.length - 1]?.notice).toEqual({ pageId, reason: 'interrupted' })
     expect(w.grants.get(OWNER)).toBeNull()
   })
 
@@ -461,7 +473,7 @@ describe('transcription', () => {
     expect(info.tracks.map((track) => track.format)).toEqual(['webm', 'webm'])
     // Without the originals it cannot be transcribed again, and says so.
     await expect(w.service.transcribe(pageId)).rejects.toThrow(/no longer here/)
-  }, 30_000)
+  })
 
   it('keeps the originals when asked to, and transcribes again over the same page', async () => {
     const w = world()
@@ -478,7 +490,7 @@ describe('transcription', () => {
     expect((await w.service.info(pageId)).transcriptPageId).toBe(first)
     expect(w.repo.children(pageId).filter((block) => block.type === 'page')).toHaveLength(1)
     expect(w.repo.children(first ?? '').map((block) => plainText(block.props.title))).toEqual(['00:00 Me: At 00:00 I said something em português.'])
-  }, 30_000)
+  })
 
   it('works through a long recording in pieces, and a failed piece is the only one done again', async () => {
     const calls: string[] = []
@@ -540,22 +552,22 @@ describe('transcription', () => {
     writeFileSync(join(w.dir, pageId, 'fake-whisper'), 'hang')
     await w.service.transcribe(pageId)
     await expect(w.service.transcribe(pageId)).rejects.toThrow(/already being transcribed/)
-    for (let i = 0; i < 100 && !existsSync(join(w.dir, pageId, 'fake-whisper-pids')); i++) await new Promise((resolve) => setTimeout(resolve, 50))
-    const pid = Number(readFileSync(join(w.dir, pageId, 'fake-whisper-pids'), 'utf8'))
+    const pids = join(w.dir, pageId, 'fake-whisper-pids')
+    await until(() => existsSync(pids) && readFileSync(pids, 'utf8').trim() !== '', 'the program to start')
+    const pid = Number(readFileSync(pids, 'utf8'))
     await w.service.cancelTranscribe(pageId)
-    await w.settled()
-    expect((await w.service.status()).transcribing).toBeNull()
+    await until(async () => (await w.service.status()).transcribing === null, 'the transcription to stop')
     expect((await w.service.info(pageId)).state).toBe('recorded')
-    for (let i = 0; i < 50; i++) {
+    const alive = (): boolean => {
       try {
         process.kill(pid, 0)
+        return true
       } catch {
-        return
+        return false
       }
-      await new Promise((resolve) => setTimeout(resolve, 100))
     }
-    throw new Error('the program survived the cancel')
-  }, 30_000)
+    await until(() => !alive(), 'the program to be killed')
+  })
 
   it('explains what is missing', async () => {
     const w = world({ engine: false })
@@ -769,7 +781,7 @@ suite('recordings and sync', () => {
     service.encoded(1, token, 'mic', 0, new Uint8Array(64).buffer)
     await service.stop(1, token)
     await service.transcribe(meeting)
-    for (let i = 0; i < 200 && (await service.status()).transcribing; i++) await new Promise((resolve) => setTimeout(resolve, 25))
+    await until(async () => !(await service.status()).transcribing, 'the transcription to finish')
     a.repo.setSetting('meetings.keepOriginal', true)
     a.repo.create({ type: 'image', parentId: pageId, props: { url: `sel-file://recordings/${meeting}/mic.webm` } })
     a.repo.create({ type: 'image', parentId: pageId, props: { url: `sel-file://files/../recordings/${meeting}/mic.webm` } })
