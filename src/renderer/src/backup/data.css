@@ -1,0 +1,4 @@
+/* Settings → General → Data: two buttons side by side in one row. */
+.data-actions {
+  gap: 8px;
+}

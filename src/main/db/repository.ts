@@ -165,6 +165,22 @@ export class Repository {
     this.db.close()
   }
 
+  /**
+   * Writes a compact, consistent copy of the whole database to `file`, which must not exist yet
+   * (`VACUUM INTO`): what is committed, WAL included, as one ordinary file. Not inside a transaction.
+   */
+  copyTo(file: string): void {
+    if (this.depth > 0) throw new Error('A copy cannot be made inside a transaction')
+    this.db.prepare('VACUUM INTO ?').run(file)
+  }
+
+  /** The size of the database's pages in bytes: about what a copy needs on disk, at most. */
+  byteSize(): number {
+    const count = this.db.prepare('PRAGMA page_count').get() as { page_count: number } | undefined
+    const size = this.db.prepare('PRAGMA page_size').get() as { page_size: number } | undefined
+    return Number(count?.page_count ?? 0) * Number(size?.page_size ?? 0)
+  }
+
   // ---------------------------------------------------------------- plumbing
 
   /** Every statement is prepared once and reused: all SQL in this class is a constant string. */
