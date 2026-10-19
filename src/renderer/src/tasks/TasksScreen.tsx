@@ -192,12 +192,24 @@ function TaskRow(props: RowProps): JSX.Element {
         {(onIndent || onOutdent) && (
           <span className="task-moves">
             {onOutdent && (
-              <button type="button" className="task-move" title="Move out of its parent (Ctrl+[)" aria-label={`Move "${title}" out of its parent`} onClick={onOutdent}>
+              <button
+                type="button"
+                className="task-move"
+                title="Move out of its parent (Ctrl+[)"
+                aria-label={`Move "${title}" out of its parent`}
+                onClick={onOutdent}
+              >
                 ←
               </button>
             )}
             {onIndent && (
-              <button type="button" className="task-move" title="Make it a subtask of the task above (Ctrl+])" aria-label={`Make "${title}" a subtask of the task above`} onClick={onIndent}>
+              <button
+                type="button"
+                className="task-move"
+                title="Make it a subtask of the task above (Ctrl+])"
+                aria-label={`Make "${title}" a subtask of the task above`}
+                onClick={onIndent}
+              >
                 →
               </button>
             )}
@@ -246,7 +258,10 @@ export function TasksScreen(): JSX.Element {
   const list = useTasksGate((state) => state.list)
   const { pending, complete, reopen } = useCompletion(today)
 
-  const tasks = useMemo(() => readTasks(rows, schema).filter((task) => task.done || !isPending(pending.get(task.id), task)), [rows, schema, pending])
+  const tasks = useMemo(
+    () => readTasks(rows, schema).filter((task) => task.done || !isPending(pending.get(task.id), task)),
+    [rows, schema, pending]
+  )
   const groups = useMemo(() => listTasks(tasks, schema, list, today), [tasks, schema, list, today])
   const counts = useMemo(() => listCounts(tasks, schema), [tasks, schema])
   const projects = L.optionsOf(L.propOf(schema, TASK_PROPS.project))
@@ -273,7 +288,8 @@ export function TasksScreen(): JSX.Element {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key.toLowerCase() !== 'q' || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return
       const target = event.target
-      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [contenteditable]'))) return
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [contenteditable]')))
+        return
       event.preventDefault()
       focusQuickAdd()
     }
@@ -348,13 +364,20 @@ export function TasksScreen(): JSX.Element {
   return (
     <div className="tasks">
       <nav className="tasks-nav" aria-label="Task lists">
-        <ul className="tasks-nav-list">{FIXED.map((item) => navItem({ kind: item.kind }, item.name, item.kind === 'completed' ? undefined : counts.get(item.kind)))}</ul>
+        <ul className="tasks-nav-list">
+          {FIXED.map((item) => navItem({ kind: item.kind }, item.name, item.kind === 'completed' ? undefined : counts.get(item.kind)))}
+        </ul>
         {projects.length > 0 && (
           <section className="tasks-nav-section">
             <h3 className="tasks-nav-title">Projects</h3>
             <ul className="tasks-nav-list">
               {projects.map((option) =>
-                navItem({ kind: 'project', id: option.id }, option.name, counts.get(`project:${option.id}`), <span className="tasks-nav-dot" style={{ background: `var(--c-${option.color})` }} aria-hidden="true" />)
+                navItem(
+                  { kind: 'project', id: option.id },
+                  option.name,
+                  counts.get(`project:${option.id}`),
+                  <span className="tasks-nav-dot" style={{ background: `var(--c-${option.color})` }} aria-hidden="true" />
+                )
               )}
             </ul>
           </section>
@@ -364,7 +387,14 @@ export function TasksScreen(): JSX.Element {
             <h3 className="tasks-nav-title">Labels</h3>
             <ul className="tasks-nav-list">
               {labels.map((option) =>
-                navItem({ kind: 'label', id: option.id }, option.name, counts.get(`label:${option.id}`), <span className="tasks-nav-at" style={{ color: `var(--c-${option.color})` }} aria-hidden="true">@</span>)
+                navItem(
+                  { kind: 'label', id: option.id },
+                  option.name,
+                  counts.get(`label:${option.id}`),
+                  <span className="tasks-nav-at" style={{ color: `var(--c-${option.color})` }} aria-hidden="true">
+                    @
+                  </span>
+                )
               )}
             </ul>
           </section>
@@ -384,14 +414,18 @@ export function TasksScreen(): JSX.Element {
         ) : (
           <div className="tasks-list">
             <h1 className="tasks-heading">{heading}</h1>
-            {list.kind !== 'completed' && <QuickAdd key={`${list.kind}:${'id' in list ? list.id : ''}`} list={list} today={today} projects={projects} labels={labels} />}
+            {list.kind !== 'completed' && (
+              <QuickAdd key={`${list.kind}:${'id' in list ? list.id : ''}`} list={list} today={today} projects={projects} labels={labels} />
+            )}
             {empty ? (
               <p className="tasks-empty">{EMPTY_TEXT[list.kind]}</p>
             ) : (
               groups.map((group) =>
                 group.items.length ? (
                   <section key={group.id} className="tasks-group">
-                    {group.title && <h2 className={group.id === 'overdue' ? 'tasks-group-title is-overdue' : 'tasks-group-title'}>{group.title}</h2>}
+                    {group.title && (
+                      <h2 className={group.id === 'overdue' ? 'tasks-group-title is-overdue' : 'tasks-group-title'}>{group.title}</h2>
+                    )}
                     <ul className="tasks-rows">
                       {group.items.map((task, index) => (
                         <TaskRow

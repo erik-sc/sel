@@ -25,7 +25,9 @@ export function loadMeeting(source: MeetingSource, pageId: string): MeetingPromp
   const page = source.get(pageId)
   if (!page || page.type !== 'page') return null
   const children = source.children(pageId)
-  const transcriptPage = children.find((child) => child.type === 'page' && child.trashedAt === null && plainText(child.props.title).trim() === TRANSCRIPT_TITLE)
+  const transcriptPage = children.find(
+    (child) => child.type === 'page' && child.trashedAt === null && plainText(child.props.title).trim() === TRANSCRIPT_TITLE
+  )
   if (!transcriptPage) return null
   const transcript = transcriptFromTitles(source.children(transcriptPage.id).map((block) => block.props.title))
   if (!transcript.trim()) return null
@@ -90,6 +92,7 @@ export async function prepareMeeting(
     if (text) notes.push(`Part ${index + 1} of ${parts.length}:\n${text}`)
   }
   if (!notes.length) throw new Error('The transcript could not be condensed.')
-  if (all.length > parts.length) notes.push(`(The meeting went on after this; ${all.length - parts.length} more parts of the transcript were left out.)`)
+  if (all.length > parts.length)
+    notes.push(`(The meeting went on after this; ${all.length - parts.length} more parts of the transcript were left out.)`)
   return { ...data, transcript: notes.join('\n\n'), condensed: true }
 }

@@ -10,16 +10,7 @@ import { IconButton } from '@/ui/Button'
 import { Menu } from '@/ui/Menu'
 import { Popover } from '@/ui/Popover'
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from '@/ui/icons'
-import {
-  createPage,
-  dropPage,
-  isAncestorOrSelf,
-  movePageToRoot,
-  pageTitle,
-  renamePage,
-  reportError,
-  type DropPosition
-} from './actions'
+import { createPage, dropPage, isAncestorOrSelf, movePageToRoot, pageTitle, renamePage, reportError, type DropPosition } from './actions'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { sidebarPageMenu } from './pageMenu'
@@ -245,11 +236,7 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
             </button>
           )}
         </span>
-        {renaming ? (
-          <RenameInput id={id} initial={ownTitle === 'Untitled' ? '' : ownTitle} />
-        ) : (
-          <span className="tree-title">{title}</span>
-        )}
+        {renaming ? <RenameInput id={id} initial={ownTitle === 'Untitled' ? '' : ownTitle} /> : <span className="tree-title">{title}</span>}
         {!renaming && (
           <span className="tree-actions" onClick={(event) => event.stopPropagation()}>
             <IconButton
@@ -263,11 +250,7 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
               <MoreHorizontal />
             </IconButton>
             {block.type === 'page' && (
-              <IconButton
-                size="small"
-                label="Add a page inside"
-                onClick={() => void createPage(id).catch(reportError('create the page'))}
-              >
+              <IconButton size="small" label="Add a page inside" onClick={() => void createPage(id).catch(reportError('create the page'))}>
                 <Plus />
               </IconButton>
             )}

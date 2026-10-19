@@ -41,7 +41,13 @@ function todo(repo: Repository): string {
   return repo.create({ type: 'to_do', parentId: page.id, props: { title: [['Regar as plantas']], checked: false } }).id
 }
 
-const skyChildren = (repo: Repository): string[] => (repo.get(SKY_ID) ? repo.children(SKY_ID).map((b) => b.id).sort() : [])
+const skyChildren = (repo: Repository): string[] =>
+  repo.get(SKY_ID)
+    ? repo
+        .children(SKY_ID)
+        .map((b) => b.id)
+        .sort()
+    : []
 
 describe('the Sky page', () => {
   it('is made once by ensure, with its fixed id, and kept as a built-in page', () => {
@@ -91,7 +97,12 @@ describe('checked to-dos', () => {
     rig.clock.t = at(16)
     repo.update(id, { props: { checked: true } })
     expect(skyChildren(repo)).toEqual([todoEventId(id, '2026-10-15'), todoEventId(id, '2026-10-16')].sort())
-    expect(sky.view().grains.map((g) => g.day).sort()).toEqual(['2026-10-15', '2026-10-16'])
+    expect(
+      sky
+        .view()
+        .grains.map((g) => g.day)
+        .sort()
+    ).toEqual(['2026-10-15', '2026-10-16'])
   })
 
   it('also count when checked through apply, and only on the way to checked', () => {
@@ -106,9 +117,15 @@ describe('checked to-dos', () => {
   it('come with the completed tasks of the Tasks database, derived from completedAt', () => {
     const { repo, sky } = rig
     const db = ensureTasksDatabase(repo)
-    const done = repo.create({ type: 'page', parentId: db, props: { title: [['Pagar a conta']], values: { [TASK_PROPS.completedAt]: { start: '2026-10-14T18:30' } } } })
+    const done = repo.create({
+      type: 'page',
+      parentId: db,
+      props: { title: [['Pagar a conta']], values: { [TASK_PROPS.completedAt]: { start: '2026-10-14T18:30' } } }
+    })
     repo.create({ type: 'page', parentId: db, props: { title: [['Ainda não']] } })
-    expect(sky.view().grains).toEqual([{ key: `task:${done.id}:2026-10-14T18:30`, day: '2026-10-14', at: new Date(2026, 9, 14, 18, 30).getTime() }])
+    expect(sky.view().grains).toEqual([
+      { key: `task:${done.id}:2026-10-14T18:30`, day: '2026-10-14', at: new Date(2026, 9, 14, 18, 30).getTime() }
+    ])
     // Nothing of it is written under the Sky.
     expect(repo.get(SKY_ID)).toBeNull()
   })
@@ -134,7 +151,12 @@ describe('pomodoros', () => {
       { at: live, minutes: 25 },
       { at: 'nonsense', minutes: 1 }
     ])
-    expect(sky.view().pomodoros.map((p) => p.day).sort()).toEqual(['2026-10-13', '2026-10-14'])
+    expect(
+      sky
+        .view()
+        .pomodoros.map((p) => p.day)
+        .sort()
+    ).toEqual(['2026-10-13', '2026-10-14'])
     expect(repo.getSetting(SKY_BACKFILLED_KEY)).toBe(true)
     // Done once: a later history is not read again, and nothing is doubled.
     repo.setSetting(POMODORO_HISTORY_KEY, [{ at: at(12, 9), minutes: 25 }])
@@ -176,7 +198,12 @@ describe('moments for Herman', () => {
     expect(named).toEqual({ kind: 'named', month: '2026-09', given: null })
     expect(skyLineMoment(named!, 'pt-BR')).toMatchObject({ kind: 'named', month: 'Setembro', given: false })
     sky.name('2026-09', 'A mudança')
-    expect(skyLineMoment(sky.moment({ kind: 'named', month: '2026-09' })!, 'en')).toEqual({ kind: 'named', month: 'September', name: 'A mudança', given: true })
+    expect(skyLineMoment(sky.moment({ kind: 'named', month: '2026-09' })!, 'en')).toEqual({
+      kind: 'named',
+      month: 'September',
+      name: 'A mudança',
+      given: true
+    })
     // The Orionids fall on 21 October.
     rig.clock.t = at(21)
     expect(sky.moment({ kind: 'night' })).toEqual({ kind: 'night', event: { kind: 'meteors', shower: 'orionids' }, year: 2026 })
@@ -202,13 +229,26 @@ describe('two devices', () => {
     const { result, conflicts } = mergeWorkspace(emptyWorkspace(), wsA, wsB)
     expect(checkWorkspace(result)).toEqual([])
     expect(result.root.filter((x) => x === SKY_ID)).toHaveLength(1)
-    const expected = [pomodoroEventId(at(15, 9, 25)), pomodoroEventId(at(15, 10, 25)), pomodoroEventId(at(14, 20)), todoEventId(id, '2026-10-15')].sort()
+    const expected = [
+      pomodoroEventId(at(15, 9, 25)),
+      pomodoroEventId(at(15, 10, 25)),
+      pomodoroEventId(at(14, 20)),
+      todoEventId(id, '2026-10-15')
+    ].sort()
     expect([...(result.blocks.get(SKY_ID)?.content ?? [])].sort()).toEqual(expected)
     // Only the page itself was made twice; the happenings never collide.
     expect(conflicts.every((c) => c.blockId === SKY_ID)).toBe(true)
 
     const diff = diffWorkspace(wsA, result)
-    a.repo.applySync({ put: diff.put as Block[], remove: diff.remove, root: { order: result.root, at: result.rootAt ?? 0 }, snapshots: [], foreign: [], resetPages: [], settings: {} })
+    a.repo.applySync({
+      put: diff.put as Block[],
+      remove: diff.remove,
+      root: { order: result.root, at: result.rootAt ?? 0 },
+      snapshots: [],
+      foreign: [],
+      resetPages: [],
+      settings: {}
+    })
     const view = a.sky.view()
     expect(view.pomodoros.map((p) => p.key).sort()).toEqual(expected.filter((k) => k.includes('pomodoro')))
     expect(view.grains.map((g) => g.key)).toEqual([todoEventId(id, '2026-10-15')])

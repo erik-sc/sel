@@ -23,8 +23,7 @@ export type CalcFormat = NonNullable<ViewCalc['format']>
 
 export type CalcResult =
   /** `value` is null when the formula is sound but has nothing to work on (the average of no rows). */
-  | { ok: true; value: number | null; format: CalcFormat }
-  | { ok: false; error: string }
+  { ok: true; value: number | null; format: CalcFormat } | { ok: false; error: string }
 
 export const CALC_FUNCTIONS = ['sum', 'avg', 'min', 'max', 'median', 'count'] as const
 export type CalcFunction = (typeof CALC_FUNCTIONS)[number]
@@ -192,7 +191,10 @@ function compute(source: string, context: Context): number {
       at += word[0].length
       const key = fold(word[0])
       const fn = Object.hasOwn(ALIASES, key) ? ALIASES[key] : undefined
-      if (peek() !== '(') throw new FormulaError(fn ? `${word[0]} needs parentheses, like ${word[0]}(Amount)` : `Use a function on "${word[0]}", like sum(${word[0]})`)
+      if (peek() !== '(')
+        throw new FormulaError(
+          fn ? `${word[0]} needs parentheses, like ${word[0]}(Amount)` : `Use a function on "${word[0]}", like sum(${word[0]})`
+        )
       if (!fn) throw new FormulaError(`"${word[0]}" is not a function. Try sum, avg, min, max, median or count`)
       at++
       return call(context, fn, argument())
@@ -250,7 +252,12 @@ function compute(source: string, context: Context): number {
  * the number property it was computed from (an amount stays an amount); a ratio, a count or
  * a mix of formats is a plain number.
  */
-export function evaluateCalc(calc: Pick<ViewCalc, 'formula' | 'format'>, rows: readonly Block[], schema: Schema, ctx?: CellContext): CalcResult {
+export function evaluateCalc(
+  calc: Pick<ViewCalc, 'formula' | 'format'>,
+  rows: readonly Block[],
+  schema: Schema,
+  ctx?: CellContext
+): CalcResult {
   const formula = typeof calc.formula === 'string' ? calc.formula.trim() : ''
   if (!formula) return { ok: false, error: 'Write a formula, like sum(Amount)' }
   const context: Context = { rows, schema, ctx, formats: new Set(), plain: false }
@@ -291,7 +298,13 @@ export interface CalcSplit {
  * Every figure computed for each option of `by` that some row has (in option order, the
  * rows without one last) and over all the rows.
  */
-export function evaluateSplit(calcs: readonly Pick<ViewCalc, 'formula' | 'format'>[], rows: readonly Block[], schema: Schema, by: PropertySchema, ctx?: CellContext): CalcSplit {
+export function evaluateSplit(
+  calcs: readonly Pick<ViewCalc, 'formula' | 'format'>[],
+  rows: readonly Block[],
+  schema: Schema,
+  by: PropertySchema,
+  ctx?: CellContext
+): CalcSplit {
   const run = (subset: readonly Block[]): CalcResult[] => calcs.map((calc) => evaluateCalc(calc, subset, schema, ctx))
   const [none, ...options] = groupRows([...rows], by, ctx)
   const groups = [...options, none]

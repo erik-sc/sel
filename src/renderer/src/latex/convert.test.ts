@@ -132,7 +132,11 @@ describe('coverage', () => {
   })
 
   it('numbers align rows, skipping \\nonumber, and refers to them', () => {
-    const result = convert(doc('\\begin{align}\na &= b \\label{r1}\\\\\nc &= d \\nonumber\\\\\ne &= f \\label{r3}\n\\end{align}\n(\\ref{r1}, \\ref{r3}) and $x \\eqref{r3}$'))
+    const result = convert(
+      doc(
+        '\\begin{align}\na &= b \\label{r1}\\\\\nc &= d \\nonumber\\\\\ne &= f \\label{r3}\n\\end{align}\n(\\ref{r1}, \\ref{r3}) and $x \\eqref{r3}$'
+      )
+    )
     expect(result.diagnostics).toEqual([])
     expect(result.html).toContain('<span class="latex-ref">1</span>, <span class="latex-ref">2</span>')
   })
@@ -145,7 +149,9 @@ describe('coverage', () => {
 
   it('draws lists, nested, with custom labels and descriptions', () => {
     const result = convert(
-      doc('\\begin{enumerate}\n\\item one\n\\begin{itemize}\\item[--] inner\\end{itemize}\n\\item two\n\\end{enumerate}\n\\begin{description}\\item[Term] Meaning\\end{description}')
+      doc(
+        '\\begin{enumerate}\n\\item one\n\\begin{itemize}\\item[--] inner\\end{itemize}\n\\item two\n\\end{enumerate}\n\\begin{description}\\item[Term] Meaning\\end{description}'
+      )
     )
     expect(result.diagnostics).toEqual([])
     expect(result.html).toContain('<ol class="latex-enumerate"')
@@ -154,7 +160,9 @@ describe('coverage', () => {
   })
 
   it('draws a simple tabular with rules and alignment', () => {
-    const result = convert(doc('\\begin{tabular}{|l|c|r|}\n\\hline\na & b & c \\\\\n\\hline\n1 & \\multicolumn{2}{c}{wide} \\\\\n\\hline\n\\end{tabular}'))
+    const result = convert(
+      doc('\\begin{tabular}{|l|c|r|}\n\\hline\na & b & c \\\\\n\\hline\n1 & \\multicolumn{2}{c}{wide} \\\\\n\\hline\n\\end{tabular}')
+    )
     expect(result.diagnostics).toEqual([])
     expect(result.html).toContain('<td class="latex-col-l latex-rule-left latex-rule-right">a</td>')
     expect(result.html).toContain('colspan="2"')

@@ -34,9 +34,11 @@ export function AlarmSettings(): JSX.Element {
       const byKey = new Map(keys.map((key, index) => [key, stored[index]]))
       setValues(readAlarmSettings((key) => byKey.get(key)))
     })
-    void import('./play').then(({ voices: list }) => list()).then((list) => {
-      if (alive) setVoices(list)
-    })
+    void import('./play')
+      .then(({ voices: list }) => list())
+      .then((list) => {
+        if (alive) setVoices(list)
+      })
     return () => {
       alive = false
     }
@@ -58,7 +60,11 @@ export function AlarmSettings(): JSX.Element {
       values.times.map((time) => (time.id === id ? { ...time, ...patch } : time))
     )
   const addTime = (): void => change('times', [...values.times, { id: newId(), time: '08:30', days: [1, 2, 3, 4, 5], enabled: true }])
-  const removeTime = (id: string): void => change('times', values.times.filter((time) => time.id !== id))
+  const removeTime = (id: string): void =>
+    change(
+      'times',
+      values.times.filter((time) => time.id !== id)
+    )
   const toggleDay = (time: AlarmTime, day: number): void =>
     setTime(time.id, { days: time.days.includes(day) ? time.days.filter((d) => d !== day) : [...time.days, day].sort((a, b) => a - b) })
 
@@ -81,7 +87,9 @@ export function AlarmSettings(): JSX.Element {
         <div className="ap-row alarm-times-row">
           <div className="ap-row-text">
             <span className="ap-row-label">Brief me at</span>
-            <span className="ap-row-help">At these times a chime sounds and Herman tells you about your day: the calendar, what is due and what is overdue.</span>
+            <span className="ap-row-help">
+              At these times a chime sounds and Herman tells you about your day: the calendar, what is due and what is overdue.
+            </span>
           </div>
           <div className="ap-row-control alarm-times">
             {values.times.map((time) => (
@@ -138,7 +146,12 @@ export function AlarmSettings(): JSX.Element {
             <span className="ap-row-help">He speaks with a voice of this computer, in the language of his lines.</span>
           </div>
           <div className="ap-row-control">
-            <Segmented label="Read aloud" value={values.voice ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('voice', value === 'on')} />
+            <Segmented
+              label="Read aloud"
+              value={values.voice ? 'on' : 'off'}
+              options={ON_OFF}
+              onChange={(value) => change('voice', value === 'on')}
+            />
           </div>
         </div>
         {values.voice && ownVoices.length > 0 && (
@@ -154,7 +167,9 @@ export function AlarmSettings(): JSX.Element {
                 onChange={(event) => {
                   const name = event.target.value || null
                   setValues((current) => ({ ...current, voiceName: name }))
-                  window.api.app.setSetting(ALARMS_SETTING.voiceName, name).catch((error: unknown) => notifyError('The setting could not be saved.', error))
+                  window.api.app
+                    .setSetting(ALARMS_SETTING.voiceName, name)
+                    .catch((error: unknown) => notifyError('The setting could not be saved.', error))
                 }}
               >
                 <option value="">Any of the language</option>
@@ -170,14 +185,25 @@ export function AlarmSettings(): JSX.Element {
         <div className="ap-row">
           <div className="ap-row-text">
             <span className="ap-row-label">Written by the AI</span>
-            <span className="ap-row-help">Herman writes the briefing with the AI a few minutes before its time. Otherwise, and whenever the AI cannot answer, it is in his own few words.</span>
+            <span className="ap-row-help">
+              Herman writes the briefing with the AI a few minutes before its time. Otherwise, and whenever the AI cannot answer, it is in
+              his own few words.
+            </span>
           </div>
           <div className="ap-row-control">
-            <Segmented label="Written by the AI" value={values.ai ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('ai', value === 'on')} />
+            <Segmented
+              label="Written by the AI"
+              value={values.ai ? 'on' : 'off'}
+              options={ON_OFF}
+              onChange={(value) => change('ai', value === 'on')}
+            />
           </div>
         </div>
       </div>
-      <p className="ap-note">The times are kept by sel on this computer and stay on this device. Nothing is sent anywhere unless the AI writes the briefing. The chime, reminders and calendar events are under Notifications.</p>
+      <p className="ap-note">
+        The times are kept by sel on this computer and stay on this device. Nothing is sent anywhere unless the AI writes the briefing. The
+        chime, reminders and calendar events are under Notifications.
+      </p>
     </section>
   )
 }

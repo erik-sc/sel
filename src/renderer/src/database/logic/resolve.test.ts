@@ -125,7 +125,10 @@ describe('normalizeResolved', () => {
             { propertyId: 'gone', operator: 'contains', value: 'x' },
             { propertyId: 'st', operator: 'equals', value: 'deleted-option' }
           ],
-          sorts: [{ propertyId: 'gone', direction: 'asc' }, { propertyId: 'due', direction: 'desc' }],
+          sorts: [
+            { propertyId: 'gone', direction: 'asc' },
+            { propertyId: 'due', direction: 'desc' }
+          ],
           propertyWidths: { st: 200, gone: 90 },
           groupBy: 'gone'
         }),
@@ -187,7 +190,9 @@ describe('normalizeResolved', () => {
   })
 
   it('renders nothing and repairs nothing while the source is unavailable', () => {
-    const lv = linkedTo('src', { views: [view('a', { visibleProperties: ['title', 'st'], filters: [{ propertyId: 'st', operator: 'is_empty' }] })] })
+    const lv = linkedTo('src', {
+      views: [view('a', { visibleProperties: ['title', 'st'], filters: [{ propertyId: 'st', operator: 'is_empty' }] })]
+    })
     for (const lookup of [lookupOf([]), lookupOf([], ['src']), lookupOf([{ ...source, trashedAt: 9 }])]) {
       const n = L.normalizeResolved(L.resolveDatabase(lv, lookup))
       // `changed: false` is what keeps the stored views (and their references) from being rewritten.
@@ -197,7 +202,8 @@ describe('normalizeResolved', () => {
 })
 
 describe('display title and icon', () => {
-  const resolve = (props: Record<string, unknown>): L.ResolvedDatabase => L.resolveDatabase(linkedTo('src', props), lookupOf([source, home]))
+  const resolve = (props: Record<string, unknown>): L.ResolvedDatabase =>
+    L.resolveDatabase(linkedTo('src', props), lookupOf([source, home]))
 
   it('shows the source title and icon until the view has its own', () => {
     expect(L.displayTitle(resolve({}))).toBe('Tasks')
@@ -226,7 +232,16 @@ describe('linkedViewProps', () => {
     const props = L.linkedViewProps(source, lookupOf([source, home]), newId)
     expect(props).toEqual({
       sourceId: 'src',
-      views: [{ id: expect.stringMatching(/^id-/), name: 'Table', type: 'table', visibleProperties: ['title', 'st', 'due'], filters: [], sorts: [] }]
+      views: [
+        {
+          id: expect.stringMatching(/^id-/),
+          name: 'Table',
+          type: 'table',
+          visibleProperties: ['title', 'st', 'due'],
+          filters: [],
+          sorts: []
+        }
+      ]
     })
     // Nothing of the source travels with the link.
     expect(Object.keys(props!)).toEqual(['sourceId', 'views'])

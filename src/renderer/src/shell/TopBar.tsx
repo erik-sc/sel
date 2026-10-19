@@ -1,14 +1,6 @@
 import { Fragment, memo, useEffect, useRef, useState } from 'react'
 import { fetchBlocks, useBlock } from '@/store/blocks'
-import {
-  canGoBack,
-  canGoForward,
-  goBack,
-  goForward,
-  openPage,
-  tabPage,
-  useActiveTab
-} from '@/store/tabs'
+import { canGoBack, canGoForward, goBack, goForward, openPage, tabPage, useActiveTab } from '@/store/tabs'
 import { IconButton } from '@/ui/Button'
 import { Menu } from '@/ui/Menu'
 import { Popover } from '@/ui/Popover'
@@ -161,12 +153,7 @@ export const TopBar = memo(function TopBar() {
           >
             <MoreHorizontal />
           </IconButton>
-          <Popover
-            open={menuOpen}
-            anchor={moreRef.current}
-            placement="bottom-end"
-            onClose={() => setMenuOpen(false)}
-          >
+          <Popover open={menuOpen} anchor={moreRef.current} placement="bottom-end" onClose={() => setMenuOpen(false)}>
             <Menu items={topBarPageMenu(block, ai)} onClose={() => setMenuOpen(false)} autoFocus />
           </Popover>
         </div>

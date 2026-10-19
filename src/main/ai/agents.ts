@@ -1,6 +1,15 @@
 import { randomBytes } from 'node:crypto'
 import { basename } from 'node:path'
-import { AGENT_ID_RE, AGENT_LABELS, AGENT_LIMITS, AGENT_MODEL_RE, isAgentKind, type AgentKind, type AiAgent, type AiAgentInfo } from '../../shared/council'
+import {
+  AGENT_ID_RE,
+  AGENT_LABELS,
+  AGENT_LIMITS,
+  AGENT_MODEL_RE,
+  isAgentKind,
+  type AgentKind,
+  type AiAgent,
+  type AiAgentInfo
+} from '../../shared/council'
 import { inspectCli, locateCli, type LocateOptions, type LocateResult } from './locate'
 
 /**
@@ -74,7 +83,12 @@ export function readAgents(stored: unknown): AiAgent[] {
     const { id, kind, path, name } = raw
     if (typeof id !== 'string' || !AGENT_ID_RE.test(id) || seen.has(id) || !isAgentKind(kind) || typeof path !== 'string' || !path) continue
     seen.add(id)
-    out.push({ id, kind, path, name: typeof name === 'string' && name.trim() ? name.trim().slice(0, AGENT_LIMITS.name) : AGENT_LABELS[kind] })
+    out.push({
+      id,
+      kind,
+      path,
+      name: typeof name === 'string' && name.trim() ? name.trim().slice(0, AGENT_LIMITS.name) : AGENT_LABELS[kind]
+    })
   }
   return out
 }
@@ -90,6 +104,9 @@ export function newAgent(kind: AgentKind, path: string, existing: readonly AiAge
   do id = `${kind}-${randomBytes(3).toString('hex')}`
   while (existing.some((agent) => agent.id === id))
   // eslint-disable-next-line no-control-regex
-  const file = basename(path).replace(/\.(exe|cmd|bat|ps1)$/i, '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim()
+  const file = basename(path)
+    .replace(/\.(exe|cmd|bat|ps1)$/i, '')
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .trim()
   return { id, kind, path, name: (kind === 'stdin' && file ? file : AGENT_LABELS[kind]).slice(0, AGENT_LIMITS.name) }
 }

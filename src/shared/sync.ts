@@ -101,7 +101,8 @@ export const SYNC_MESSAGES: Record<SyncErrorCode, string> = {
   'git-not-found': 'Git was not found on this computer. Install Git, or choose the git program.',
   'auth-failed':
     'Git is not signed in to this repository. Sign in to GitHub with git on this computer (for example with Git Credential Manager or "gh auth login"), then try again. sel stores no token.',
-  'repo-not-found': 'The repository was not found. Check the address, and that git on this computer is signed in to an account that can open it.',
+  'repo-not-found':
+    'The repository was not found. Check the address, and that git on this computer is signed in to an account that can open it.',
   offline: 'The repository could not be reached. sel will try again when the connection is back.',
   'not-sel-repo': 'This repository has other files in it and no sel data.',
   rejected: 'The repository refused the upload. Check that this account can write to it and that the branch is not protected.',
@@ -185,7 +186,8 @@ export function checkRemoteUrl(value: unknown, allowLocal = false): RemoteUrlRes
     const host = port ? port[1] : hostPort
     if (!host || !validHost(host) || (port !== null && Number(port[2]) > 65535)) return { ok: false, problem: 'host' }
     if (path.includes('?') || path.includes('#')) return { ok: false, problem: 'path' }
-    if (!REMOTE_PATH_RE.test(path) || path.includes('/-') || path.includes('..') || path.includes('//') || path === '/') return { ok: false, problem: 'path' }
+    if (!REMOTE_PATH_RE.test(path) || path.includes('/-') || path.includes('..') || path.includes('//') || path === '/')
+      return { ok: false, problem: 'path' }
     // And the parser has to agree about what it is.
     let parsed: URL
     try {
@@ -193,7 +195,13 @@ export function checkRemoteUrl(value: unknown, allowLocal = false): RemoteUrlRes
     } catch {
       return { ok: false, problem: 'host' }
     }
-    if (parsed.protocol !== `${name}:` || parsed.password || parsed.hostname.toLowerCase() !== host.toLowerCase() || parsed.pathname !== path) return { ok: false, problem: 'host' }
+    if (
+      parsed.protocol !== `${name}:` ||
+      parsed.password ||
+      parsed.hostname.toLowerCase() !== host.toLowerCase() ||
+      parsed.pathname !== path
+    )
+      return { ok: false, problem: 'host' }
     return { ok: true, url: value, kind: name }
   }
   if (/^[A-Za-z][A-Za-z0-9+.-]*:(?!\/)/.test(value) && !value.includes('@')) return { ok: false, problem: 'scheme' }
@@ -215,7 +223,15 @@ const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/
 /** A branch name git accepts and that can never be read as an option or a revision expression. */
 export function cleanBranch(value: unknown): string | null {
   if (typeof value !== 'string' || !BRANCH_RE.test(value)) return null
-  if (value.includes('..') || value.includes('//') || value.includes('/.') || value.endsWith('/') || value.endsWith('.') || value.endsWith('.lock')) return null
+  if (
+    value.includes('..') ||
+    value.includes('//') ||
+    value.includes('/.') ||
+    value.endsWith('/') ||
+    value.endsWith('.') ||
+    value.endsWith('.lock')
+  )
+    return null
   return value
 }
 
@@ -241,5 +257,14 @@ export function isPassphrase(value: unknown): value is string {
 }
 
 export function emptySyncStatus(): SyncStatus {
-  return { configured: false, state: 'needs-setup', branch: SYNC_DEFAULT_BRANCH, deviceName: '', pending: 0, encrypted: false, paused: false, activity: [] }
+  return {
+    configured: false,
+    state: 'needs-setup',
+    branch: SYNC_DEFAULT_BRANCH,
+    deviceName: '',
+    pending: 0,
+    encrypted: false,
+    paused: false,
+    activity: []
+  }
 }

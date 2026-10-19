@@ -156,11 +156,22 @@ describe.skipIf(!enabled)('benchmark (SEL_BENCH=1)', () => {
     )
 
     time('duplicate (2k-block page)', 3, () => repo.duplicate(big), results)
-    time('delete (2k-block toggle tree, via apply)', 1, () => repo.apply(repo.children(big).map((b) => ({ op: 'delete', id: b.id }))), results)
+    time(
+      'delete (2k-block toggle tree, via apply)',
+      1,
+      () => repo.apply(repo.children(big).map((b) => ({ op: 'delete', id: b.id }))),
+      results
+    )
 
     repo.close()
     // Written straight to stdout: vitest does not echo console output of passing tests.
-    process.stdout.write('\n' + Object.entries(results).map(([k, v]) => `${k.padEnd(44)} ${v}`).join('\n') + '\n\n')
+    process.stdout.write(
+      '\n' +
+        Object.entries(results)
+          .map(([k, v]) => `${k.padEnd(44)} ${v}`)
+          .join('\n') +
+        '\n\n'
+    )
   }, 300_000)
 
   /**

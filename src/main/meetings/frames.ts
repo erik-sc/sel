@@ -8,11 +8,19 @@ import { MEETING_LIMITS, PCM, type MeetingStream } from '../../shared/meetings'
  * number and the samples; where they go was decided when the recording began.
  */
 
-export type FrameRefusal = 'not-recording' | 'wrong-token' | 'wrong-sender' | 'bad-shape' | 'bad-sequence' | 'too-large' | 'unexpected-stream' | 'full'
+export type FrameRefusal =
+  | 'not-recording'
+  | 'wrong-token'
+  | 'wrong-sender'
+  | 'bad-shape'
+  | 'bad-sequence'
+  | 'too-large'
+  | 'unexpected-stream'
+  | 'full'
 
 export type FrameVerdict =
-  | { ok: true; mic: Uint8Array | null; system: Uint8Array | null; /** Messages that never arrived before this one. */ skipped: number }
-  | { ok: false; reason: FrameRefusal; /** True when the recording must end: the stream cannot be trusted any more. */ fatal: boolean }
+  | { ok: true; mic: Uint8Array | null; system: Uint8Array | null /** Messages that never arrived before this one. */; skipped: number }
+  | { ok: false; reason: FrameRefusal /** True when the recording must end: the stream cannot be trusted any more. */; fatal: boolean }
 
 export interface FrameSession {
   token: string
@@ -83,7 +91,13 @@ export class FrameGate {
   }
 
   /** One chunk of compressed audio for one stream. Strictly in order: a container cannot have holes. */
-  encoded(sender: number, token: unknown, stream: unknown, seq: unknown, raw: unknown): { ok: true; stream: MeetingStream; bytes: Uint8Array } | { ok: false; reason: FrameRefusal } {
+  encoded(
+    sender: number,
+    token: unknown,
+    stream: unknown,
+    seq: unknown,
+    raw: unknown
+  ): { ok: true; stream: MeetingStream; bytes: Uint8Array } | { ok: false; reason: FrameRefusal } {
     const refused = this.identify(sender, token)
     if (refused && !refused.ok) return { ok: false, reason: refused.reason }
     if (stream !== 'mic' && stream !== 'system') return { ok: false, reason: 'bad-shape' }

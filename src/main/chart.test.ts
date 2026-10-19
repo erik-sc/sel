@@ -20,7 +20,16 @@ beforeEach(() => {
 })
 
 const chartView = (chart: unknown, more: Partial<DatabaseView> = {}): DatabaseView =>
-  ({ id: 'v-chart', name: 'By status', type: 'chart', visibleProperties: ['title'], filters: [], sorts: [], chart, ...more }) as DatabaseView
+  ({
+    id: 'v-chart',
+    name: 'By status',
+    type: 'chart',
+    visibleProperties: ['title'],
+    filters: [],
+    sorts: [],
+    chart,
+    ...more
+  }) as DatabaseView
 
 const schema: BlockProps['schema'] = {
   title: { id: 'title', name: 'Name', type: 'title' },
@@ -103,7 +112,10 @@ describe('chart configuration shape (shared by main, renderer and clipboard)', (
 
   it('clamps and rounds numbers', () => {
     expect(sanitizeChartConfig({ kind: 'bar', limit: 0, height: 1 })).toMatchObject({ limit: 1, height: CHART_MIN_HEIGHT })
-    expect(sanitizeChartConfig({ kind: 'bar', limit: 1e9, height: 1e9 })).toMatchObject({ limit: CHART_MAX_LIMIT, height: CHART_MAX_HEIGHT })
+    expect(sanitizeChartConfig({ kind: 'bar', limit: 1e9, height: 1e9 })).toMatchObject({
+      limit: CHART_MAX_LIMIT,
+      height: CHART_MAX_HEIGHT
+    })
     expect(sanitizeChartConfig({ kind: 'bar', limit: 4.6, height: 300.4 })).toMatchObject({ limit: 5, height: 300 })
     expect(sanitizeChartConfig({ kind: 'bar', limit: Infinity, height: -Infinity })).toEqual({ kind: 'bar', y: { aggregate: 'count' } })
   })
@@ -136,7 +148,10 @@ describe('chart configuration shape (shared by main, renderer and clipboard)', (
   it('sanitizeViewCharts repairs chart views and cleans other views, leaving the rest of each view alone', () => {
     const views = [
       chartView(undefined),
-      chartView({ kind: 'line', x: 'due', bogus: 1, y: { aggregate: 'count' } }, { id: 'v2', filters: [{ propertyId: 'st', operator: 'is_empty' }] }),
+      chartView(
+        { kind: 'line', x: 'due', bogus: 1, y: { aggregate: 'count' } },
+        { id: 'v2', filters: [{ propertyId: 'st', operator: 'is_empty' }] }
+      ),
       { id: 't1', type: 'table', chart: { kind: 'bar', y: { aggregate: 'count' } }, extra: 'kept' },
       { id: 't2', type: 'table', chart: 'nope' }
     ]
@@ -157,7 +172,9 @@ describe('repository: chart views are validated before they are stored', () => {
   })
 
   it('rebuilds a malformed configuration on create', () => {
-    const db = database([chartView({ kind: 'line', x: 'due', y: { aggregate: 'sum', property: 'pts', evil: 1 }, limit: 1e12, script: '<img onerror=1>' })])
+    const db = database([
+      chartView({ kind: 'line', x: 'due', y: { aggregate: 'sum', property: 'pts', evil: 1 }, limit: 1e12, script: '<img onerror=1>' })
+    ])
     expect(db.props.views![0].chart).toEqual({ kind: 'line', x: 'due', y: { aggregate: 'sum', property: 'pts' }, limit: CHART_MAX_LIMIT })
   })
 
@@ -170,7 +187,9 @@ describe('repository: chart views are validated before they are stored', () => {
 
   it('validates on update and inside a batch', () => {
     const db = database([chartView({ kind: 'bar', x: 'st', y: { aggregate: 'count' } })])
-    const updated = repo.update(db.id, { props: { views: [chartView({ kind: 'bar', x: 'st', y: { aggregate: 'count' }, height: -5, nope: true })] } })
+    const updated = repo.update(db.id, {
+      props: { views: [chartView({ kind: 'bar', x: 'st', y: { aggregate: 'count' }, height: -5, nope: true })] }
+    })
     expect(updated.props.views![0].chart).toEqual({ kind: 'bar', x: 'st', y: { aggregate: 'count' }, height: CHART_MIN_HEIGHT })
     const [applied] = repo.apply([{ op: 'update', id: db.id, patch: { props: { views: [chartView({ kind: 'pie', palette: 'neon' })] } } }])
     expect(applied.props.views![0].chart).toEqual({ kind: 'pie', y: { aggregate: 'count' } })
@@ -190,11 +209,23 @@ describe('repository: chart views are validated before they are stored', () => {
   })
 
   it('does not touch views that have nothing to do with charts, nor other props', () => {
-    const table: DatabaseView = { id: 't', name: 'Table', type: 'table', visibleProperties: ['title', 'st'], filters: [], sorts: [], propertyWidths: { st: 200 } }
+    const table: DatabaseView = {
+      id: 't',
+      name: 'Table',
+      type: 'table',
+      visibleProperties: ['title', 'st'],
+      filters: [],
+      sorts: [],
+      propertyWidths: { st: 200 }
+    }
     const db = database([table])
     expect(db.props.views).toEqual([table])
     expect(db.props.schema).toEqual(schema)
-    const text = repo.create({ type: 'text', parentId: db.parentId ?? repo.create({ type: 'page', parentId: null }).id, props: { title: [['x']], views: 'not views' } as unknown as BlockProps })
+    const text = repo.create({
+      type: 'text',
+      parentId: db.parentId ?? repo.create({ type: 'page', parentId: null }).id,
+      props: { title: [['x']], views: 'not views' } as unknown as BlockProps
+    })
     expect((text.props as { views?: unknown }).views).toBe('not views')
   })
 
@@ -217,7 +248,16 @@ describe('markdown export of a chart view', () => {
   it('writes the aggregated table under a caption', () => {
     const markdown = exported([chartView({ kind: 'column', x: 'st', y: { aggregate: 'count' } })])
     expect(markdown).toContain(
-      ['**Tasks**', '', '*By status – Column chart: Count by Status*', '', '| Status | Count |', '| --- | ---: |', '| To do | 1 |', '| Done | 2 |'].join('\n')
+      [
+        '**Tasks**',
+        '',
+        '*By status – Column chart: Count by Status*',
+        '',
+        '| Status | Count |',
+        '| --- | ---: |',
+        '| To do | 1 |',
+        '| Done | 2 |'
+      ].join('\n')
     )
     // The rows themselves are not listed.
     expect(markdown).not.toContain('Call Ada')
@@ -230,7 +270,16 @@ describe('markdown export of a chart view', () => {
         { filters: [{ propertyId: 'pts', operator: 'gt', value: 1 }] }
       )
     ])
-    expect(markdown).toContain(['*By status – Bar chart: Sum of Points by Status*', '', '| Status | Sum of Points |', '| --- | ---: |', '| To do | 2 |', '| Done | 8 |'].join('\n'))
+    expect(markdown).toContain(
+      [
+        '*By status – Bar chart: Sum of Points by Status*',
+        '',
+        '| Status | Sum of Points |',
+        '| --- | ---: |',
+        '| To do | 2 |',
+        '| Done | 8 |'
+      ].join('\n')
+    )
     expect(markdown).not.toContain('No Status')
     const unfiltered = exported([chartView({ kind: 'bar', x: 'st', y: { aggregate: 'sum', property: 'pts' }, showEmpty: true })])
     expect(unfiltered).toContain('| No Status | 1 |')
@@ -249,7 +298,9 @@ describe('markdown export of a chart view', () => {
 
   it('writes a single figure as a two-cell table', () => {
     const markdown = exported([chartView({ kind: 'number', y: { aggregate: 'sum', property: 'pts' } }, { name: 'Total' })])
-    expect(markdown).toContain(['*Total – Number chart: Sum of Points*', '', '| Measure | Value |', '| --- | ---: |', '| Sum of Points | 11 |'].join('\n'))
+    expect(markdown).toContain(
+      ['*Total – Number chart: Sum of Points*', '', '| Measure | Value |', '| --- | ---: |', '| Sum of Points | 11 |'].join('\n')
+    )
   })
 
   it('escapes markdown in names and labels', () => {
@@ -286,12 +337,27 @@ describe('markdown export of a chart view', () => {
     repo.create({
       type: 'database',
       parentId: page.id,
-      props: { sourceId: db.id, title: [['Share']], views: [chartView({ kind: 'pie', x: 'st', y: { aggregate: 'count' } }, { name: 'Split' })] }
+      props: {
+        sourceId: db.id,
+        title: [['Share']],
+        views: [chartView({ kind: 'pie', x: 'st', y: { aggregate: 'count' } }, { name: 'Split' })]
+      }
     })
     const markdown = pageToMarkdown(repo, page.id).markdown
     expect(markdown).toContain('| Name | Status |')
     expect(markdown).toContain('| Write \\| report | Done |')
-    expect(markdown).toContain(['**Share**', '', '*Split – Pie chart: Count by Status*', '', '| Status | Count |', '| --- | ---: |', '| To do | 1 |', '| Done | 2 |'].join('\n'))
+    expect(markdown).toContain(
+      [
+        '**Share**',
+        '',
+        '*Split – Pie chart: Count by Status*',
+        '',
+        '| Status | Count |',
+        '| --- | ---: |',
+        '| To do | 1 |',
+        '| Done | 2 |'
+      ].join('\n')
+    )
   })
 })
 
@@ -303,9 +369,34 @@ describe('markdown export of a calculations view', () => {
       { id: 'b', name: 'Rows | all', formula: 'count()' },
       { id: 'c', name: '', formula: 'sum(Nope)' }
     ]
-    database([{ id: 'v', name: 'Figures', type: 'calc', visibleProperties: ['title'], filters: [{ propertyId: 'pts', operator: 'gt', value: 1 }], sorts: [], calcs }], page.id)
+    database(
+      [
+        {
+          id: 'v',
+          name: 'Figures',
+          type: 'calc',
+          visibleProperties: ['title'],
+          filters: [{ propertyId: 'pts', operator: 'gt', value: 1 }],
+          sorts: [],
+          calcs
+        }
+      ],
+      page.id
+    )
     const markdown = pageToMarkdown(repo, page.id).markdown
-    expect(markdown).toContain(['**Tasks**', '', '*Figures*', '', '| Calculation | Value |', '| --- | ---: |', '| Points | 10 |', '| Rows \\| all | 3 |', '| Untitled | — |'].join('\n'))
+    expect(markdown).toContain(
+      [
+        '**Tasks**',
+        '',
+        '*Figures*',
+        '',
+        '| Calculation | Value |',
+        '| --- | ---: |',
+        '| Points | 10 |',
+        '| Rows \\| all | 3 |',
+        '| Untitled | — |'
+      ].join('\n')
+    )
     expect(markdown).not.toContain('Call Ada')
   })
 })
@@ -340,7 +431,9 @@ describe('ipc: bytes of a generated image', () => {
     const jpeg = new Uint8Array(64)
     jpeg.set([0xff, 0xd8, 0xff, 0xe0])
     expect(() => arg.pngBytes(jpeg)).toThrow('not a PNG')
-    expect(() => arg.pngBytes(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>'))).toThrow('not a PNG')
+    expect(() => arg.pngBytes(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>'))).toThrow(
+      'not a PNG'
+    )
     expect(() => arg.pngBytes(png().subarray(0, 16))).toThrow('not a PNG')
     expect(() => arg.pngBytes(new Uint8Array(0))).toThrow('not a PNG')
     const noHeader = png()

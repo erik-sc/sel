@@ -29,11 +29,19 @@ describe('request state machine', () => {
   it('takes the final text as the answer, and keeps what streamed when the final text is empty', () => {
     const streaming = play([{ type: 'start' }, { type: 'started', id: 'r1' }, delta('r1', 'partial')])
     expect(reduceRun(streaming, { type: 'done', id: 'r1', text: 'whole answer', truncated: false }).text).toBe('whole answer')
-    expect(reduceRun(streaming, { type: 'done', id: 'r1', text: '', truncated: true })).toMatchObject({ text: 'partial', truncated: true, status: 'done' })
+    expect(reduceRun(streaming, { type: 'done', id: 'r1', text: '', truncated: true })).toMatchObject({
+      text: 'partial',
+      truncated: true,
+      status: 'done'
+    })
   })
 
   it('finishes straight from starting when nothing streamed', () => {
-    const state = play([{ type: 'start' }, { type: 'started', id: 'r1' }, { type: 'done', id: 'r1', text: 'all at once', truncated: false }])
+    const state = play([
+      { type: 'start' },
+      { type: 'started', id: 'r1' },
+      { type: 'done', id: 'r1', text: 'all at once', truncated: false }
+    ])
     expect(state).toMatchObject({ status: 'done', text: 'all at once' })
   })
 
@@ -56,18 +64,30 @@ describe('request state machine', () => {
     expect(reduceRun(stopped, { type: 'error', id: 'r1', code: 'cancelled', message: 'x' })).toBe(stopped)
     expect(reduceRun(stopped, { type: 'cancel' })).toBe(stopped)
     // Stopping before the id arrived works too.
-    expect(play([{ type: 'start' }, { type: 'cancel' }, { type: 'started', id: 'r9' }, delta('r9', 'x')])).toMatchObject({ status: 'cancelled', id: null, text: '' })
+    expect(play([{ type: 'start' }, { type: 'cancel' }, { type: 'started', id: 'r9' }, delta('r9', 'x')])).toMatchObject({
+      status: 'cancelled',
+      id: null,
+      text: ''
+    })
   })
 
   it('maps errors: a cancellation is not a failure, anything else carries its code and message', () => {
     const running = play([{ type: 'start' }, { type: 'started', id: 'r1' }, delta('r1', 'half')])
-    expect(reduceRun(running, { type: 'error', id: 'r1', code: 'cancelled', message: 'Cancelled' })).toMatchObject({ status: 'cancelled', error: null, text: 'half' })
+    expect(reduceRun(running, { type: 'error', id: 'r1', code: 'cancelled', message: 'Cancelled' })).toMatchObject({
+      status: 'cancelled',
+      error: null,
+      text: 'half'
+    })
     expect(reduceRun(running, { type: 'error', id: 'r1', code: 'not-logged-in', message: 'Sign in' })).toMatchObject({
       status: 'error',
       text: 'half',
       error: { code: 'not-logged-in', message: 'Sign in' }
     })
-    expect(reduceRun(running, { type: 'error', id: 'r1', code: 'failed', message: 'No', detail: 'boom' }).error).toEqual({ code: 'failed', message: 'No', detail: 'boom' })
+    expect(reduceRun(running, { type: 'error', id: 'r1', code: 'failed', message: 'No', detail: 'boom' }).error).toEqual({
+      code: 'failed',
+      message: 'No',
+      detail: 'boom'
+    })
     expect(play([{ type: 'start' }, { type: 'rejected', message: 'Unknown AI action' }])).toMatchObject({
       status: 'error',
       error: { code: 'failed', message: 'Unknown AI action' }
@@ -75,7 +95,12 @@ describe('request state machine', () => {
   })
 
   it('starts clean every time and counts the runs', () => {
-    const failed = play([{ type: 'start' }, { type: 'started', id: 'r1' }, delta('r1', 'old'), { type: 'error', id: 'r1', code: 'timeout', message: 'Too slow' }])
+    const failed = play([
+      { type: 'start' },
+      { type: 'started', id: 'r1' },
+      delta('r1', 'old'),
+      { type: 'error', id: 'r1', code: 'timeout', message: 'Too slow' }
+    ])
     const again = reduceRun(failed, { type: 'start' })
     expect(again).toEqual({ status: 'starting', id: null, text: '', truncated: false, error: null, run: 2 })
     expect(reduceRun(again, delta('r1', 'ghost'))).toBe(again)
@@ -83,7 +108,12 @@ describe('request state machine', () => {
   })
 
   it('does nothing while idle or finished', () => {
-    for (const event of [delta('r1', 'x'), { type: 'done', id: 'r1', text: 'x', truncated: false }, { type: 'cancel' }, { type: 'started', id: 'r1' }] as RunEvent[]) {
+    for (const event of [
+      delta('r1', 'x'),
+      { type: 'done', id: 'r1', text: 'x', truncated: false },
+      { type: 'cancel' },
+      { type: 'started', id: 'r1' }
+    ] as RunEvent[]) {
       expect(reduceRun(IDLE, event)).toBe(IDLE)
     }
     const done = play([{ type: 'start' }, { type: 'started', id: 'r1' }, { type: 'done', id: 'r1', text: 'x', truncated: false }])
@@ -133,7 +163,12 @@ const text = (b: Block | undefined): string => (b?.props.title ?? []).map((span)
 const reading = (map: BlockMap): string[] => order(treeOf(map)).map((id) => `${map[id].type}:${text(map[id])}`)
 
 /** Plans, applies with the store's reducer, and checks that ONE inverse batch restores the page exactly. */
-function accept(target: AiTarget, markdown: string, replace = true, before: BlockMap = world()): { plan: InsertPlan; after: BlockMap; ops: Op[] } {
+function accept(
+  target: AiTarget,
+  markdown: string,
+  replace = true,
+  before: BlockMap = world()
+): { plan: InsertPlan; after: BlockMap; ops: Op[] } {
   const plan = planAccept(treeOf(before), target, markdown, ids(), replace)
   if (!plan) throw new Error('expected a plan')
   const { inverse } = invertOps(plan.ops, (id) => before[id])
@@ -145,8 +180,20 @@ function accept(target: AiTarget, markdown: string, replace = true, before: Bloc
 
 describe('markdown to blocks', () => {
   it('uses the paste parser: headings, lists, to-dos, quotes, code, dividers and inline marks', () => {
-    const nodes = markdownToNodes('## Key points\n\n- one **bold**\n1. first\n- [ ] task\n- [x] done\n> quote\n---\n```js\nlet a = 1\n```\nplain *text*')
-    expect(nodes.map((node) => node.type)).toEqual(['heading_2', 'bulleted_list', 'numbered_list', 'to_do', 'to_do', 'quote', 'divider', 'code', 'text'])
+    const nodes = markdownToNodes(
+      '## Key points\n\n- one **bold**\n1. first\n- [ ] task\n- [x] done\n> quote\n---\n```js\nlet a = 1\n```\nplain *text*'
+    )
+    expect(nodes.map((node) => node.type)).toEqual([
+      'heading_2',
+      'bulleted_list',
+      'numbered_list',
+      'to_do',
+      'to_do',
+      'quote',
+      'divider',
+      'code',
+      'text'
+    ])
     expect(nodes[1].props.title).toEqual([['one '], ['bold', [['b']]]])
     expect(nodes[3].props.checked).toBe(false)
     expect(nodes[4].props.checked).toBe(true)

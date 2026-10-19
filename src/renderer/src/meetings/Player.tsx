@@ -112,7 +112,12 @@ export function Player({
         onChange={(event) => seek(Number(event.target.value))}
       />
       <span className="mt-time">{failed ? 'Cannot play' : `${clockTime(time)} / ${clockTime(length())}`}</span>
-      <button type="button" className="mt-chip" aria-label={`Speed ${rate}×`} onClick={() => setRate(RATES[(RATES.indexOf(rate) + 1) % RATES.length])}>
+      <button
+        type="button"
+        className="mt-chip"
+        aria-label={`Speed ${rate}×`}
+        onClick={() => setRate(RATES[(RATES.indexOf(rate) + 1) % RATES.length])}
+      >
         {rate}×
       </button>
       {tracks.length > 1 &&

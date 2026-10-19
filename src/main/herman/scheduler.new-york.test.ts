@@ -72,14 +72,19 @@ describe('the gap and the day when the clock changes', () => {
 
   it('counts a day of twenty-five hours, and one of twenty-three, as one day each', () => {
     let memory = EMPTY_MEMORY
-    for (const hour of [0, 6, 12, 18]) memory = record(memory, { id: `n${hour}`, kind: 'long-session', variant: 'long-session:0' }, local(11, 1, hour, 30))
+    for (const hour of [0, 6, 12, 18])
+      memory = record(memory, { id: `n${hour}`, kind: 'long-session', variant: 'long-session:0' }, local(11, 1, hour, 30))
     expect(memory).toMatchObject({ day: '2026-11-01', shown: 4 })
     const late = decide(awake, memory, { now: local(11, 1, 23, 30), idleMs: IDLE_MS })
     expect(late).toEqual({ ok: false, reason: 'day-limit', waitMs: 30 * MIN })
     // At 00:30 on the long day, midnight is twenty-four and a half hours away.
     const early = local(11, 1, 0, 30)
     expect(local(11, 2, 0) - early).toBe(24.5 * HOUR)
-    expect(decide(awake, { ...memory, lastAt: 0 }, { now: early, idleMs: IDLE_MS })).toEqual({ ok: false, reason: 'day-limit', waitMs: 24.5 * HOUR })
+    expect(decide(awake, { ...memory, lastAt: 0 }, { now: early, idleMs: IDLE_MS })).toEqual({
+      ok: false,
+      reason: 'day-limit',
+      waitMs: 24.5 * HOUR
+    })
     expect(forDay(memory, local(11, 2, 0, 1))).toMatchObject({ day: '2026-11-02', shown: 0 })
     // The short day in March.
     expect(localDay(local(3, 8, 3, 0))).toBe('2026-03-08')

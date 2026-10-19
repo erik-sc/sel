@@ -26,7 +26,9 @@ suite('sync with real git: flows', () => {
     expect(status.gitVersion).toMatch(/^\d+\.\d+/)
 
     const files = remoteFiles(remote)
-    expect([...files.keys()].sort()).toEqual(['README.md', `pages/${page.id}.json`, `pages/${sub.id}.json`, 'sel.json', 'workspace.json'].sort())
+    expect([...files.keys()].sort()).toEqual(
+      ['README.md', `pages/${page.id}.json`, `pages/${sub.id}.json`, 'sel.json', 'workspace.json'].sort()
+    )
     expect(JSON.parse(files.get('sel.json')!.toString())).toMatchObject({ app: 'sel', format: 1, createdBy: 'Desk' })
     expect(files.get('README.md')!.toString()).toContain('Do not edit these files by hand')
     expect(JSON.parse(files.get('workspace.json')!.toString()).root).toEqual([page.id])
@@ -43,7 +45,8 @@ suite('sync with real git: flows', () => {
     expect(git(remote, 'log', '-1', '--format=%b', 'main')).toContain('sel-sync: pages=2 removed=0')
     // Nothing of the user's global git configuration was touched, and nothing was forced.
     for (const { args } of a.spawns) {
-      if (args.includes('push')) expect(args.some((arg) => arg === '--force' || arg === '-f' || arg.startsWith('+') || arg.includes('force'))).toBe(false)
+      if (args.includes('push'))
+        expect(args.some((arg) => arg === '--force' || arg === '-f' || arg.startsWith('+') || arg.includes('force'))).toBe(false)
       expect(args.includes('--global') || args.includes('--system')).toBe(false)
     }
   })
@@ -271,9 +274,23 @@ suite('sync with real git: flows', () => {
     expect(onB.activity[0]).toMatchObject({ appearance: true })
 
     // Different tokens on each device: both stay.
-    a.repo.setSetting('appearance', { version: 1, light: { '--accent': '#ff0000', '--radius-m': '2px' }, dark: {}, shared: {}, customCss: '', presetId: null })
+    a.repo.setSetting('appearance', {
+      version: 1,
+      light: { '--accent': '#ff0000', '--radius-m': '2px' },
+      dark: {},
+      shared: {},
+      customCss: '',
+      presetId: null
+    })
     a.repo.setSetting('sync.appearanceAt', 6000)
-    b.repo.setSetting('appearance', { version: 1, light: { '--accent': '#ff0000' }, dark: { '--accent': '#00ff00' }, shared: {}, customCss: '.x{}', presetId: null })
+    b.repo.setSetting('appearance', {
+      version: 1,
+      light: { '--accent': '#ff0000' },
+      dark: { '--accent': '#00ff00' },
+      shared: {},
+      customCss: '.x{}',
+      presetId: null
+    })
     b.repo.setSetting('sync.appearanceAt', 7000)
     await sync(a, b, a)
     const expected = { light: { '--accent': '#ff0000', '--radius-m': '2px' }, dark: { '--accent': '#00ff00' }, customCss: '.x{}' }
@@ -296,7 +313,11 @@ suite('sync with real git: flows', () => {
     await sync(a, b)
     expect(b.repo.getSetting('home')).toEqual({ kind: 'page', id: pageId })
     expect(b.repo.getSetting('sync.homeAt')).toBe(5000)
-    expect(JSON.parse(remoteFiles(remote).get('settings/home.json')!.toString())).toEqual({ format: 1, updatedAt: 5000, value: { kind: 'page', id: pageId } })
+    expect(JSON.parse(remoteFiles(remote).get('settings/home.json')!.toString())).toEqual({
+      format: 1,
+      updatedAt: 5000,
+      value: { kind: 'page', id: pageId }
+    })
     // What sel does at start-up is chosen per device: it stays where it was set.
     a.repo.setSetting('shell.startup', 'home')
     await sync(a, b)
@@ -433,7 +454,9 @@ suite('sync with real git: flows', () => {
     expect((await b.setup(remote, { passphrase: PASSPHRASE })).lastError).toBeUndefined()
 
     // A adds a calendar, sync: B has it, address and all.
-    expect(b.calendars.list()).toEqual([{ id: expect.any(String), label: 'Work', host: 'calendar.google.com', color: 'green', enabled: true }])
+    expect(b.calendars.list()).toEqual([
+      { id: expect.any(String), label: 'Work', host: 'calendar.google.com', color: 'green', enabled: true }
+    ])
     const onB = b.calendars.list()[0].id
     expect(onB).not.toBe(work.id)
     expect(b.calendars.urlOf(onB)).toBe(CALENDAR)

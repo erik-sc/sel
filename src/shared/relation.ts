@@ -119,7 +119,11 @@ type Values = Record<string, PropertyValue>
  *    partner cells of the rows it links to, so the two sides stay in step. Under a partner
  *    that holds one link only, the copy gives that link up instead of stealing it.
  */
-export function relinkDuplicate(copies: DuplicateCopy[], copyOf: ReadonlyMap<string, string>, source: DuplicateSource): Map<string, Values> {
+export function relinkDuplicate(
+  copies: DuplicateCopy[],
+  copyOf: ReadonlyMap<string, string>,
+  source: DuplicateSource
+): Map<string, Values> {
   const byId = new Map(copies.map((copy) => [copy.id, copy]))
   const copied = new Set(copyOf.values())
 

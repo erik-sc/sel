@@ -33,7 +33,9 @@ export interface Box {
 
 /** True when `box`, grown by `margin` on every side, touches `other`. */
 export function near(box: Box, other: Box, margin: number): boolean {
-  return other.left < box.right + margin && other.right > box.left - margin && other.top < box.bottom + margin && other.bottom > box.top - margin
+  return (
+    other.left < box.right + margin && other.right > box.left - margin && other.top < box.bottom + margin && other.bottom > box.top - margin
+  )
 }
 
 /** The corner of `area` that the point is closest to. */

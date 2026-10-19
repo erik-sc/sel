@@ -3,7 +3,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { cleanMeetingsSetting, clockTime, MEETING_LIMITS, MEETINGS_KEYS, parseClockTime, PCM, type MeetingsProgress, type MeetingsStatus } from '../../shared/meetings'
+import {
+  cleanMeetingsSetting,
+  clockTime,
+  MEETING_LIMITS,
+  MEETINGS_KEYS,
+  parseClockTime,
+  PCM,
+  type MeetingsProgress,
+  type MeetingsStatus
+} from '../../shared/meetings'
 import { plainText } from '../../shared/richtext'
 import { openTestRepository } from '../db/testing'
 import type { Repository } from '../db/repository'
@@ -11,7 +20,16 @@ import { device, pair, remoteFiles, suite, sync } from '../sync/harness'
 import * as arg from '../validate'
 import { GrantStore } from './grant'
 import { attendeesText, meetingInput, MeetingsService } from './service'
-import { cleanSegments, cleanSpeaker, mergeTranscript, paragraphSpans, renameSpeakerSpans, transcriptFromTitles, transcriptText, type Segment } from './transcript'
+import {
+  cleanSegments,
+  cleanSpeaker,
+  mergeTranscript,
+  paragraphSpans,
+  renameSpeakerSpans,
+  transcriptFromTitles,
+  transcriptText,
+  type Segment
+} from './transcript'
 import { WhisperEngine } from './whisper/engine'
 import { WhisperError, type WhisperRun } from './whisper/run'
 
@@ -56,7 +74,14 @@ async function until(check: () => boolean | Promise<boolean>, what: string): Pro
   }
 }
 
-function world(options: { systemAudio?: boolean; engine?: boolean; chunkSeconds?: number; runWhisper?: (run: WhisperRun) => ReturnType<NonNullable<ConstructorParameters<typeof MeetingsService>[0]['runWhisper']>> } = {}): World {
+function world(
+  options: {
+    systemAudio?: boolean
+    engine?: boolean
+    chunkSeconds?: number
+    runWhisper?: (run: WhisperRun) => ReturnType<NonNullable<ConstructorParameters<typeof MeetingsService>[0]['runWhisper']>>
+  } = {}
+): World {
   const base = join(ROOT, String(++serial))
   const dir = join(base, 'recordings')
   mkdirSync(base, { recursive: true })
@@ -102,7 +127,8 @@ async function record(w: World, pageId: string, parts: { mic: ArrayBuffer; syste
   let seq = 0
   for (const part of parts) {
     const other = part.system ?? silence(part.mic.byteLength / 2 / PCM.sampleRate)
-    for (let from = 0; from < part.mic.byteLength; from += step) w.service.frames(OWNER, token, seq++, part.mic.slice(from, from + step), system ? other.slice(from, from + step) : null)
+    for (let from = 0; from < part.mic.byteLength; from += step)
+      w.service.frames(OWNER, token, seq++, part.mic.slice(from, from + step), system ? other.slice(from, from + step) : null)
   }
   return token
 }
@@ -152,7 +178,9 @@ describe('the Meetings database', () => {
   it('prefills a meeting from a calendar event', () => {
     const w = world()
     const start = new Date(2026, 9, 14, 9, 30).getTime()
-    const { pageId } = w.service.create({ event: { title: 'Roadmap review', start, end: start + 45 * 60_000, location: 'Room 4', description: 'Bring\nthe numbers' } })
+    const { pageId } = w.service.create({
+      event: { title: 'Roadmap review', start, end: start + 45 * 60_000, location: 'Room 4', description: 'Bring\nthe numbers' }
+    })
     const page = w.repo.get(pageId)
     expect(plainText(page?.props.title)).toBe('Roadmap review')
     expect(page?.props.values?.['date']).toEqual({ start: '2026-10-14' })
@@ -281,7 +309,9 @@ describe('recording', () => {
     const a = w.service.create({ title: 'A' }).pageId
     const b = w.service.create({ title: 'B' }).pageId
     const token = await record(w, a, [{ mic: tone(1) }], false)
-    await expect(w.service.begin(OWNER, b, { sources: { micId: null, system: false } })).rejects.toThrow(/Another meeting is being recorded/)
+    await expect(w.service.begin(OWNER, b, { sources: { micId: null, system: false } })).rejects.toThrow(
+      /Another meeting is being recorded/
+    )
     await expect(w.service.begin(9, a, { sources: { micId: null, system: false } })).rejects.toThrow(/already being recorded/)
     await w.service.stop(OWNER, token)
     await expect(w.service.begin(OWNER, a, { sources: { micId: null, system: false } })).rejects.toThrow(/already has a recording/)
@@ -311,7 +341,9 @@ describe('recording', () => {
 
   it('refuses pages that do not exist or are in the Trash, and a disk that is nearly full', async () => {
     const w = world()
-    await expect(w.service.begin(OWNER, '11111111-2222-4333-8444-555555555555', { sources: { micId: null, system: false } })).rejects.toThrow(/no longer exists/)
+    await expect(
+      w.service.begin(OWNER, '11111111-2222-4333-8444-555555555555', { sources: { micId: null, system: false } })
+    ).rejects.toThrow(/no longer exists/)
     const { pageId } = w.service.create({})
     w.free.bytes = MEETING_LIMITS.minFreeBytes - 1
     await expect(w.service.begin(OWNER, pageId, { sources: { micId: null, system: false } })).rejects.toThrow(/disk space/)
@@ -497,14 +529,23 @@ describe('transcription', () => {
     expect(transcript?.parentId).toBe(pageId)
     expect(plainText(transcript?.props.title)).toBe('Transcript')
     const lines = w.repo.children(transcript?.id ?? '').map((block) => plainText(block.props.title))
-    expect(lines).toEqual(['00:00 Me: At 00:00 I said something.', '00:05 Others: At 00:05 the others said something.', '00:10 Me: At 00:10 I said something.'])
+    expect(lines).toEqual([
+      '00:00 Me: At 00:00 I said something.',
+      '00:05 Others: At 00:05 the others said something.',
+      '00:10 Me: At 00:10 I said something.'
+    ])
     const first = w.repo.children(transcript?.id ?? '')[0].props.title
     expect(first?.[0]).toEqual(['00:00', [['c']]])
     expect(first?.[2]).toEqual(['Me', [['b']]])
     expect(w.repo.get(pageId)?.props.values).toMatchObject({ status: 'ready', duration: 1 })
     // The originals are gone, the compact copies and the transcript stay.
     expect(readdirSync(join(w.dir, pageId)).sort()).toEqual(['meeting.json', 'mic.webm', 'system.webm', 'transcript.json'])
-    expect(w.progress.filter((event) => event.kind === 'transcribe').map((event) => (event.kind === 'transcribe' ? event.percent : 0)).pop()).toBe(100)
+    expect(
+      w.progress
+        .filter((event) => event.kind === 'transcribe')
+        .map((event) => (event.kind === 'transcribe' ? event.percent : 0))
+        .pop()
+    ).toBe(100)
     expect(info.tracks.map((track) => track.format)).toEqual(['webm', 'webm'])
     // Without the originals it cannot be transcribed again, and says so.
     await expect(w.service.transcribe(pageId)).rejects.toThrow(/no longer here/)
@@ -524,7 +565,9 @@ describe('transcription', () => {
     await transcribed(w, pageId)
     expect((await w.service.info(pageId)).transcriptPageId).toBe(first)
     expect(w.repo.children(pageId).filter((block) => block.type === 'page')).toHaveLength(1)
-    expect(w.repo.children(first ?? '').map((block) => plainText(block.props.title))).toEqual(['00:00 Me: At 00:00 I said something em português.'])
+    expect(w.repo.children(first ?? '').map((block) => plainText(block.props.title))).toEqual([
+      '00:00 Me: At 00:00 I said something em português.'
+    ])
   })
 
   it('works through a long recording in pieces, and a failed piece is the only one done again', async () => {
@@ -542,7 +585,12 @@ describe('transcription', () => {
       }
     })
     const { pageId } = w.service.create({})
-    const token = await record(w, pageId, [{ mic: tone(4) }, { mic: tone(4) }, { mic: tone(4) }, { mic: tone(4) }, { mic: tone(4) }, { mic: tone(4) }, { mic: tone(1) }], false)
+    const token = await record(
+      w,
+      pageId,
+      [{ mic: tone(4) }, { mic: tone(4) }, { mic: tone(4) }, { mic: tone(4) }, { mic: tone(4) }, { mic: tone(4) }, { mic: tone(1) }],
+      false
+    )
     await w.service.stop(OWNER, token)
     await transcribed(w, pageId)
     expect(calls).toEqual(['mic.0000.wav', 'mic.0001.wav'])
@@ -576,7 +624,9 @@ describe('transcription', () => {
     await transcribed(w, pageId)
     expect(calls).toEqual([])
     const info = await w.service.info(pageId)
-    expect(w.repo.children(info.transcriptPageId ?? '').map((block) => plainText(block.props.title))).toEqual(['No speech was found in this recording.'])
+    expect(w.repo.children(info.transcriptPageId ?? '').map((block) => plainText(block.props.title))).toEqual([
+      'No speech was found in this recording.'
+    ])
   })
 
   it('can be cancelled, which kills the program and leaves the meeting as it was', async () => {
@@ -615,7 +665,12 @@ describe('transcription', () => {
   })
 
   it('renames the speakers in the transcript, swapping included', async () => {
-    const w = world({ runWhisper: async (run) => ({ language: 'en', segments: [{ start: 0, end: 1, text: /system/.test(run.args.input) ? ' Others said this.' : ' Me said that.' }] }) })
+    const w = world({
+      runWhisper: async (run) => ({
+        language: 'en',
+        segments: [{ start: 0, end: 1, text: /system/.test(run.args.input) ? ' Others said this.' : ' Me said that.' }]
+      })
+    })
     const { pageId } = w.service.create({})
     const token = await record(w, pageId, [{ mic: tone(2), system: tone(2) }])
     await w.service.stop(OWNER, token)
@@ -623,7 +678,10 @@ describe('transcription', () => {
     const transcriptId = (await w.service.info(pageId)).transcriptPageId ?? ''
     const lines = (): string[] => w.repo.children(transcriptId).map((block) => plainText(block.props.title))
     expect(lines()).toEqual(['00:00 Me: Me said that.', '00:00 Others: Others said this.'])
-    expect((await w.service.setSpeakers(pageId, { mic: 'Érik', system: 'Ana & Rui' })).speakers).toEqual({ mic: 'Érik', system: 'Ana & Rui' })
+    expect((await w.service.setSpeakers(pageId, { mic: 'Érik', system: 'Ana & Rui' })).speakers).toEqual({
+      mic: 'Érik',
+      system: 'Ana & Rui'
+    })
     expect(lines()).toEqual(['00:00 Érik: Me said that.', '00:00 Ana & Rui: Others said this.'])
     await w.service.setSpeakers(pageId, { mic: 'Ana & Rui', system: 'Érik' })
     expect(lines()).toEqual(['00:00 Ana & Rui: Me said that.', '00:00 Érik: Others said this.'])
@@ -705,15 +763,29 @@ describe('transcripts', () => {
   })
 
   it('drops the stock phrases of silence only when they stand alone', () => {
-    expect(cleanSegments([seg(0, 5, ' Let us begin.'), seg(60, 62, ' Thank you.'), seg(120, 125, ' Next point.')]).map((segment) => segment.text)).toEqual(['Let us begin.', 'Next point.'])
-    expect(cleanSegments([seg(0, 5, ' That is all from me.'), seg(5, 6, ' Thank you.'), seg(7, 9, ' Great.')]).map((segment) => segment.text)).toEqual(['That is all from me.', 'Thank you.', 'Great.'])
+    expect(
+      cleanSegments([seg(0, 5, ' Let us begin.'), seg(60, 62, ' Thank you.'), seg(120, 125, ' Next point.')]).map((segment) => segment.text)
+    ).toEqual(['Let us begin.', 'Next point.'])
+    expect(
+      cleanSegments([seg(0, 5, ' That is all from me.'), seg(5, 6, ' Thank you.'), seg(7, 9, ' Great.')]).map((segment) => segment.text)
+    ).toEqual(['That is all from me.', 'Thank you.', 'Great.'])
     expect(cleanSegments([seg(30, 32, ' Legendas pela comunidade Amara.org')])).toEqual([])
   })
 
   it('merges the two streams by time into paragraphs per speaker', () => {
     const paragraphs = mergeTranscript(
-      [seg(0, 4, ' Hi, can you hear me?'), seg(4, 6, ' I will share my screen.'), seg(30, 33, ' Right.'), seg(120, 124, ' Back to the agenda.')],
-      [seg(7, 12, ' Yes, loud and clear.'), seg(12, 20, ' Go ahead.'), seg(20, 22, ' [BLANK_AUDIO]'), seg(40, 44, ' So the launch moves to May.')]
+      [
+        seg(0, 4, ' Hi, can you hear me?'),
+        seg(4, 6, ' I will share my screen.'),
+        seg(30, 33, ' Right.'),
+        seg(120, 124, ' Back to the agenda.')
+      ],
+      [
+        seg(7, 12, ' Yes, loud and clear.'),
+        seg(12, 20, ' Go ahead.'),
+        seg(20, 22, ' [BLANK_AUDIO]'),
+        seg(40, 44, ' So the launch moves to May.')
+      ]
     )
     expect(paragraphs.map((paragraph) => [paragraph.stream, paragraph.start, paragraph.text])).toEqual([
       ['mic', 0, 'Hi, can you hear me? I will share my screen.'],
@@ -722,7 +794,9 @@ describe('transcripts', () => {
       ['system', 40, 'So the launch moves to May.'],
       ['mic', 120, 'Back to the agenda.']
     ])
-    expect(transcriptText(paragraphs.slice(0, 2), { mic: 'Me', system: 'Others' })).toBe('[00:00] Me: Hi, can you hear me? I will share my screen.\n[00:07] Others: Yes, loud and clear. Go ahead.')
+    expect(transcriptText(paragraphs.slice(0, 2), { mic: 'Me', system: 'Others' })).toBe(
+      '[00:00] Me: Hi, can you hear me? I will share my screen.\n[00:07] Others: Yes, loud and clear. Go ahead.'
+    )
   })
 
   it('starts a new paragraph after a long pause or a long stretch, and orders ties', () => {
@@ -736,7 +810,9 @@ describe('transcripts', () => {
   it('writes and reads back the blocks of a transcript page', () => {
     const spans = paragraphSpans({ stream: 'system', start: 3725, end: 3730, text: 'Hello there.' }, { mic: 'Me', system: 'Others' })
     expect(spans).toEqual([['1:02:05', [['c']]], [' '], ['Others', [['b']]], [': Hello there.']])
-    expect(transcriptFromTitles([spans, undefined, [], [['A line the user added.']]])).toBe('[1:02:05] Others: Hello there.\nA line the user added.')
+    expect(transcriptFromTitles([spans, undefined, [], [['A line the user added.']]])).toBe(
+      '[1:02:05] Others: Hello there.\nA line the user added.'
+    )
     expect(renameSpeakerSpans(spans, 'Others', 'Ana')).toEqual([['1:02:05', [['c']]], [' '], ['Ana', [['b']]], [': Hello there.']])
     // Only the label is renamed: the same word in the text, or in a line the user wrote, stays.
     expect(renameSpeakerSpans([['Others', [['b']]], [' said Others']], 'Others', 'Ana')).toBeNull()
@@ -759,13 +835,17 @@ describe('transcripts', () => {
 describe('meetings settings', () => {
   it('lets a renderer write the listed keys, typed, and never a path', () => {
     for (const key of MEETINGS_KEYS) expect(arg.isWritableSetting(key)).toBe(true)
-    for (const key of ['meetings.databaseId', 'meetings.whisperVersion', 'meetings.anything']) expect(arg.isWritableSetting(key)).toBe(false)
+    for (const key of ['meetings.databaseId', 'meetings.whisperVersion', 'meetings.anything'])
+      expect(arg.isWritableSetting(key)).toBe(false)
     expect(arg.settingValueFor('meetings.model', 'medium')).toBe('medium')
     expect(arg.settingValueFor('meetings.language', 'pt')).toBe('pt')
     expect(arg.settingValueFor('meetings.keepOriginal', true)).toBe(true)
     expect(arg.settingValueFor('meetings.deleteAfterDays', 30)).toBe(30)
     expect(arg.settingValueFor('meetings.maxHours', 99)).toBe(MEETING_LIMITS.maxHours.max)
-    expect(arg.settingValueFor('meetings.defaultMic', { id: 'abc123', label: 'USB  mic\n', extra: 1 })).toEqual({ id: 'abc123', label: 'USB mic' })
+    expect(arg.settingValueFor('meetings.defaultMic', { id: 'abc123', label: 'USB  mic\n', extra: 1 })).toEqual({
+      id: 'abc123',
+      label: 'USB mic'
+    })
     // Clearing a path is allowed; naming one is not.
     expect(arg.settingValueFor('meetings.whisperPath', null)).toBeNull()
     expect(arg.settingValueFor('meetings.modelPath', undefined)).toBeNull()
@@ -798,7 +878,13 @@ suite('recordings and sync', () => {
     const service = new MeetingsService({
       repo: a.repo,
       dir: recordings,
-      engine: new WhisperEngine({ dir: join(a.dir, 'whisper'), getSetting: (key) => (key === 'meetings.modelPath' ? join(a.dir, 'model.bin') : null), setSetting: () => undefined, devProgram: FAKE, platformKey: 'none' }),
+      engine: new WhisperEngine({
+        dir: join(a.dir, 'whisper'),
+        getSetting: (key) => (key === 'meetings.modelPath' ? join(a.dir, 'model.bin') : null),
+        setSetting: () => undefined,
+        devProgram: FAKE,
+        platformKey: 'none'
+      }),
       grants,
       systemAudio: true,
       emitStatus: () => undefined,
@@ -842,7 +928,10 @@ suite('recordings and sync', () => {
     const there = b.repo.get(meeting)
     expect(plainText(there?.props.title)).toBe('Board call')
     const transcript = b.repo.children(meeting).find((block) => block.type === 'page')
-    expect(b.repo.children(transcript?.id ?? '').map((block) => plainText(block.props.title))).toEqual(['00:00 Me: The secret plan.', '00:00 Others: The secret plan.'])
+    expect(b.repo.children(transcript?.id ?? '').map((block) => plainText(block.props.title))).toEqual([
+      '00:00 Me: The secret plan.',
+      '00:00 Others: The secret plan.'
+    ])
     // And device B has no recordings folder at all.
     expect(existsSync(join(b.dir, 'recordings'))).toBe(false)
   })

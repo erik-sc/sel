@@ -17,7 +17,17 @@
 //     whose every reference fits the schema; on a calculations view, a list of
 //     well-formed calculations.
 // Valid data comes back by reference (`changed: false`), so memoisation holds.
-import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyType, SelectOption, ViewFilter, ViewSort, ViewType } from '../../../../shared/types'
+import type {
+  Block,
+  BlockProps,
+  DatabaseView,
+  PropertySchema,
+  PropertyType,
+  SelectOption,
+  ViewFilter,
+  ViewSort,
+  ViewType
+} from '../../../../shared/types'
 import { sanitizeChartConfig } from '../../../../shared/chart'
 import { defaultCalcs, sanitizeCalcs } from './calcConfig'
 import { sanitizeRelationConfig } from '../../../../shared/relation'
@@ -154,7 +164,8 @@ function normalizeFilters(raw: unknown, schema: Schema): ViewFilter[] {
     if (operatorNeedsValue(operator)) {
       const value = ruleValueOf(prop, f.value, schema, operator)
       // Keep the stored shape (e.g. a single option id) when it is already fine.
-      if (value !== undefined) filter.value = sameValue(value, f.value) || sameValue([f.value], value) ? (f.value as ViewFilter['value']) : value
+      if (value !== undefined)
+        filter.value = sameValue(value, f.value) || sameValue([f.value], value) ? (f.value as ViewFilter['value']) : value
     }
     out.push(filter)
   }
@@ -273,8 +284,7 @@ export function ensureDatabaseProps(props: BlockProps | undefined | null): Norma
   const rawViews: unknown = source.views
   let views = sanitizeViews(Array.isArray(rawViews) ? (rawViews as DatabaseView[]) : [], schema)
   if (!views.length) views = [createDefaultView('table', schema, DEFAULT_VIEW_ID)]
-  const viewsChanged =
-    !Array.isArray(rawViews) || rawViews.length !== views.length || views.some((v, i) => v !== rawViews[i])
+  const viewsChanged = !Array.isArray(rawViews) || rawViews.length !== views.length || views.some((v, i) => v !== rawViews[i])
   if (!viewsChanged) views = rawViews as DatabaseView[]
   return { schema, views, changed: schemaChanged || viewsChanged }
 }

@@ -27,8 +27,7 @@ let repo: Repository
 let db: SqlDriver
 let t: number
 
-const page = (title: string, parentId: string | null = null): Block =>
-  repo.create({ type: 'page', parentId, props: { title: [[title]] } })
+const page = (title: string, parentId: string | null = null): Block => repo.create({ type: 'page', parentId, props: { title: [[title]] } })
 const text = (title: string, parentId: string, afterId?: string | null): Block =>
   repo.create({ type: 'text', parentId, props: { title: [[title]] }, afterId })
 const retitle = (id: string, title: string): Block => repo.update(id, { props: { title: [[title]] } })
@@ -533,7 +532,8 @@ describe('restore: replace', () => {
     expect(result.pageId).toBe(p.id)
     expect(result.notes).toEqual([])
     const after = repo.getTree(p.id)
-    const shape = (blocks: Block[]) => blocks.map((x) => ({ id: x.id, type: x.type, parentId: x.parentId, content: x.content, props: x.props }))
+    const shape = (blocks: Block[]) =>
+      blocks.map((x) => ({ id: x.id, type: x.type, parentId: x.parentId, content: x.content, props: x.props }))
     // Same ids, same order, same content - the deleted toggle is back under its original id.
     expect(shape(after.slice(1))).toEqual(shape(before.slice(1)))
     expect(after[0].content).toEqual(before[0].content)
@@ -668,7 +668,8 @@ describe('restore: replace', () => {
         schema: { title: { id: 'title', name: 'Name', type: 'title' }, n: { id: 'n', name: 'Points', type: 'number' } }
       }
     })
-    const row = (title: string, n: number): Block => repo.create({ type: 'page', parentId: d.id, props: { title: [[title]], values: { n } } })
+    const row = (title: string, n: number): Block =>
+      repo.create({ type: 'page', parentId: d.id, props: { title: [[title]], values: { n } } })
     const r1 = row('one', 1)
     const r2 = row('two', 2)
     const r3 = row('three', 3)
@@ -716,7 +717,20 @@ describe('restore: replace', () => {
     const view = repo.create({
       type: 'database',
       parentId: p.id,
-      props: { sourceId: d.id, views: [{ id: 'c', name: 'Chart', type: 'chart', visibleProperties: [], filters: [], sorts: [], chart: { kind: 'pie', y: { aggregate: 'count' } } }] }
+      props: {
+        sourceId: d.id,
+        views: [
+          {
+            id: 'c',
+            name: 'Chart',
+            type: 'chart',
+            visibleProperties: [],
+            filters: [],
+            sorts: [],
+            chart: { kind: 'pie', y: { aggregate: 'count' } }
+          }
+        ]
+      }
     })
     const v = repo.saveVersion(p.id)
     const own = repo.saveVersion(view.id)
@@ -904,7 +918,11 @@ describe('damaged versions', () => {
     plant('truncated', p.id, whole.subarray(0, whole.length - 6))
     plant('not-json', p.id, deflateSync(Buffer.from('{"v":1,')))
     plant('wrong-shape', p.id, deflateSync(Buffer.from(JSON.stringify({ v: 1, rootId: p.id, blocks: 'nope' }))))
-    plant('other-page', p.id, deflateSync(Buffer.from(JSON.stringify({ v: 1, rootId: 'elsewhere', blocks: [{ id: 'elsewhere', type: 'page', content: [] }] }))))
+    plant(
+      'other-page',
+      p.id,
+      deflateSync(Buffer.from(JSON.stringify({ v: 1, rootId: 'elsewhere', blocks: [{ id: 'elsewhere', type: 'page', content: [] }] })))
+    )
     for (const id of ['truncated', 'not-json', 'wrong-shape', 'other-page']) {
       expect(() => repo.getVersion(id), id).toThrow('This version is damaged and cannot be read')
       expect(() => repo.restoreVersion(id, 'replace'), id).toThrow('This version is damaged and cannot be read')
@@ -951,7 +969,9 @@ describe('damaged versions', () => {
     expect(() => parseSnapshot([], clean)).toThrow('damaged')
 
     // Hostile keys never reach a props object, and rich text is reduced to spans.
-    const hostile = JSON.parse('{"v":1,"rootId":"d","blocks":[{"id":"d","type":"database","content":["r"],"props":{"__proto__":{"x":1},"title":[["D"]]}}],"rows":[{"id":"r","title":[["ok",[["b"],["a","http://x"],[1,2,3]]],"junk",[5]],"values":{"n":1}}]}')
+    const hostile = JSON.parse(
+      '{"v":1,"rootId":"d","blocks":[{"id":"d","type":"database","content":["r"],"props":{"__proto__":{"x":1},"title":[["D"]]}}],"rows":[{"id":"r","title":[["ok",[["b"],["a","http://x"],[1,2,3]]],"junk",[5]],"values":{"n":1}}]}'
+    )
     const parsed = decodeSnapshot(deflateSync(Buffer.from(JSON.stringify(hostile))), (props) => {
       const out: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(props)) if (k !== '__proto__') out[k] = v
@@ -971,7 +991,14 @@ describe('damaged versions', () => {
           JSON.stringify({
             v: 1,
             rootId: p.id,
-            blocks: [{ id: p.id, type: 'page', content: [], props: JSON.parse('{"title":[["P"]],"constructor":{"a":1},"__proto__":{"polluted":true}}') }]
+            blocks: [
+              {
+                id: p.id,
+                type: 'page',
+                content: [],
+                props: JSON.parse('{"title":[["P"]],"constructor":{"a":1},"__proto__":{"polluted":true}}')
+              }
+            ]
           })
         )
       ),

@@ -652,9 +652,7 @@ export const EMOJI_GROUPS: EmojiGroup[] = Object.entries(RAW).map(([name, text])
     .filter(Boolean)
     .map((line) => {
       const space = line.indexOf(' ')
-      return space < 0
-        ? { char: line, keywords: '' }
-        : { char: line.slice(0, space), keywords: line.slice(space + 1) }
+      return space < 0 ? { char: line, keywords: '' } : { char: line.slice(0, space), keywords: line.slice(space + 1) }
     })
 }))
 

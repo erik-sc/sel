@@ -63,7 +63,8 @@ export function templateProblems(template: Template): string[] {
     if (schema.title?.type !== 'title') problems.push(`${at} has no title property with the id "title"`)
     for (const [id, property] of Object.entries(schema)) {
       if (property.id !== id) problems.push(`${at}: the property under "${id}" says its id is "${property.id}"`)
-      if ((property.type === 'select' || property.type === 'multi_select') && !property.options?.length) problems.push(`${at}: "${id}" has no options`)
+      if ((property.type === 'select' || property.type === 'multi_select') && !property.options?.length)
+        problems.push(`${at}: "${id}" has no options`)
       if (property.type === 'relation') {
         const target = property.relation ? databases.get(property.relation.databaseId) : undefined
         if (!target) {
@@ -85,22 +86,27 @@ export function templateProblems(template: Template): string[] {
         else if (property.rollup?.function !== 'count') {
           const read = property.rollup?.propertyId ? target.schema[property.rollup.propertyId] : undefined
           if (!read || COMPUTED.includes(read.type)) problems.push(`${at}: the rollup "${id}" reads no plain property of "${target.key}"`)
-          else if (!rollupFits(property.rollup?.function ?? 'count', read)) problems.push(`${at}: the rollup "${id}" cannot ${property.rollup?.function} "${read.id}"`)
+          else if (!rollupFits(property.rollup?.function ?? 'count', read))
+            problems.push(`${at}: the rollup "${id}" cannot ${property.rollup?.function} "${read.id}"`)
         }
         // The rows it keeps are chosen by plain properties of the related database (no chains).
         if (target) {
           for (const rule of property.rollup?.filters ?? []) {
             const by = target.schema[rule.propertyId]
-            if (!by || COMPUTED.includes(by.type)) problems.push(`${at}: the rollup "${id}" keeps rows by "${rule.propertyId}", which is no plain property of "${target.key}"`)
-            else if (OPERATORS[by.type] && !OPERATORS[by.type]?.includes(rule.operator)) problems.push(`${at}: the rollup "${id}": "${rule.operator}" does not apply to "${by.id}"`)
-            else if (by.type === 'select' && rule.value !== undefined && !by.options?.some((o) => o.id === rule.value)) problems.push(`${at}: the rollup "${id}" keeps rows by an unknown option`)
+            if (!by || COMPUTED.includes(by.type))
+              problems.push(`${at}: the rollup "${id}" keeps rows by "${rule.propertyId}", which is no plain property of "${target.key}"`)
+            else if (OPERATORS[by.type] && !OPERATORS[by.type]?.includes(rule.operator))
+              problems.push(`${at}: the rollup "${id}": "${rule.operator}" does not apply to "${by.id}"`)
+            else if (by.type === 'select' && rule.value !== undefined && !by.options?.some((o) => o.id === rule.value))
+              problems.push(`${at}: the rollup "${id}" keeps rows by an unknown option`)
           }
         }
       }
       if (property.type === 'formula') {
         const expression = property.formula?.expression ?? ''
         if (!expression) problems.push(`${at}: the formula "${id}" is empty`)
-        for (const ref of formulaRefs(expression)) if (!schema[ref]) problems.push(`${at}: the formula "${id}" reads "${ref}", which is not a property`)
+        for (const ref of formulaRefs(expression))
+          if (!schema[ref]) problems.push(`${at}: the formula "${id}" reads "${ref}", which is not a property`)
       }
     }
     problems.push(...viewProblems(db.views, schema, at, rowsOf))
@@ -115,10 +121,12 @@ export function templateProblems(template: Template): string[] {
         }
         switch (property.type) {
           case 'select':
-            if (value !== null && !property.options?.some((o) => o.id === value)) problems.push(`${where}: "${String(value)}" is not an option of "${id}"`)
+            if (value !== null && !property.options?.some((o) => o.id === value))
+              problems.push(`${where}: "${String(value)}" is not an option of "${id}"`)
             break
           case 'multi_select':
-            if (!Array.isArray(value) || value.some((v) => !property.options?.some((o) => o.id === v))) problems.push(`${where}: "${id}" holds an unknown option`)
+            if (!Array.isArray(value) || value.some((v) => !property.options?.some((o) => o.id === v)))
+              problems.push(`${where}: "${id}" holds an unknown option`)
             break
           case 'number':
             if (value !== null && (typeof value !== 'number' || !Number.isFinite(value))) problems.push(`${where}: "${id}" is not a number`)
@@ -135,7 +143,8 @@ export function templateProblems(template: Template): string[] {
             break
           case 'relation': {
             const target = property.relation ? rowsOf.get(property.relation.databaseId) : undefined
-            if (!Array.isArray(value) || !target || value.some((key) => !target.has(key))) problems.push(`${where}: "${id}" links to a row that is not in its database`)
+            if (!Array.isArray(value) || !target || value.some((key) => !target.has(key)))
+              problems.push(`${where}: "${id}" links to a row that is not in its database`)
             else if (property.relation?.limit === 'one' && value.length > 1) problems.push(`${where}: "${id}" holds one link at most`)
             break
           }
@@ -172,7 +181,12 @@ function rollupFits(fn: string, read: PropertySchema): boolean {
   return false
 }
 
-function viewProblems(list: TemplateView[], schema: Record<string, PropertySchema>, at: string, rowsOf: Map<string, Set<string>>): string[] {
+function viewProblems(
+  list: TemplateView[],
+  schema: Record<string, PropertySchema>,
+  at: string,
+  rowsOf: Map<string, Set<string>>
+): string[] {
   const out: string[] = []
   if (!list.length) out.push(`${at} has no view`)
   for (const view of list) {
@@ -194,7 +208,8 @@ function viewProblems(list: TemplateView[], schema: Record<string, PropertySchem
       }
       if (property.type === 'relation' && Array.isArray(filter.value)) {
         const rows = property.relation ? rowsOf.get(property.relation.databaseId) : undefined
-        if (!rows || filter.value.some((key) => !rows.has(key))) out.push(`${where} filters "${property.id}" by a row that is not in its database`)
+        if (!rows || filter.value.some((key) => !rows.has(key)))
+          out.push(`${where} filters "${property.id}" by a row that is not in its database`)
       }
     }
     if (view.type === 'chart') {
@@ -239,7 +254,11 @@ export function templateShape(template: Template): unknown {
             reads: p.formula ? formulaRefs(p.formula.expression).sort() : undefined
           })),
           views: node.views.map(viewShape),
-          rows: node.rows.map((row) => ({ key: row.key, values: Object.keys(row.values ?? {}).sort(), children: (row.children ?? []).length > 0 }))
+          rows: node.rows.map((row) => ({
+            key: row.key,
+            values: Object.keys(row.values ?? {}).sort(),
+            children: (row.children ?? []).length > 0
+          }))
         }
     }
   }

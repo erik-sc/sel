@@ -55,23 +55,68 @@ function ordersSchema(extra: Record<string, PropertySchema> = {}): Schema {
 }
 
 function db(id: string, schema: Schema, content: string[], extra: Partial<Block> = {}): Block {
-  return { id, type: 'database', parentId: null, content, props: { schema, views: [] }, createdAt: 1, updatedAt: 1, trashedAt: null, ...extra }
+  return {
+    id,
+    type: 'database',
+    parentId: null,
+    content,
+    props: { schema, views: [] },
+    createdAt: 1,
+    updatedAt: 1,
+    trashedAt: null,
+    ...extra
+  }
 }
 
 function row(id: string, parentId: string, title: string, values: Values = {}, extra: Partial<Block> = {}): Block {
-  return { id, type: 'page', parentId, content: [], props: { title: [[title]], values }, createdAt: 1, updatedAt: 1, trashedAt: null, ...extra }
+  return {
+    id,
+    type: 'page',
+    parentId,
+    content: [],
+    props: { title: [[title]], values },
+    createdAt: 1,
+    updatedAt: 1,
+    trashedAt: null,
+    ...extra
+  }
 }
 
 const ITEMS = [
-  row('i1', 'items', 'Bread', { price: 2.5, done: true, due: { start: '2026-03-02' }, tag: 'red', tags: ['x'] }, { createdAt: Date.UTC(2026, 0, 5, 12) }),
-  row('i2', 'items', 'Milk', { price: 1, due: { start: '2026-01-10', end: '2026-04-01' }, tag: 'red', tags: ['x', 'y'] }, { createdAt: Date.UTC(2026, 0, 1, 12) }),
+  row(
+    'i1',
+    'items',
+    'Bread',
+    { price: 2.5, done: true, due: { start: '2026-03-02' }, tag: 'red', tags: ['x'] },
+    { createdAt: Date.UTC(2026, 0, 5, 12) }
+  ),
+  row(
+    'i2',
+    'items',
+    'Milk',
+    { price: 1, due: { start: '2026-01-10', end: '2026-04-01' }, tag: 'red', tags: ['x', 'y'] },
+    { createdAt: Date.UTC(2026, 0, 1, 12) }
+  ),
   row('i3', 'items', 'Eggs', { price: 4, done: true }, { createdAt: Date.UTC(2026, 0, 9, 12) }),
   row('i4', 'items', '', {})
 ]
 
-function world(orderSchema: Schema, orderValues: Values = { items: ['i1', 'i2', 'i3', 'i4'] }, items: Block[] = ITEMS): { ctx: CellContext; order: Block } {
+function world(
+  orderSchema: Schema,
+  orderValues: Values = { items: ['i1', 'i2', 'i3', 'i4'] },
+  items: Block[] = ITEMS
+): { ctx: CellContext; order: Block } {
   const order = row('o1', 'orders', 'Order', orderValues)
-  const blocks = [db('items', itemsSchema, items.map((b) => b.id)), db('orders', orderSchema, ['o1']), order, ...items]
+  const blocks = [
+    db(
+      'items',
+      itemsSchema,
+      items.map((b) => b.id)
+    ),
+    db('orders', orderSchema, ['o1']),
+    order,
+    ...items
+  ]
   const byId = new Map(blocks.map((b) => [b.id, b]))
   return { ctx: cellContext({ get: (id) => byId.get(id) }), order }
 }
@@ -94,7 +139,9 @@ describe('rollup configuration', () => {
   it('is always there on a normalised rollup, and dropped from other types', () => {
     const schema = normalizeDatabase(db('o', { title: TITLE, r: { id: 'r', name: 'R', type: 'rollup' } as PropertySchema }, [])).schema
     expect(schema.r.rollup).toEqual(DEFAULT_ROLLUP)
-    const text = normalizeDatabase(db('o', { title: TITLE, r: { id: 'r', name: 'R', type: 'text', rollup: { function: 'sum' } } as PropertySchema }, [])).schema
+    const text = normalizeDatabase(
+      db('o', { title: TITLE, r: { id: 'r', name: 'R', type: 'text', rollup: { function: 'sum' } } as PropertySchema }, [])
+    ).schema
     expect(text.r.rollup).toBeUndefined()
     const kept: Schema = { title: TITLE, r: rollup({ relationId: 'items', function: 'sum', propertyId: 'price' }, 'r') }
     expect(normalizeDatabase(db('o', kept, [])).schema).toBe(kept)
@@ -221,12 +268,37 @@ describe('rollups in views', () => {
   const schema = ordersSchema({ total, latest, names })
 
   function orders(): { ctx: CellContext; rows: Block[] } {
-    const rows = [row('o1', 'orders', 'Big', { items: ['i1', 'i3'] }), row('o2', 'orders', 'Small', { items: ['i2'] }), row('o3', 'orders', 'None')]
-    const blocks = [db('items', itemsSchema, ITEMS.map((b) => b.id)), db('orders', schema, rows.map((b) => b.id)), ...rows, ...ITEMS]
+    const rows = [
+      row('o1', 'orders', 'Big', { items: ['i1', 'i3'] }),
+      row('o2', 'orders', 'Small', { items: ['i2'] }),
+      row('o3', 'orders', 'None')
+    ]
+    const blocks = [
+      db(
+        'items',
+        itemsSchema,
+        ITEMS.map((b) => b.id)
+      ),
+      db(
+        'orders',
+        schema,
+        rows.map((b) => b.id)
+      ),
+      ...rows,
+      ...ITEMS
+    ]
     const byId = new Map(blocks.map((b) => [b.id, b]))
     return { ctx: cellContext({ get: (id) => byId.get(id) }), rows }
   }
-  const view = (patch: Partial<DatabaseView>): DatabaseView => ({ id: 'v', name: 'V', type: 'table', visibleProperties: [], filters: [], sorts: [], ...patch })
+  const view = (patch: Partial<DatabaseView>): DatabaseView => ({
+    id: 'v',
+    name: 'V',
+    type: 'table',
+    visibleProperties: [],
+    filters: [],
+    sorts: [],
+    ...patch
+  })
 
   it('filters by the number, date or text it gives', () => {
     const { ctx, rows } = orders()
@@ -241,8 +313,16 @@ describe('rollups in views', () => {
 
   it('sorts by its result, empty results last', () => {
     const { ctx, rows } = orders()
-    expect(queryRows(rows, schema, view({ sorts: [{ propertyId: 'total', direction: 'desc' }] }), '', ctx).map((r) => r.id)).toEqual(['o1', 'o2', 'o3'])
-    expect(queryRows(rows, schema, view({ sorts: [{ propertyId: 'latest', direction: 'asc' }] }), '', ctx).map((r) => r.id)).toEqual(['o1', 'o2', 'o3'])
+    expect(queryRows(rows, schema, view({ sorts: [{ propertyId: 'total', direction: 'desc' }] }), '', ctx).map((r) => r.id)).toEqual([
+      'o1',
+      'o2',
+      'o3'
+    ])
+    expect(queryRows(rows, schema, view({ sorts: [{ propertyId: 'latest', direction: 'asc' }] }), '', ctx).map((r) => r.id)).toEqual([
+      'o1',
+      'o2',
+      'o3'
+    ])
   })
 
   it('formats its result as text', () => {
@@ -253,7 +333,12 @@ describe('rollups in views', () => {
   })
 
   it('drops filter rules whose operator does not fit what the rollup gives', () => {
-    const v = view({ filters: [{ propertyId: 'latest', operator: 'contains', value: 'x' }, { propertyId: 'total', operator: 'gt', value: 1 }] })
+    const v = view({
+      filters: [
+        { propertyId: 'latest', operator: 'contains', value: 'x' },
+        { propertyId: 'total', operator: 'gt', value: 1 }
+      ]
+    })
     expect(sanitizeViews([v], schema)[0].filters).toEqual([{ propertyId: 'total', operator: 'gt', value: 1 }])
   })
 })
@@ -269,7 +354,11 @@ describe('rollup mutations', () => {
 
   it('a new relation forgets the related property', () => {
     const schema = ordersSchema({ total: rollup({ relationId: 'items', propertyId: 'price', function: 'sum' }) })
-    expect(updateRollup(schema, 'total', { function: 'average' }).total.rollup).toEqual({ relationId: 'items', propertyId: 'price', function: 'average' })
+    expect(updateRollup(schema, 'total', { function: 'average' }).total.rollup).toEqual({
+      relationId: 'items',
+      propertyId: 'price',
+      function: 'average'
+    })
     expect(updateRollup(schema, 'total', { relationId: 'other' }).total.rollup).toEqual({ relationId: 'other', function: 'sum' })
     expect(updateRollup(schema, 'total', { function: 'sum' })).toBe(schema)
     expect(updateRollup(schema, 'items', { function: 'sum' })).toBe(schema)
@@ -286,7 +375,12 @@ describe('rollup rules', () => {
   it('counts only the linked rows that pass every rule', () => {
     expect(sumWhere([{ propertyId: 'tag', operator: 'equals', value: 'red' }])).toMatchObject({ value: 3.5 })
     expect(sumWhere([{ propertyId: 'done', operator: 'checked' }])).toMatchObject({ value: 6.5 })
-    expect(sumWhere([{ propertyId: 'tag', operator: 'equals', value: 'red' }, { propertyId: 'done', operator: 'checked' }])).toMatchObject({ value: 2.5 })
+    expect(
+      sumWhere([
+        { propertyId: 'tag', operator: 'equals', value: 'red' },
+        { propertyId: 'done', operator: 'checked' }
+      ])
+    ).toMatchObject({ value: 2.5 })
     expect(sumWhere([{ propertyId: 'tag', operator: 'equals', value: 'blue' }])).toMatchObject({ value: 0 })
   })
 
@@ -322,7 +416,11 @@ describe('rollup rules', () => {
     const rule = { propertyId: 'done', operator: 'checked' } as const
     const kept = updateRollup(schema, 'total', { filters: [rule] })
     expect(kept.total.rollup).toEqual({ relationId: 'items', propertyId: 'price', function: 'sum', filters: [rule] })
-    expect(updateRollup(kept, 'total', { filters: undefined }).total.rollup).toEqual({ relationId: 'items', propertyId: 'price', function: 'sum' })
+    expect(updateRollup(kept, 'total', { filters: undefined }).total.rollup).toEqual({
+      relationId: 'items',
+      propertyId: 'price',
+      function: 'sum'
+    })
     expect(updateRollup(kept, 'total', { relationId: 'other' }).total.rollup).toEqual({ relationId: 'other', function: 'sum' })
   })
 })

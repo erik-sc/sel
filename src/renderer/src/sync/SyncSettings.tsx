@@ -48,7 +48,11 @@ export function SyncSection(): JSX.Element {
     }
   }, [])
 
-  return <div className="settings2-scroll sync">{!loaded ? <div aria-busy="true" /> : status.configured ? <Connected status={status} /> : <Setup status={status} />}</div>
+  return (
+    <div className="settings2-scroll sync">
+      {!loaded ? <div aria-busy="true" /> : status.configured ? <Connected status={status} /> : <Setup status={status} />}
+    </div>
+  )
 }
 
 // ----------------------------------------------------------------- not set up
@@ -150,8 +154,8 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
           <h3 className="ap-group-title">Sync between your devices</h3>
         </div>
         <p className="sync-lede">
-          sel can keep your pages the same on all your devices by saving them to a private git repository that you own. Each device reads and writes there
-          in the background, and changes made on two devices are merged.
+          sel can keep your pages the same on all your devices by saving them to a private git repository that you own. Each device reads
+          and writes there in the background, and changes made on two devices are merged.
         </p>
         <ul className="sync-needs">
           <li>A private repository that is yours, for example on GitHub. Start with an empty one.</li>
@@ -170,7 +174,10 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
                 Repository address
               </label>
               <span className={badUrl ? 'ap-row-help is-error' : 'ap-row-help'} id={ids.help} role={badUrl ? 'alert' : undefined}>
-                {badUrl ?? (touched && !url.trim() ? 'Enter the address of your repository.' : 'The HTTPS or SSH address, as the repository page shows it under "Code".')}
+                {badUrl ??
+                  (touched && !url.trim()
+                    ? 'Enter the address of your repository.'
+                    : 'The HTTPS or SSH address, as the repository page shows it under "Code".')}
               </span>
             </div>
             <div className="ap-row-control">
@@ -195,8 +202,8 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
                 <li>Give it a name, select Private, and leave everything else unticked so that it starts empty.</li>
                 <li>Create it, then copy the HTTPS address shown on the next page and paste it here.</li>
                 <li>
-                  If git has never been used with GitHub on this computer, sign in once: install Git for Windows (it includes Git Credential Manager) or run{' '}
-                  <code className="sync-code">gh auth login</code>.
+                  If git has never been used with GitHub on this computer, sign in once: install Git for Windows (it includes Git Credential
+                  Manager) or run <code className="sync-code">gh auth login</code>.
                 </li>
               </ol>
             </details>
@@ -227,10 +234,17 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
             <div className="ap-row">
               <div className="ap-row-text">
                 <span className="ap-row-label">Encrypt with a passphrase</span>
-                <span className="ap-row-help">Optional. The repository then holds nothing anyone can read without the passphrase, and your connected calendars sync too.</span>
+                <span className="ap-row-help">
+                  Optional. The repository then holds nothing anyone can read without the passphrase, and your connected calendars sync too.
+                </span>
               </div>
               <div className="ap-row-control">
-                <Segmented label="Encrypt with a passphrase" value={encrypt ? 'on' : 'off'} options={ON_OFF} onChange={(value) => setEncrypt(value === 'on')} />
+                <Segmented
+                  label="Encrypt with a passphrase"
+                  value={encrypt ? 'on' : 'off'}
+                  options={ON_OFF}
+                  onChange={(value) => setEncrypt(value === 'on')}
+                />
               </div>
             </div>
           )}
@@ -240,7 +254,10 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
                 <label className="ap-row-label" htmlFor={ids.pass}>
                   {locked ? 'Passphrase of this repository' : 'Passphrase'}
                 </label>
-                <span className={badPass || problem?.code === 'wrong-passphrase' ? 'ap-row-help is-error' : 'ap-row-help'} role={badPass ? 'alert' : undefined}>
+                <span
+                  className={badPass || problem?.code === 'wrong-passphrase' ? 'ap-row-help is-error' : 'ap-row-help'}
+                  role={badPass ? 'alert' : undefined}
+                >
                   {badPass ??
                     (locked
                       ? problem?.code === 'wrong-passphrase'
@@ -312,8 +329,8 @@ function Setup({ status }: { status: SyncStatus }): JSX.Element {
             <p>{problem.message}</p>
             {foreign && (
               <p className="sync-problem-help">
-                sel can still use it: it will add its own files next to what is there and will not change or delete anything else. An empty repository of
-                its own is the tidier choice.
+                sel can still use it: it will add its own files next to what is there and will not change or delete anything else. An empty
+                repository of its own is the tidier choice.
               </p>
             )}
             <div className="sync-problem-actions">
@@ -399,10 +416,17 @@ function Connected({ status }: { status: SyncStatus }): JSX.Element {
               </span>
             </div>
             <div className="ap-row-control">
-              <Button disabled={working !== null} onClick={() => act('pause', () => window.api.sync.pause(!status.paused), 'Could not change that.')}>
+              <Button
+                disabled={working !== null}
+                onClick={() => act('pause', () => window.api.sync.pause(!status.paused), 'Could not change that.')}
+              >
                 {status.paused ? 'Resume' : 'Pause'}
               </Button>
-              <Button variant="primary" disabled={syncing || working !== null} onClick={() => act('now', () => window.api.sync.now(), 'Sync could not be started.')}>
+              <Button
+                variant="primary"
+                disabled={syncing || working !== null}
+                onClick={() => act('now', () => window.api.sync.now(), 'Sync could not be started.')}
+              >
                 {syncing || working === 'now' ? 'Syncing…' : 'Sync now'}
               </Button>
             </div>
@@ -417,7 +441,8 @@ function Connected({ status }: { status: SyncStatus }): JSX.Element {
                 className="sync-problem-actions"
                 onSubmit={(event) => {
                   event.preventDefault()
-                  if (unlock.length >= SYNC_LIMITS.passphraseMin) act('unlock', () => window.api.sync.unlock(unlock).finally(() => setUnlock('')), 'Could not unlock the repository.')
+                  if (unlock.length >= SYNC_LIMITS.passphraseMin)
+                    act('unlock', () => window.api.sync.unlock(unlock).finally(() => setUnlock('')), 'Could not unlock the repository.')
                 }}
               >
                 <label className="sync-visually-hidden" htmlFor={unlockId}>
@@ -455,8 +480,18 @@ function Connected({ status }: { status: SyncStatus }): JSX.Element {
           <Fact label="Address" value={status.remoteUrl ?? ''} mono />
           <Fact label="Branch" value={status.branch} mono />
           <Fact label="This device" value={status.deviceName} />
-          <Fact label="Git" value={status.gitVersion ? `Version ${status.gitVersion}, signed in by itself. sel stores no token.` : 'Not checked yet'} />
-          <Encryption status={status} busy={working !== null || syncing} onChange={(passphrase) => act('encrypt', () => window.api.sync.setEncryption(passphrase), 'The encryption could not be changed.')} working={working === 'encrypt'} />
+          <Fact
+            label="Git"
+            value={status.gitVersion ? `Version ${status.gitVersion}, signed in by itself. sel stores no token.` : 'Not checked yet'}
+          />
+          <Encryption
+            status={status}
+            busy={working !== null || syncing}
+            onChange={(passphrase) =>
+              act('encrypt', () => window.api.sync.setEncryption(passphrase), 'The encryption could not be changed.')
+            }
+            working={working === 'encrypt'}
+          />
         </div>
       </section>
 
@@ -474,7 +509,8 @@ function Connected({ status }: { status: SyncStatus }): JSX.Element {
                   <span className={entry.error ? 'ap-row-label sync-activity-failed' : 'ap-row-label'}>{describeActivity(entry)}</span>
                   {entry.conflicts.length > 0 && (
                     <span className="ap-row-help">
-                      {plural(conflictCount(entry), 'block')} changed on both devices. The other {conflictCount(entry) === 1 ? 'version is' : 'versions are'} in the history of{' '}
+                      {plural(conflictCount(entry), 'block')} changed on both devices. The other{' '}
+                      {conflictCount(entry) === 1 ? 'version is' : 'versions are'} in the history of{' '}
                       {entry.conflicts.map((page, index) => (
                         <span key={page.pageId}>
                           {index > 0 && ', '}
@@ -550,7 +586,17 @@ function Fact({ label, value, mono = false }: { label: string; value: string; mo
 }
 
 /** Turning encryption on or off, or changing the passphrase: a re-upload, explained before it happens. */
-function Encryption({ status, busy, working, onChange }: { status: SyncStatus; busy: boolean; working: boolean; onChange: (passphrase: string | null) => void }): JSX.Element {
+function Encryption({
+  status,
+  busy,
+  working,
+  onChange
+}: {
+  status: SyncStatus
+  busy: boolean
+  working: boolean
+  onChange: (passphrase: string | null) => void
+}): JSX.Element {
   const [open, setOpen] = useState(false)
   const [passphrase, setPassphrase] = useState('')
   const [repeat, setRepeat] = useState('')
@@ -592,8 +638,9 @@ function Encryption({ status, busy, working, onChange }: { status: SyncStatus; b
           }}
         >
           <p className="sync-encrypt-note">
-            Everything is uploaded again{status.encrypted ? ' under the new passphrase' : ', encrypted, with your connected calendars'}. Your other devices will ask for
-            the passphrase the next time they sync. {status.encrypted ? 'Turning encryption off removes your calendars from the repository. ' : ''}
+            Everything is uploaded again{status.encrypted ? ' under the new passphrase' : ', encrypted, with your connected calendars'}.
+            Your other devices will ask for the passphrase the next time they sync.{' '}
+            {status.encrypted ? 'Turning encryption off removes your calendars from the repository. ' : ''}
             {LOST_PASSPHRASE}
           </p>
           <input

@@ -37,8 +37,30 @@ export interface SkyCopy {
 }
 
 function yearsWord(years: number, locale: NotebookLocale): string {
-  const en = ['a year', 'two years', 'three years', 'four years', 'five years', 'six years', 'seven years', 'eight years', 'nine years', 'ten years']
-  const pt = ['um ano', 'dois anos', 'três anos', 'quatro anos', 'cinco anos', 'seis anos', 'sete anos', 'oito anos', 'nove anos', 'dez anos']
+  const en = [
+    'a year',
+    'two years',
+    'three years',
+    'four years',
+    'five years',
+    'six years',
+    'seven years',
+    'eight years',
+    'nine years',
+    'ten years'
+  ]
+  const pt = [
+    'um ano',
+    'dois anos',
+    'três anos',
+    'quatro anos',
+    'cinco anos',
+    'seis anos',
+    'sete anos',
+    'oito anos',
+    'nove anos',
+    'dez anos'
+  ]
   const list = locale === 'pt-BR' ? pt : en
   return list[years - 1] ?? (locale === 'pt-BR' ? 'muitos anos' : 'many years')
 }
@@ -47,10 +69,20 @@ export const COPY: Record<NotebookLocale, SkyCopy> = {
   en: {
     title: 'Sky',
     kicker: 'Star chart',
-    phase: ['New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous', 'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent'],
+    phase: [
+      'New moon',
+      'Waxing crescent',
+      'First quarter',
+      'Waxing gibbous',
+      'Full moon',
+      'Waning gibbous',
+      'Last quarter',
+      'Waning crescent'
+    ],
     empty: 'Each day you write in Meditations lights a star.',
     emptyLink: 'Write today’s',
-    echo: (years, text) => `${years === 1 ? 'A year ago today' : `${yearsWord(years, 'en')[0].toUpperCase()}${yearsWord(years, 'en').slice(1)} ago today`} you wrote: “${text}”`,
+    echo: (years, text) =>
+      `${years === 1 ? 'A year ago today' : `${yearsWord(years, 'en')[0].toUpperCase()}${yearsWord(years, 'en').slice(1)} ago today`} you wrote: “${text}”`,
     earlierSkies: 'Earlier skies',
     skyOf: (year) => `The sky of ${year}`,
     backToNow: 'Tonight’s sky',
@@ -98,7 +130,16 @@ export const COPY: Record<NotebookLocale, SkyCopy> = {
   'pt-BR': {
     title: 'Céu',
     kicker: 'Carta celeste',
-    phase: ['Lua nova', 'Lua crescente', 'Quarto crescente', 'Lua gibosa crescente', 'Lua cheia', 'Lua gibosa minguante', 'Quarto minguante', 'Lua minguante'],
+    phase: [
+      'Lua nova',
+      'Lua crescente',
+      'Quarto crescente',
+      'Lua gibosa crescente',
+      'Lua cheia',
+      'Lua gibosa minguante',
+      'Quarto minguante',
+      'Lua minguante'
+    ],
     empty: 'Cada dia escrito nas Meditações acende uma estrela.',
     emptyLink: 'Escrever a de hoje',
     echo: (years, text) => `${years === 1 ? 'Há um ano' : `Há ${yearsWord(years, 'pt-BR')}`}, neste dia, você escreveu: “${text}”`,
@@ -151,6 +192,11 @@ export const COPY: Record<NotebookLocale, SkyCopy> = {
 /** The day written out, for a star's tooltip and under the title: "quinta-feira, 15 de outubro de 2026". */
 export function longDay(day: string, locale: NotebookLocale, withYear = true): string {
   const date = new Date(Number(day.slice(0, 4)), Number(day.slice(5, 7)) - 1, Number(day.slice(8, 10)), 12)
-  const text = new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) }).format(date)
+  const text = new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    ...(withYear ? { year: 'numeric' } : {})
+  }).format(date)
   return text[0].toUpperCase() + text.slice(1)
 }

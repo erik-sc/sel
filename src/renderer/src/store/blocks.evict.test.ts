@@ -334,7 +334,9 @@ describe('sweepCache and linked views', () => {
     // Not on screen: the tab keeps its page; nothing reaches lv2, so nothing reaches the source.
     expect(cached()).toEqual(['p3'])
 
-    store.useBlockStore.setState((state) => ({ blocks: { ...state.blocks, ...Object.fromEntries(fixture.map((b) => [b.id, b])), ...many } }))
+    store.useBlockStore.setState((state) => ({
+      blocks: { ...state.blocks, ...Object.fromEntries(fixture.map((b) => [b.id, b])), ...many }
+    }))
     store.useBlockStore.setState((state) => ({
       blocks: { ...state.blocks, p2: block('p2', 'page', null, ['c', 'lv']), lv: linked('lv', 'p2'), lv2: linked('lv2', 'p3') }
     }))
@@ -343,8 +345,12 @@ describe('sweepCache and linked views', () => {
     // The source survives for the sidebar's linked view (title, icon); its rows do not.
     expect(cached()).toEqual(['db', 'lv2', 'p1', 'p3', 'root'])
 
-    store.useBlockStore.setState((state) => ({ blocks: { ...state.blocks, ...Object.fromEntries(fixture.map((b) => [b.id, b])), ...many } }))
-    store.useBlockStore.setState((state) => ({ blocks: { ...state.blocks, lv2: linked('lv2', 'p3'), p3: block('p3', 'page', null, ['lv2']) } }))
+    store.useBlockStore.setState((state) => ({
+      blocks: { ...state.blocks, ...Object.fromEntries(fixture.map((b) => [b.id, b])), ...many }
+    }))
+    store.useBlockStore.setState((state) => ({
+      blocks: { ...state.blocks, lv2: linked('lv2', 'p3'), p3: block('p3', 'page', null, ['lv2']) }
+    }))
     const unpin = store.pinTree('p3') // now on screen
     store.sweepCache(later())
     expect(cached()).toEqual(['db', 'lv2', 'p1', 'p3', 'r1', 'root'])

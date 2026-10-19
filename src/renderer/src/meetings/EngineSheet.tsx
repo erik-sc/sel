@@ -3,7 +3,15 @@
 // is pressed. Loaded on demand (see slot.tsx).
 import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
-import { MEETINGS_DEFAULTS, WHISPER_MODEL_LABELS, WHISPER_MODELS, isWhisperModel, type EngineDownload, type EngineStatus, type WhisperModelId } from '@shared/meetings'
+import {
+  MEETINGS_DEFAULTS,
+  WHISPER_MODEL_LABELS,
+  WHISPER_MODELS,
+  isWhisperModel,
+  type EngineDownload,
+  type EngineStatus,
+  type WhisperModelId
+} from '@shared/meetings'
 import { Button, IconButton } from '@/ui/Button'
 import { Modal } from '@/ui/Modal'
 import { Close } from '@/ui/icons'
@@ -31,7 +39,14 @@ function clean(error: unknown): string {
 }
 
 /** The engine's status, kept current while a download runs. Shared by the sheet and the settings section. */
-export function useEngine(): { status: EngineStatus | null; download: EngineDownload | null; message: string | null; set(status: EngineStatus | null): void; say(message: string | null): void; refresh(): void } {
+export function useEngine(): {
+  status: EngineStatus | null
+  download: EngineDownload | null
+  message: string | null
+  set(status: EngineStatus | null): void
+  say(message: string | null): void
+  refresh(): void
+} {
   const [status, setStatus] = useState<EngineStatus | null>(null)
   const [download, setDownload] = useState<EngineDownload | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -76,9 +91,18 @@ export function DownloadProgress({ download, onCancel }: { download: EngineDownl
     <div className="mt-download" role="status">
       <div className="mt-download-text">
         <span>{PHASES[download.phase]}</span>
-        <span className="mt-download-size">{download.phase === 'unpacking' ? '' : `${formatBytes(download.received)} of ${formatBytes(download.total)}`}</span>
+        <span className="mt-download-size">
+          {download.phase === 'unpacking' ? '' : `${formatBytes(download.received)} of ${formatBytes(download.total)}`}
+        </span>
       </div>
-      <div className="mt-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)} aria-label="Download">
+      <div
+        className="mt-progress"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(share * 100)}
+        aria-label="Download"
+      >
         <span className="mt-progress-fill" style={{ transform: `scaleX(${share})` }} />
       </div>
       <Button onClick={onCancel}>Cancel</Button>
@@ -127,8 +151,8 @@ export function EngineSheet(): JSX.Element {
       </header>
       <div className="mt-sheet-body">
         <p className="mt-sheet-lead">
-          Meetings are transcribed on this computer by whisper.cpp, an open-source program. Your audio never leaves the computer. sel needs to download the program and a speech model once; this is the only time
-          this feature goes online.
+          Meetings are transcribed on this computer by whisper.cpp, an open-source program. Your audio never leaves the computer. sel needs
+          to download the program and a speech model once; this is the only time this feature goes online.
         </p>
         {status === null ? (
           <p className="mt-sheet-note">Checking…</p>
@@ -166,7 +190,8 @@ export function EngineSheet(): JSX.Element {
           </>
         ) : (
           <p className="mt-sheet-note">
-            sel cannot download the program for this system. Install whisper.cpp yourself, then choose its <code className="mt-code">whisper-cli</code> program and a model file (ggml-….bin) here.
+            sel cannot download the program for this system. Install whisper.cpp yourself, then choose its{' '}
+            <code className="mt-code">whisper-cli</code> program and a model file (ggml-….bin) here.
           </p>
         )}
         {download && <DownloadProgress download={download} onCancel={() => void window.api.meetings.engine.cancelDownload()} />}

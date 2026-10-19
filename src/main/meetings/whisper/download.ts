@@ -4,7 +4,15 @@ import { mkdir, open, rename, rm, stat, statfs } from 'node:fs/promises'
 import * as http from 'node:http'
 import * as https from 'node:https'
 import { dirname } from 'node:path'
-import { CalendarError, pinnedLookup, resolvePinned, USER_AGENT, validateCalendarUrl, type NetPolicy, type Resolver } from '../../briefing/net'
+import {
+  CalendarError,
+  pinnedLookup,
+  resolvePinned,
+  USER_AGENT,
+  validateCalendarUrl,
+  type NetPolicy,
+  type Resolver
+} from '../../briefing/net'
 import type { PinnedFile } from './pinned'
 
 /**
@@ -21,7 +29,16 @@ import type { PinnedFile } from './pinned'
  * Free of Electron imports (unit-tested against a local server).
  */
 
-export type DownloadFailure = 'blocked-host' | 'offline' | 'timeout' | 'not-found' | 'too-large' | 'digest-mismatch' | 'disk-full' | 'cancelled' | 'failed'
+export type DownloadFailure =
+  | 'blocked-host'
+  | 'offline'
+  | 'timeout'
+  | 'not-found'
+  | 'too-large'
+  | 'digest-mismatch'
+  | 'disk-full'
+  | 'cancelled'
+  | 'failed'
 
 const MESSAGES: Record<DownloadFailure, string> = {
   'blocked-host': 'The download was sent to a server that is not on the list of allowed ones, so it was stopped.',
@@ -95,13 +112,22 @@ export async function sha256File(file: string, signal?: AbortSignal): Promise<st
 function toFailure(err: unknown): DownloadError {
   if (err instanceof DownloadError) return err
   if (err instanceof CalendarError) {
-    return new DownloadError(err.reason === 'blocked-address' ? 'blocked-host' : err.reason === 'offline' ? 'offline' : err.reason === 'timeout' ? 'timeout' : 'failed')
+    return new DownloadError(
+      err.reason === 'blocked-address'
+        ? 'blocked-host'
+        : err.reason === 'offline'
+          ? 'offline'
+          : err.reason === 'timeout'
+            ? 'timeout'
+            : 'failed'
+    )
   }
   const code = (err as NodeJS.ErrnoException | null)?.code
   if (code === 'ENOSPC' || code === 'EDQUOT') return new DownloadError('disk-full')
   if (code === 'ABORT_ERR' || (err as Error | null)?.name === 'AbortError') return new DownloadError('cancelled')
   if (code === 'ETIMEDOUT') return new DownloadError('timeout')
-  if (typeof code === 'string' && /^(ENOTFOUND|EAI_|ENETUNREACH|EHOSTUNREACH|ECONNREFUSED|ECONNRESET|ECONNABORTED|EPIPE)/.test(code)) return new DownloadError('offline')
+  if (typeof code === 'string' && /^(ENOTFOUND|EAI_|ENETUNREACH|EHOSTUNREACH|ECONNREFUSED|ECONNRESET|ECONNABORTED|EPIPE)/.test(code))
+    return new DownloadError('offline')
   return new DownloadError('failed')
 }
 
@@ -147,16 +173,31 @@ function request(url: URL, part: string, offset: number, spec: PinnedFile, optio
     const loopback = url.protocol === 'http:'
     const start = (lookup: https.RequestOptions['lookup'] | undefined): void => {
       if (settled) return
-      const headers: Record<string, string> = { 'User-Agent': USER_AGENT, Accept: 'application/octet-stream, */*;q=0.5', 'Accept-Encoding': 'identity' }
+      const headers: Record<string, string> = {
+        'User-Agent': USER_AGENT,
+        Accept: 'application/octet-stream, */*;q=0.5',
+        'Accept-Encoding': 'identity'
+      }
       if (offset > 0) headers['Range'] = `bytes=${offset}-`
       req = (loopback ? http : https).request(
-        { method: 'GET', protocol: url.protocol, hostname: url.hostname, port: url.port || (loopback ? 80 : 443), path: `${url.pathname}${url.search}`, headers, agent: false, ...(lookup ? { lookup } : {}) },
+        {
+          method: 'GET',
+          protocol: url.protocol,
+          hostname: url.hostname,
+          port: url.port || (loopback ? 80 : 443),
+          path: `${url.pathname}${url.search}`,
+          headers,
+          agent: false,
+          ...(lookup ? { lookup } : {})
+        },
         (response) => {
           const status = response.statusCode ?? 0
           if (status >= 301 && status <= 308 && status !== 304 && status !== 305 && status !== 306) {
             const location = response.headers.location
             response.resume()
-            return typeof location === 'string' && location.length <= 4096 ? done({ redirect: location }) : fail(new DownloadError('failed'))
+            return typeof location === 'string' && location.length <= 4096
+              ? done({ redirect: location })
+              : fail(new DownloadError('failed'))
           }
           // The part on disk is already everything the server has: nothing more to fetch.
           if (status === 416 && offset > 0) {

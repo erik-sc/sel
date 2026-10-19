@@ -61,9 +61,7 @@ export function TrashList({ onClose }: { onClose: () => void }) {
         />
       </div>
       <div className="trash-list">
-        {pages && visible.length === 0 && (
-          <div className="trash-empty">{pages.length ? 'No matches' : 'Trash is empty'}</div>
-        )}
+        {pages && visible.length === 0 && <div className="trash-empty">{pages.length ? 'No matches' : 'Trash is empty'}</div>}
         {visible.map((page) => (
           <div
             key={page.id}

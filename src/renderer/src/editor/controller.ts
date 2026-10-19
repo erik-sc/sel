@@ -430,10 +430,9 @@ export class EditorController {
     const ref = afterId ? getBlock(afterId) : undefined
     const id = newId()
     const editable = isTextType(type) || isPlainTextType(type)
-    this.commit(
-      [{ op: 'create', input: { id, type, parentId: ref?.parentId ?? this.pageId, afterId: ref ? ref.id : null, props } }],
-      { after: editable ? textSel(id, 0) : { kind: 'blocks', ids: [id] } }
-    )
+    this.commit([{ op: 'create', input: { id, type, parentId: ref?.parentId ?? this.pageId, afterId: ref ? ref.id : null, props } }], {
+      after: editable ? textSel(id, 0) : { kind: 'blocks', ids: [id] }
+    })
     return id
   }
 

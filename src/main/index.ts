@@ -231,7 +231,8 @@ function hardenSession(ses: Session): void {
   ses.setPermissionCheckHandler((contents, permission, requestingOrigin, details) => {
     if (details.isMainFrame === false) return false
     const trusted = isAppUrl(details.requestingUrl ?? requestingOrigin)
-    if (permission === 'media') return recordingGrants.allowCheck({ permission, owner: contents?.id ?? null, trusted, mediaType: details.mediaType })
+    if (permission === 'media')
+      return recordingGrants.allowCheck({ permission, owner: contents?.id ?? null, trusted, mediaType: details.mediaType })
     return ALLOWED_PERMISSIONS.has(permission) && trusted
   })
   ses.setDevicePermissionHandler(() => false)

@@ -141,7 +141,12 @@ function cmdQuote(arg: string): string {
  *  - ps1: `powershell.exe -NoProfile -NonInteractive -File <path> <args>`.
  *  - node-script (dev/tests): this app's own executable as Node, with the script first.
  */
-export function buildSpawn(cli: CliLocation, args: readonly string[], env: NodeJS.ProcessEnv = process.env, execPath: string = process.execPath): SpawnSpec {
+export function buildSpawn(
+  cli: CliLocation,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath
+): SpawnSpec {
   switch (cli.kind) {
     case 'exe':
       return { file: cli.path, args: [...args], verbatim: false, env: {} }
@@ -224,7 +229,11 @@ const ENV_ALLOW: ReadonlySet<string> = new Set(
  * in this process's environment are not passed on; the program signs in with what it stored
  * itself when the user ran it.
  */
-export function buildEnv(env: NodeJS.ProcessEnv = process.env, extra: Record<string, string> = {}, alsoAllow: readonly string[] = []): Record<string, string> {
+export function buildEnv(
+  env: NodeJS.ProcessEnv = process.env,
+  extra: Record<string, string> = {},
+  alsoAllow: readonly string[] = []
+): Record<string, string> {
   const out: Record<string, string> = {}
   // A connected program may need to know where it keeps its own configuration (see agents.ts).
   const more = new Set(alsoAllow.map((name) => name.toUpperCase()))

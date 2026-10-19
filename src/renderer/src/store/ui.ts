@@ -30,7 +30,19 @@ interface UiState {
   wordCount: boolean
 }
 
-export type SettingsSection = 'general' | 'appearance' | 'history' | 'ai' | 'herman' | 'notifications' | 'sync' | 'today' | 'meetings' | 'mcp' | 'pomodoro' | 'sidebar'
+export type SettingsSection =
+  | 'general'
+  | 'appearance'
+  | 'history'
+  | 'ai'
+  | 'herman'
+  | 'notifications'
+  | 'sync'
+  | 'today'
+  | 'meetings'
+  | 'mcp'
+  | 'pomodoro'
+  | 'sidebar'
 
 export const SIDEBAR_MIN = 200
 export const SIDEBAR_MAX = 480
@@ -138,10 +150,7 @@ export function setFocusDim(on: boolean): void {
 
 // ---- theme ----
 
-const darkQuery =
-  typeof window !== 'undefined' && window.matchMedia
-    ? window.matchMedia('(prefers-color-scheme: dark)')
-    : null
+const darkQuery = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null
 
 export function resolveTheme(theme: Theme): 'light' | 'dark' {
   if (theme === 'system') return darkQuery?.matches ? 'dark' : 'light'
@@ -197,9 +206,7 @@ export function bootUi(): boolean {
 export async function initUi(): Promise<void> {
   const [theme, sidebar, expanded, focusDim, wordCount] = await Promise.all([
     window.api.app.getTheme().catch(() => 'system' as Theme),
-    window.api.app
-      .getSetting<{ width?: unknown; collapsed?: unknown }>(SIDEBAR_KEY)
-      .catch(() => null),
+    window.api.app.getSetting<{ width?: unknown; collapsed?: unknown }>(SIDEBAR_KEY).catch(() => null),
     window.api.app.getSetting<string[]>(EXPANDED_KEY).catch(() => null),
     window.api.app.getSetting<unknown>(FOCUS_DIM_KEY).catch(() => null),
     window.api.app.getSetting<boolean>(WORD_COUNT_KEY).catch(() => null)

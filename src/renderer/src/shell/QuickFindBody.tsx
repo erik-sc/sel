@@ -150,9 +150,7 @@ export function QuickFindBody() {
           </div>
         ))}
         {items.length === 0 && (
-          <div className="quickfind-empty">
-            {trimmed ? (searching ? 'Searching…' : 'No results') : 'Type to search your pages'}
-          </div>
+          <div className="quickfind-empty">{trimmed ? (searching ? 'Searching…' : 'No results') : 'Type to search your pages'}</div>
         )}
       </div>
       <div className="quickfind-footer">

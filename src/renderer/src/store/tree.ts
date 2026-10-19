@@ -39,9 +39,7 @@ async function fetchChildren(key: string): Promise<string[]> {
 
 export async function loadTreeChildren(key: string): Promise<void> {
   const ids = await fetchChildren(key)
-  useTree.setState((state) =>
-    sameIds(state.children[key], ids) ? state : { children: { ...state.children, [key]: ids } }
-  )
+  useTree.setState((state) => (sameIds(state.children[key], ids) ? state : { children: { ...state.children, [key]: ids } }))
 }
 
 let running: Promise<void> | null = null

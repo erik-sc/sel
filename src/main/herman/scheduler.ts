@@ -1,5 +1,11 @@
 import { localDay } from '../../shared/briefing'
-import { HERMAN_NUDGE_KINDS, type HermanFeedback, type HermanFrequency, type HermanNudgeKind, type HermanQuietHours } from '../../shared/herman'
+import {
+  HERMAN_NUDGE_KINDS,
+  type HermanFeedback,
+  type HermanFrequency,
+  type HermanNudgeKind,
+  type HermanQuietHours
+} from '../../shared/herman'
 
 /**
  * When Herman may speak unasked. Restraint is the feature: a few times a day at most, well
@@ -53,10 +59,22 @@ export interface HermanMemory {
   launchDay: string
 }
 
-export const EMPTY_MEMORY: HermanMemory = { day: '', shown: 0, said: [], lastAt: 0, lastKind: null, lastId: null, weights: {}, recent: [], met: false, launchDay: '' }
+export const EMPTY_MEMORY: HermanMemory = {
+  day: '',
+  shown: 0,
+  said: [],
+  lastAt: 0,
+  lastKind: null,
+  lastId: null,
+  weights: {},
+  recent: [],
+  met: false,
+  launchDay: ''
+}
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
-const isKind = (value: unknown): value is HermanNudgeKind => typeof value === 'string' && (HERMAN_NUDGE_KINDS as readonly string[]).includes(value)
+const isKind = (value: unknown): value is HermanNudgeKind =>
+  typeof value === 'string' && (HERMAN_NUDGE_KINDS as readonly string[]).includes(value)
 
 /** What is stored, made safe to use: anything malformed falls back to "remembers nothing". */
 export function readMemory(raw: unknown): HermanMemory {
@@ -77,7 +95,9 @@ export function readMemory(raw: unknown): HermanMemory {
     lastKind: isKind(value['lastKind']) ? value['lastKind'] : null,
     lastId: typeof value['lastId'] === 'string' && value['lastId'].length <= 64 ? value['lastId'] : null,
     weights,
-    recent: Array.isArray(value['recent']) ? value['recent'].filter((item): item is string => typeof item === 'string' && item.length <= 40).slice(-RECENT_LINES) : [],
+    recent: Array.isArray(value['recent'])
+      ? value['recent'].filter((item): item is string => typeof item === 'string' && item.length <= 40).slice(-RECENT_LINES)
+      : [],
     met: value['met'] === true,
     launchDay: day(value['launchDay'])
   }
@@ -145,12 +165,14 @@ export const RETRY_MS = 5 * MINUTE
 export function decide(config: SchedulerConfig, stored: HermanMemory, moment: Moment): Decision {
   const { now } = moment
   if (moment.enabled === false) return { ok: false, reason: 'off', waitMs: RETRY_MS }
-  if (config.quietHours && isQuiet(config.quietHours, now)) return { ok: false, reason: 'quiet', waitMs: Math.max(MINUTE, quietEnd(config.quietHours, now) - now) }
+  if (config.quietHours && isQuiet(config.quietHours, now))
+    return { ok: false, reason: 'quiet', waitMs: Math.max(MINUTE, quietEnd(config.quietHours, now) - now) }
   const memory = forDay(stored, now)
   if (memory.shown >= config.perDay) return { ok: false, reason: 'day-limit', waitMs: Math.max(MINUTE, nextMidnight(now) - now) }
   // A clock that was set back must not open the gate early, nor close it for longer than one gap.
   const since = now - memory.lastAt
-  if (memory.lastAt > 0 && since < config.gapMs) return { ok: false, reason: 'too-soon', waitMs: since < 0 ? config.gapMs : config.gapMs - since }
+  if (memory.lastAt > 0 && since < config.gapMs)
+    return { ok: false, reason: 'too-soon', waitMs: since < 0 ? config.gapMs : config.gapMs - since }
   if (moment.busy) return { ok: false, reason: 'busy', waitMs: MINUTE }
   if (moment.idleMs < config.idleMs) return { ok: false, reason: 'typing', waitMs: Math.max(1000, config.idleMs - moment.idleMs) }
   return { ok: true }

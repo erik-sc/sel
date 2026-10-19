@@ -8,8 +8,7 @@ import { openTestRepository } from './testing'
 let repo: Repository
 
 const ids = (blocks: Block[]): string[] => blocks.map((b) => b.id)
-const page = (title: string, parentId: string | null = null): Block =>
-  repo.create({ type: 'page', parentId, props: { title: [[title]] } })
+const page = (title: string, parentId: string | null = null): Block => repo.create({ type: 'page', parentId, props: { title: [[title]] } })
 const view = (id: string, visibleProperties: string[] = ['title']): DatabaseView => ({
   id,
   name: 'Table',

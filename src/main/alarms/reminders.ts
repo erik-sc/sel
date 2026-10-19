@@ -53,7 +53,8 @@ function hasTime(value: unknown): boolean {
 function remindProperty(schema: unknown): string | null {
   if (schema === null || typeof schema !== 'object' || Array.isArray(schema)) return null
   const properties = Object.values(schema as Record<string, unknown>).filter(
-    (p): p is PropertySchema => p !== null && typeof p === 'object' && (p as PropertySchema).type === 'date' && typeof (p as PropertySchema).id === 'string'
+    (p): p is PropertySchema =>
+      p !== null && typeof p === 'object' && (p as PropertySchema).type === 'date' && typeof (p as PropertySchema).id === 'string'
   )
   const byId = properties.find((p) => p.id === REMIND_PROPERTY_ID)
   if (byId) return byId.id
@@ -62,7 +63,11 @@ function remindProperty(schema: unknown): string | null {
 
 /** The built-in Tasks database among the root blocks, when it exists. */
 export function tasksDatabase(roots: readonly Block[]): Block | null {
-  return roots.find((block) => block.type === 'database' && block.trashedAt === null && isSystemBlock(block) && block.props.system === 'tasks') ?? null
+  return (
+    roots.find(
+      (block) => block.type === 'database' && block.trashedAt === null && isSystemBlock(block) && block.props.system === 'tasks'
+    ) ?? null
+  )
 }
 
 /** Every reminder the open rows of the Tasks database carry, earliest first. */
@@ -84,7 +89,8 @@ export function remindersOf(database: Block, rows: readonly Block[], options: { 
     }
     if (options.atDue && hasTime(due)) {
       const at = momentOf(due, null)
-      if (at !== null && !out.some((r) => r.rowId === row.id && r.at === at)) out.push({ key: `d:${row.id}:${at}`, rowId: row.id, title, at, due: dueText, atDue: true })
+      if (at !== null && !out.some((r) => r.rowId === row.id && r.at === at))
+        out.push({ key: `d:${row.id}:${at}`, rowId: row.id, title, at, due: dueText, atDue: true })
     }
   }
   return out.sort((a, b) => a.at - b.at)

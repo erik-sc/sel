@@ -174,12 +174,7 @@ function MenuList({ items, onClose, autoFocus, onBack }: MenuProps & { onBack?: 
         )
       })}
       {sub && isAction(subItem) && subItem.submenu && (
-        <Popover
-          open
-          anchor={itemRefs.current[sub.index] ?? null}
-          placement="right-start"
-          onClose={closeSub}
-        >
+        <Popover open anchor={itemRefs.current[sub.index] ?? null} placement="right-start" onClose={closeSub}>
           <MenuList
             key={subItem.id}
             items={subItem.submenu}

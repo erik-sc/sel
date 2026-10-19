@@ -61,9 +61,19 @@ describe('htmlToNodes', () => {
   it('nests lists, inside the item or right after it, and reads task lists', () => {
     const nodes = htmlToNodes(
       body(
-        h('ul', null, h('li', null, 'um', h('ul', null, h('li', null, 'um.a'), h('li', null, h('p', null, 'um.b')))), h('li', null, 'dois')),
+        h(
+          'ul',
+          null,
+          h('li', null, 'um', h('ul', null, h('li', null, 'um.a'), h('li', null, h('p', null, 'um.b')))),
+          h('li', null, 'dois')
+        ),
         h('ol', null, h('li', null, 'primeiro'), h('ol', null, h('li', null, 'dentro'))),
-        h('ul', null, h('li', null, h('input', { type: 'checkbox', checked: '' }), ' feito'), h('li', null, h('input', { type: 'checkbox' }), ' a fazer'))
+        h(
+          'ul',
+          null,
+          h('li', null, h('input', { type: 'checkbox', checked: '' }), ' feito'),
+          h('li', null, h('input', { type: 'checkbox' }), ' a fazer')
+        )
       ),
       'um\num.a'
     )
@@ -83,7 +93,12 @@ describe('htmlToNodes', () => {
         h(
           'b',
           { style: 'font-weight:normal;', id: 'docs-internal-guid-1' },
-          h('p', { dir: 'ltr' }, span('font-weight:400;white-space:pre-wrap;', 'Texto '), span('font-weight:700;font-style:italic;', 'forte')),
+          h(
+            'p',
+            { dir: 'ltr' },
+            span('font-weight:400;white-space:pre-wrap;', 'Texto '),
+            span('font-weight:700;font-style:italic;', 'forte')
+          ),
           h(
             'ul',
             null,
@@ -109,7 +124,15 @@ describe('htmlToNodes', () => {
   it('keeps safe links and drops the rest', () => {
     const nodes = htmlToNodes(
       body(
-        h('p', null, h('a', { href: 'https://example.com/a' }, 'seguro'), ' ', h('a', { href: 'javascript:alert(1)' }, 'não'), ' ', h('a', { href: '/relativo' }, 'relativo'))
+        h(
+          'p',
+          null,
+          h('a', { href: 'https://example.com/a' }, 'seguro'),
+          ' ',
+          h('a', { href: 'javascript:alert(1)' }, 'não'),
+          ' ',
+          h('a', { href: '/relativo' }, 'relativo')
+        )
       ),
       'seguro não relativo'
     )
@@ -132,7 +155,10 @@ describe('htmlToNodes', () => {
   })
 
   it('collapses whitespace the way a browser shows it, keeping <br> as a line break', () => {
-    const nodes = htmlToNodes(body(h('h3', null, '\n   Muito\n\n   espaço  '), h('p', null, 'linha um ', h('br', null), ' linha dois')), 'x\ny')
+    const nodes = htmlToNodes(
+      body(h('h3', null, '\n   Muito\n\n   espaço  '), h('p', null, 'linha um ', h('br', null), ' linha dois')),
+      'x\ny'
+    )
     expect(outline(nodes)).toEqual(['heading_3: Muito espaço', 'text: linha um\nlinha dois'])
     expect(tidy([['  a  '], [' b', [['b']]], ['\n\n c ']])).toEqual([['a '], ['b', [['b']]], ['\nc']])
   })
@@ -140,7 +166,16 @@ describe('htmlToNodes', () => {
   it('turns data table rows into lines and reads layout tables through', () => {
     const nodes = htmlToNodes(
       body(
-        h('table', null, h('tbody', null, h('tr', null, h('th', null, 'Nome'), h('th', null, 'Nota')), h('tr', null, h('td', null, 'Ana'), h('td', null, h('b', null, '10'))))),
+        h(
+          'table',
+          null,
+          h(
+            'tbody',
+            null,
+            h('tr', null, h('th', null, 'Nome'), h('th', null, 'Nota')),
+            h('tr', null, h('td', null, 'Ana'), h('td', null, h('b', null, '10')))
+          )
+        ),
         h('table', null, h('tr', null, h('td', null, h('h2', null, 'Boletim'), h('ul', null, h('li', null, 'item')))))
       ),
       'Nome\tNota'
@@ -155,7 +190,10 @@ describe('htmlToNodes', () => {
     expect(htmlToNodes(body(h('div', null, h('b', null, '## Título'))), '## Título\n- item')).toBeNull()
     // A code editor's copy: a white-space: pre box of coloured spans.
     expect(
-      htmlToNodes(body(h('div', { style: 'color: #ccc;white-space: pre;' }, h('div', null, h('span', { style: 'font-weight: bold;' }, 'const')))), 'const')
+      htmlToNodes(
+        body(h('div', { style: 'color: #ccc;white-space: pre;' }, h('div', null, h('span', { style: 'font-weight: bold;' }, 'const')))),
+        'const'
+      )
     ).toBeNull()
     expect(htmlToNodes(null, 'x')).toBeNull()
     expect(htmlToNodes(body(h('p', null, '   ')), '')).toBeNull()

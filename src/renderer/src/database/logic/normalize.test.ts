@@ -263,9 +263,8 @@ describe('normalizeDatabase: views', () => {
       { id: 't', name: 'T', type: 'table', groupBy: 'gone' }
     ])
     expect(views.map((v) => v.groupBy)).toEqual(['sel', 'd', undefined])
-    const noSelect = L.normalizeDatabase(
-      block({ schema: { t: schema.t }, views: [{ id: 'b', name: 'B', type: 'board', groupBy: 'sel' }] })
-    ).views[0]
+    const noSelect = L.normalizeDatabase(block({ schema: { t: schema.t }, views: [{ id: 'b', name: 'B', type: 'board', groupBy: 'sel' }] }))
+      .views[0]
     expect(noSelect.groupBy).toBeUndefined()
     expect(L.groupProperty(noSelect, { t: schema.t } as L.Schema)).toBeUndefined()
     expect(L.groupProperty(views[0], schema as L.Schema)?.id).toBe('sel')

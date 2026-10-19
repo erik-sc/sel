@@ -194,12 +194,7 @@ export function CodeBlock({ block }: { block: Block }): JSX.Element {
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          className="blk-code-copy"
-          title="Copy code"
-          onClick={copy}
-        >
+        <button type="button" className="blk-code-copy" title="Copy code" onClick={copy}>
           {copied ? <Check size={14} /> : <Copy size={14} />}
           <span>{copied ? 'Copied' : 'Copy'}</span>
         </button>
@@ -258,10 +253,7 @@ export function ImageBlock({ block }: { block: Block }): JSX.Element {
 const captionHandlers = new WeakMap<object, Map<string, (e: KeyboardEvent<HTMLDivElement>) => void>>()
 
 /** Stable per-block handler so the memoised EditableText does not re-render. */
-function captionKeyDown(
-  ctrl: ReturnType<typeof useEditor>['ctrl'],
-  id: string
-): (e: KeyboardEvent<HTMLDivElement>) => void {
+function captionKeyDown(ctrl: ReturnType<typeof useEditor>['ctrl'], id: string): (e: KeyboardEvent<HTMLDivElement>) => void {
   let map = captionHandlers.get(ctrl)
   if (!map) captionHandlers.set(ctrl, (map = new Map()))
   let fn = map.get(id)

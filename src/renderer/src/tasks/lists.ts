@@ -62,7 +62,9 @@ export function readTasks(rows: readonly Block[], schema: L.Schema): TaskItem[] 
       due: due?.start ?? null,
       priority: (typeof priority === 'string' && ranks.get(priority)) || 4,
       project: (typeof project === 'string' && projects.get(project)) || null,
-      labels: Array.isArray(tagged) ? tagged.map((id) => (typeof id === 'string' ? labels.get(id) : undefined)).filter((option): option is SelectOption => !!option) : [],
+      labels: Array.isArray(tagged)
+        ? tagged.map((id) => (typeof id === 'string' ? labels.get(id) : undefined)).filter((option): option is SelectOption => !!option)
+        : [],
       completedAt: completed?.start ?? null,
       recurring: typeof recurrence === 'string' && recurrence.trim() !== '',
       parent: parentId,
@@ -148,7 +150,12 @@ export function listTasks(tasks: readonly TaskItem[], schema: L.Schema, key: Tas
   return groupTasks(tasks, schema, key, today).map((group) => ({ ...group, ...nestTasks(group.items) }))
 }
 
-function groupTasks(tasks: readonly TaskItem[], schema: L.Schema, key: TaskListKey, today: string): { id: string; title: string | null; items: TaskItem[] }[] {
+function groupTasks(
+  tasks: readonly TaskItem[],
+  schema: L.Schema,
+  key: TaskListKey,
+  today: string
+): { id: string; title: string | null; items: TaskItem[] }[] {
   const open = tasks.filter((task) => !task.done)
   switch (key.kind) {
     case 'inbox':
@@ -159,7 +166,11 @@ function groupTasks(tasks: readonly TaskItem[], schema: L.Schema, key: TaskListK
       const overdue = matching.filter((task) => (L.dayKey(task.due) ?? today) < today)
       const groups: { id: string; title: string | null; items: TaskItem[] }[] = []
       if (overdue.length) groups.push({ id: 'overdue', title: 'Overdue', items: overdue })
-      groups.push({ id: today, title: overdue.length ? dayTitle(today, today) : null, items: matching.filter((task) => !overdue.includes(task)) })
+      groups.push({
+        id: today,
+        title: overdue.length ? dayTitle(today, today) : null,
+        items: matching.filter((task) => !overdue.includes(task))
+      })
       return groups
     }
     case 'upcoming': {

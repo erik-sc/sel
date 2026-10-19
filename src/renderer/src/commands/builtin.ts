@@ -108,8 +108,25 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
   menu('open-calendar', 'Calendar', ['events', 'schedule', 'agenda']),
   menu('open-tasks', 'Tasks', ['todo', 'to-do', 'inbox', 'todoist']),
   menu('add-task', 'Add a task…', ['new task', 'quick add', 'todo']),
-  menu('open-notebook', 'Meditations', ['meditações', 'journal', 'diary', 'line a day', 'on this day', 'notebook', 'ink', 'ink notebook', 'caderno', 'caderno de tinta', 'diário']),
-  menu('open-sky', 'Sky', ['céu', 'sky', 'estrelas', 'stars', 'constelações', 'constellations', 'jardim', 'garden', 'carta celeste', 'star chart', 'moon', 'lua'], skyIsEnabled),
+  menu('open-notebook', 'Meditations', [
+    'meditações',
+    'journal',
+    'diary',
+    'line a day',
+    'on this day',
+    'notebook',
+    'ink',
+    'ink notebook',
+    'caderno',
+    'caderno de tinta',
+    'diário'
+  ]),
+  menu(
+    'open-sky',
+    'Sky',
+    ['céu', 'sky', 'estrelas', 'stars', 'constelações', 'constellations', 'jardim', 'garden', 'carta celeste', 'star chart', 'moon', 'lua'],
+    skyIsEnabled
+  ),
   menu('close-day', 'Close the day', ['evening', 'end', 'review', 'tomorrow', 'shutdown', 'fechar o dia', 'até amanhã']),
   menu('new-meeting', 'New meeting', ['record', 'transcribe', 'call']),
   menu('toggle-assistant', 'Herman, the assistant', ['ai', 'ask', 'chat', 'claude'], aiEnabled),
@@ -171,12 +188,14 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
     run: () => setFocusDim(false)
   },
   menu('toggle-theme', 'Switch between light and dark', ['theme', 'dark mode', 'night']),
-  ...THEMES.map(([theme, title]): Command => ({
-    id: `theme-${theme}`,
-    title,
-    keywords: ['theme', 'appearance', 'mode'],
-    run: () => setTheme(theme)
-  })),
+  ...THEMES.map(
+    ([theme, title]): Command => ({
+      id: `theme-${theme}`,
+      title,
+      keywords: ['theme', 'appearance', 'mode'],
+      run: () => setTheme(theme)
+    })
+  ),
   onPage({
     id: 'page-history',
     title: 'Version history of this page',
@@ -193,7 +212,12 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
     keywords: ['save', 'download', 'md', 'file'],
     run: (page) => void exportMarkdown(page.id).catch(reportError('export the page'))
   }),
-  { id: 'import-markdown', title: 'Import a Markdown file…', keywords: ['open', 'md', 'file'], run: () => void importMarkdown(null).catch(reportError('import the file')) },
+  {
+    id: 'import-markdown',
+    title: 'Import a Markdown file…',
+    keywords: ['open', 'md', 'file'],
+    run: () => void importMarkdown(null).catch(reportError('import the file'))
+  },
   onPage({
     id: 'page-duplicate',
     title: 'Duplicate this page',
@@ -250,12 +274,14 @@ export const BUILTIN_COMMANDS: readonly Command[] = [
     run: (page) => requestPageAi(page.id, 'title')
   }),
   menu('open-settings', 'Settings', ['preferences', 'options']),
-  ...SETTINGS.map(([section, label, keywords]): Command => ({
-    id: `settings-${section}`,
-    title: `Settings: ${label}`,
-    keywords: ['preferences', 'options', ...keywords],
-    run: () => openSettings(section)
-  })),
+  ...SETTINGS.map(
+    ([section, label, keywords]): Command => ({
+      id: `settings-${section}`,
+      title: `Settings: ${label}`,
+      keywords: ['preferences', 'options', ...keywords],
+      run: () => openSettings(section)
+    })
+  ),
   menu('keyboard-shortcuts', 'Keyboard shortcuts', ['keys', 'hotkeys', 'keybindings', 'help']),
   menu('send-feedback', 'Report a bug or suggest a feature…', ['feedback', 'issue', 'help'])
 ]

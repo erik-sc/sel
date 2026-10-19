@@ -4,7 +4,15 @@
 // filter on a relation) is rewritten to the new ids; a two-way link written on one side is
 // added on the other. Example rows are left out when the template is used empty.
 import { randomUUID } from 'node:crypto'
-import { plain, type Template, type TemplateDate, type TemplateNode, type TemplateRow, type TemplateValue, type TemplateView } from '../../shared/templates/model'
+import {
+  plain,
+  type Template,
+  type TemplateDate,
+  type TemplateNode,
+  type TemplateRow,
+  type TemplateValue,
+  type TemplateView
+} from '../../shared/templates/model'
 import type { Block, BlockProps, DatabaseView, Op, PropertySchema, PropertyValue, ViewFilter } from '../../shared/types'
 import type { Repository } from '../db/repository'
 
@@ -124,12 +132,14 @@ export function planTemplate(template: Template, options: PlanOptions): Template
 
   const databaseId = (key: string, what: string): string => {
     const id = ids.get(key)
-    if (id === undefined || kinds.get(key) !== 'database') throw new Error(`${what} points at "${key}", which is not a database of the template`)
+    if (id === undefined || kinds.get(key) !== 'database')
+      throw new Error(`${what} points at "${key}", which is not a database of the template`)
     return id
   }
   const rowId = (key: string, database: string, what: string): string => {
     const id = ids.get(key)
-    if (id === undefined || rowDatabase.get(key) !== database) throw new Error(`${what} links to "${key}", which is not a row of that database`)
+    if (id === undefined || rowDatabase.get(key) !== database)
+      throw new Error(`${what} links to "${key}", which is not a row of that database`)
     return id
   }
 
@@ -140,7 +150,10 @@ export function planTemplate(template: Template, options: PlanOptions): Template
     const schema: Record<string, PropertySchema> = structuredClone(node.schema)
     for (const property of Object.values(schema)) {
       if (property.type === 'relation' && property.relation) {
-        property.relation = { ...property.relation, databaseId: databaseId(property.relation.databaseId, `The relation "${property.name}"`) }
+        property.relation = {
+          ...property.relation,
+          databaseId: databaseId(property.relation.databaseId, `The relation "${property.name}"`)
+        }
       }
     }
     schemas.set(node.key, schema)
@@ -175,7 +188,8 @@ export function planTemplate(template: Template, options: PlanOptions): Template
       }
       if (property.type === 'relation') {
         const target = keyOfDatabaseId.get(property.relation?.databaseId ?? '')
-        if (!Array.isArray(value) || target === undefined) throw new Error(`The relation "${property.name}" of "${node.row.title}" must list rows`)
+        if (!Array.isArray(value) || target === undefined)
+          throw new Error(`The relation "${property.name}" of "${node.row.title}" must list rows`)
         const partner = property.relation?.syncedPropertyId
         for (const key of value) {
           const to = rowId(key, target, `The row "${node.row.title}"`)

@@ -5,7 +5,18 @@ import type { JSX, ReactNode } from 'react'
 function icon(body: ReactNode, filled = false): () => JSX.Element {
   return function Icon() {
     return (
-      <svg width={16} height={16} viewBox="0 0 16 16" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <svg
+        width={16}
+        height={16}
+        viewBox="0 0 16 16"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth={1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
         {body}
       </svg>
     )

@@ -67,7 +67,7 @@ function seed(repo: Repository): string {
   add('quote', page, { title: t('Simplicity is the ultimate sophistication.') })
   add('code', page, {
     language: 'typescript',
-    title: t("function greet(name: string): string {\n  return `Olá, ${name}!`\n}")
+    title: t('function greet(name: string): string {\n  return `Olá, ${name}!`\n}')
   })
   add('divider', page)
 

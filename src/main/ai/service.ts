@@ -130,13 +130,22 @@ interface Job {
 }
 
 /** Kills a child and everything it started. Never throws. */
-export function killTree(child: ChildProcess, platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env, graceMs: number = AI_RUN_LIMITS.killGraceMs): void {
+export function killTree(
+  child: ChildProcess,
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+  graceMs: number = AI_RUN_LIMITS.killGraceMs
+): void {
   const pid = child.pid
   if (pid === undefined || child.exitCode !== null || child.signalCode !== null) return
   if (platform === 'win32') {
     try {
       const root = envValue(env, 'SystemRoot', 'win32') ?? 'C:\\Windows'
-      const killer = spawn(join(root, 'System32', 'taskkill.exe'), ['/pid', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore', shell: false })
+      const killer = spawn(join(root, 'System32', 'taskkill.exe'), ['/pid', String(pid), '/T', '/F'], {
+        windowsHide: true,
+        stdio: 'ignore',
+        shell: false
+      })
       killer.on('error', () => child.kill())
       killer.unref()
     } catch {
@@ -300,7 +309,11 @@ export class AiService {
       const entry = this.cached
       return entry.status.then((status) => ({ status, cli: entry.cli }))
     }
-    const entry: { key: string; status: Promise<AiStatus>; cli: CliLocation | null } = { key, status: Promise.resolve({ available: false }), cli: null }
+    const entry: { key: string; status: Promise<AiStatus>; cli: CliLocation | null } = {
+      key,
+      status: Promise.resolve({ available: false }),
+      cli: null
+    }
     entry.status = this.probe().then(
       (result) => {
         entry.cli = result.cli
@@ -320,7 +333,18 @@ export class AiService {
    * `owner` identifies who may cancel it (a window); null for requests the app itself makes.
    */
   run(request: AiRequest, sink: AiSink, owner: number | null = null, build?: PromptBuilder, target?: RunTarget): string {
-    const job: Job = { id: randomUUID(), owner, request, sink, state: 'queued', child: null, timer: null, cancelled: false, timedOut: false, startedAt: Date.now() }
+    const job: Job = {
+      id: randomUUID(),
+      owner,
+      request,
+      sink,
+      state: 'queued',
+      child: null,
+      timer: null,
+      cancelled: false,
+      timedOut: false,
+      startedAt: Date.now()
+    }
     if (build) job.build = build
     if (target) job.target = target
     this.jobs.set(job.id, job)
@@ -451,7 +475,10 @@ export class AiService {
         const found = await this.resolve()
         if (job.state !== 'starting') return
         if (!found.status.available || !found.cli) {
-          return this.fail(job, found.status.reason === 'disabled' ? failure('failed', 'AI is turned off in Settings.') : failure('not-installed'))
+          return this.fail(
+            job,
+            found.status.reason === 'disabled' ? failure('failed', 'AI is turned off in Settings.') : failure('not-installed')
+          )
         }
         cli = found.cli
       }
@@ -483,14 +510,23 @@ export class AiService {
         if (job.state !== 'starting') return
         const speaks = voice !== null && job.request.action === 'ask'
         // What he may quote is chosen here, from the bundled collection, by what was asked.
-        const passageIds = speaks ? selectPassages(`${job.request.instruction ?? ''}\n${job.request.selectionText ?? ''}`).map((quote) => quote.id) : []
-        prompt = buildPrompt(job.request, context, { defaultLanguage: language, ...(speaks ? { voice, passageIds } : {}), ...(tools ? { tools: true } : {}) })
+        const passageIds = speaks
+          ? selectPassages(`${job.request.instruction ?? ''}\n${job.request.selectionText ?? ''}`).map((quote) => quote.id)
+          : []
+        prompt = buildPrompt(job.request, context, {
+          defaultLanguage: language,
+          ...(speaks ? { voice, passageIds } : {}),
+          ...(tools ? { tools: true } : {})
+        })
       }
       if (job.state !== 'starting') return
       const model = job.target?.model
       spec = program
         ? buildSpawn(program.cli, program.args, this.env)
-        : this.spawnSpec(cli as CliLocation, buildArgs({ model: typeof model === 'string' && AI_MODEL_RE.test(model) ? model : this.model(), tools }))
+        : this.spawnSpec(
+            cli as CliLocation,
+            buildArgs({ model: typeof model === 'string' && AI_MODEL_RE.test(model) ? model : this.model(), tools })
+          )
     } catch (err) {
       // A domain error (the page is gone…) carries a safe message; anything else stays in the log.
       const safe = err instanceof Error && !('code' in err) && err.message ? err.message.slice(0, 160) : undefined
@@ -587,12 +623,15 @@ export class AiService {
       this.fail(job, classifyFailure({ stderr, exitCode: code }))
     })
 
-    job.timer = setTimeout(() => {
-      if (job.state !== 'running') return
-      job.timedOut = true
-      killTree(child, this.platform, this.env, this.limits.killGraceMs)
-      this.fail(job, failure('timeout'))
-    }, job.tools ? Math.max(this.timeoutMs(), TOOL_TIMEOUT_MS) : this.timeoutMs())
+    job.timer = setTimeout(
+      () => {
+        if (job.state !== 'running') return
+        job.timedOut = true
+        killTree(child, this.platform, this.env, this.limits.killGraceMs)
+        this.fail(job, failure('timeout'))
+      },
+      job.tools ? Math.max(this.timeoutMs(), TOOL_TIMEOUT_MS) : this.timeoutMs()
+    )
 
     // The prompt goes in on stdin and nowhere else. A program that exits early closes the pipe.
     const stdin = child.stdin

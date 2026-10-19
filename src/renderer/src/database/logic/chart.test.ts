@@ -219,7 +219,10 @@ describe('date axes', () => {
   })
 
   it('day, quarter and year', () => {
-    const days = build(count('due', { xDateBucket: 'day' }), [row('a', { due: { start: '2024-02-28' } }), row('b', { due: { start: '2024-03-01' } })])
+    const days = build(count('due', { xDateBucket: 'day' }), [
+      row('a', { due: { start: '2024-02-28' } }),
+      row('b', { due: { start: '2024-03-01' } })
+    ])
     expect(days.categories.map((c) => c.key)).toEqual(['d:2024-02-28', 'd:2024-02-29', 'd:2024-03-01'])
     expect(values(days)).toEqual([1, 0, 1])
 
@@ -230,7 +233,10 @@ describe('date axes', () => {
     expect(labels(quarters)).toEqual(['Q4 2023', 'Q1 2024', 'Q2 2024'])
     expect(values(quarters)).toEqual([1, 0, 1])
 
-    const years = build(count('due', { xDateBucket: 'year' }), [row('a', { due: { start: '2021-12-31' } }), row('b', { due: { start: '2024-01-01' } })])
+    const years = build(count('due', { xDateBucket: 'year' }), [
+      row('a', { due: { start: '2021-12-31' } }),
+      row('b', { due: { start: '2024-01-01' } })
+    ])
     expect(labels(years)).toEqual(['2021', '2022', '2023', '2024'])
     expect(values(years)).toEqual([1, 0, 0, 1])
   })
@@ -266,7 +272,10 @@ describe('date axes', () => {
   it('created / edited times fall on the local day they happened on', () => {
     // 01:00 UTC on January 1st is still December 31st, 22:00, in Sao Paulo.
     const stamp = Date.UTC(2024, 0, 1, 1, 0)
-    const data = build(count('made', { xDateBucket: 'month' }), [row('a', {}, { createdAt: stamp }), row('b', {}, { createdAt: Date.UTC(2024, 0, 20, 12) })])
+    const data = build(count('made', { xDateBucket: 'month' }), [
+      row('a', {}, { createdAt: stamp }),
+      row('b', {}, { createdAt: Date.UTC(2024, 0, 20, 12) })
+    ])
     expect(labels(data)).toEqual(['Dec 2023', 'Jan 2024'])
     expect(values(data)).toEqual([1, 1])
     expect(labels(build(count('made', { xDateBucket: 'year' }), [row('a', {}, { createdAt: stamp })]))).toEqual(['2023'])
@@ -279,11 +288,17 @@ describe('date axes', () => {
   })
 
   it('a span too long for its bucket is drawn with a coarser one', () => {
-    const data = build(count('due', { xDateBucket: 'day' }), [row('a', { due: { start: '2020-01-01' } }), row('b', { due: { start: '2023-01-01' } })])
+    const data = build(count('due', { xDateBucket: 'day' }), [
+      row('a', { due: { start: '2020-01-01' } }),
+      row('b', { due: { start: '2023-01-01' } })
+    ])
     expect(data.bucket).toBe('week')
     expect(data.categories.length).toBeLessThanOrEqual(L.MAX_DATE_BUCKETS)
     expect(values(data).reduce<number>((a, b) => a + (b ?? 0), 0)).toBe(2)
-    const ages = build(count('due', { xDateBucket: 'day' }), [row('a', { due: { start: '0100-01-01' } }), row('b', { due: { start: '3000-01-01' } })])
+    const ages = build(count('due', { xDateBucket: 'day' }), [
+      row('a', { due: { start: '0100-01-01' } }),
+      row('b', { due: { start: '3000-01-01' } })
+    ])
     expect(ages.bucket).toBe('year')
     expect(ages.categories.length).toBeLessThanOrEqual(L.MAX_DATE_BUCKETS + 4)
     expect(values(ages).reduce<number>((a, b) => a + (b ?? 0), 0)).toBe(2)
@@ -416,7 +431,15 @@ describe('series', () => {
     expect(data.series).toHaveLength(L.MAX_CHART_SERIES)
     expect(data.series.at(-1)).toMatchObject({ key: L.CHART_OTHER_KEY, kind: 'other', colour: 'gray' })
     // The seven largest (Owner 5..11) are kept; Owner 0..4 have 1+2+3+4+5 rows.
-    expect(data.series.slice(0, -1).map((s) => s.label)).toEqual(['Owner 5', 'Owner 6', 'Owner 7', 'Owner 8', 'Owner 9', 'Owner 10', 'Owner 11'])
+    expect(data.series.slice(0, -1).map((s) => s.label)).toEqual([
+      'Owner 5',
+      'Owner 6',
+      'Owner 7',
+      'Owner 8',
+      'Owner 9',
+      'Owner 10',
+      'Owner 11'
+    ])
     expect(data.series.at(-1)?.values).toEqual([0, 0, 15])
     expect(new Set(data.series.map((s) => s.colour)).size).toBe(L.MAX_CHART_SERIES)
   })
@@ -436,10 +459,12 @@ describe('series', () => {
 
   it('a running total accumulates along the axis on line and area charts only', () => {
     expect(values(build({ kind: 'line', x: 'due', xDateBucket: 'month', y: { aggregate: 'count' }, cumulative: true }))).toEqual([2, 2, 4])
-    expect(values(build({ kind: 'area', x: 'due', xDateBucket: 'month', y: { aggregate: 'sum', property: 'amt' }, cumulative: true }))).toEqual([
-      30, 30, 100
+    expect(
+      values(build({ kind: 'area', x: 'due', xDateBucket: 'month', y: { aggregate: 'sum', property: 'amt' }, cumulative: true }))
+    ).toEqual([30, 30, 100])
+    expect(values(build({ kind: 'column', x: 'due', xDateBucket: 'month', y: { aggregate: 'count' }, cumulative: true }))).toEqual([
+      2, 0, 2
     ])
-    expect(values(build({ kind: 'column', x: 'due', xDateBucket: 'month', y: { aggregate: 'count' }, cumulative: true }))).toEqual([2, 0, 2])
     const split = build({ kind: 'line', x: 'due', xDateBucket: 'month', series: 'who', y: { aggregate: 'count' }, cumulative: true })
     expect(split.series.map((s) => s.values)).toEqual([
       [2, 2, 2],
@@ -464,7 +489,8 @@ describe('sorting and limits', () => {
   it('by value, with groups that have no value last in both directions', () => {
     expect(labels(build(count('st', { sort: 'y_desc' })))).toEqual(['Done', 'To do', 'Doing'])
     expect(labels(build(count('st', { sort: 'y_asc' })))).toEqual(['Doing', 'To do', 'Done'])
-    const average = (sort: ChartConfig['sort']): string[] => labels(build({ kind: 'column', x: 'st', y: { aggregate: 'average', property: 'amt' }, sort }))
+    const average = (sort: ChartConfig['sort']): string[] =>
+      labels(build({ kind: 'column', x: 'st', y: { aggregate: 'average', property: 'amt' }, sort }))
     expect(average('y_desc')).toEqual(['Done', 'To do', 'Doing'])
     expect(average('y_asc')).toEqual(['To do', 'Done', 'Doing'])
   })
@@ -502,7 +528,12 @@ describe('colours', () => {
   })
 
   it("options uses each select option's own colour, and falls back where there are none", () => {
-    expect(build(count('st', { palette: 'options', showEmpty: true })).categories.map((c) => c.colour)).toEqual(['gray', 'blue', 'green', 'gray'])
+    expect(build(count('st', { palette: 'options', showEmpty: true })).categories.map((c) => c.colour)).toEqual([
+      'gray',
+      'blue',
+      'green',
+      'gray'
+    ])
     expect(build(count('who', { palette: 'options' })).categories.map((c) => c.colour)).toEqual(['blue', 'orange', 'pink'])
     expect(build(count('who', { series: 'st', palette: 'options' })).series.map((s) => s.colour)).toEqual(['gray', 'green'])
     const weird: L.Schema = { ...schema, st: { ...schema.st, options: [{ id: 'todo', name: 'To do', color: 'url(javascript:1)' }] } }
@@ -635,7 +666,12 @@ describe('rows behind a mark', () => {
   })
 
   it('agrees with the counts of the chart', () => {
-    for (const config of [count('st', { showEmpty: true }), count('who', { limit: 2 }), count('due', { xDateBucket: 'week' }), count('amt')]) {
+    for (const config of [
+      count('st', { showEmpty: true }),
+      count('who', { limit: 2 }),
+      count('due', { xDateBucket: 'week' }),
+      count('amt')
+    ]) {
       const data = build(config)
       data.categories.forEach((category, index) => {
         expect(L.chartRowsAt(rows, schema, config, data, category.key, null, undefined, EN)).toHaveLength(values(data)[index] ?? 0)
@@ -654,46 +690,88 @@ describe('configuration repair', () => {
   })
 
   it('returns a clean configuration by reference', () => {
-    const clean: ChartConfig = { kind: 'line', x: 'due', xDateBucket: 'week', y: { aggregate: 'sum', property: 'amt' }, series: 'st', limit: 5 }
+    const clean: ChartConfig = {
+      kind: 'line',
+      x: 'due',
+      xDateBucket: 'week',
+      y: { aggregate: 'sum', property: 'amt' },
+      series: 'st',
+      limit: 5
+    }
     expect(L.normalizeChartConfig(clean, schema)).toBe(clean)
     expect(L.normalizeChartConfig(L.defaultChartConfig(schema), schema)).toEqual(L.defaultChartConfig(schema))
   })
 
   it('repairs dangling and wrong-typed references to sensible defaults', () => {
-    expect(L.normalizeChartConfig({ kind: 'bar', x: 'gone', y: { aggregate: 'count' } }, schema)).toEqual({ kind: 'bar', x: 'st', y: { aggregate: 'count' } })
+    expect(L.normalizeChartConfig({ kind: 'bar', x: 'gone', y: { aggregate: 'count' } }, schema)).toEqual({
+      kind: 'bar',
+      x: 'st',
+      y: { aggregate: 'count' }
+    })
     // A sum needs a number or a checkbox: the first one there is.
-    expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'sum', property: 'who' } }, schema).y).toEqual({ aggregate: 'sum', property: 'amt' })
-    expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'sum' } }, schema).y).toEqual({ aggregate: 'sum', property: 'amt' })
+    expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'sum', property: 'who' } }, schema).y).toEqual({
+      aggregate: 'sum',
+      property: 'amt'
+    })
+    expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'sum' } }, schema).y).toEqual({
+      aggregate: 'sum',
+      property: 'amt'
+    })
     expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'percent_checked', property: 'amt' } }, schema).y).toEqual({
       aggregate: 'percent_checked',
       property: 'ok'
     })
-    expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'count_unique' } }, schema).y).toEqual({ aggregate: 'count_unique', property: 'title' })
+    expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'count_unique' } }, schema).y).toEqual({
+      aggregate: 'count_unique',
+      property: 'title'
+    })
     // Nothing to sum at all: a count.
-    expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'median', property: 'amt' } }, { title: schema.title, st: schema.st }).y).toEqual({
+    expect(
+      L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'median', property: 'amt' } }, { title: schema.title, st: schema.st })
+        .y
+    ).toEqual({
       aggregate: 'count'
     })
     // A count takes no property.
-    expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'count', property: 'amt' } }, schema).y).toEqual({ aggregate: 'count' })
+    expect(L.normalizeChartConfig({ kind: 'bar', x: 'st', y: { aggregate: 'count', property: 'amt' } }, schema).y).toEqual({
+      aggregate: 'count'
+    })
   })
 
   it('drops a series that is gone or that repeats the axis, and keeps a date bucket on date axes only', () => {
     expect(L.normalizeChartConfig({ kind: 'column', x: 'st', series: 'st', y: { aggregate: 'count' } }, schema).series).toBeUndefined()
     expect(L.normalizeChartConfig({ kind: 'column', x: 'st', series: 'gone', y: { aggregate: 'count' } }, schema).series).toBeUndefined()
-    expect(L.normalizeChartConfig({ kind: 'column', x: 'st', xDateBucket: 'week', y: { aggregate: 'count' } }, schema).xDateBucket).toBeUndefined()
+    expect(
+      L.normalizeChartConfig({ kind: 'column', x: 'st', xDateBucket: 'week', y: { aggregate: 'count' } }, schema).xDateBucket
+    ).toBeUndefined()
     expect(L.normalizeChartConfig({ kind: 'column', x: 'due', y: { aggregate: 'count' } }, schema).xDateBucket).toBe('month')
-    expect(L.normalizeChartConfig({ kind: 'column', x: 'made', xDateBucket: 'year', y: { aggregate: 'count' } }, schema).xDateBucket).toBe('year')
+    expect(L.normalizeChartConfig({ kind: 'column', x: 'made', xDateBucket: 'year', y: { aggregate: 'count' } }, schema).xDateBucket).toBe(
+      'year'
+    )
   })
 
   it('a number needs no axis, but keeps a valid one', () => {
-    expect(L.normalizeChartConfig({ kind: 'number', y: { aggregate: 'count' } }, schema)).toEqual({ kind: 'number', y: { aggregate: 'count' } })
+    expect(L.normalizeChartConfig({ kind: 'number', y: { aggregate: 'count' } }, schema)).toEqual({
+      kind: 'number',
+      y: { aggregate: 'count' }
+    })
     expect(L.normalizeChartConfig({ kind: 'number', x: 'gone', y: { aggregate: 'count' } }, schema).x).toBeUndefined()
     expect(L.normalizeChartConfig({ kind: 'number', x: 'who', y: { aggregate: 'count' } }, schema).x).toBe('who')
   })
 
   it('drops unknown keys and clamps numbers', () => {
     const out = L.normalizeChartConfig(
-      { kind: 'pie', x: 'st', y: { aggregate: 'count', extra: 1 }, limit: 9999, height: 3, palette: 'neon', sort: 'sideways', stacked: 'yes', evil: '<script>' },
+      {
+        kind: 'pie',
+        x: 'st',
+        y: { aggregate: 'count', extra: 1 },
+        limit: 9999,
+        height: 3,
+        palette: 'neon',
+        sort: 'sideways',
+        stacked: 'yes',
+        evil: '<script>'
+      },
       schema
     )
     expect(out).toEqual({ kind: 'pie', x: 'st', y: { aggregate: 'count' }, limit: 50, height: 120 })
@@ -703,7 +781,15 @@ describe('configuration repair', () => {
     const views = L.sanitizeViews(
       [
         { id: 'a', name: 'Chart', type: 'chart', visibleProperties: ['title'], filters: [], sorts: [] },
-        { id: 'b', name: 'Chart 2', type: 'chart', visibleProperties: ['title'], filters: [], sorts: [], chart: { kind: 'line', x: 'gone', y: { aggregate: 'sum', property: 'amt' } } }
+        {
+          id: 'b',
+          name: 'Chart 2',
+          type: 'chart',
+          visibleProperties: ['title'],
+          filters: [],
+          sorts: [],
+          chart: { kind: 'line', x: 'gone', y: { aggregate: 'sum', property: 'amt' } }
+        }
       ] as DatabaseView[],
       schema
     )
@@ -743,7 +829,15 @@ describe('configuration repair', () => {
   })
 
   it('an unknown view type still degrades to a table without losing what it carries', () => {
-    const future = { id: 'f', name: 'Timeline', type: 'timeline', visibleProperties: ['title'], filters: [], sorts: [], chart: { kind: 'bar', x: 'st', y: { aggregate: 'count' } } }
+    const future = {
+      id: 'f',
+      name: 'Timeline',
+      type: 'timeline',
+      visibleProperties: ['title'],
+      filters: [],
+      sorts: [],
+      chart: { kind: 'bar', x: 'st', y: { aggregate: 'count' } }
+    }
     const [view] = L.sanitizeViews([future as unknown as DatabaseView], schema)
     expect(view.type).toBe('table')
     expect(view.chart).toEqual({ kind: 'bar', x: 'st', y: { aggregate: 'count' } })
@@ -758,7 +852,10 @@ describe('configuration repair', () => {
 
   it('deleting the property a chart is built on repairs the chart instead of breaking it', () => {
     const view = L.createDefaultView('chart', schema, 'v')
-    const withSeries: DatabaseView = { ...view, chart: { kind: 'column', x: 'st', series: 'who', y: { aggregate: 'sum', property: 'amt' } } }
+    const withSeries: DatabaseView = {
+      ...view,
+      chart: { kind: 'column', x: 'st', series: 'who', y: { aggregate: 'sum', property: 'amt' } }
+    }
     const result = L.deleteProperty(schema, [withSeries], 'who')
     expect(result.views[0].chart).toEqual({ kind: 'column', x: 'st', y: { aggregate: 'sum', property: 'amt' } })
     const noAxis = L.deleteProperty(schema, [withSeries], 'st')
@@ -771,7 +868,17 @@ describe('configuration repair', () => {
     const props = L.linkedViewProps(source, { get: (id) => (id === 'src' ? source : undefined) }, () => 'new-id', 'chart')
     expect(props).toEqual({
       sourceId: 'src',
-      views: [{ id: 'new-id', name: 'Chart', type: 'chart', visibleProperties: ['title'], filters: [], sorts: [], chart: { kind: 'column', x: 'st', y: { aggregate: 'count' } } }]
+      views: [
+        {
+          id: 'new-id',
+          name: 'Chart',
+          type: 'chart',
+          visibleProperties: ['title'],
+          filters: [],
+          sorts: [],
+          chart: { kind: 'column', x: 'st', y: { aggregate: 'count' } }
+        }
+      ]
     })
   })
 })
@@ -802,7 +909,15 @@ describe('text renderings', () => {
     const currency: L.ChartYFormat = { numberFormat: 'currency', integer: false }
     const number: L.ChartYFormat = { numberFormat: 'number', integer: false }
     // All abbreviated or none: never "$8,000.00" next to "$10K".
-    expect(L.formatChartTicks([0, 2000, 4000, 6000, 8000, 10000, 12000], currency, EN)).toEqual(['$0', '$2K', '$4K', '$6K', '$8K', '$10K', '$12K'])
+    expect(L.formatChartTicks([0, 2000, 4000, 6000, 8000, 10000, 12000], currency, EN)).toEqual([
+      '$0',
+      '$2K',
+      '$4K',
+      '$6K',
+      '$8K',
+      '$10K',
+      '$12K'
+    ])
     expect(L.formatChartTicks([0, 2500, 5000, 7500, 10000, 12500], number, EN)).toEqual(['0', '2.5K', '5K', '7.5K', '10K', '12.5K'])
     // Whole ticks carry no ".00"; fractional ones keep their cents.
     expect(L.formatChartTicks([0, 100, 200], currency, EN)).toEqual(['$0', '$100', '$200'])
@@ -825,9 +940,13 @@ describe('text renderings', () => {
 
   it('captions', () => {
     expect(L.chartCaption(build(count('st')))).toBe('Count by Status')
-    expect(L.chartCaption(build({ kind: 'column', x: 'due', series: 'who', y: { aggregate: 'sum', property: 'amt' } }))).toBe('Sum of Amount by Due and Owner')
+    expect(L.chartCaption(build({ kind: 'column', x: 'due', series: 'who', y: { aggregate: 'sum', property: 'amt' } }))).toBe(
+      'Sum of Amount by Due and Owner'
+    )
     expect(L.chartCaption(build({ kind: 'number', y: { aggregate: 'average', property: 'amt' } }))).toBe('Average Amount')
-    expect(L.chartCaption(build({ kind: 'line', x: 'due', y: { aggregate: 'count' }, cumulative: true }))).toBe('Count by Due, running total')
+    expect(L.chartCaption(build({ kind: 'line', x: 'due', y: { aggregate: 'count' }, cumulative: true }))).toBe(
+      'Count by Due, running total'
+    )
     expect(build({ kind: 'column', x: 'due', y: { aggregate: 'count' }, cumulative: true }).cumulative).toBeUndefined()
   })
 
@@ -844,7 +963,10 @@ describe('text renderings', () => {
     expect(L.chartToTSV(data, EN)).toBe('Status\tAverage Amount\nTo do\t10\nDoing\t\nDone\t30')
     const split = build(count('st', { series: 'who' }))
     expect(L.chartToTSV(split, EN)).toBe('Status\tAda\tBob\tCy\nTo do\t1\t0\t0\nDoing\t0\t0\t0\nDone\t1\t1\t1')
-    expect(L.chartTable(build({ kind: 'number', y: { aggregate: 'count' } }), EN)).toEqual({ header: ['Measure', 'Value'], rows: [['Count', '5']] })
+    expect(L.chartTable(build({ kind: 'number', y: { aggregate: 'count' } }), EN)).toEqual({
+      header: ['Measure', 'Value'],
+      rows: [['Count', '5']]
+    })
   })
 
   it('tabs and line breaks in labels cannot break the TSV', () => {
@@ -854,11 +976,15 @@ describe('text renderings', () => {
 
   it('summaries say what the chart shows', () => {
     expect(L.chartSummary(build(count('st')), EN)).toBe('Column chart. Count by Status. 3 categories: To do 1, Doing 0, Done 3.')
-    expect(L.chartSummary(build(count('st', { series: 'who' })), EN)).toBe('Column chart. Count by Status and Owner. 3 categories, 3 series: Ada, Bob, Cy.')
+    expect(L.chartSummary(build(count('st', { series: 'who' })), EN)).toBe(
+      'Column chart. Count by Status and Owner. 3 categories, 3 series: Ada, Bob, Cy.'
+    )
     expect(L.chartSummary(build({ kind: 'number', y: { aggregate: 'sum', property: 'amt' } }), EN)).toBe('Sum of Amount: $100.00.')
     expect(L.chartSummary(build(count('st'), []), EN)).toBe('Column chart. Count by Status. There is no data to show.')
     const many = Array.from({ length: 20 }, (_, i) => row(`m${i}`, { who: `O${i}` }))
-    expect(L.chartSummary(build(count('who'), many), EN)).toMatch(/^Column chart\. Count by Owner\. 20 categories: O0 1, .*O7 1 and 12 more\.$/)
+    expect(L.chartSummary(build(count('who'), many), EN)).toMatch(
+      /^Column chart\. Count by Owner\. 20 categories: O0 1, .*O7 1 and 12 more\.$/
+    )
   })
 })
 
@@ -868,7 +994,15 @@ describe('scale', () => {
     const statuses = ['todo', 'doing', 'done']
     for (let i = 0; i < 20_000; i++) {
       const month = String((i % 12) + 1).padStart(2, '0')
-      big.push(row(`b${i}`, { st: statuses[i % 3], amt: i % 97, who: `Owner ${i % 40}`, due: { start: `202${i % 4}-${month}-15` }, ok: i % 2 === 0 }))
+      big.push(
+        row(`b${i}`, {
+          st: statuses[i % 3],
+          amt: i % 97,
+          who: `Owner ${i % 40}`,
+          due: { start: `202${i % 4}-${month}-15` },
+          ok: i % 2 === 0
+        })
+      )
     }
     const started = performance.now()
     const data = build({ kind: 'column', x: 'due', xDateBucket: 'month', series: 'st', y: { aggregate: 'median', property: 'amt' } }, big)
@@ -922,10 +1056,24 @@ describe('relations, rollups and formulas', () => {
     updatedAt: 0,
     trashedAt: null
   })
-  const blocks = [database('db', ledgerSchema, entries.map((b) => b.id)), database('cats', catsSchema, cats.map((b) => b.id)), ...entries, ...cats]
+  const blocks = [
+    database(
+      'db',
+      ledgerSchema,
+      entries.map((b) => b.id)
+    ),
+    database(
+      'cats',
+      catsSchema,
+      cats.map((b) => b.id)
+    ),
+    ...entries,
+    ...cats
+  ]
   const byId = new Map(blocks.map((b) => [b.id, b]))
   const ctx = L.cellContext({ get: (id) => byId.get(id) })
-  const ledger = (config: ChartConfig, withCtx = true): L.ChartData => L.buildChartData(entries, ledgerSchema, config, undefined, EN, withCtx ? ctx : undefined)
+  const ledger = (config: ChartConfig, withCtx = true): L.ChartData =>
+    L.buildChartData(entries, ledgerSchema, config, undefined, EN, withCtx ? ctx : undefined)
 
   it('groups by the rows a relation links to, named by their titles; a row in two counts in both', () => {
     const data = ledger({ kind: 'bar', x: 'cat', y: { aggregate: 'sum', property: 'exp' } })
@@ -954,7 +1102,14 @@ describe('relations, rollups and formulas', () => {
   })
 
   it('reads a rollup as the number it gives, in the related property format', () => {
-    const data = L.buildChartData(cats, catsSchema, { kind: 'bar', x: 'title', y: { aggregate: 'sum', property: 'spent' } }, undefined, EN, ctx)
+    const data = L.buildChartData(
+      cats,
+      catsSchema,
+      { kind: 'bar', x: 'title', y: { aggregate: 'sum', property: 'spent' } },
+      undefined,
+      EN,
+      ctx
+    )
     expect(labels(data)).toEqual(['Salary', 'Home', 'Fun'])
     expect(values(data)).toEqual([0, 750, 200])
     expect(data.yFormat.numberFormat).toBe('currency')

@@ -217,7 +217,8 @@ export class ExternalEndpoint {
     }
     const id = typeof message['id'] === 'number' || typeof message['id'] === 'string' ? message['id'] : null
     const token = this.server ? this.token : null
-    if (!token || typeof message['token'] !== 'string' || !sameToken(message['token'], token)) return { id, error: EXTERNAL_MESSAGES.refused }
+    if (!token || typeof message['token'] !== 'string' || !sameToken(message['token'], token))
+      return { id, error: EXTERNAL_MESSAGES.refused }
     const name = typeof message['name'] === 'string' ? message['name'] : ''
 
     const now = this.now()

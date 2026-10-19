@@ -12,17 +12,7 @@ import { countOverrides, sanitizeAppearance, sanitizeCustomCss } from './sanitiz
 import type { AppearanceData } from './sanitize'
 import { GROUPS, TOKENS, TOKEN_MAP, defaultValue } from './schema'
 import type { ThemeName, TokenDef, TokenGroup } from './schema'
-import {
-  MAX_IMPORT_LENGTH,
-  applyPreset,
-  exportJson,
-  importJson,
-  resetAll,
-  resetGroup,
-  setCustomCss,
-  setSkin,
-  useAppearance
-} from './store'
+import { MAX_IMPORT_LENGTH, applyPreset, exportJson, importJson, resetAll, resetGroup, setCustomCss, setSkin, useAppearance } from './store'
 import { SKINS } from './skins'
 
 const SCOPES: { value: ThemeName; label: string }[] = [
@@ -68,10 +58,7 @@ export function AppearancePanel() {
       tokens: TOKENS.filter(
         (token) =>
           token.group === group &&
-          (!needle ||
-            token.label.toLowerCase().includes(needle) ||
-            token.name.includes(needle) ||
-            group.toLowerCase().includes(needle))
+          (!needle || token.label.toLowerCase().includes(needle) || token.name.includes(needle) || group.toLowerCase().includes(needle))
       )
     })).filter((entry) => entry.tokens.length > 0)
   }, [query])

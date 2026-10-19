@@ -5,7 +5,17 @@ import { HOME_COPY, homeLocale } from './copy'
 vi.stubGlobal('window', { api: { clientId: 'w', onChange: () => () => {}, app: { platform: 'win32' } } })
 const { homeHint, homeStatus } = await import('./store')
 
-const page = (trashed: boolean): Block => ({ id: 'p', type: 'page', parentId: null, content: [], props: {}, createdAt: 1, updatedAt: 1, trashedAt: trashed ? 2 : null }) as unknown as Block
+const page = (trashed: boolean): Block =>
+  ({
+    id: 'p',
+    type: 'page',
+    parentId: null,
+    content: [],
+    props: {},
+    createdAt: 1,
+    updatedAt: 1,
+    trashedAt: trashed ? 2 : null
+  }) as unknown as Block
 
 describe('the home', () => {
   it('can open a screen, or a page that is here and not in the Trash', () => {

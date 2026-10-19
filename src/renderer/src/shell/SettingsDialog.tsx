@@ -38,8 +38,7 @@ const SECTIONS: { value: Section; label: string }[] = [
   { value: 'ai', label: 'AI' },
   { value: 'herman', label: 'Herman' },
   { value: 'notifications', label: 'Notifications' },
-  { value: 'sync', label: 'Sync' }
-,
+  { value: 'sync', label: 'Sync' },
   { value: 'today', label: 'Today' },
   { value: 'meetings', label: 'Meetings' },
   { value: 'pomodoro', label: 'Pomodoro' },
@@ -51,7 +50,9 @@ const SyncSection = lazy(() => import('@/sync/SyncSettings').then((module) => ({
 // Herman's settings bring his figure and his stylesheet with them.
 const HermanSection = lazy(() => import('@/herman/HermanSettings').then((module) => ({ default: module.HermanSection })))
 // And so are the notifications (reminders, events, the tray).
-const NotificationsSection = lazy(() => import('@/alarms/NotificationSettings').then((module) => ({ default: module.NotificationsSection })))
+const NotificationsSection = lazy(() =>
+  import('@/alarms/NotificationSettings').then((module) => ({ default: module.NotificationsSection }))
+)
 // And so are the meetings settings.
 const MeetingsSection = lazy(() => import('@/meetings/MeetingsSettings').then((module) => ({ default: module.MeetingsSection })))
 // And so are the pomodoro's.

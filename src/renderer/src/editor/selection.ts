@@ -155,7 +155,12 @@ export class SelectionManager {
       this.root?.focus({ preventScroll: true })
       window.getSelection()?.removeAllRanges()
     }
-    this.ui.setState({ selected: ids, anchor: ids.length ? anchor : null, head: ids.length ? head : null, ...(ids.length ? { slash: null } : {}) })
+    this.ui.setState({
+      selected: ids,
+      anchor: ids.length ? anchor : null,
+      head: ids.length ? head : null,
+      ...(ids.length ? { slash: null } : {})
+    })
   }
 
   clearBlockSelection(): void {

@@ -18,10 +18,7 @@ function parseBlock(css: string, selector: RegExp): Map<string, string> {
   return out
 }
 
-const css = readFileSync(fileURLToPath(new URL('../styles/tokens.css', import.meta.url)), 'utf8').replace(
-  /\/\*[\s\S]*?\*\//g,
-  ''
-)
+const css = readFileSync(fileURLToPath(new URL('../styles/tokens.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 const light = parseBlock(css, /:root\s*\{([^}]*)\}/)
 const dark = parseBlock(css, /:root\[data-theme='dark'\]\s*\{([^}]*)\}/)
 
@@ -156,7 +153,10 @@ describe('window styles', () => {
       }
       // Tokens belong to the theme; a skin that set them would hide them from the editor.
       const declared = [...sheet.matchAll(/(?<![\w-])(--[\w-]+)\s*:/g)].map((match) => match[1])
-      expect(declared.filter((name) => !name.startsWith('--sk-')), id).toEqual([])
+      expect(
+        declared.filter((name) => !name.startsWith('--sk-')),
+        id
+      ).toEqual([])
     }
   })
 })

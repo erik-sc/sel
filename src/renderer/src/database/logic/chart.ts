@@ -7,7 +7,15 @@
 // Dates are civil days (`YYYY-MM-DD`) bucketed with the helpers of ./dates, so no
 // bucket ever depends on the machine's timezone or on a DST transition. Only the
 // computed "created" / "last edited" timestamps are mapped to the local day they fell on.
-import type { Block, ChartAggregate, ChartConfig, ChartDateBucket, ChartKind, PropertySchema, PropertyValue } from '../../../../shared/types'
+import type {
+  Block,
+  ChartAggregate,
+  ChartConfig,
+  ChartDateBucket,
+  ChartKind,
+  PropertySchema,
+  PropertyValue
+} from '../../../../shared/types'
 import { filterTypeOf, numberFormatOf, readCell } from './cell'
 import { CHART_KIND_LABELS, chartKindCanAccumulate, chartKindHasSeries, normalizeChartConfig } from './chartConfig'
 import { binEdge, binIndex, niceBins, type Bins } from './chartScale'
@@ -527,7 +535,12 @@ function yLabelOf(aggregate: ChartAggregate, prop: PropertySchema | undefined): 
   }
 }
 
-function yFormatOf(aggregate: ChartAggregate, prop: PropertySchema | undefined, schema: Schema, ctx: CellContext | undefined): ChartYFormat {
+function yFormatOf(
+  aggregate: ChartAggregate,
+  prop: PropertySchema | undefined,
+  schema: Schema,
+  ctx: CellContext | undefined
+): ChartYFormat {
   if (aggregate === 'count' || aggregate === 'count_unique') return { numberFormat: 'number', integer: true }
   if (aggregate === 'percent_checked') return { numberFormat: 'percent', integer: false }
   const checkbox = !!prop && filterTypeOf(prop, schema) === 'checkbox'
@@ -546,7 +559,14 @@ interface Plan {
   showEmpty: boolean
 }
 
-function plan(rows: readonly Block[], schema: Schema, raw: ChartConfig, now: Date | undefined, opts: FormatOptions, ctx: CellContext | undefined): Plan {
+function plan(
+  rows: readonly Block[],
+  schema: Schema,
+  raw: ChartConfig,
+  now: Date | undefined,
+  opts: FormatOptions,
+  ctx: CellContext | undefined
+): Plan {
   // Whatever the caller hands over, only a configuration that fits the schema is drawn.
   const config = normalizeChartConfig(raw, schema)
   const today = todayISO(now ?? new Date())
@@ -579,7 +599,13 @@ function coloursFor(groups: readonly Group[], palette: ChartConfig['palette'], p
   return colourSlots(groups).map((slot) => CHART_COLOURS[slot])
 }
 
-function emptyData(config: ChartConfig, status: ChartStatus, labels: { x: string; y: string }, yFormat: ChartYFormat, additive: boolean): ChartData {
+function emptyData(
+  config: ChartConfig,
+  status: ChartStatus,
+  labels: { x: string; y: string },
+  yFormat: ChartYFormat,
+  additive: boolean
+): ChartData {
   return {
     status,
     kind: config.kind,
@@ -722,7 +748,8 @@ export function buildChartData(
   if (sort === 'x_asc' || sort === 'x_desc') {
     const direction = sort === 'x_asc' ? 1 : -1
     groups.sort((a, b) => {
-      const byNumber = a.sortNumber !== undefined && b.sortNumber !== undefined ? a.sortNumber - b.sortNumber : compareLabels(a.label, b.label)
+      const byNumber =
+        a.sortNumber !== undefined && b.sortNumber !== undefined ? a.sortNumber - b.sortNumber : compareLabels(a.label, b.label)
       return (byNumber || a.order - b.order) * direction
     })
   } else if (sort === 'y_asc' || sort === 'y_desc') {
@@ -877,7 +904,12 @@ export function chartRowsAt(
  * A value of the chart as text, in the number format of the property it was computed
  * from. `compact` (axis ticks) abbreviates large numbers: 12K, 3.4M.
  */
-export function formatChartValue(value: number | null | undefined, yFormat: ChartYFormat, opts: FormatOptions = {}, compact = false): string {
+export function formatChartValue(
+  value: number | null | undefined,
+  yFormat: ChartYFormat,
+  opts: FormatOptions = {},
+  compact = false
+): string {
   if (typeof value !== 'number' || !isFinite(value)) return '–'
   try {
     if (yFormat.numberFormat === 'percent') {
@@ -959,12 +991,21 @@ export interface ChartTable {
  */
 export function chartTable(data: ChartData, opts: FormatOptions = {}, raw = false): ChartTable {
   const cell = (value: number | null): string =>
-    raw ? (typeof value === 'number' && isFinite(value) ? String(value) : '') : value === null ? '' : formatChartValue(value, data.yFormat, opts)
+    raw
+      ? typeof value === 'number' && isFinite(value)
+        ? String(value)
+        : ''
+      : value === null
+        ? ''
+        : formatChartValue(value, data.yFormat, opts)
   if (data.kind === 'number') {
     return { header: ['Measure', 'Value'], rows: [[data.yLabel, cell(data.total)]] }
   }
   const header = [data.xLabel || 'Category', ...(data.split ? data.series.map((series) => series.label) : [data.yLabel])]
-  const rows = data.categories.map((category, index) => [category.label, ...data.series.map((series) => cell(series.values[index] ?? null))])
+  const rows = data.categories.map((category, index) => [
+    category.label,
+    ...data.series.map((series) => cell(series.values[index] ?? null))
+  ])
   return { header, rows }
 }
 

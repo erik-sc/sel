@@ -17,9 +17,19 @@ import './newPage.css'
 /** The kinds of page "New page ▸" offers, made under `parentId` (the workspace root when null). */
 export function newPageItems(parentId: string | null): MenuItem[] {
   return [
-    { id: 'new-page-blank', label: 'Page', icon: <Page />, onSelect: () => void createPage(parentId).catch(reportError('create the page')) },
+    {
+      id: 'new-page-blank',
+      label: 'Page',
+      icon: <Page />,
+      onSelect: () => void createPage(parentId).catch(reportError('create the page'))
+    },
     { id: 'new-page-latex', label: latexShellCopy().newDocument, icon: <Sigma />, onSelect: () => newLatexDocument(parentId) },
-    { id: 'new-page-template', label: templatesCopy().open, icon: <Board />, onSelect: () => (parentId ? openTemplates({ pageId: parentId, inside: true }) : openTemplates()) }
+    {
+      id: 'new-page-template',
+      label: templatesCopy().open,
+      icon: <Board />,
+      onSelect: () => (parentId ? openTemplates({ pageId: parentId, inside: true }) : openTemplates())
+    }
   ]
 }
 

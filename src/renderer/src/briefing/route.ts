@@ -23,7 +23,13 @@ export function isCalendarRoute(pageId: string | null | undefined): boolean {
 
 /** The name of the built-in screen a tab shows, or null when it shows a stored page (or nothing). */
 export function routeTitle(pageId: string | null | undefined): string | null {
-  return pageId === TODAY_ROUTE ? TODAY_TITLE : pageId === CALENDAR_ROUTE ? CALENDAR_TITLE : pageId === TASKS_ROUTE ? TASKS_TITLE : (notebookRouteTitle(pageId) ?? skyRouteTitle(pageId))
+  return pageId === TODAY_ROUTE
+    ? TODAY_TITLE
+    : pageId === CALENDAR_ROUTE
+      ? CALENDAR_TITLE
+      : pageId === TASKS_ROUTE
+        ? TASKS_TITLE
+        : (notebookRouteTitle(pageId) ?? skyRouteTitle(pageId))
 }
 
 export function openToday(): void {

@@ -41,7 +41,14 @@ import { computeRollup, rollupKind, DEFAULT_ROLLUP } from './rollup'
 import { findOption, formatNumber, getCellValue, isPlainObject, orderedProperties, propOf, type Schema } from './values'
 
 export { FORMULA_LIMITS, lineColumn, type FormulaProblem } from './formulaSyntax'
-export { FORMULA_FUNCTIONS, FORMULA_OPERATORS, FORMULA_TYPE_LABELS, isEmptyFormulaValue, type FormulaType, type FormulaValue } from './formulaEngine'
+export {
+  FORMULA_FUNCTIONS,
+  FORMULA_OPERATORS,
+  FORMULA_TYPE_LABELS,
+  isEmptyFormulaValue,
+  type FormulaType,
+  type FormulaValue
+} from './formulaEngine'
 
 /** What a new formula holds: nothing yet (its cells stay empty). */
 export const DEFAULT_FORMULA: FormulaConfig = { expression: '' }
@@ -204,7 +211,8 @@ function compileAll(schema: Schema, override?: { id: string; text: string }): Ma
       if (target.type !== 'formula') return { id: target.id, type: plainType(target) }
       const compiled = out.get(target.id)
       if (!compiled?.ok) return { error: `${target.name} has an error` }
-      if (depth + 1 > FORMULA_LIMITS.chain) return { error: `Too many formulas read one another (at most ${FORMULA_LIMITS.chain} in a chain)` }
+      if (depth + 1 > FORMULA_LIMITS.chain)
+        return { error: `Too many formulas read one another (at most ${FORMULA_LIMITS.chain} in a chain)` }
       return { id: target.id, type: compiled.formula.type }
     }
     out.set(id, checkFormula(ast, resolve))
@@ -371,7 +379,11 @@ export function formulaCellValue(outcome: FormulaOutcome | null): number | strin
  * A formula result as text: formatted like a number, date or checkbox cell (a number in the
  * property's own number format, when it has one). Empty for an error.
  */
-export function formulaText(outcome: FormulaOutcome | null, opts: FormatOptions = {}, format: PropertySchema['numberFormat'] = 'number'): string {
+export function formulaText(
+  outcome: FormulaOutcome | null,
+  opts: FormatOptions = {},
+  format: PropertySchema['numberFormat'] = 'number'
+): string {
   if (!outcome?.ok) return ''
   const value = outcome.value
   if (value === null) return ''
@@ -521,7 +533,8 @@ export function formulaCompletions(text: string, caret: number, schema: Schema, 
     insert: `${fn.name}(`,
     detail: fn.help
   }))
-  if ('prop'.startsWith(prefix)) functions.unshift({ kind: 'function', label: 'prop', insert: 'prop("', detail: 'The value of a property of the row' })
+  if ('prop'.startsWith(prefix))
+    functions.unshift({ kind: 'function', label: 'prop', insert: 'prop("', detail: 'The value of a property of the row' })
   const items = [...functions, ...propertyItems(schema, word[0], selfId)]
   const exact = items.length === 1 && items[0].kind === 'function' && items[0].label === word[0] && text[caret] === '('
   if (!items.length || exact) return null

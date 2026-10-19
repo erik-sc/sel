@@ -67,7 +67,12 @@ export function RecordingIndicator(): JSX.Element | null {
   if (!recording) return null
   const elapsed = recording.elapsedMs + (running ? Math.max(0, now - at) : 0)
   return (
-    <button type="button" className={running ? 'recording-indicator' : 'recording-indicator is-paused'} title="Go to the meeting being recorded" onClick={() => openPage(recording.pageId)}>
+    <button
+      type="button"
+      className={running ? 'recording-indicator' : 'recording-indicator is-paused'}
+      title="Go to the meeting being recorded"
+      onClick={() => openPage(recording.pageId)}
+    >
       <span className="recording-indicator-dot" aria-hidden="true" />
       <span>{running ? 'Recording' : 'Paused'}</span>
       <span className="recording-indicator-time">{clock(elapsed)}</span>

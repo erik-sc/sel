@@ -55,7 +55,9 @@ function QuickAddWindow(): JSX.Element {
           onCancel={close}
         />
       ) : (
-        <p className="qa-window-note">{resolved?.status === 'loading' || !resolved ? 'Opening Tasks…' : 'The Tasks database could not be opened.'}</p>
+        <p className="qa-window-note">
+          {resolved?.status === 'loading' || !resolved ? 'Opening Tasks…' : 'The Tasks database could not be opened.'}
+        </p>
       )}
     </div>
   )

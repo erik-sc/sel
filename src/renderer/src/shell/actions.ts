@@ -25,10 +25,7 @@ export function logError(action: string) {
 }
 
 /** Creates an empty page (at the workspace root when parentId is null) and opens it. */
-export async function createPage(
-  parentId: string | null,
-  opts: { open?: boolean; newTab?: boolean } = {}
-): Promise<string> {
+export async function createPage(parentId: string | null, opts: { open?: boolean; newTab?: boolean } = {}): Promise<string> {
   const id = newId()
   const done = applyOps([{ op: 'create', input: { id, type: 'page', parentId, props: {} } }])
   if (parentId) setExpanded(parentId, true)
@@ -137,9 +134,7 @@ export async function dropPage(dragId: string, targetId: string, position: DropP
       afterId = targetId
     } else {
       const parent = getBlock(parentId)
-      const siblings = parent?.content.includes(targetId)
-        ? parent.content
-        : (useTree.getState().children[parentId ?? ROOT] ?? [])
+      const siblings = parent?.content.includes(targetId) ? parent.content : (useTree.getState().children[parentId ?? ROOT] ?? [])
       const withoutDragged = siblings.filter((s) => s !== dragId)
       const index = withoutDragged.indexOf(targetId)
       afterId = index > 0 ? withoutDragged[index - 1] : null

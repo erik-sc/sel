@@ -179,7 +179,10 @@ export function splitPlan(tree: Tree, id: string, start: number, end: number, ne
   const right = slice(title, to)
   if (visibleChildren(tree, b).length > 0) {
     const childType: BlockType = b.type === 'toggle' ? 'text' : type
-    ops.push({ op: 'create', input: { id: id2, type: childType, parentId: id, afterId: null, props: { ...fresh(childType), title: right } } })
+    ops.push({
+      op: 'create',
+      input: { id: id2, type: childType, parentId: id, afterId: null, props: { ...fresh(childType), title: right } }
+    })
   } else {
     ops.push({ op: 'create', input: { id: id2, type, parentId: b.parentId, afterId: id, props: { ...fresh(type), title: right } } })
   }
@@ -218,7 +221,11 @@ export function backspacePlan(tree: Tree, id: string): Plan {
     return { do: 'commit', ops, after: textSel(prev, rtLength(theirs)) }
   }
   if (empty && b.content.length === 0) {
-    return { do: 'commit', ops: [{ op: 'delete', id }], after: isPlainTextType(pb.type) ? textSel(prev, END) : { kind: 'blocks', ids: [prev] } }
+    return {
+      do: 'commit',
+      ops: [{ op: 'delete', id }],
+      after: isPlainTextType(pb.type) ? textSel(prev, END) : { kind: 'blocks', ids: [prev] }
+    }
   }
   return { do: 'focus', id: prev, where: 'end' }
 }

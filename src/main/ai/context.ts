@@ -55,18 +55,29 @@ export interface WorkspaceContext {
 /** A title as one line of the outline. */
 function title(block: Block | null | undefined): string {
   // eslint-disable-next-line no-control-regex
-  const text = plainText(block?.props.title).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/[[\]]/g, ' ').replace(/\s+/g, ' ').trim()
+  const text = plainText(block?.props.title)
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/[[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
   if (!text) return 'Untitled'
   return text.length > CONTEXT_CAPS.title ? `${text.slice(0, CONTEXT_CAPS.title - 1)}…` : text
 }
 
-const live = (block: Block | null | undefined): block is Block => !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database')
+const live = (block: Block | null | undefined): block is Block =>
+  !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database')
 
 const label = (block: Block): string => `${title(block)} [${block.id}]${block.type === 'database' ? ' (database)' : ''}`
 
 function oneLine(value: unknown, max: number): string {
   // eslint-disable-next-line no-control-regex
-  return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : ''
+  return typeof value === 'string'
+    ? value
+        .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, max)
+    : ''
 }
 
 /**
@@ -177,16 +188,23 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
     }
   }
 
-  parts.push(`Now: ${new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(now)}`)
+  parts.push(
+    `Now: ${new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(now)}`
+  )
 
   const current = request.pageId ? source.get(request.pageId) : null
   part(() => {
     if (!live(current)) return 'Current page: none (the user is not on a page)'
     const path = source.ancestors(current.id).filter(live).map(title)
-    const lines = [`Current page: ${label(current)}`, `Where it is: ${path.length ? `${path.join(' / ')} / ${title(current)}` : 'at the top level'}`]
+    const lines = [
+      `Current page: ${label(current)}`,
+      `Where it is: ${path.length ? `${path.join(' / ')} / ${title(current)}` : 'at the top level'}`
+    ]
     if (current.type === 'database') {
       const schema = describeSchema(current, source)
-      lines.push(`It is a database with ${current.content.length} row${current.content.length === 1 ? '' : 's'}${schema ? `. Properties: ${schema}` : ''}`)
+      lines.push(
+        `It is a database with ${current.content.length} row${current.content.length === 1 ? '' : 's'}${schema ? `. Properties: ${schema}` : ''}`
+      )
     } else {
       const children = source.listChildren(current.id).filter(live).slice(0, CONTEXT_CAPS.children)
       if (children.length) lines.push('Inside it:', ...children.map((child) => `- ${label(child)}`))
@@ -212,7 +230,10 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
   })
 
   part(() => {
-    const recent = source.listRecent(CONTEXT_CAPS.recent + 1).filter((block) => live(block) && block.id !== current?.id).slice(0, CONTEXT_CAPS.recent)
+    const recent = source
+      .listRecent(CONTEXT_CAPS.recent + 1)
+      .filter((block) => live(block) && block.id !== current?.id)
+      .slice(0, CONTEXT_CAPS.recent)
     return recent.length ? `Edited lately:\n${recent.map((block) => `- ${label(block)}`).join('\n')}` : null
   })
 
@@ -228,7 +249,9 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
       const { markdown } = source.pageToMarkdown(id)
       if (!markdown.trim()) continue
       const path = source.ancestors(id).filter(live).map(title)
-      excerpts.push(`=== ${label(page)}${path.length ? `, in ${path.join(' / ')}` : ''} ===\n${truncateMiddle(markdown.trim(), CONTEXT_CAPS.excerpt)}`)
+      excerpts.push(
+        `=== ${label(page)}${path.length ? `, in ${path.join(' / ')}` : ''} ===\n${truncateMiddle(markdown.trim(), CONTEXT_CAPS.excerpt)}`
+      )
     }
     if (excerpts.length) out.related = truncateMiddle(excerpts.join('\n\n'), CONTEXT_CAPS.relatedSection)
   } catch (err) {

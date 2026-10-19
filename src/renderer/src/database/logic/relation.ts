@@ -169,7 +169,12 @@ export function relationWrites(row: Block, prop: PropertySchema, next: unknown, 
     const other = targetRow(id)
     if (!other) continue
     const ids = idsOf(other, partner.id, partner.config.limit)
-    if (ids.includes(row.id)) write(other, partner.id, ids.filter((x) => x !== row.id))
+    if (ids.includes(row.id))
+      write(
+        other,
+        partner.id,
+        ids.filter((x) => x !== row.id)
+      )
   }
   write(row, prop.id, after)
   for (const id of after) {
@@ -184,7 +189,12 @@ export function relationWrites(row: Block, prop: PropertySchema, next: unknown, 
         const block = ctx.get(previous)
         if (!block || block.id === row.id || block.type !== 'page' || block.parentId !== sourceId) continue
         const theirs = idsOf(block, prop.id, config.limit)
-        if (theirs.includes(other.id)) write(block, prop.id, theirs.filter((x) => x !== other.id))
+        if (theirs.includes(other.id))
+          write(
+            block,
+            prop.id,
+            theirs.filter((x) => x !== other.id)
+          )
       }
       write(other, partner.id, [row.id])
     } else if (ids.length < MAX_RELATION_LINKS) {

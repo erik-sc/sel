@@ -17,7 +17,10 @@ describe('the place of the pomodoro widget', () => {
 
   it('sits to Herman’s left, on his base line', () => {
     const dock = herman()
-    expect(placeWidget({ width: W, height: H, widget, herman: dock, obstacles: [] })).toEqual({ right: 22 + 60 + GAP, bottom: 18 + BASELINE })
+    expect(placeWidget({ width: W, height: H, widget, herman: dock, obstacles: [] })).toEqual({
+      right: 22 + 60 + GAP,
+      bottom: 18 + BASELINE
+    })
   })
 
   it('moves further left when his bubble widens his corner, so as never to cover it', () => {
@@ -30,18 +33,27 @@ describe('the place of the pomodoro widget', () => {
   it('goes above him when the content is too narrow for both side by side', () => {
     const narrow = 300
     const dock: Box = { left: narrow - 22 - 200, right: narrow - 22, top: H - 18 - 90, bottom: H - 18 }
-    expect(placeWidget({ width: narrow, height: H, widget, herman: dock, obstacles: [] })).toEqual({ right: EDGE.right, bottom: 18 + 90 + GAP })
+    expect(placeWidget({ width: narrow, height: H, widget, herman: dock, obstacles: [] })).toEqual({
+      right: EDGE.right,
+      bottom: 18 + 90 + GAP
+    })
   })
 
   it('rises above a toast it would cover, and above the next one that is then in the way', () => {
     const toast: Box = { left: W - 300, right: W - 4, top: H - 60, bottom: H - 4 }
     const second: Box = { left: W - 300, right: W - 4, top: H - 110, bottom: H - 68 }
     expect(placeWidget({ width: W, height: H, widget, herman: null, obstacles: [toast] })).toEqual({ right: EDGE.right, bottom: 60 + GAP })
-    expect(placeWidget({ width: W, height: H, widget, herman: null, obstacles: [toast, second] })).toEqual({ right: EDGE.right, bottom: 110 + GAP })
+    expect(placeWidget({ width: W, height: H, widget, herman: null, obstacles: [toast, second] })).toEqual({
+      right: EDGE.right,
+      bottom: 110 + GAP
+    })
   })
 
   it('leaves alone what it does not cover', () => {
     const away: Box = { left: 10, right: 200, top: H - 60, bottom: H - 10 }
-    expect(placeWidget({ width: W, height: H, widget, herman: herman(), obstacles: [away] })).toEqual({ right: 22 + 60 + GAP, bottom: 18 + BASELINE })
+    expect(placeWidget({ width: W, height: H, widget, herman: herman(), obstacles: [away] })).toEqual({
+      right: 22 + 60 + GAP,
+      bottom: 18 + BASELINE
+    })
   })
 })

@@ -90,7 +90,9 @@ describe('highlight', () => {
     expect(lines[0]).toBe(
       '<span class="tex-cmd">\\section</span><span class="tex-brace">{</span>A<span class="tex-brace">}</span> <span class="tex-comment">% note</span>'
     )
-    expect(lines[1]).toContain('<span class="tex-math-delim">$</span><span class="tex-math">x</span><span class="tex-special tex-math">^</span>')
+    expect(lines[1]).toContain(
+      '<span class="tex-math-delim">$</span><span class="tex-math">x</span><span class="tex-special tex-math">^</span>'
+    )
     expect(lines[1]).toContain('<span class="tex-env">equation</span>')
     expect(lines[2]).toBe('<span class="tex-math">y</span>')
     expect(lines[4]).toBe('')
@@ -101,6 +103,9 @@ describe('highlight', () => {
   })
 
   it('marks find results, across lines', () => {
-    expect(markLines('ab\ncd', [{ start: 1, end: 4 }], 0)).toEqual(['a<mark class="latex-mark is-current">b</mark>', '<mark class="latex-mark is-current">c</mark>d'])
+    expect(markLines('ab\ncd', [{ start: 1, end: 4 }], 0)).toEqual([
+      'a<mark class="latex-mark is-current">b</mark>',
+      '<mark class="latex-mark is-current">c</mark>d'
+    ])
   })
 })

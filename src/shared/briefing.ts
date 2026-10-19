@@ -31,7 +31,15 @@ export function isCalendarColor(value: unknown): value is CalendarColor {
 }
 
 /** Why a calendar could not be read. Never accompanied by its address. */
-export type CalendarErrorCode = 'offline' | 'not-found' | 'forbidden' | 'not-calendar' | 'too-large' | 'timeout' | 'blocked-address' | 'failed'
+export type CalendarErrorCode =
+  | 'offline'
+  | 'not-found'
+  | 'forbidden'
+  | 'not-calendar'
+  | 'too-large'
+  | 'timeout'
+  | 'blocked-address'
+  | 'failed'
 
 export const CALENDAR_ERROR_TEXT: Record<CalendarErrorCode, string> = {
   offline: 'The calendar could not be reached. You may be offline.',
@@ -59,7 +67,11 @@ export const BRIEFING_LIMITS = {
 export function cleanCalendarLabel(value: unknown, fallback: string): string {
   if (typeof value !== 'string') return fallback
   // eslint-disable-next-line no-control-regex
-  const label = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, BRIEFING_LIMITS.label)
+  const label = value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, BRIEFING_LIMITS.label)
   return label || fallback
 }
 
@@ -275,7 +287,10 @@ export function cleanBriefingSetting(key: string, value: unknown): unknown {
     case 'briefing.name': {
       if (typeof value !== 'string') return undefined
       // eslint-disable-next-line no-control-regex
-      const name = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()
+      const name = value
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
       return name.length <= BRIEFING_LIMITS.name ? name : undefined
     }
     case 'briefing.includeNoDate':

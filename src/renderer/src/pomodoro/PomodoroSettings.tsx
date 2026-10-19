@@ -88,10 +88,17 @@ export function PomodoroSection(): JSX.Element {
         </div>
         <div className="ap-list">
           <Row label="Enter focus mode" help="Starting a pomodoro hides everything but the page.">
-            <Segmented label="Enter focus mode" value={settings.focusMode ? 'on' : 'off'} options={ON_OFF} onChange={(value) => save('focusMode', value === 'on')} />
+            <Segmented
+              label="Enter focus mode"
+              value={settings.focusMode ? 'on' : 'off'}
+              options={ON_OFF}
+              onChange={(value) => save('focusMode', value === 'on')}
+            />
           </Row>
         </div>
-        <p className="ap-note">Start one from the View menu, the command palette or {SHORTCUT}. Nothing rings while a meeting is being recorded.</p>
+        <p className="ap-note">
+          Start one from the View menu, the command palette or {SHORTCUT}. Nothing rings while a meeting is being recorded.
+        </p>
       </section>
     </div>
   )

@@ -33,5 +33,7 @@ export function stateLine(status: McpStatus | null): { text: string; error: bool
 export function callTime(at: number, now: Date = new Date(), locale?: string): string {
   const when = new Date(at)
   const time = when.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  return when.toDateString() === now.toDateString() ? time : `${when.toLocaleDateString(locale, { day: 'numeric', month: 'short' })} ${time}`
+  return when.toDateString() === now.toDateString()
+    ? time
+    : `${when.toLocaleDateString(locale, { day: 'numeric', month: 'short' })} ${time}`
 }

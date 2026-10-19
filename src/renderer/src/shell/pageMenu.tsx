@@ -1,6 +1,23 @@
 import type { Block } from '@shared/types'
 import type { MenuItem } from '@/ui/Menu'
-import { Archive, ArrowUpRight, Board, Check, Clock, Copy, Home, Page, Plus, Sigma, Sparkle, Star, StarFilled, Text, Trash, Type } from '@/ui/icons'
+import {
+  Archive,
+  ArrowUpRight,
+  Board,
+  Check,
+  Clock,
+  Copy,
+  Home,
+  Page,
+  Plus,
+  Sigma,
+  Sparkle,
+  Star,
+  StarFilled,
+  Text,
+  Trash,
+  Type
+} from '@/ui/icons'
 import { isLatexDocument, newLatexDocument } from '@/latex/gate'
 import { latexShellCopy } from '@/latex/locale'
 import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/actions'
@@ -15,15 +32,7 @@ import { preloadVersionHistory } from '@/versions/VersionHistory'
 import { openTemplates, templatesCopy } from '@/templates/gate'
 import { isSystemBlock } from '@shared/system'
 import { sourceIdOf } from './linked'
-import {
-  createPage,
-  duplicatePage,
-  exportMarkdown,
-  reportError,
-  toggleFavorite,
-  toggleFullWidth,
-  trashPage
-} from './actions'
+import { createPage, duplicatePage, exportMarkdown, reportError, toggleFavorite, toggleFullWidth, trashPage } from './actions'
 
 /**
  * The last item of both menus. A linked view is not moved to the Trash: it holds no
@@ -118,7 +127,12 @@ export function sidebarPageMenu(block: Block): MenuItem[] {
         icon: <Page />,
         onSelect: () => void createPage(id).catch(reportError('create the page'))
       },
-      { id: 'add-template', label: templatesCopy().openInside, icon: <Board />, onSelect: () => openTemplates({ pageId: id, inside: true }) },
+      {
+        id: 'add-template',
+        label: templatesCopy().openInside,
+        icon: <Board />,
+        onSelect: () => openTemplates({ pageId: id, inside: true })
+      },
       {
         id: 'add-latex',
         label: latexShellCopy().addInside,

@@ -101,9 +101,7 @@ describe('the Markdown group', () => {
 
 // What each editor entry makes the block's key handler (editor/keyboard.ts) do. Every editor entry
 // must be here, so a key added to the list or dropped from the editor shows up as a failure.
-type Expectation =
-  | { calls: string; args?: unknown[]; selection?: 'some' | 'all'; empty?: boolean }
-  | { elsewhere: string }
+type Expectation = { calls: string; args?: unknown[]; selection?: 'some' | 'all'; empty?: boolean } | { elsewhere: string }
 
 const EDITOR: Record<string, Expectation> = {
   'insert-block': { elsewhere: 'typing / opens the slash menu (editor/typingHooks.ts)' },
@@ -172,7 +170,11 @@ function press(accelerator: string, text: string, start: number, end: number) {
 
 describe('the Editor group', () => {
   it('has an expectation for every entry', () => {
-    expect(group('editor').map((e) => e.id).sort()).toEqual(Object.keys(EDITOR).sort())
+    expect(
+      group('editor')
+        .map((e) => e.id)
+        .sort()
+    ).toEqual(Object.keys(EDITOR).sort())
   })
 
   for (const entry of group('editor')) {
@@ -182,7 +184,8 @@ describe('the Editor group', () => {
       expect(entry.keys?.length).toBeGreaterThan(0)
       for (const accelerator of entry.keys ?? []) {
         const text = expected.empty ? '' : 'hello'
-        const [start, end] = expected.selection === 'all' ? [0, 5] : expected.selection === 'some' ? [1, 3] : expected.empty ? [0, 0] : [2, 2]
+        const [start, end] =
+          expected.selection === 'all' ? [0, 5] : expected.selection === 'some' ? [1, 3] : expected.empty ? [0, 0] : [2, 2]
         const { calls, prevented } = press(accelerator, text, start, end)
         expect(prevented, accelerator).toBe(true)
         const call = calls.find((c) => c.method === expected.calls)

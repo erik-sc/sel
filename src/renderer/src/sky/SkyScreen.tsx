@@ -117,7 +117,10 @@ export function SkyScreen(): JSX.Element {
   const thisYear = view ? Number(view.today.slice(0, 4)) : null
   const scene = useMemo(() => (view ? skyScene(view, thisYear!, view.today, { events: view.events }) : null), [view, thisYear])
   const shownYear = year ?? thisYear
-  const other = useMemo(() => (view && shownYear !== null && shownYear !== thisYear ? skyScene(view, shownYear, view.today) : null), [view, shownYear, thisYear])
+  const other = useMemo(
+    () => (view && shownYear !== null && shownYear !== thisYear ? skyScene(view, shownYear, view.today) : null),
+    [view, shownYear, thisYear]
+  )
 
   // What plays: once on opening, then whatever arrives while the screen is open.
   useEffect(() => {
@@ -133,7 +136,8 @@ export function SkyScreen(): JSX.Element {
         void window.api.sky.moment({ kind: 'night' }).catch(() => undefined)
       }
       const named = newestNamed(scene)
-      if (next?.named?.length) void window.api.sky.moment({ kind: 'named', month: next.named[next.named.length - 1] }).catch(() => undefined)
+      if (next?.named?.length)
+        void window.api.sky.moment({ kind: 'named', month: next.named[next.named.length - 1] }).catch(() => undefined)
       if (named && named !== local.namedShown) remember(SKY_NAMED_SHOWN_KEY, named)
     } else if (shown.current) {
       next = changesPlay(shown.current, scene)
@@ -231,7 +235,12 @@ export function SkyScreen(): JSX.Element {
           <ul className="sky-earlier-list">
             {earlier.map((y) => (
               <li key={y}>
-                <button type="button" className="sky-earlier-item" aria-pressed={shownYear === y} onClick={() => setYear(shownYear === y ? null : y)}>
+                <button
+                  type="button"
+                  className="sky-earlier-item"
+                  aria-pressed={shownYear === y}
+                  onClick={() => setYear(shownYear === y ? null : y)}
+                >
                   <SkyChart scene={skyScene(view, y, view.today)} copy={copy} locale={view.locale} reduced={reduced} small />
                   <span>{copy.skyOf(y)}</span>
                 </button>

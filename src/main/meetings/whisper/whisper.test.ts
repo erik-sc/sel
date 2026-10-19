@@ -12,7 +12,18 @@ import { wavHeader } from '../wav'
 import { checkDownloadUrl, DownloadError, downloadVerified, sha256File, type DownloadOptions } from './download'
 import { WhisperEngine } from './engine'
 import { DOWNLOAD_HOSTS, PINNED, type PinnedFile, type PinnedSet } from './pinned'
-import { buildWhisperArgs, parseProgress, parseWhisperJson, runWhisper, sanitiseStderr, WhisperError, whisperEnv, whisperThreads, whisperTimeoutMs, type WhisperProgram } from './run'
+import {
+  buildWhisperArgs,
+  parseProgress,
+  parseWhisperJson,
+  runWhisper,
+  sanitiseStderr,
+  WhisperError,
+  whisperEnv,
+  whisperThreads,
+  whisperTimeoutMs,
+  type WhisperProgram
+} from './run'
 import { extractZip, isSafeEntryName, readZipDirectory, ZipError, ZIP_LIMITS } from './zip'
 
 const ROOT = mkdtempSync(join(tmpdir(), 'sel-whisper-'))
@@ -56,7 +67,10 @@ const file =
     const from = match && !options.ignoreRange ? Number(match[1]) : 0
     if (from >= bytes.length && from > 0) return void response.writeHead(416, { 'Content-Range': `bytes */${bytes.length}` }).end()
     const body = bytes.subarray(from)
-    response.writeHead(from > 0 ? 206 : 200, { 'Content-Length': body.length, ...(from > 0 ? { 'Content-Range': `bytes ${from}-${bytes.length - 1}/${bytes.length}` } : {}) })
+    response.writeHead(from > 0 ? 206 : 200, {
+      'Content-Length': body.length,
+      ...(from > 0 ? { 'Content-Range': `bytes ${from}-${bytes.length - 1}/${bytes.length}` } : {})
+    })
     if (options.cutAfter !== undefined && from === 0) {
       // Sends a part and drops the connection: a transfer that broke.
       response.write(body.subarray(0, options.cutAfter), () => response.destroy())
@@ -86,8 +100,10 @@ describe('the pinned downloads', () => {
       expect(DOWNLOAD_HOSTS.has(url.hostname)).toBe(true)
     }
     // The program comes from one build tag, the models from one revision: neither is "latest".
-    for (const program of Object.values(PINNED.programs)) expect(program.url).toMatch(/^https:\/\/github\.com\/ggml-org\/whisper\.cpp\/releases\/download\/b\d+\/whisper-bin-[\w-]+\.zip$/)
-    for (const model of Object.values(PINNED.models)) expect(model.url).toMatch(/^https:\/\/huggingface\.co\/ggerganov\/whisper\.cpp\/resolve\/[0-9a-f]{40}\/ggml-[\w.-]+\.bin$/)
+    for (const program of Object.values(PINNED.programs))
+      expect(program.url).toMatch(/^https:\/\/github\.com\/ggml-org\/whisper\.cpp\/releases\/download\/b\d+\/whisper-bin-[\w-]+\.zip$/)
+    for (const model of Object.values(PINNED.models))
+      expect(model.url).toMatch(/^https:\/\/huggingface\.co\/ggerganov\/whisper\.cpp\/resolve\/[0-9a-f]{40}\/ggml-[\w.-]+\.bin$/)
     expect(new Set(files.map((entry) => entry.sha256)).size).toBe(files.length)
     // Multilingual models only.
     for (const model of Object.values(PINNED.models)) expect(model.file).not.toMatch(/\.en\./)
@@ -98,7 +114,9 @@ describe('download addresses', () => {
   const policy = { hosts: DOWNLOAD_HOSTS }
   it('accepts the allow-listed hosts over https and nothing else', () => {
     expect(checkDownloadUrl(PINNED.models.small.url, policy).hostname).toBe('huggingface.co')
-    expect(checkDownloadUrl('https://release-assets.githubusercontent.com/x/y?sig=1', policy).hostname).toBe('release-assets.githubusercontent.com')
+    expect(checkDownloadUrl('https://release-assets.githubusercontent.com/x/y?sig=1', policy).hostname).toBe(
+      'release-assets.githubusercontent.com'
+    )
     for (const url of [
       'http://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip',
       'https://github.com.evil.example/whisper-bin-x64.zip',
@@ -119,13 +137,20 @@ describe('download addresses', () => {
   })
   it('lets the loopback seam through only when it is on', () => {
     expect(checkDownloadUrl('http://127.0.0.1:8080/x', { hosts: DOWNLOAD_HOSTS, policy: { allowLoopbackHttp: true } }).port).toBe('8080')
-    expect(() => checkDownloadUrl('http://192.168.1.2:8080/x', { hosts: DOWNLOAD_HOSTS, policy: { allowLoopbackHttp: true } })).toThrow(DownloadError)
+    expect(() => checkDownloadUrl('http://192.168.1.2:8080/x', { hosts: DOWNLOAD_HOSTS, policy: { allowLoopbackHttp: true } })).toThrow(
+      DownloadError
+    )
   })
 })
 
 describe('downloading a pinned file', () => {
   const bytes = Buffer.from(Array.from({ length: 300_000 }, (_, i) => (i * 7) % 256))
-  const spec = (url: string, overrides: Partial<PinnedFile> = {}): PinnedFile => ({ url, size: bytes.length, sha256: sha256(bytes), ...overrides })
+  const spec = (url: string, overrides: Partial<PinnedFile> = {}): PinnedFile => ({
+    url,
+    size: bytes.length,
+    sha256: sha256(bytes),
+    ...overrides
+  })
 
   it('downloads, verifies and renames into place, reporting progress', async () => {
     const { base } = await serve({ '/model.bin': file(bytes) })
@@ -162,7 +187,9 @@ describe('downloading a pinned file', () => {
   it('deletes a file whose digest is not the pinned one', async () => {
     const { base } = await serve({ '/model.bin': file(bytes) })
     const target = join(fresh('digest'), 'model.bin')
-    const failure = await downloadVerified(spec(`${base}/model.bin`, { sha256: '0'.repeat(64) }), target, LOOPBACK).catch((err: unknown) => err)
+    const failure = await downloadVerified(spec(`${base}/model.bin`, { sha256: '0'.repeat(64) }), target, LOOPBACK).catch(
+      (err: unknown) => err
+    )
     expect(failure).toBeInstanceOf(DownloadError)
     expect((failure as DownloadError).reason).toBe('digest-mismatch')
     expect((failure as DownloadError).message).toMatch(/checksum/)
@@ -238,7 +265,11 @@ describe('downloading a pinned file', () => {
     })
     const target = join(fresh('cancel'), 'model.bin')
     const abort = new AbortController()
-    const work = downloadVerified(spec(`${base}/slow.bin`), target, { ...LOOPBACK, signal: abort.signal, onProgress: (received) => received >= 50_000 && abort.abort() })
+    const work = downloadVerified(spec(`${base}/slow.bin`), target, {
+      ...LOOPBACK,
+      signal: abort.signal,
+      onProgress: (received) => received >= 50_000 && abort.abort()
+    })
     expect(await reason(work)).toBe('cancelled')
     expect(existsSync(target)).toBe(false)
     expect(statSync(`${target}.part`).size).toBe(50_000)
@@ -246,12 +277,16 @@ describe('downloading a pinned file', () => {
 
   it('stops when the transfer goes quiet', async () => {
     const { base } = await serve({ '/stall.bin': (_request, response) => void response.writeHead(200, { 'Content-Length': bytes.length }) })
-    expect(await reason(downloadVerified(spec(`${base}/stall.bin`), join(fresh('stall'), 'm.bin'), { ...LOOPBACK, idleMs: 150 }))).toBe('timeout')
+    expect(await reason(downloadVerified(spec(`${base}/stall.bin`), join(fresh('stall'), 'm.bin'), { ...LOOPBACK, idleMs: 150 }))).toBe(
+      'timeout'
+    )
   })
 
   it('does not start without room on the disk, and reports a missing file', async () => {
     const { base, hits } = await serve({})
-    expect(await reason(downloadVerified(spec(`${base}/model.bin`), join(fresh('full'), 'm.bin'), { ...LOOPBACK, freeBytes: async () => 1024 }))).toBe('disk-full')
+    expect(
+      await reason(downloadVerified(spec(`${base}/model.bin`), join(fresh('full'), 'm.bin'), { ...LOOPBACK, freeBytes: async () => 1024 }))
+    ).toBe('disk-full')
     expect(hits).toHaveLength(0)
     expect(await reason(downloadVerified(spec(`${base}/gone.bin`), join(fresh('gone'), 'm.bin'), LOOPBACK))).toBe('not-found')
   })
@@ -327,9 +362,17 @@ describe('unpacking the program archive', () => {
   const all = (entry: { name: string }): string | null => entry.name.split('/').pop() ?? null
 
   it('reads the directory and writes only what was asked for, flat', async () => {
-    expect(readZipDirectory(release).map((entry) => entry.name)).toEqual(['Release/whisper-cli.exe', 'Release/whisper.dll', 'Release/ggml.dll', 'Release/whisper-server.exe', 'docs/readme.txt'])
+    expect(readZipDirectory(release).map((entry) => entry.name)).toEqual([
+      'Release/whisper-cli.exe',
+      'Release/whisper.dll',
+      'Release/ggml.dll',
+      'Release/whisper-server.exe',
+      'docs/readme.txt'
+    ])
     const dir = join(fresh('zip'), 'out')
-    const written = await extractZip(release, dir, (entry) => (/whisper-cli\.exe$|\.dll$/.test(entry.name) ? (entry.name.split('/').pop() ?? null) : null))
+    const written = await extractZip(release, dir, (entry) =>
+      /whisper-cli\.exe$|\.dll$/.test(entry.name) ? (entry.name.split('/').pop() ?? null) : null
+    )
     expect(written.sort()).toEqual(['ggml.dll', 'whisper-cli.exe', 'whisper.dll'])
     expect(readdirSync(dir).sort()).toEqual(['ggml.dll', 'whisper-cli.exe', 'whisper.dll'])
     expect(readFileSync(join(dir, 'whisper-cli.exe')).equals(exe)).toBe(true)
@@ -357,7 +400,9 @@ describe('unpacking the program archive', () => {
   })
 
   it('refuses symbolic links and encrypted entries', () => {
-    expect(() => readZipDirectory(makeZip([{ name: 'whisper-cli.exe', data: Buffer.from('/bin/sh'), mode: 0o120777 }]))).toThrow(/symbolic link/)
+    expect(() => readZipDirectory(makeZip([{ name: 'whisper-cli.exe', data: Buffer.from('/bin/sh'), mode: 0o120777 }]))).toThrow(
+      /symbolic link/
+    )
     expect(() => readZipDirectory(makeZip([{ name: 'whisper-cli.exe', data: exe, flags: 1 }]))).toThrow(/encrypted/)
     // An ordinary Unix file is fine.
     expect(readZipDirectory(makeZip([{ name: 'whisper-cli', data: exe, mode: 0o100755 }]))).toHaveLength(1)
@@ -366,7 +411,9 @@ describe('unpacking the program archive', () => {
   it('refuses a bomb: more than it declares, more than its ratio, more than the cap', async () => {
     const zeros = Buffer.alloc(8 * 1024 * 1024)
     // Says 100 bytes, inflates to 8 MB.
-    await expect(extractZip(makeZip([{ name: 'a.dll', data: zeros, claim: 100 }]), join(fresh('bomb1'), 'out'), all)).rejects.toThrow(/unpack|size/)
+    await expect(extractZip(makeZip([{ name: 'a.dll', data: zeros, claim: 100 }]), join(fresh('bomb1'), 'out'), all)).rejects.toThrow(
+      /unpack|size/
+    )
     // Says the truth, but 8 MB out of 8 kB is beyond any real program.
     await expect(extractZip(makeZip([{ name: 'a.dll', data: zeros }]), join(fresh('bomb2'), 'out'), all)).rejects.toThrow(/far more/)
     // Many entries that together pass the cap: refused before anything is inflated.
@@ -378,7 +425,16 @@ describe('unpacking the program archive', () => {
     const damaged = Buffer.from(release)
     damaged[40] ^= 0xff
     await expect(extractZip(damaged, join(fresh('crc'), 'out'), all)).rejects.toBeInstanceOf(ZipError)
-    await expect(extractZip(makeZip([{ name: 'a/x.dll', data: dll }, { name: 'b/X.DLL', data: dll }]), join(fresh('dup'), 'out'), all)).rejects.toThrow(/same name/)
+    await expect(
+      extractZip(
+        makeZip([
+          { name: 'a/x.dll', data: dll },
+          { name: 'b/X.DLL', data: dll }
+        ]),
+        join(fresh('dup'), 'out'),
+        all
+      )
+    ).rejects.toThrow(/same name/)
     expect(() => readZipDirectory(Buffer.from('this is not an archive, just some text that is long enough'))).toThrow(/not a zip/)
     expect(() => readZipDirectory(release.subarray(0, release.length - 30))).toThrow(ZipError)
   })
@@ -388,21 +444,9 @@ describe('unpacking the program archive', () => {
 
 describe('whisper-cli arguments and output', () => {
   it('builds the argument array', () => {
-    expect(buildWhisperArgs({ model: 'C:\\m\\ggml-small.bin', input: 'C:\\r\\mic.wav', outputBase: 'C:\\r\\mic', language: 'auto', threads: 4 })).toEqual([
-      '-m',
-      'C:\\m\\ggml-small.bin',
-      '-f',
-      'C:\\r\\mic.wav',
-      '-l',
-      'auto',
-      '-t',
-      '4',
-      '-oj',
-      '-of',
-      'C:\\r\\mic',
-      '-pp',
-      '-np'
-    ])
+    expect(
+      buildWhisperArgs({ model: 'C:\\m\\ggml-small.bin', input: 'C:\\r\\mic.wav', outputBase: 'C:\\r\\mic', language: 'auto', threads: 4 })
+    ).toEqual(['-m', 'C:\\m\\ggml-small.bin', '-f', 'C:\\r\\mic.wav', '-l', 'auto', '-t', '4', '-oj', '-of', 'C:\\r\\mic', '-pp', '-np'])
     const odd = buildWhisperArgs({ model: 'm', input: 'i', outputBase: 'o', language: 'pt; rm -rf', threads: 999 })
     expect(odd[odd.indexOf('-l') + 1]).toBe('auto')
     expect(odd[odd.indexOf('-t') + 1]).toBe('64')
@@ -453,17 +497,33 @@ describe('whisper-cli arguments and output', () => {
     expect(parseWhisperJson('{"transcription":[]}')).toEqual({ language: null, segments: [] })
     expect(() => parseWhisperJson('{ "transcription": [')).toThrow(/not JSON/)
     expect(() => parseWhisperJson('{"result":{}}')).toThrow(/does not understand/)
-    expect(parseWhisperJson('{"result":{"language":"../x"},"transcription":[{"text":5},{"offsets":{"from":-1,"to":2},"text":"x"},null]}')).toEqual({ language: null, segments: [] })
+    expect(
+      parseWhisperJson('{"result":{"language":"../x"},"transcription":[{"text":5},{"offsets":{"from":-1,"to":2},"text":"x"},null]}')
+    ).toEqual({ language: null, segments: [] })
   })
 
   it('cleans what the program says before anybody sees it', () => {
-    expect(sanitiseStderr('\u001b[31merror\u001b[0m: failed to open C:\\Users\\ana\\AppData\\Roaming\\sel\\recordings\\x\\mic.wav\n')).toBe('error: failed to open …')
-    expect(sanitiseStderr('whisper_print_progress_callback: progress =  45%\nerror: out of memory at /home/ana/.cache/whisper/model.bin\n')).toBe('error: out of memory at …')
+    expect(sanitiseStderr('\u001b[31merror\u001b[0m: failed to open C:\\Users\\ana\\AppData\\Roaming\\sel\\recordings\\x\\mic.wav\n')).toBe(
+      'error: failed to open …'
+    )
+    expect(
+      sanitiseStderr('whisper_print_progress_callback: progress =  45%\nerror: out of memory at /home/ana/.cache/whisper/model.bin\n')
+    ).toBe('error: out of memory at …')
     expect(sanitiseStderr('')).toBeUndefined()
   })
 
   it('gives the program a minimal environment', () => {
-    const env = whisperEnv({ SystemRoot: 'C:\\Windows', PATH: 'C:\\evil;C:\\tools', ANTHROPIC_API_KEY: 'secret', GITHUB_TOKEN: 'secret', TEMP: 'C:\\Temp', HOME: '/home/x' }, 'win32')
+    const env = whisperEnv(
+      {
+        SystemRoot: 'C:\\Windows',
+        PATH: 'C:\\evil;C:\\tools',
+        ANTHROPIC_API_KEY: 'secret',
+        GITHUB_TOKEN: 'secret',
+        TEMP: 'C:\\Temp',
+        HOME: '/home/x'
+      },
+      'win32'
+    )
     expect(env['PATH']).toBe('C:\\Windows\\System32;C:\\Windows')
     expect(Object.keys(env).sort()).toEqual(['HOME', 'PATH', 'SystemRoot', 'TEMP'])
   })
@@ -480,7 +540,10 @@ function setup(mode = ''): { dir: string; args: { model: string; input: string; 
   writeFileSync(join(dir, 'model.bin'), 'fake model')
   makeWav(join(dir, 'mic.wav'), 12)
   if (mode) writeFileSync(join(dir, 'fake-whisper'), mode)
-  return { dir, args: { model: join(dir, 'model.bin'), input: join(dir, 'mic.wav'), outputBase: join(dir, 'mic.out'), language: 'auto', threads: 2 } }
+  return {
+    dir,
+    args: { model: join(dir, 'model.bin'), input: join(dir, 'mic.wav'), outputBase: join(dir, 'mic.out'), language: 'auto', threads: 2 }
+  }
 }
 
 const alive = (pid: number): boolean => {
@@ -540,7 +603,9 @@ describe('running the program (against the stand-in)', () => {
     expect(err.reason).toBe('failed')
     expect(err.detail).toBe('error: failed to process audio at …')
     expect(err.detail).not.toContain('secret')
-    const missing = await failure(runWhisper({ program: FAKE, args: { ...args, model: join(dir, 'nope.bin') }, cwd: dir, timeoutMs: RUN_MS }))
+    const missing = await failure(
+      runWhisper({ program: FAKE, args: { ...args, model: join(dir, 'nope.bin') }, cwd: dir, timeoutMs: RUN_MS })
+    )
     expect(missing.reason).toBe('failed')
   }, 90_000)
 
@@ -557,7 +622,15 @@ describe('running the program (against the stand-in)', () => {
     const { dir, args } = setup('hang')
     const abort = new AbortController()
     let pid = 0
-    const work = runWhisper({ program: FAKE, args, cwd: dir, timeoutMs: 60_000, signal: abort.signal, onSpawn: (child) => (pid = child.pid ?? 0), onProgress: () => abort.abort() })
+    const work = runWhisper({
+      program: FAKE,
+      args,
+      cwd: dir,
+      timeoutMs: 60_000,
+      signal: abort.signal,
+      onSpawn: (child) => (pid = child.pid ?? 0),
+      onProgress: () => abort.abort()
+    })
     const err = await failure(work)
     expect(err.reason).toBe('cancelled')
     expect(pid).toBeGreaterThan(0)
@@ -578,7 +651,9 @@ describe('running the program (against the stand-in)', () => {
 
   it('says so when the program cannot be started', async () => {
     const { dir, args } = setup()
-    const err = await failure(runWhisper({ program: { kind: 'exe', path: join(dir, 'no-such-program.exe') }, args, cwd: dir, timeoutMs: 5000 }))
+    const err = await failure(
+      runWhisper({ program: { kind: 'exe', path: join(dir, 'no-such-program.exe') }, args, cwd: dir, timeoutMs: 5000 })
+    )
     expect(err.reason).toBe('not-found')
   })
 })
@@ -597,7 +672,13 @@ describe('the engine', () => {
   const model = Buffer.alloc(2 * 1024 * 1024, 7)
 
   function pins(base: string, overrides: Partial<PinnedFile> = {}): PinnedSet {
-    const one = (name: string): PinnedFile & { file: string } => ({ file: `ggml-${name}.bin`, url: `${base}/ggml-${name}.bin`, size: model.length, sha256: sha256(model), ...overrides })
+    const one = (name: string): PinnedFile & { file: string } => ({
+      file: `ggml-${name}.bin`,
+      url: `${base}/ggml-${name}.bin`,
+      size: model.length,
+      sha256: sha256(model),
+      ...overrides
+    })
     return {
       version: '9.9.9',
       programs: { 'test-x64': { url: `${base}/whisper-bin-x64.zip`, size: archive.length, sha256: sha256(archive) } },
@@ -605,7 +686,10 @@ describe('the engine', () => {
     }
   }
 
-  function engine(base: string, extra: Partial<ConstructorParameters<typeof WhisperEngine>[0]> = {}): { engine: WhisperEngine; settings: Map<string, unknown>; dir: string; events: unknown[] } {
+  function engine(
+    base: string,
+    extra: Partial<ConstructorParameters<typeof WhisperEngine>[0]> = {}
+  ): { engine: WhisperEngine; settings: Map<string, unknown>; dir: string; events: unknown[] } {
     const settings = new Map<string, unknown>()
     const dir = join(fresh('engine'), 'whisper')
     const events: unknown[] = []
@@ -645,7 +729,11 @@ describe('the engine', () => {
   })
 
   it('downloads the program and a model, keeps only the program and its libraries', async () => {
-    const { base, hits } = await serve({ '/whisper-bin-x64.zip': file(archive), '/ggml-small.bin': file(model), '/ggml-base.bin': file(model) })
+    const { base, hits } = await serve({
+      '/whisper-bin-x64.zip': file(archive),
+      '/ggml-small.bin': file(model),
+      '/ggml-base.bin': file(model)
+    })
     const { engine: target, settings, dir, events } = engine(base)
     const status = await target.install('small')
     expect(status.state).toBe('ready')
@@ -656,7 +744,10 @@ describe('the engine', () => {
     expect(settings.get('meetings.model')).toBe('small')
     expect(events.some((event) => (event as { phase?: string }).phase === 'model')).toBe(true)
     expect(events[events.length - 1]).toEqual({ ok: true })
-    expect(await target.locate()).toEqual({ program: { kind: 'exe', path: join(dir, '9.9.9', 'whisper-cli.exe') }, model: join(dir, 'models', 'ggml-small.bin') })
+    expect(await target.locate()).toEqual({
+      program: { kind: 'exe', path: join(dir, '9.9.9', 'whisper-cli.exe') },
+      model: join(dir, 'models', 'ggml-small.bin')
+    })
     // A second model fetches only that model.
     const before = hits.length
     expect((await target.install('base')).model?.id).toBe('base')
@@ -671,7 +762,9 @@ describe('the engine', () => {
   })
 
   it('keeps nothing of a download that does not match its digest', async () => {
-    const { base } = await serve({ '/whisper-bin-x64.zip': file(Buffer.concat([archive.subarray(0, 60), Buffer.from([archive[60] ^ 0xff]), archive.subarray(61)])) })
+    const { base } = await serve({
+      '/whisper-bin-x64.zip': file(Buffer.concat([archive.subarray(0, 60), Buffer.from([archive[60] ^ 0xff]), archive.subarray(61)]))
+    })
     const { engine: target, dir, events } = engine(base)
     const status = await target.install('small')
     expect(status.state).toBe('missing-program')
@@ -682,7 +775,9 @@ describe('the engine', () => {
   })
 
   it('refuses an unknown model and a second download at once', async () => {
-    const { base } = await serve({ '/whisper-bin-x64.zip': (_request, response) => void response.writeHead(200, { 'Content-Length': archive.length }) })
+    const { base } = await serve({
+      '/whisper-bin-x64.zip': (_request, response) => void response.writeHead(200, { 'Content-Length': archive.length })
+    })
     const { engine: target } = engine(base)
     await expect(target.install('tiny.en')).rejects.toThrow(/Unknown model/)
     const first = target.install('small')

@@ -35,7 +35,13 @@ export function readFired(raw: unknown, now: number): Fired {
 /** The moment `time` (`HH:mm`) falls on the local day `offset` days from that of `now`. */
 function at(now: number, offset: number, time: string): number {
   const date = new Date(now)
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + offset, Number(time.slice(0, 2)), Number(time.slice(3, 5))).getTime()
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() + offset,
+    Number(time.slice(0, 2)),
+    Number(time.slice(3, 5))
+  ).getTime()
 }
 
 function rings(alarm: AlarmTime): boolean {
@@ -76,7 +82,12 @@ export const alarmKey = (alarm: AlarmTime): string => `a:${alarm.id}`
  * The alarm that should ring now: due within the grace period and not rung for that occasion.
  * Several due at once (the computer woke up late) ring once, as the latest of them.
  */
-export function dueAlarm(times: readonly AlarmTime[], fired: Fired, now: number, graceMs = ALARM_GRACE_MS): { alarm: AlarmTime; at: number } | null {
+export function dueAlarm(
+  times: readonly AlarmTime[],
+  fired: Fired,
+  now: number,
+  graceMs = ALARM_GRACE_MS
+): { alarm: AlarmTime; at: number } | null {
   let best: { alarm: AlarmTime; at: number } | null = null
   for (const alarm of times) {
     const moment = lastOccurrence(alarm, now)

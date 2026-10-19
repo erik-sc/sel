@@ -118,7 +118,8 @@ class Device {
       this.ws.blocks.delete(x)
     }
     drop(id)
-    for (const b of this.ws.blocks.values()) if (b.trashedAt !== null && b.parentId !== null && !this.ws.blocks.has(b.parentId)) b.parentId = null
+    for (const b of this.ws.blocks.values())
+      if (b.trashedAt !== null && b.parentId !== null && !this.ws.blocks.has(b.parentId)) b.parentId = null
     return this
   }
 
@@ -185,7 +186,11 @@ function describeDiff(a: Workspace, b: Workspace): string[] {
 /** A page with three paragraphs and a to-do, shared by two devices. */
 function scene(): { base: Workspace; a: Device; b: Device } {
   const d = new Device()
-  d.page('p').text('t1', 'p').text('t2', 'p').text('t3', 'p').add('todo', 'to_do', 'p', { title: [['buy milk']], checked: false })
+  d.page('p')
+    .text('t1', 'p')
+    .text('t2', 'p')
+    .text('t3', 'p')
+    .add('todo', 'to_do', 'p', { title: [['buy milk']], checked: false })
   const base = clone(d.ws)
   // The devices' clocks interleave: A's edits are odd, B's are even and a little later.
   return { base, a: new Device(base, 2000), b: new Device(base, 3000) }
@@ -195,7 +200,7 @@ function scene(): { base: Workspace; a: Device; b: Device } {
 
 describe('mergeLists', () => {
   const all = (): boolean => true
-  it('keeps the order of the side that reordered and places the other side\'s additions by their neighbours', () => {
+  it("keeps the order of the side that reordered and places the other side's additions by their neighbours", () => {
     expect(mergeLists(['a', 'b', 'c'], ['c', 'b', 'a'], ['a', 'x', 'b', 'c', 'y'], false, all)).toEqual(['c', 'y', 'b', 'a', 'x'])
     expect(mergeLists(['a', 'b', 'c'], ['a', 'x', 'b', 'c', 'y'], ['c', 'b', 'a'], true, all)).toEqual(['c', 'y', 'b', 'a', 'x'])
   })
@@ -413,7 +418,10 @@ describe('mergeWorkspace: delete against edit', () => {
 
   it('keeps a row whose database was deleted on the other side, as a page of the page above', () => {
     const d = new Device()
-    d.page('home').add('db', 'database', 'home', { schema: { title: { id: 'title', name: 'Name', type: 'title' } }, views: [] }).page('row1', 'db').page('row2', 'db')
+    d.page('home')
+      .add('db', 'database', 'home', { schema: { title: { id: 'title', name: 'Name', type: 'title' } }, views: [] })
+      .page('row1', 'db')
+      .page('row2', 'db')
     const base = clone(d.ws)
     const a = new Device(base, 2000)
     const b = new Device(base, 3000)
@@ -669,7 +677,15 @@ describe('mergeWorkspace: trash', () => {
 // ---------------------------------------------------------------- databases
 
 describe('mergeWorkspace: databases', () => {
-  const view = (id: string, extra: Props = {}): Props => ({ id, name: id, type: 'table', visibleProperties: ['title', 'status'], filters: [], sorts: [], ...extra })
+  const view = (id: string, extra: Props = {}): Props => ({
+    id,
+    name: id,
+    type: 'table',
+    visibleProperties: ['title', 'status'],
+    filters: [],
+    sorts: [],
+    ...extra
+  })
   const db = (): { base: Workspace; a: Device; b: Device } => {
     const d = new Device()
     d.page('home')
@@ -731,7 +747,9 @@ describe('mergeWorkspace: databases', () => {
     expect([...((out.result.blocks.get('row1')?.props['values'] as Props)['project'] as string[])].sort()).toEqual(['p2', 'p3'])
     expect(out.conflicts).toEqual([])
     // Swapping the sides gives the same links.
-    expect([...((merge(both, right.ws, left.ws).result.blocks.get('row1')?.props['values'] as Props)['project'] as string[])].sort()).toEqual(['p2', 'p3'])
+    expect(
+      [...((merge(both, right.ws, left.ws).result.blocks.get('row1')?.props['values'] as Props)['project'] as string[])].sort()
+    ).toEqual(['p2', 'p3'])
     // Cleared on one side while the other added a link: the added link stays.
     const cleared = new Device(both, 6000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' } } })
     const added = new Device(both, 7000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: ['p1', 'p4'] } })
@@ -739,14 +757,31 @@ describe('mergeWorkspace: databases', () => {
     // Both removed every link: the cell is gone rather than an empty list.
     const none1 = new Device(both, 8000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' }, project: [] } })
     const none2 = new Device(both, 9000).edit('row1', { values: { status: 'o1', due: { start: '2026-01-01' } } })
-    expect(merge(both, none1.ws, none2.ws).result.blocks.get('row1')?.props['values']).toEqual({ status: 'o1', due: { start: '2026-01-01' } })
+    expect(merge(both, none1.ws, none2.ws).result.blocks.get('row1')?.props['values']).toEqual({
+      status: 'o1',
+      due: { start: '2026-01-01' }
+    })
   })
 
   it('merges the schema per property, keeping the order of the properties', () => {
     const { base, a, b } = db()
     const s = base.blocks.get('db')?.props['schema'] as Record<string, Props>
-    a.edit('db', { schema: { title: s['title'], status: { ...s['status'], name: 'State' }, due: s['due'], notes: { id: 'notes', name: 'Notes', type: 'text' } } })
-    b.edit('db', { schema: { title: s['title'], due: { ...s['due'], name: 'Deadline' }, status: s['status'], price: { id: 'price', name: 'Price', type: 'number' } } })
+    a.edit('db', {
+      schema: {
+        title: s['title'],
+        status: { ...s['status'], name: 'State' },
+        due: s['due'],
+        notes: { id: 'notes', name: 'Notes', type: 'text' }
+      }
+    })
+    b.edit('db', {
+      schema: {
+        title: s['title'],
+        due: { ...s['due'], name: 'Deadline' },
+        status: s['status'],
+        price: { id: 'price', name: 'Price', type: 'number' }
+      }
+    })
     const out = merge(base, a.ws, b.ws)
     const merged = schema(out.result)
     // B's order stands; A's new property follows the one it followed there.
@@ -759,7 +794,10 @@ describe('mergeWorkspace: databases', () => {
   it('merges a formula as one value, apart from a rename of the property it reads', () => {
     const d = db()
     const s = d.base.blocks.get('db')?.props['schema'] as Record<string, Props>
-    const withFormula: Record<string, Props> = { ...s, total: { id: 'total', name: 'Total', type: 'formula', formula: { expression: 'dateAdd(prop("due"), 1, "days")' } } }
+    const withFormula: Record<string, Props> = {
+      ...s,
+      total: { id: 'total', name: 'Total', type: 'formula', formula: { expression: 'dateAdd(prop("due"), 1, "days")' } }
+    }
     const start = new Device(d.base, 1500).edit('db', { schema: withFormula }).ws
     // One device renames the date the formula reads (references are ids: the formula is untouched), the other edits the formula.
     const a = new Device(start, 2000).edit('db', { schema: { ...withFormula, due: { ...withFormula.due, name: 'Deadline' } } })
@@ -771,8 +809,12 @@ describe('mergeWorkspace: databases', () => {
     expect(schema(out.result)['total']['formula']).toEqual({ expression: 'dateAdd(prop("due"), 2, "days")' })
     expect(out.conflicts).toEqual([])
     // Both edit the formula: the later edit wins whole, never a mix of the two texts.
-    const c = new Device(start, 4000).edit('db', { schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: '1' } } } })
-    const e = new Device(start, 5000).edit('db', { schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: '2' } } } })
+    const c = new Device(start, 4000).edit('db', {
+      schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: '1' } } }
+    })
+    const e = new Device(start, 5000).edit('db', {
+      schema: { ...withFormula, total: { ...withFormula.total, formula: { expression: '2' } } }
+    })
     const both = merge(start, c.ws, e.ws)
     expect(schema(both.result)['total']['formula']).toEqual({ expression: '2' })
     expect(both.conflicts.map((conflict) => conflict.field)).toEqual(['props.schema.total.formula'])
@@ -782,8 +824,30 @@ describe('mergeWorkspace: databases', () => {
     const { base, a, b } = db()
     const s = base.blocks.get('db')?.props['schema'] as Record<string, Props>
     const o1 = { id: 'o1', name: 'Todo', color: 'gray' }
-    a.edit('db', { schema: { ...s, status: { ...s['status'], options: [{ ...o1, name: 'To do' }, { id: 'oa', name: 'Doing', color: 'blue' }] } } })
-    b.edit('db', { schema: { ...s, status: { ...s['status'], options: [{ ...o1, color: 'red' }, { id: 'ob', name: 'Done', color: 'green' }] } } })
+    a.edit('db', {
+      schema: {
+        ...s,
+        status: {
+          ...s['status'],
+          options: [
+            { ...o1, name: 'To do' },
+            { id: 'oa', name: 'Doing', color: 'blue' }
+          ]
+        }
+      }
+    })
+    b.edit('db', {
+      schema: {
+        ...s,
+        status: {
+          ...s['status'],
+          options: [
+            { ...o1, color: 'red' },
+            { id: 'ob', name: 'Done', color: 'green' }
+          ]
+        }
+      }
+    })
     const out = merge(base, a.ws, b.ws)
     const options = schema(out.result)['status']['options'] as Props[]
     expect(options.map((o) => o['id']).sort()).toEqual(['o1', 'oa', 'ob'])
@@ -819,7 +883,13 @@ describe('mergeWorkspace: databases', () => {
     a.edit('db', { views: [v[0], { ...v[1], chart: { ...chart, kind: 'line', y: { aggregate: 'sum', property: 'price' } } }] })
     b.edit('db', { views: [v[0], { ...v[1], chart: { ...chart, showLegend: false, y: { aggregate: 'count' }, stacked: true } }] })
     const out = merge(base, a.ws, b.ws)
-    expect(views(out.result)[1]['chart']).toEqual({ kind: 'line', x: 'status', y: { aggregate: 'sum', property: 'price' }, showLegend: false, stacked: true })
+    expect(views(out.result)[1]['chart']).toEqual({
+      kind: 'line',
+      x: 'status',
+      y: { aggregate: 'sum', property: 'price' },
+      showLegend: false,
+      stacked: true
+    })
     expect(out.conflicts).toEqual([])
   })
 
@@ -833,8 +903,24 @@ describe('mergeWorkspace: databases', () => {
     const start = first.ws
     const a = new Device(start, 2000)
     const b = new Device(start, 3000)
-    a.edit('db', { views: [v[0], calcView([{ ...total, name: 'Rows' }, { id: 'ca', name: 'A', formula: '1' }])] })
-    b.edit('db', { views: [v[0], calcView([{ ...total, formula: 'count(Status)' }, { id: 'cb', name: 'B', formula: '2' }])] })
+    a.edit('db', {
+      views: [
+        v[0],
+        calcView([
+          { ...total, name: 'Rows' },
+          { id: 'ca', name: 'A', formula: '1' }
+        ])
+      ]
+    })
+    b.edit('db', {
+      views: [
+        v[0],
+        calcView([
+          { ...total, formula: 'count(Status)' },
+          { id: 'cb', name: 'B', formula: '2' }
+        ])
+      ]
+    })
     const out = merge(start, a.ws, b.ws)
     const calcs = views(out.result)[1]['calcs'] as Props[]
     expect(calcs.map((c) => c['id']).sort()).toEqual(['c1', 'ca', 'cb'])
@@ -845,8 +931,18 @@ describe('mergeWorkspace: databases', () => {
   it('reports a chart key both changed, and merges visible columns and widths', () => {
     const { base, a, b } = db()
     const v = base.blocks.get('db')?.props['views'] as Props[]
-    a.edit('db', { views: [{ ...v[0], visibleProperties: ['status', 'title', 'due'], propertyWidths: { title: 300 } }, { ...v[1], chart: { ...(v[1]['chart'] as Props), kind: 'pie' } }] })
-    b.edit('db', { views: [{ ...v[0], visibleProperties: ['title'], propertyWidths: { status: 120 } }, { ...v[1], chart: { ...(v[1]['chart'] as Props), kind: 'donut' } }] })
+    a.edit('db', {
+      views: [
+        { ...v[0], visibleProperties: ['status', 'title', 'due'], propertyWidths: { title: 300 } },
+        { ...v[1], chart: { ...(v[1]['chart'] as Props), kind: 'pie' } }
+      ]
+    })
+    b.edit('db', {
+      views: [
+        { ...v[0], visibleProperties: ['title'], propertyWidths: { status: 120 } },
+        { ...v[1], chart: { ...(v[1]['chart'] as Props), kind: 'donut' } }
+      ]
+    })
     const out = merge(base, a.ws, b.ws)
     expect(views(out.result)[0]['visibleProperties']).toEqual(['title', 'due'])
     expect(views(out.result)[0]['propertyWidths']).toEqual({ title: 300, status: 120 })
@@ -975,7 +1071,13 @@ function randomEdits(device: Device, rand: () => number, count: number, tag: str
       if (parent === null) device.page(id)
       else {
         const list = device.get(parent).content
-        device.add(id, asPage ? 'page' : pick(['text', 'toggle', 'to_do']), parent, { title: [[id]] }, Math.floor(rand() * (list.length + 1)))
+        device.add(
+          id,
+          asPage ? 'page' : pick(['text', 'toggle', 'to_do']),
+          parent,
+          { title: [[id]] },
+          Math.floor(rand() * (list.length + 1))
+        )
       }
       added.push(id)
     } else if (roll < 0.5) {
@@ -1064,7 +1166,12 @@ describe('mergeWorkspace: randomised', () => {
           if (!mine) continue
           // An "edit" that left the block as it was (clearing a key it did not have) protects nothing.
           const before = base.blocks.get(id)
-          if (before && JSON.stringify(before.props) === JSON.stringify(mine.props) && (before.trashedAt === null) === (mine.trashedAt === null)) continue
+          if (
+            before &&
+            JSON.stringify(before.props) === JSON.stringify(mine.props) &&
+            (before.trashedAt === null) === (mine.trashedAt === null)
+          )
+            continue
           expect(out.result.blocks.has(id), `${where}: ${id}`).toBe(true)
         }
       }
@@ -1098,13 +1205,30 @@ describe('mergeWorkspace: randomised', () => {
         else if (roll < 0.6) {
           const property = props.schema[pick(keys)]
           const options = (property['options'] as Rec[] | undefined) ?? []
-          property['options'] = rand() < 0.5 ? [...options, { id: `${tag}o${i}`, name: tag, color: 'red' }] : shuffle(options, rand).slice(0, Math.max(0, options.length - (rand() < 0.3 ? 1 : 0)))
-        } else if (roll < 0.7) props.views.splice(Math.floor(rand() * (props.views.length + 1)), 0, { id: `${tag}v${i}`, name: tag, type: 'table', visibleProperties: keys, filters: [], sorts: [] })
+          property['options'] =
+            rand() < 0.5
+              ? [...options, { id: `${tag}o${i}`, name: tag, color: 'red' }]
+              : shuffle(options, rand).slice(0, Math.max(0, options.length - (rand() < 0.3 ? 1 : 0)))
+        } else if (roll < 0.7)
+          props.views.splice(Math.floor(rand() * (props.views.length + 1)), 0, {
+            id: `${tag}v${i}`,
+            name: tag,
+            type: 'table',
+            visibleProperties: keys,
+            filters: [],
+            sorts: []
+          })
         else if (roll < 0.76 && props.views.length > 1) props.views.splice(Math.floor(rand() * props.views.length), 1)
         else if (roll < 0.84) props.views = shuffle(props.views, rand)
         else if (props.views.length) {
           const target = pick(props.views)
-          if (rand() < 0.5) target['chart'] = { ...(target['chart'] as Rec | undefined), kind: pick(['bar', 'line', 'pie']), [pick(['stacked', 'showGrid', 'showLegend'])]: rand() < 0.5, y: { aggregate: pick(['count', 'sum']) } }
+          if (rand() < 0.5)
+            target['chart'] = {
+              ...(target['chart'] as Rec | undefined),
+              kind: pick(['bar', 'line', 'pie']),
+              [pick(['stacked', 'showGrid', 'showLegend'])]: rand() < 0.5,
+              y: { aggregate: pick(['count', 'sum']) }
+            }
           else target['visibleProperties'] = shuffle(target['visibleProperties'] as string[], rand).slice(0, 1 + Math.floor(rand() * 3))
         }
       }
@@ -1114,10 +1238,22 @@ describe('mergeWorkspace: randomised', () => {
       const rand = mulberry32(seed * 31)
       const d = new Device()
       d.page('home').add('db', 'database', 'home', {
-        schema: { title: { id: 'title', name: 'Name', type: 'title' }, s: { id: 's', name: 'S', type: 'select', options: [{ id: 'o1', name: 'One', color: 'gray' }] }, n: { id: 'n', name: 'N', type: 'number' } },
+        schema: {
+          title: { id: 'title', name: 'Name', type: 'title' },
+          s: { id: 's', name: 'S', type: 'select', options: [{ id: 'o1', name: 'One', color: 'gray' }] },
+          n: { id: 'n', name: 'N', type: 'number' }
+        },
         views: [
           { id: 'v1', name: 'Table', type: 'table', visibleProperties: ['title', 's', 'n'], filters: [], sorts: [] },
-          { id: 'v2', name: 'Chart', type: 'chart', visibleProperties: ['title'], filters: [], sorts: [], chart: { kind: 'bar', y: { aggregate: 'count' } } }
+          {
+            id: 'v2',
+            name: 'Chart',
+            type: 'chart',
+            visibleProperties: ['title'],
+            filters: [],
+            sorts: [],
+            chart: { kind: 'bar', y: { aggregate: 'count' } }
+          }
         ]
       })
       const base = clone(d.ws)
@@ -1141,8 +1277,10 @@ describe('mergeWorkspace: randomised', () => {
         expect(new Set(optionIds).size, where).toBe(optionIds.length)
       }
       // What only one device added is there.
-      for (const key of Object.keys((a.get('db').props as { schema: Rec }).schema)) if (key.startsWith('a')) expect(Object.keys(props.schema), where).toContain(key)
-      for (const v of (b.get('db').props as { views: Rec[] }).views) if (String(v['id']).startsWith('c')) expect(viewIds, where).toContain(v['id'])
+      for (const key of Object.keys((a.get('db').props as { schema: Rec }).schema))
+        if (key.startsWith('a')) expect(Object.keys(props.schema), where).toContain(key)
+      for (const v of (b.get('db').props as { views: Rec[] }).views)
+        if (String(v['id']).startsWith('c')) expect(viewIds, where).toContain(v['id'])
     }
   })
 
@@ -1190,7 +1328,16 @@ describe('normalizeWorkspace', () => {
   it('drops what nothing lists, repairs parents and removes repeated ids', () => {
     const d = new Device()
     d.page('p').text('a', 'p').text('b', 'p')
-    d.ws.blocks.set('stray', { id: 'stray', type: 'text', parentId: 'p', content: [], props: {}, createdAt: 1, updatedAt: 1, trashedAt: null })
+    d.ws.blocks.set('stray', {
+      id: 'stray',
+      type: 'text',
+      parentId: 'p',
+      content: [],
+      props: {},
+      createdAt: 1,
+      updatedAt: 1,
+      trashedAt: null
+    })
     d.get('p').content = ['a', 'a', 'missing', 'b']
     d.get('b').parentId = 'elsewhere'
     d.ws.root = ['p', 'p', 'ghost']

@@ -159,7 +159,12 @@ export function defineIcalSuite(zone: string): void {
       it('reads UTC, zoned, Windows-zoned and floating times', () => {
         const text = calendar(
           vevent('UID:a', 'SUMMARY:utc', 'DTSTART:20261013T120000Z', 'DTEND:20261013T130000Z'),
-          vevent('UID:b', 'SUMMARY:new york', 'DTSTART;TZID=America/New_York:20261013T090000', 'DTEND;TZID=America/New_York:20261013T093000'),
+          vevent(
+            'UID:b',
+            'SUMMARY:new york',
+            'DTSTART;TZID=America/New_York:20261013T090000',
+            'DTEND;TZID=America/New_York:20261013T093000'
+          ),
           vevent('UID:c', 'SUMMARY:windows', 'DTSTART;TZID=E. South America Standard Time:20261013T090000', 'DURATION:PT45M'),
           vevent('UID:d', 'SUMMARY:floating', 'DTSTART:20261013T180000', 'DTEND:20261013T190000')
         )
@@ -183,7 +188,12 @@ export function defineIcalSuite(zone: string): void {
 
       it('handles an end in another zone, a missing end and an end before the start', () => {
         const text = calendar(
-          vevent('UID:flight', 'SUMMARY:flight', 'DTSTART;TZID=America/Sao_Paulo:20261013T220000', 'DTEND;TZID=Europe/Lisbon:20261014T110000'),
+          vevent(
+            'UID:flight',
+            'SUMMARY:flight',
+            'DTSTART;TZID=America/Sao_Paulo:20261013T220000',
+            'DTEND;TZID=Europe/Lisbon:20261014T110000'
+          ),
           vevent('UID:moment', 'SUMMARY:moment', 'DTSTART:20261013T120000Z'),
           vevent('UID:backwards', 'SUMMARY:backwards', 'DTSTART:20261013T120000Z', 'DTEND:20261013T110000Z')
         )
@@ -232,7 +242,13 @@ export function defineIcalSuite(zone: string): void {
           'X-WR-CALNAME:me@example.com',
           vevent('UID:gone', 'SUMMARY:cancelled', 'STATUS:CANCELLED', 'DTSTART:20261013T100000Z'),
           vevent('UID:no', 'SUMMARY:declined', 'DTSTART:20261013T110000Z', 'ATTENDEE;PARTSTAT=DECLINED;CN=Me:mailto:ME@example.com'),
-          vevent('UID:other', 'SUMMARY:someone else declined', 'DTSTART:20261013T120000Z', 'ATTENDEE;PARTSTAT=DECLINED:mailto:you@example.com', 'ATTENDEE;PARTSTAT=ACCEPTED:mailto:me@example.com'),
+          vevent(
+            'UID:other',
+            'SUMMARY:someone else declined',
+            'DTSTART:20261013T120000Z',
+            'ATTENDEE;PARTSTAT=DECLINED:mailto:you@example.com',
+            'ATTENDEE;PARTSTAT=ACCEPTED:mailto:me@example.com'
+          ),
           vevent('UID:free', 'SUMMARY:free time', 'TRANSP:TRANSPARENT', 'DTSTART:20261013T130000Z'),
           'END:VCALENDAR'
         ].join('\r\n')
@@ -241,7 +257,9 @@ export function defineIcalSuite(zone: string): void {
         // Without a way to know who the owner is, nothing is taken for declined.
         const anonymous = text.replace('X-WR-CALNAME:me@example.com', 'X-WR-CALNAME:Work')
         expect(expand(anonymous, from, to).map((o) => o.title)).toContain('declined')
-        expect(expandCalendar(parseCalendar(anonymous, { selfEmails: ['me@example.com'] }), { from, to }).map((o) => o.title)).not.toContain('declined')
+        expect(
+          expandCalendar(parseCalendar(anonymous, { selfEmails: ['me@example.com'] }), { from, to }).map((o) => o.title)
+        ).not.toContain('declined')
       })
 
       it('keeps text plain and capped', () => {
@@ -268,7 +286,13 @@ export function defineIcalSuite(zone: string): void {
     describe('recurrence rules', () => {
       it('DAILY with INTERVAL and COUNT', () => {
         const text = calendar(vevent('UID:d', 'DTSTART:20261010T090000Z', 'RRULE:FREQ=DAILY;INTERVAL=2;COUNT=5'))
-        expect(starts(text, utc(2026, 1, 1), utc(2027, 1, 1))).toEqual(['2026-10-10T09:00', '2026-10-12T09:00', '2026-10-14T09:00', '2026-10-16T09:00', '2026-10-18T09:00'])
+        expect(starts(text, utc(2026, 1, 1), utc(2027, 1, 1))).toEqual([
+          '2026-10-10T09:00',
+          '2026-10-12T09:00',
+          '2026-10-14T09:00',
+          '2026-10-16T09:00',
+          '2026-10-18T09:00'
+        ])
         // The count is of the series, not of the window.
         expect(starts(text, utc(2026, 10, 15), utc(2027, 1, 1))).toEqual(['2026-10-16T09:00', '2026-10-18T09:00'])
         expect(expand(text, utc(2026, 1, 1), utc(2027, 1, 1)).every((o) => o.recurring)).toBe(true)
@@ -278,7 +302,11 @@ export function defineIcalSuite(zone: string): void {
         const inUtc = calendar(vevent('UID:d', 'DTSTART:20261010T090000Z', 'RRULE:FREQ=DAILY;UNTIL=20261012T090000Z'))
         expect(starts(inUtc, utc(2026, 1, 1), utc(2027, 1, 1))).toEqual(['2026-10-10T09:00', '2026-10-11T09:00', '2026-10-12T09:00'])
         const asDate = calendar(vevent('UID:d', 'DTSTART;VALUE=DATE:20261010', 'RRULE:FREQ=DAILY;UNTIL=20261012'))
-        expect(expand(asDate, local(2026, 10, 1), local(2026, 11, 1)).map((o) => o.startDay)).toEqual(['2026-10-10', '2026-10-11', '2026-10-12'])
+        expect(expand(asDate, local(2026, 10, 1), local(2026, 11, 1)).map((o) => o.startDay)).toEqual([
+          '2026-10-10',
+          '2026-10-11',
+          '2026-10-12'
+        ])
       })
 
       it('DAILY filtered by BYDAY and BYMONTH', () => {
@@ -309,14 +337,29 @@ export function defineIcalSuite(zone: string): void {
 
       it('WEEKLY with INTERVAL depends on WKST (the RFC 5545 example)', () => {
         const monday = calendar(vevent('UID:w', 'DTSTART:19970805T090000Z', 'RRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=4;BYDAY=TU,SU;WKST=MO'))
-        expect(starts(monday, utc(1997, 1, 1), utc(1998, 1, 1))).toEqual(['1997-08-05T09:00', '1997-08-10T09:00', '1997-08-19T09:00', '1997-08-24T09:00'])
+        expect(starts(monday, utc(1997, 1, 1), utc(1998, 1, 1))).toEqual([
+          '1997-08-05T09:00',
+          '1997-08-10T09:00',
+          '1997-08-19T09:00',
+          '1997-08-24T09:00'
+        ])
         const sunday = calendar(vevent('UID:w', 'DTSTART:19970805T090000Z', 'RRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=4;BYDAY=TU,SU;WKST=SU'))
-        expect(starts(sunday, utc(1997, 1, 1), utc(1998, 1, 1))).toEqual(['1997-08-05T09:00', '1997-08-17T09:00', '1997-08-19T09:00', '1997-08-31T09:00'])
+        expect(starts(sunday, utc(1997, 1, 1), utc(1998, 1, 1))).toEqual([
+          '1997-08-05T09:00',
+          '1997-08-17T09:00',
+          '1997-08-19T09:00',
+          '1997-08-31T09:00'
+        ])
       })
 
       it('MONTHLY on the day of the month, skipping months without it', () => {
         const text = calendar(vevent('UID:m', 'DTSTART:20260131T090000Z', 'RRULE:FREQ=MONTHLY;COUNT=4'))
-        expect(starts(text, utc(2026, 1, 1), utc(2027, 1, 1))).toEqual(['2026-01-31T09:00', '2026-03-31T09:00', '2026-05-31T09:00', '2026-07-31T09:00'])
+        expect(starts(text, utc(2026, 1, 1), utc(2027, 1, 1))).toEqual([
+          '2026-01-31T09:00',
+          '2026-03-31T09:00',
+          '2026-05-31T09:00',
+          '2026-07-31T09:00'
+        ])
       })
 
       it('MONTHLY with ordinal weekdays: 2TU and -1FR', () => {
@@ -328,9 +371,19 @@ export function defineIcalSuite(zone: string): void {
 
       it('MONTHLY with BYMONTHDAY, also counted from the end', () => {
         const lastDay = calendar(vevent('UID:m', 'DTSTART:20260131T090000Z', 'RRULE:FREQ=MONTHLY;BYMONTHDAY=-1;COUNT=4'))
-        expect(starts(lastDay, utc(2026, 1, 1), utc(2027, 1, 1))).toEqual(['2026-01-31T09:00', '2026-02-28T09:00', '2026-03-31T09:00', '2026-04-30T09:00'])
+        expect(starts(lastDay, utc(2026, 1, 1), utc(2027, 1, 1))).toEqual([
+          '2026-01-31T09:00',
+          '2026-02-28T09:00',
+          '2026-03-31T09:00',
+          '2026-04-30T09:00'
+        ])
         const two = calendar(vevent('UID:m', 'DTSTART:20261001T090000Z', 'RRULE:FREQ=MONTHLY;BYMONTHDAY=1,15;COUNT=4'))
-        expect(starts(two, utc(2026, 1, 1), utc(2027, 1, 1))).toEqual(['2026-10-01T09:00', '2026-10-15T09:00', '2026-11-01T09:00', '2026-11-15T09:00'])
+        expect(starts(two, utc(2026, 1, 1), utc(2027, 1, 1))).toEqual([
+          '2026-10-01T09:00',
+          '2026-10-15T09:00',
+          '2026-11-01T09:00',
+          '2026-11-15T09:00'
+        ])
         // Friday the 13th: both BYDAY and BYMONTHDAY have to hold.
         const friday13 = calendar(vevent('UID:m', 'DTSTART:20260213T090000Z', 'RRULE:FREQ=MONTHLY;BYDAY=FR;BYMONTHDAY=13;COUNT=3'))
         expect(starts(friday13, utc(2026, 1, 1), utc(2028, 1, 1))).toEqual(['2026-02-13T09:00', '2026-03-13T09:00', '2026-11-13T09:00'])
@@ -339,7 +392,9 @@ export function defineIcalSuite(zone: string): void {
       it('MONTHLY with BYSETPOS (the RFC 5545 examples)', () => {
         const third = calendar(vevent('UID:m', 'DTSTART:19970904T090000Z', 'RRULE:FREQ=MONTHLY;COUNT=3;BYDAY=TU,WE,TH;BYSETPOS=3'))
         expect(starts(third, utc(1997, 1, 1), utc(1998, 1, 1))).toEqual(['1997-09-04T09:00', '1997-10-07T09:00', '1997-11-06T09:00'])
-        const lastWeekday = calendar(vevent('UID:m', 'DTSTART:20261030T090000Z', 'RRULE:FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1;COUNT=3'))
+        const lastWeekday = calendar(
+          vevent('UID:m', 'DTSTART:20261030T090000Z', 'RRULE:FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1;COUNT=3')
+        )
         expect(starts(lastWeekday, utc(2026, 1, 1), utc(2027, 6, 1))).toEqual(['2026-10-30T09:00', '2026-11-30T09:00', '2026-12-31T09:00'])
       })
 
@@ -356,12 +411,19 @@ export function defineIcalSuite(zone: string): void {
         const thanksgiving = calendar(vevent('UID:y', 'DTSTART:20251127T170000Z', 'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=4TH'))
         expect(starts(thanksgiving, utc(2026, 1, 1), utc(2028, 1, 1))).toEqual(['2026-11-26T17:00', '2027-11-25T17:00'])
         const twice = calendar(vevent('UID:y', 'DTSTART:20260110T090000Z', 'RRULE:FREQ=YEARLY;BYMONTH=1,7;COUNT=4'))
-        expect(starts(twice, utc(2026, 1, 1), utc(2030, 1, 1))).toEqual(['2026-01-10T09:00', '2026-07-10T09:00', '2027-01-10T09:00', '2027-07-10T09:00'])
+        expect(starts(twice, utc(2026, 1, 1), utc(2030, 1, 1))).toEqual([
+          '2026-01-10T09:00',
+          '2026-07-10T09:00',
+          '2027-01-10T09:00',
+          '2027-07-10T09:00'
+        ])
         // The 20th Monday of the year (RFC 5545).
         const twentieth = calendar(vevent('UID:y', 'DTSTART:19970519T090000Z', 'RRULE:FREQ=YEARLY;COUNT=3;BYDAY=20MO'))
         expect(starts(twentieth, utc(1997, 1, 1), utc(2001, 1, 1))).toEqual(['1997-05-19T09:00', '1998-05-18T09:00', '1999-05-17T09:00'])
         // US presidential election day (RFC 5545).
-        const election = calendar(vevent('UID:y', 'DTSTART:19961105T090000Z', 'RRULE:FREQ=YEARLY;INTERVAL=4;BYMONTH=11;BYDAY=TU;BYMONTHDAY=2,3,4,5,6,7,8;COUNT=3'))
+        const election = calendar(
+          vevent('UID:y', 'DTSTART:19961105T090000Z', 'RRULE:FREQ=YEARLY;INTERVAL=4;BYMONTH=11;BYDAY=TU;BYMONTHDAY=2,3,4,5,6,7,8;COUNT=3')
+        )
         expect(starts(election, utc(1996, 1, 1), utc(2010, 1, 1))).toEqual(['1996-11-05T09:00', '2000-11-07T09:00', '2004-11-02T09:00'])
         const everyFirst = calendar(vevent('UID:y', 'DTSTART:20260101T090000Z', 'RRULE:FREQ=YEARLY;BYMONTHDAY=1;COUNT=3'))
         expect(starts(everyFirst, utc(2026, 1, 1), utc(2028, 1, 1))).toEqual(['2026-01-01T09:00', '2026-02-01T09:00', '2026-03-01T09:00'])
@@ -381,19 +443,38 @@ export function defineIcalSuite(zone: string): void {
         expect(parseRule('FREQ=FORTNIGHTLY').rule).toBeNull()
         expect(parseRule('FREQ=SECONDLY')).toEqual({ rule: null, unsupported: true })
         expect(parseRule('FREQ=YEARLY;BYWEEKNO=20').unsupported).toBe(true)
-        expect(parseRule('FREQ=MONTHLY;BYMONTHDAY=0,32,-32,5;BYMONTH=0,13,2;BYSETPOS=0,-1').rule).toMatchObject({ byMonthDay: [5], byMonth: [2], bySetPos: [-1] })
+        expect(parseRule('FREQ=MONTHLY;BYMONTHDAY=0,32,-32,5;BYMONTH=0,13,2;BYSETPOS=0,-1').rule).toMatchObject({
+          byMonthDay: [5],
+          byMonth: [2],
+          bySetPos: [-1]
+        })
       })
 
       it('keeps only the first occurrence of a rule it does not support', () => {
-        const parsed = parseCalendar(calendar(vevent('UID:s', 'DTSTART:20261013T090000Z', 'RRULE:FREQ=SECONDLY'), vevent('UID:w', 'DTSTART:20261013T100000Z', 'RRULE:FREQ=YEARLY;BYWEEKNO=42')))
+        const parsed = parseCalendar(
+          calendar(
+            vevent('UID:s', 'DTSTART:20261013T090000Z', 'RRULE:FREQ=SECONDLY'),
+            vevent('UID:w', 'DTSTART:20261013T100000Z', 'RRULE:FREQ=YEARLY;BYWEEKNO=42')
+          )
+        )
         expect(parsed.notes).toContain('unsupported-rule')
-        expect(expandCalendar(parsed, { from: utc(2026, 1, 1), to: utc(2030, 1, 1) }).map((o) => iso(o.start))).toEqual(['2026-10-13T09:00', '2026-10-13T10:00'])
+        expect(expandCalendar(parsed, { from: utc(2026, 1, 1), to: utc(2030, 1, 1) }).map((o) => iso(o.start))).toEqual([
+          '2026-10-13T09:00',
+          '2026-10-13T10:00'
+        ])
       })
     })
 
     describe('daylight saving', () => {
       it('a weekly 09:00 meeting stays at 09:00 in its own zone across a change of clocks', () => {
-        const newYork = calendar(vevent('UID:ny', 'DTSTART;TZID=America/New_York:20260302T090000', 'DTEND;TZID=America/New_York:20260302T100000', 'RRULE:FREQ=WEEKLY;COUNT=3'))
+        const newYork = calendar(
+          vevent(
+            'UID:ny',
+            'DTSTART;TZID=America/New_York:20260302T090000',
+            'DTEND;TZID=America/New_York:20260302T100000',
+            'RRULE:FREQ=WEEKLY;COUNT=3'
+          )
+        )
         const found = expand(newYork, utc(2026, 1, 1), utc(2027, 1, 1))
         // EST (UTC-5) on 2 March; EDT (UTC-4) from 8 March.
         expect(found.map((o) => iso(o.start))).toEqual(['2026-03-02T14:00', '2026-03-09T13:00', '2026-03-16T13:00'])
@@ -451,11 +532,19 @@ export function defineIcalSuite(zone: string): void {
     })
 
     describe('exceptions and overrides', () => {
-      const series = ['UID:s', 'SUMMARY:standup', 'DTSTART;TZID=America/Sao_Paulo:20261012T090000', 'DTEND;TZID=America/Sao_Paulo:20261012T091500', 'RRULE:FREQ=DAILY;COUNT=5']
+      const series = [
+        'UID:s',
+        'SUMMARY:standup',
+        'DTSTART;TZID=America/Sao_Paulo:20261012T090000',
+        'DTEND;TZID=America/Sao_Paulo:20261012T091500',
+        'RRULE:FREQ=DAILY;COUNT=5'
+      ]
       const all = [utc(2026, 10, 1), utc(2026, 11, 1)] as const
 
       it('EXDATE removes occurrences: zoned, UTC and by date', () => {
-        const text = calendar(vevent(...series, 'EXDATE;TZID=America/Sao_Paulo:20261013T090000', 'EXDATE:20261014T120000Z', 'EXDATE;VALUE=DATE:20261015'))
+        const text = calendar(
+          vevent(...series, 'EXDATE;TZID=America/Sao_Paulo:20261013T090000', 'EXDATE:20261014T120000Z', 'EXDATE;VALUE=DATE:20261015')
+        )
         expect(starts(text, ...all)).toEqual(['2026-10-12T12:00', '2026-10-16T12:00'])
       })
 
@@ -477,7 +566,13 @@ export function defineIcalSuite(zone: string): void {
       it('an override replaces its occurrence', () => {
         const text = calendar(
           vevent(...series),
-          vevent('UID:s', 'SUMMARY:standup (moved)', 'RECURRENCE-ID;TZID=America/Sao_Paulo:20261013T090000', 'DTSTART;TZID=America/Sao_Paulo:20261013T140000', 'DTEND;TZID=America/Sao_Paulo:20261013T141500')
+          vevent(
+            'UID:s',
+            'SUMMARY:standup (moved)',
+            'RECURRENCE-ID;TZID=America/Sao_Paulo:20261013T090000',
+            'DTSTART;TZID=America/Sao_Paulo:20261013T140000',
+            'DTEND;TZID=America/Sao_Paulo:20261013T141500'
+          )
         )
         const found = expand(text, ...all)
         expect(found.map((o) => [o.title, iso(o.start)])).toEqual([
@@ -491,19 +586,39 @@ export function defineIcalSuite(zone: string): void {
       })
 
       it('an override in UTC matches the occurrence it names', () => {
-        const text = calendar(vevent(...series), vevent('UID:s', 'SUMMARY:other', 'RECURRENCE-ID:20261013T120000Z', 'DTSTART:20261013T180000Z'))
-        expect(expand(text, ...all).filter((o) => iso(o.start).startsWith('2026-10-13')).map((o) => o.title)).toEqual(['other'])
+        const text = calendar(
+          vevent(...series),
+          vevent('UID:s', 'SUMMARY:other', 'RECURRENCE-ID:20261013T120000Z', 'DTSTART:20261013T180000Z')
+        )
+        expect(
+          expand(text, ...all)
+            .filter((o) => iso(o.start).startsWith('2026-10-13'))
+            .map((o) => o.title)
+        ).toEqual(['other'])
       })
 
       it('a cancelled override removes its occurrence', () => {
-        const text = calendar(vevent(...series), vevent('UID:s', 'STATUS:CANCELLED', 'RECURRENCE-ID;TZID=America/Sao_Paulo:20261013T090000', 'DTSTART;TZID=America/Sao_Paulo:20261013T090000'))
+        const text = calendar(
+          vevent(...series),
+          vevent(
+            'UID:s',
+            'STATUS:CANCELLED',
+            'RECURRENCE-ID;TZID=America/Sao_Paulo:20261013T090000',
+            'DTSTART;TZID=America/Sao_Paulo:20261013T090000'
+          )
+        )
         expect(starts(text, ...all)).toEqual(['2026-10-12T12:00', '2026-10-14T12:00', '2026-10-15T12:00', '2026-10-16T12:00'])
       })
 
       it('an override moved to another day leaves the window it left and enters the one it reached', () => {
         const text = calendar(
           vevent(...series),
-          vevent('UID:s', 'SUMMARY:moved', 'RECURRENCE-ID;TZID=America/Sao_Paulo:20261013T090000', 'DTSTART;TZID=America/Sao_Paulo:20261020T090000')
+          vevent(
+            'UID:s',
+            'SUMMARY:moved',
+            'RECURRENCE-ID;TZID=America/Sao_Paulo:20261013T090000',
+            'DTSTART;TZID=America/Sao_Paulo:20261020T090000'
+          )
         )
         expect(expand(text, utc(2026, 10, 13, 3), utc(2026, 10, 14, 3))).toHaveLength(0)
         expect(expand(text, utc(2026, 10, 20, 3), utc(2026, 10, 21, 3)).map((o) => o.title)).toEqual(['moved'])
@@ -517,7 +632,9 @@ export function defineIcalSuite(zone: string): void {
 
     describe('windows', () => {
       it('an event that crosses midnight is in both days', () => {
-        const text = calendar(vevent('UID:n', 'SUMMARY:night', 'DTSTART:20261013T230000', 'DTEND:20261014T010000', 'RRULE:FREQ=DAILY;COUNT=2'))
+        const text = calendar(
+          vevent('UID:n', 'SUMMARY:night', 'DTSTART:20261013T230000', 'DTEND:20261014T010000', 'RRULE:FREQ=DAILY;COUNT=2')
+        )
         expect(expand(text, local(2026, 10, 13), local(2026, 10, 14))).toHaveLength(1)
         // The 14th has the end of the first and the start of the second.
         expect(expand(text, local(2026, 10, 14), local(2026, 10, 15))).toHaveLength(2)
@@ -533,7 +650,9 @@ export function defineIcalSuite(zone: string): void {
       })
 
       it('a long multi-day series reaches into the window from before it', () => {
-        const text = calendar(vevent('UID:c', 'SUMMARY:camp', 'DTSTART;VALUE=DATE:20260105', 'DTEND;VALUE=DATE:20260112', 'RRULE:FREQ=MONTHLY'))
+        const text = calendar(
+          vevent('UID:c', 'SUMMARY:camp', 'DTSTART;VALUE=DATE:20260105', 'DTEND;VALUE=DATE:20260112', 'RRULE:FREQ=MONTHLY')
+        )
         const found = expand(text, local(2026, 10, 10), local(2026, 10, 11))
         expect(found.map((o) => [o.startDay, o.endDay])).toEqual([['2026-10-05', '2026-10-12']])
       })
@@ -579,7 +698,17 @@ export function defineIcalSuite(zone: string): void {
       })
 
       it('survives things that are not calendars', () => {
-        for (const text of ['', 'hello', '<html><body>404</body></html>', '\u0000\u0001\u0002', 'BEGIN:VEVENT', 'END:VEVENT', 'BEGIN:VCALENDAR\nBEGIN:VEVENT\nBEGIN:VEVENT\nBEGIN:VEVENT', ':::;;;===', '\r\r\r\n\n\n   ']) {
+        for (const text of [
+          '',
+          'hello',
+          '<html><body>404</body></html>',
+          '\u0000\u0001\u0002',
+          'BEGIN:VEVENT',
+          'END:VEVENT',
+          'BEGIN:VCALENDAR\nBEGIN:VEVENT\nBEGIN:VEVENT\nBEGIN:VEVENT',
+          ':::;;;===',
+          '\r\r\r\n\n\n   '
+        ]) {
           expect(() => parseCalendar(text)).not.toThrow()
           expect(parseCalendar(text).events).toEqual([])
         }
@@ -600,7 +729,13 @@ export function defineIcalSuite(zone: string): void {
         ]
         const events = rules.flatMap((rule, index) => [
           vevent(`UID:h${index}`, 'DTSTART:16010101T000000Z', `RRULE:${rule}`),
-          vevent(`UID:z${index}`, 'DTSTART;TZID=America/Sao_Paulo:19000101T000000', 'DURATION:P3660D', `RRULE:${rule}`, `EXDATE:${'20261013T030000Z,'.repeat(3000)}20261013T030000Z`)
+          vevent(
+            `UID:z${index}`,
+            'DTSTART;TZID=America/Sao_Paulo:19000101T000000',
+            'DURATION:P3660D',
+            `RRULE:${rule}`,
+            `EXDATE:${'20261013T030000Z,'.repeat(3000)}20261013T030000Z`
+          )
         ])
         const started = performance.now()
         const found = expand(calendar(...events), utc(2026, 10, 13), utc(2026, 10, 14))
@@ -609,7 +744,9 @@ export function defineIcalSuite(zone: string): void {
       })
 
       it('caps the number of events and of occurrences', () => {
-        const many = calendar(...Array.from({ length: ICAL_LIMITS.events + 50 }, (_, index) => vevent(`UID:e${index}`, 'DTSTART:20261013T100000Z')))
+        const many = calendar(
+          ...Array.from({ length: ICAL_LIMITS.events + 50 }, (_, index) => vevent(`UID:e${index}`, 'DTSTART:20261013T100000Z'))
+        )
         const parsed = parseCalendar(many)
         expect(parsed.events).toHaveLength(ICAL_LIMITS.events)
         expect(parsed.notes).toContain('truncated')
@@ -625,15 +762,95 @@ export function defineIcalSuite(zone: string): void {
         }
         const pick = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)]
         const pieces = [
-          'BEGIN:VCALENDAR', 'END:VCALENDAR', 'BEGIN:VEVENT', 'END:VEVENT', 'BEGIN:VALARM', 'END:VALARM', 'BEGIN:VTIMEZONE', 'END:VTIMEZONE',
-          'DTSTART', 'DTEND', 'RRULE', 'EXDATE', 'RDATE', 'RECURRENCE-ID', 'DURATION', 'SUMMARY', 'UID', 'STATUS', 'ATTENDEE', 'X-WR-CALNAME',
-          ';TZID=', ';VALUE=DATE', ';PARTSTAT=DECLINED', 'America/Sao_Paulo', 'Europe/Berlin', 'Nowhere/Land', '"', ':', ';', ',', '=', '\\', '\r\n', '\n', '\r\n ', '\t',
-          '20261013', 'T090000', 'Z', '99999999T999999', '00000000', '-', '+', 'P', 'PT', '1H', '9999D', 'FREQ=', 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY', 'SECONDLY',
-          'INTERVAL=', 'COUNT=', 'UNTIL=', 'BYDAY=', 'BYMONTHDAY=', 'BYMONTH=', 'BYSETPOS=', 'WKST=', 'MO', '-1FR', '53SU', '0', '1', '-1', '31', '-366', '999999999999', 'CANCELLED',
-          'mailto:', 'a@b.c', '\u0000', '￿', '💥', '<b>', '&amp;', 'ǅ'
+          'BEGIN:VCALENDAR',
+          'END:VCALENDAR',
+          'BEGIN:VEVENT',
+          'END:VEVENT',
+          'BEGIN:VALARM',
+          'END:VALARM',
+          'BEGIN:VTIMEZONE',
+          'END:VTIMEZONE',
+          'DTSTART',
+          'DTEND',
+          'RRULE',
+          'EXDATE',
+          'RDATE',
+          'RECURRENCE-ID',
+          'DURATION',
+          'SUMMARY',
+          'UID',
+          'STATUS',
+          'ATTENDEE',
+          'X-WR-CALNAME',
+          ';TZID=',
+          ';VALUE=DATE',
+          ';PARTSTAT=DECLINED',
+          'America/Sao_Paulo',
+          'Europe/Berlin',
+          'Nowhere/Land',
+          '"',
+          ':',
+          ';',
+          ',',
+          '=',
+          '\\',
+          '\r\n',
+          '\n',
+          '\r\n ',
+          '\t',
+          '20261013',
+          'T090000',
+          'Z',
+          '99999999T999999',
+          '00000000',
+          '-',
+          '+',
+          'P',
+          'PT',
+          '1H',
+          '9999D',
+          'FREQ=',
+          'DAILY',
+          'WEEKLY',
+          'MONTHLY',
+          'YEARLY',
+          'SECONDLY',
+          'INTERVAL=',
+          'COUNT=',
+          'UNTIL=',
+          'BYDAY=',
+          'BYMONTHDAY=',
+          'BYMONTH=',
+          'BYSETPOS=',
+          'WKST=',
+          'MO',
+          '-1FR',
+          '53SU',
+          '0',
+          '1',
+          '-1',
+          '31',
+          '-366',
+          '999999999999',
+          'CANCELLED',
+          'mailto:',
+          'a@b.c',
+          '\u0000',
+          '￿',
+          '💥',
+          '<b>',
+          '&amp;',
+          'ǅ'
         ]
         const base = calendar(
-          vevent('UID:a', 'SUMMARY:x', 'DTSTART;TZID=America/Sao_Paulo:20261012T090000', 'DTEND;TZID=America/Sao_Paulo:20261012T100000', 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=20', 'EXDATE;TZID=America/Sao_Paulo:20261014T090000'),
+          vevent(
+            'UID:a',
+            'SUMMARY:x',
+            'DTSTART;TZID=America/Sao_Paulo:20261012T090000',
+            'DTEND;TZID=America/Sao_Paulo:20261012T100000',
+            'RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=20',
+            'EXDATE;TZID=America/Sao_Paulo:20261014T090000'
+          ),
           vevent('UID:b', 'SUMMARY:y', 'DTSTART;VALUE=DATE:20261013', 'RRULE:FREQ=MONTHLY;BYDAY=2TU'),
           vevent('UID:a', 'RECURRENCE-ID;TZID=America/Sao_Paulo:20261019T090000', 'DTSTART;TZID=America/Sao_Paulo:20261019T110000')
         )

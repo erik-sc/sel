@@ -20,7 +20,14 @@ export async function recoverDatabase(error: unknown, userData: string): Promise
   const words = DATA_COPY[locale]
 
   if (isNewerError(error)) {
-    await dialog.showMessageBox({ type: 'error', message: words.newerTitle, detail: words.newerDetail, buttons: [words.quit], noLink: true, title: 'sel' })
+    await dialog.showMessageBox({
+      type: 'error',
+      message: words.newerTitle,
+      detail: words.newerDetail,
+      buttons: [words.quit],
+      noLink: true,
+      title: 'sel'
+    })
     return null
   }
 

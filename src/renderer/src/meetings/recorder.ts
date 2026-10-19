@@ -51,9 +51,12 @@ function patch(change: Partial<RecorderSession>): void {
 
 function message(error: unknown): string {
   const text = error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : ''
-  if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) return 'The microphone could not be opened. Check that Windows lets desktop apps use it.'
-  if (error instanceof DOMException && (error.name === 'NotFoundError' || error.name === 'OverconstrainedError')) return 'No microphone was found.'
-  if (error instanceof DOMException && error.name === 'NotReadableError') return 'The microphone is in use by another program or could not be read.'
+  if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError'))
+    return 'The microphone could not be opened. Check that Windows lets desktop apps use it.'
+  if (error instanceof DOMException && (error.name === 'NotFoundError' || error.name === 'OverconstrainedError'))
+    return 'No microphone was found.'
+  if (error instanceof DOMException && error.name === 'NotReadableError')
+    return 'The microphone is in use by another program or could not be read.'
   return text || 'The recording could not be started.'
 }
 
@@ -102,7 +105,13 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
   try {
     begun = await window.api.meetings.recording.begin(pageId, { sources })
     const mic = await navigator.mediaDevices.getUserMedia({
-      audio: { ...(sources.micId ? { deviceId: { ideal: sources.micId } } : {}), echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      audio: {
+        ...(sources.micId ? { deviceId: { ideal: sources.micId } } : {}),
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1
+      },
       video: false
     })
     streams.push(mic)
@@ -111,7 +120,10 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
     let systemNote: string | null = sources.system && !begun.system ? 'Computer audio is not available on this system.' : null
     if (begun.system) {
       try {
-        const display = await navigator.mediaDevices.getDisplayMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: true })
+        const display = await navigator.mediaDevices.getDisplayMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+          video: true
+        })
         // Only the sound is wanted: the picture is dropped before a frame of it is read.
         for (const track of display.getVideoTracks()) {
           track.stop()
@@ -128,11 +140,27 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
 
     context = new AudioContext({ sampleRate: PCM.sampleRate, latencyHint: 'playback' })
     await context.audioWorklet.addModule(workletUrl)
-    const node = new AudioWorkletNode(context, 'sel-pcm', { numberOfInputs: 2, numberOfOutputs: 0, channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' })
+    const node = new AudioWorkletNode(context, 'sel-pcm', {
+      numberOfInputs: 2,
+      numberOfOutputs: 0,
+      channelCount: 1,
+      channelCountMode: 'explicit',
+      channelInterpretation: 'speakers'
+    })
     context.createMediaStreamSource(mic).connect(node, 0, 0)
     if (system) context.createMediaStreamSource(system).connect(node, 0, 1)
 
-    const owner: Capture = { token: begun.token, context, streams, recorders: [], tail: Promise.resolve(), seq: 0, encodedSeq: { mic: 0, system: 0 }, samples: 0, sendsSystem: begun.system }
+    const owner: Capture = {
+      token: begun.token,
+      context,
+      streams,
+      recorders: [],
+      tail: Promise.resolve(),
+      seq: 0,
+      encodedSeq: { mic: 0, system: 0 },
+      samples: 0,
+      sendsSystem: begun.system
+    }
     node.port.onmessage = (event: MessageEvent<{ mic: ArrayBuffer; system: ArrayBuffer; micPeak: number; systemPeak: number }>) => {
       if (capture !== owner) return
       const { session } = useRecorder.getState()
@@ -226,7 +254,9 @@ export async function listMicrophones(): Promise<{ id: string; label: string }[]
   try {
     const devices = await navigator.mediaDevices.enumerateDevices()
     return devices
-      .filter((device) => device.kind === 'audioinput' && device.deviceId && device.deviceId !== 'default' && device.deviceId !== 'communications')
+      .filter(
+        (device) => device.kind === 'audioinput' && device.deviceId && device.deviceId !== 'default' && device.deviceId !== 'communications'
+      )
       .map((device) => ({ id: device.deviceId, label: device.label || 'Microphone' }))
   } finally {
     for (const track of stream.getTracks()) track.stop()

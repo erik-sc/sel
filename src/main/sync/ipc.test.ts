@@ -31,7 +31,12 @@ vi.mock('electron', () => ({
     }
   },
   BrowserWindow: {
-    getAllWindows: () => [{ isDestroyed: () => false, webContents: { isDestroyed: () => false, send: (channel: string, payload: unknown) => electron.sent.push({ channel, payload }) } }],
+    getAllWindows: () => [
+      {
+        isDestroyed: () => false,
+        webContents: { isDestroyed: () => false, send: (channel: string, payload: unknown) => electron.sent.push({ channel, payload }) }
+      }
+    ],
     fromWebContents: () => null
   },
   ipcMain: {
@@ -123,7 +128,15 @@ describe('sync ipc', () => {
     hooks.start()
     expect(hooks.beforeQuit()).toBeNull()
     const status = (await invoke('sync:status', sender())) as SyncStatus
-    expect(status).toMatchObject({ configured: false, state: 'needs-setup', branch: 'main', pending: 0, encrypted: false, paused: false, activity: [] })
+    expect(status).toMatchObject({
+      configured: false,
+      state: 'needs-setup',
+      branch: 'main',
+      pending: 0,
+      encrypted: false,
+      paused: false,
+      activity: []
+    })
     expect(status.deviceName.length).toBeGreaterThan(0)
     expect(await invoke('sync:now', sender())).toMatchObject({ configured: false, state: 'needs-setup' })
     expect(hooks.beforeQuit()).toBeNull()
@@ -131,7 +144,19 @@ describe('sync ipc', () => {
 
   it('rejects malformed requests before anything runs', async () => {
     const win = sender()
-    for (const bad of [null, 'https://github.com/o/r.git', [], { remoteUrl: 5 }, { remoteUrl: 'x'.repeat(600) }, { remoteUrl: 'https://github.com/o/r.git', branch: '--force' }, { remoteUrl: 'https://github.com/o/r.git', mode: 'overwrite' }, { remoteUrl: 'https://github.com/o/r.git', passphrase: 'short' }, { remoteUrl: 'https://github.com/o/r.git', useAnyway: 'yes' }, { remoteUrl: 'https://github.com/o/r.git', gitPath: 'C:\\evil.exe' }, { remoteUrl: 'https://github.com/o/r.git', deviceName: 7 }]) {
+    for (const bad of [
+      null,
+      'https://github.com/o/r.git',
+      [],
+      { remoteUrl: 5 },
+      { remoteUrl: 'x'.repeat(600) },
+      { remoteUrl: 'https://github.com/o/r.git', branch: '--force' },
+      { remoteUrl: 'https://github.com/o/r.git', mode: 'overwrite' },
+      { remoteUrl: 'https://github.com/o/r.git', passphrase: 'short' },
+      { remoteUrl: 'https://github.com/o/r.git', useAnyway: 'yes' },
+      { remoteUrl: 'https://github.com/o/r.git', gitPath: 'C:\\evil.exe' },
+      { remoteUrl: 'https://github.com/o/r.git', deviceName: 7 }
+    ]) {
       await expect(invoke('sync:setup', win, bad), JSON.stringify(bad)).rejects.toThrow()
     }
     await expect(invoke('sync:pause', win, 'yes')).rejects.toThrow('Invalid sync request')
@@ -141,7 +166,16 @@ describe('sync ipc', () => {
     await expect(invoke('sync:unlock', win, 'short')).rejects.toThrow('Invalid passphrase')
     await expect(invoke('sync:unlock', win, { passphrase: 'long enough' })).rejects.toThrow('Invalid passphrase')
     await expect(invoke('sync:setEncryption', win, 5)).rejects.toThrow()
-    expect(syncSetup({ remoteUrl: 'https://github.com/o/r.git', branch: 'main', deviceName: 'Laptop', mode: 'replace', passphrase: 'long enough', useAnyway: true })).toEqual({
+    expect(
+      syncSetup({
+        remoteUrl: 'https://github.com/o/r.git',
+        branch: 'main',
+        deviceName: 'Laptop',
+        mode: 'replace',
+        passphrase: 'long enough',
+        useAnyway: true
+      })
+    ).toEqual({
       remoteUrl: 'https://github.com/o/r.git',
       branch: 'main',
       deviceName: 'Laptop',
@@ -153,7 +187,14 @@ describe('sync ipc', () => {
 
   it('answers a bad address with a status, and takes no folder as a remote in a shipped app', async () => {
     const win = sender()
-    for (const url of ['https://user:sekrit99@github.com/o/r.git', 'ext::sh -c calc', 'file:///C:/x', 'C:\\Users\\me\\remote.git', '/tmp/remote.git', '-oProxyCommand=calc']) {
+    for (const url of [
+      'https://user:sekrit99@github.com/o/r.git',
+      'ext::sh -c calc',
+      'file:///C:/x',
+      'C:\\Users\\me\\remote.git',
+      '/tmp/remote.git',
+      '-oProxyCommand=calc'
+    ]) {
       const status = (await invoke('sync:setup', win, { remoteUrl: url })) as SyncStatus
       expect(status, url).toMatchObject({ configured: false, lastError: { code: 'invalid-url' } })
       expect(JSON.stringify(status), url).not.toContain('sekrit99')
@@ -167,7 +208,19 @@ describe('sync ipc', () => {
 
   it('lets a renderer read the sync settings and write none of them', async () => {
     const win = sender()
-    for (const key of ['sync.remoteUrl', 'sync.gitPath', 'sync.lastCommit', 'sync.deviceName', 'sync.paused', 'sync.branch', 'sync.encrypted', 'sync.appearanceAt', 'sync.briefingAt', 'sync.activity', 'sync.useAnyway']) {
+    for (const key of [
+      'sync.remoteUrl',
+      'sync.gitPath',
+      'sync.lastCommit',
+      'sync.deviceName',
+      'sync.paused',
+      'sync.branch',
+      'sync.encrypted',
+      'sync.appearanceAt',
+      'sync.briefingAt',
+      'sync.activity',
+      'sync.useAnyway'
+    ]) {
       await expect(invoke('app:setSetting', win, key, 'x'), key).rejects.toThrow('read-only')
       await expect(invoke('app:setSetting', win, key, null), key).rejects.toThrow('read-only')
     }
@@ -191,7 +244,9 @@ describe('sync ipc', () => {
     const impostor = join(dir, windows ? 'calc.exe' : 'calc')
     writeFileSync(impostor, '')
     electron.dialog = { canceled: false, filePaths: [impostor] }
-    expect(await invoke('sync:pickGit', win)).toMatchObject({ lastError: { code: 'git-not-found', message: 'That file is not the git program.' } })
+    expect(await invoke('sync:pickGit', win)).toMatchObject({
+      lastError: { code: 'git-not-found', message: 'That file is not the git program.' }
+    })
     expect(repo.getSetting('sync.gitPath')).toBeNull()
     const real = join(dir, windows ? 'git.exe' : 'git')
     writeFileSync(real, '')
@@ -210,7 +265,10 @@ describe('sync ipc', () => {
 
   it('does not offer encryption where the key cannot be kept safely', async () => {
     electron.keychain = false
-    const status = (await invoke('sync:setup', sender(), { remoteUrl: 'https://github.com/o/r.git', passphrase: 'a long passphrase' })) as SyncStatus
+    const status = (await invoke('sync:setup', sender(), {
+      remoteUrl: 'https://github.com/o/r.git',
+      passphrase: 'a long passphrase'
+    })) as SyncStatus
     expect(status).toMatchObject({ configured: false, lastError: { code: 'failed' } })
     expect(status.lastError?.message).toContain('no secure place')
     await expect(invoke('sync:setEncryption', sender(), 'a long passphrase')).rejects.toThrow('no secure place')
@@ -221,7 +279,11 @@ describe('sync ipc', () => {
     repo.setSetting('sync.remoteUrl', 'https://github.com/o/r.git')
     try {
       expect(((await invoke('sync:status', sender())) as SyncStatus).pending).toBe(0)
-      await invoke('briefing:calendars.add', sender(), { label: 'Work', url: 'https://calendar.example.com/private-x/basic.ics', color: 'blue' })
+      await invoke('briefing:calendars.add', sender(), {
+        label: 'Work',
+        url: 'https://calendar.example.com/private-x/basic.ics',
+        color: 'blue'
+      })
       expect(((await invoke('sync:status', sender())) as SyncStatus).pending).toBe(1)
       const before = Date.now()
       await invoke('app:setSetting', sender(), 'briefing.databases', [])

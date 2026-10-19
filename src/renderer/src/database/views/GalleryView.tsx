@@ -69,11 +69,7 @@ const GalleryCard = memo(function GalleryCard({
       }}
       onContextMenu={(event) => onRowMenu(event, row.id)}
     >
-      {cover ? (
-        <div className="db-gallery-cover" style={cover} />
-      ) : (
-        <BodyPreview row={row} />
-      )}
+      {cover ? <div className="db-gallery-cover" style={cover} /> : <BodyPreview row={row} />}
       <div className="db-gallery-body">
         <div className="db-card-title">
           <RowIcon row={row} />

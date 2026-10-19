@@ -35,7 +35,9 @@ describe('invoke channels as types', () => {
 })
 
 describe('buildInvokers', () => {
-  const call = (channel: string) => async (...args: unknown[]) => ({ channel, args })
+  const call =
+    (channel: string) =>
+    async (...args: unknown[]) => ({ channel, args })
 
   it('puts each channel at the place it names, calling for that channel only', async () => {
     const api = buildInvokers(['notes:get', 'notes:tag.add', 'other:list'], call) as {
@@ -54,7 +56,17 @@ describe('buildInvokers', () => {
   })
 
   it('refuses malformed channels and two channels that claim one place', () => {
-    for (const bad of ['notes', ':get', 'notes:', 'notes:get.', 'notes:__proto__', 'notes:constructor.x', 'no tes:get', 'notes:a-b', 'a:b:c'])
+    for (const bad of [
+      'notes',
+      ':get',
+      'notes:',
+      'notes:get.',
+      'notes:__proto__',
+      'notes:constructor.x',
+      'no tes:get',
+      'notes:a-b',
+      'a:b:c'
+    ])
       expect(() => channelPath(bad), bad).toThrow('Invalid invoke channel')
     expect(() => buildInvokers(['notes:get', 'notes:get'], call)).toThrow('collides')
     expect(() => buildInvokers(['notes:tag', 'notes:tag.add'], call)).toThrow('collides')

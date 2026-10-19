@@ -5,7 +5,19 @@
 // for the rings of "on this day" and the fireflies of a summer night.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, JSX } from 'react'
-import { addDays, CHART_ARCS, CHART_MERIDIANS, rng, SKY_HEIGHT, SKY_WIDTH, WHEEL, WHEEL_TICKS, type SkyMonth, type SkyScene, type SkyStar } from '@shared/sky'
+import {
+  addDays,
+  CHART_ARCS,
+  CHART_MERIDIANS,
+  rng,
+  SKY_HEIGHT,
+  SKY_WIDTH,
+  WHEEL,
+  WHEEL_TICKS,
+  type SkyMonth,
+  type SkyScene,
+  type SkyStar
+} from '@shared/sky'
 import type { NotebookLocale } from '@shared/notebook'
 import { longDay, type SkyCopy } from './copy'
 import { segmentKey, timeline, type SkyPlay, type Timing } from './timeline'
@@ -65,7 +77,18 @@ function usePx(ref: React.RefObject<HTMLDivElement | null>): number {
   return px
 }
 
-export function SkyChart({ scene, copy, locale, play = null, playKey, reduced = false, small = false, onOpenNotebook, onPlayed, className }: SkyChartProps): JSX.Element {
+export function SkyChart({
+  scene,
+  copy,
+  locale,
+  play = null,
+  playKey,
+  reduced = false,
+  small = false,
+  onOpenNotebook,
+  onPlayed,
+  className
+}: SkyChartProps): JSX.Element {
   const box = useRef<HTMLDivElement>(null)
   const px = usePx(box)
   const clip = useId().replace(/:/g, '')
@@ -115,13 +138,32 @@ export function SkyChart({ scene, copy, locale, play = null, playKey, reduced = 
                 className={['grid-l', t.arcs ? 'dash' : '', eventOn && event?.kind === 'season' ? 'sweep' : ''].join(' ').trim()}
                 pathLength={1}
                 d={d}
-                style={tm(t.arcs ? { w: t.arcs.w + i, n: t.arcs.n } : eventOn && event?.kind === 'season' ? { w: t.event!.w + i * 1.5, n: 10 } : null)}
+                style={tm(
+                  t.arcs
+                    ? { w: t.arcs.w + i, n: t.arcs.n }
+                    : eventOn && event?.kind === 'season'
+                      ? { w: t.event!.w + i * 1.5, n: 10 }
+                      : null
+                )}
               />
             ))}
             {CHART_MERIDIANS.map((d, i) => (
-              <path key={`m${i}`} className={t.arcs ? 'grid-l fade' : 'grid-l'} d={d} style={tm(t.arcs ? { w: t.arcs.w + 2, n: 3 } : null)} />
+              <path
+                key={`m${i}`}
+                className={t.arcs ? 'grid-l fade' : 'grid-l'}
+                d={d}
+                style={tm(t.arcs ? { w: t.arcs.w + 2, n: 3 } : null)}
+              />
             ))}
-            <ellipse className={t.arcs ? 'wheel dash' : 'wheel'} pathLength={1} cx={WHEEL.cx} cy={WHEEL.cy} rx={WHEEL.rx} ry={WHEEL.ry} style={tm(t.arcs ? { w: t.arcs.w + 1, n: 6 } : null)} />
+            <ellipse
+              className={t.arcs ? 'wheel dash' : 'wheel'}
+              pathLength={1}
+              cx={WHEEL.cx}
+              cy={WHEEL.cy}
+              rx={WHEEL.rx}
+              ry={WHEEL.ry}
+              style={tm(t.arcs ? { w: t.arcs.w + 1, n: 6 } : null)}
+            />
             {WHEEL_TICKS.map((d, i) => (
               <path key={`t${i}`} className={t.arcs ? 'tick fade' : 'tick'} d={d} style={tm(t.arcs ? { w: t.arcs.w + 3, n: 3 } : null)} />
             ))}
@@ -141,8 +183,21 @@ export function SkyChart({ scene, copy, locale, play = null, playKey, reduced = 
               const arriving = timing && timing.n === 5
               return (
                 <g key={g.key}>
-                  {arriving && <path className="trail" pathLength={1} d={`M${r1(g.x + 26)} ${r1(g.y + 18)}L${g.x} ${g.y}`} style={tm({ w: timing.w, n: 4 })} />}
-                  <circle className={['grain', arriving ? 'land' : timing ? 'fade' : ''].join(' ').trim()} cx={g.x} cy={g.y} r={r1(g.r * k)} style={tm(timing)} />
+                  {arriving && (
+                    <path
+                      className="trail"
+                      pathLength={1}
+                      d={`M${r1(g.x + 26)} ${r1(g.y + 18)}L${g.x} ${g.y}`}
+                      style={tm({ w: timing.w, n: 4 })}
+                    />
+                  )}
+                  <circle
+                    className={['grain', arriving ? 'land' : timing ? 'fade' : ''].join(' ').trim()}
+                    cx={g.x}
+                    cy={g.y}
+                    r={r1(g.r * k)}
+                    style={tm(timing)}
+                  />
                 </g>
               )
             })}
@@ -156,7 +211,15 @@ export function SkyChart({ scene, copy, locale, play = null, playKey, reduced = 
           {/* the halos of pomodoros */}
           {scene.halos.map((h) => {
             const timing = t.halos.get(h.key)
-            return <path key={h.key} className={['halo', timing ? (timing.n === 5 ? 'settle' : 'fade') : ''].join(' ').trim()} pathLength={1} d={ring(h.x, h.y, h.r)} style={tm(timing)} />
+            return (
+              <path
+                key={h.key}
+                className={['halo', timing ? (timing.n === 5 ? 'settle' : 'fade') : ''].join(' ').trim()}
+                pathLength={1}
+                d={ring(h.x, h.y, h.r)}
+                style={tm(timing)}
+              />
+            )
           })}
 
           {/* the first star of all, for good */}
@@ -166,7 +229,9 @@ export function SkyChart({ scene, copy, locale, play = null, playKey, reduced = 
               {event?.kind === 'anniversary' && (
                 <>
                   <path className="cl glint is-strong" d={glint(scene.firstStar.x, scene.firstStar.y, 11 * k)} />
-                  {eventOn && <path className="sparkle" d={glint(scene.firstStar.x, scene.firstStar.y, 14)} style={tm({ w: t.event!.w, n: 4.5 })} />}
+                  {eventOn && (
+                    <path className="sparkle" d={glint(scene.firstStar.x, scene.firstStar.y, 14)} style={tm({ w: t.event!.w, n: 4.5 })} />
+                  )}
                   <circle className="accent-star" cx={scene.firstStar.x} cy={scene.firstStar.y} r={2.2 * k} />
                 </>
               )}
@@ -212,7 +277,11 @@ export function SkyChart({ scene, copy, locale, play = null, playKey, reduced = 
             ) : null
           )}
           {hover && (
-            <div className="sky-tip" role="tooltip" style={{ left: `${(hover.x / SKY_WIDTH) * 100}%`, top: `${(hover.y / SKY_HEIGHT) * 100}%` }}>
+            <div
+              className="sky-tip"
+              role="tooltip"
+              style={{ left: `${(hover.x / SKY_WIDTH) * 100}%`, top: `${(hover.y / SKY_HEIGHT) * 100}%` }}
+            >
               <span className="sky-tip-day" data-date="">
                 {longDay(hover.day, locale)}
               </span>
@@ -248,7 +317,15 @@ function Month({
         const timing = t.segments.get(segmentKey(month.month, s.ia, s.ib))
         const cls = timing ? (timing.mode === 'dash' ? 'cl dash' : 'cl glowline') : 'cl'
         // drawn from the earlier star to the one that completes it, the way the pen goes
-        return <path key={`${s.ia}-${s.ib}`} className={cls} pathLength={1} d={s.ia < s.ib ? line(s.a, s.b) : line(s.b, s.a)} style={tm(timing)} />
+        return (
+          <path
+            key={`${s.ia}-${s.ib}`}
+            className={cls}
+            pathLength={1}
+            d={s.ia < s.ib ? line(s.a, s.b) : line(s.b, s.a)}
+            style={tm(timing)}
+          />
+        )
       })}
       {month.stars.map((s) => {
         const fresh = t.stars.get(s.day)
@@ -256,7 +333,19 @@ function Month({
         const breathe = t.breathe.get(s.day)
         const handoff = handoffs.get(s.day)
         const r = r1((s.loose ? 1.3 : 1.9) * k)
-        const cls = fresh ? (s.loose ? 'n-star is-loose pop' : 'n-star pop') : reveal ? 'st pop' : breathe ? 'st breathe' : handoff ? 'st handoff' : s.loose ? 'st is-loose' : 'st'
+        const cls = fresh
+          ? s.loose
+            ? 'n-star is-loose pop'
+            : 'n-star pop'
+          : reveal
+            ? 'st pop'
+            : breathe
+              ? 'st breathe'
+              : handoff
+                ? 'st handoff'
+                : s.loose
+                  ? 'st is-loose'
+                  : 'st'
         return (
           <g key={s.day}>
             {fresh && <path className="sparkle" d={glint(s.x, s.y, 10)} style={tm({ w: fresh.w - 0.4, n: 4.5 })} />}
@@ -326,7 +415,17 @@ function MonthName({
   )
 }
 
-function Moon({ scene, clip, t, reduced }: { scene: SkyScene; clip: string; t: ReturnType<typeof timeline>; reduced: boolean }): JSX.Element {
+function Moon({
+  scene,
+  clip,
+  t,
+  reduced
+}: {
+  scene: SkyScene
+  clip: string
+  t: ReturnType<typeof timeline>
+  reduced: boolean
+}): JSX.Element {
   const { moon, event } = scene
   const eclipse = event?.kind === 'eclipse'
   const halo = event?.kind === 'halo'
@@ -334,8 +433,18 @@ function Moon({ scene, clip, t, reduced }: { scene: SkyScene; clip: string; t: R
     <g className={t.moon ? 'sky-moon rise' : 'sky-moon'} style={tm(t.moon)}>
       {halo && (
         <>
-          <path className={t.event ? 'halo moon-halo settle' : 'halo moon-halo'} pathLength={1} d={ring(moon.x, moon.y, moon.r * 2.4)} style={tm(t.event ? { w: t.event.w, n: 10 } : null)} />
-          <path className={t.event ? 'halo moon-halo is-thin settle' : 'halo moon-halo is-thin'} pathLength={1} d={ring(moon.x, moon.y, moon.r * 2.6)} style={tm(t.event ? { w: t.event.w + 1, n: 10 } : null)} />
+          <path
+            className={t.event ? 'halo moon-halo settle' : 'halo moon-halo'}
+            pathLength={1}
+            d={ring(moon.x, moon.y, moon.r * 2.4)}
+            style={tm(t.event ? { w: t.event.w, n: 10 } : null)}
+          />
+          <path
+            className={t.event ? 'halo moon-halo is-thin settle' : 'halo moon-halo is-thin'}
+            pathLength={1}
+            d={ring(moon.x, moon.y, moon.r * 2.6)}
+            style={tm(t.event ? { w: t.event.w + 1, n: 10 } : null)}
+          />
         </>
       )}
       <circle className="moonr" cx={moon.x} cy={moon.y} r={moon.r} />
@@ -343,8 +452,16 @@ function Moon({ scene, clip, t, reduced }: { scene: SkyScene; clip: string; t: R
         <>
           <circle className="moonw" cx={moon.x} cy={moon.y} r={moon.r} />
           <g clipPath={`url(#${clip})`}>
-            {t.event && !reduced && <circle className="umbra shadow" cx={moon.x + 3} cy={moon.y} r={moon.r * 1.15} style={tm({ w: t.event.w, n: 16 })} />}
-            <circle className={t.event && !reduced ? 'copper fade' : 'copper'} cx={moon.x} cy={moon.y} r={moon.r} style={tm(t.event ? { w: t.event.w + 10, n: 8 } : null)} />
+            {t.event && !reduced && (
+              <circle className="umbra shadow" cx={moon.x + 3} cy={moon.y} r={moon.r * 1.15} style={tm({ w: t.event.w, n: 16 })} />
+            )}
+            <circle
+              className={t.event && !reduced ? 'copper fade' : 'copper'}
+              cx={moon.x}
+              cy={moon.y}
+              r={moon.r}
+              style={tm(t.event ? { w: t.event.w + 10, n: 8 } : null)}
+            />
           </g>
           <circle className="moonl" cx={moon.x} cy={moon.y} r={moon.r} />
         </>
@@ -396,7 +513,16 @@ function Night({ scene, t, reduced }: { scene: SkyScene; t: ReturnType<typeof ti
         <g className="fireflies">
           {Array.from({ length: 7 }, (_, i) => {
             const style = { '--d': `${r1(2.4 + r() * 3)}s`, '--o': `${r1(-r() * 4)}s` } as CSSProperties
-            return <circle key={i} className={reduced ? 'fly is-still' : 'fly flicker'} cx={r1(60 + r() * 680)} cy={r1(420 + r() * 30)} r={1.3} style={style} />
+            return (
+              <circle
+                key={i}
+                className={reduced ? 'fly is-still' : 'fly flicker'}
+                cx={r1(60 + r() * 680)}
+                cy={r1(420 + r() * 30)}
+                r={1.3}
+                style={style}
+              />
+            )
           })}
         </g>
       )
@@ -418,7 +544,15 @@ function Night({ scene, t, reduced }: { scene: SkyScene; t: ReturnType<typeof ti
             const len = 70 + r() * 90
             const x0 = rx + Math.cos(a) * (12 + r() * 30)
             const y0 = ry + Math.sin(a) * (8 + r() * 20)
-            return <path key={i} className="meteor" pathLength={1} d={`M${r1(x0)} ${r1(y0)}L${r1(x0 + Math.cos(a) * len)} ${r1(y0 + Math.sin(a) * len)}`} style={tm({ w: w + i * 2.2 + r() * 1.5, n: 3.4 })} />
+            return (
+              <path
+                key={i}
+                className="meteor"
+                pathLength={1}
+                d={`M${r1(x0)} ${r1(y0)}L${r1(x0 + Math.cos(a) * len)} ${r1(y0 + Math.sin(a) * len)}`}
+                style={tm({ w: w + i * 2.2 + r() * 1.5, n: 3.4 })}
+              />
+            )
           })}
         </g>
       )
@@ -439,7 +573,11 @@ function Night({ scene, t, reduced }: { scene: SkyScene; t: ReturnType<typeof ti
     case 'cloud':
       return (
         <g className="ephemeral across" style={{ '--n': 44, '--w': w, '--from': '-160px', '--to': '880px' } as CSSProperties}>
-          <path className="cloud" transform="translate(0 150) scale(4)" d="M7 18.5a4 4 0 0 1-.5-8 5.5 5.5 0 0 1 10.6-1.3A4.7 4.7 0 0 1 17 18.5Z" />
+          <path
+            className="cloud"
+            transform="translate(0 150) scale(4)"
+            d="M7 18.5a4 4 0 0 1-.5-8 5.5 5.5 0 0 1 10.6-1.3A4.7 4.7 0 0 1 17 18.5Z"
+          />
         </g>
       )
     case 'flock':
@@ -466,7 +604,15 @@ function Night({ scene, t, reduced }: { scene: SkyScene; t: ReturnType<typeof ti
           ].flatMap(([x, y, d]) =>
             Array.from({ length: 10 }, (_, i) => {
               const a = (i / 10) * Math.PI * 2
-              return <path key={`${x}-${i}`} className="burst" pathLength={1} d={`M${r1(x + Math.cos(a) * 5)} ${r1(y + Math.sin(a) * 5)}L${r1(x + Math.cos(a) * 20)} ${r1(y + Math.sin(a) * 20)}`} style={tm({ w: w + d, n: 5 })} />
+              return (
+                <path
+                  key={`${x}-${i}`}
+                  className="burst"
+                  pathLength={1}
+                  d={`M${r1(x + Math.cos(a) * 5)} ${r1(y + Math.sin(a) * 5)}L${r1(x + Math.cos(a) * 20)} ${r1(y + Math.sin(a) * 20)}`}
+                  style={tm({ w: w + d, n: 5 })}
+                />
+              )
             })
           )}
         </g>

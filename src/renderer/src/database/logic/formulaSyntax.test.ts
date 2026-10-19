@@ -131,7 +131,11 @@ describe('the formula parser', () => {
     expect(problem('round(1,)')).toMatchObject({ message: 'Remove the "," before ")"', start: 8 })
     expect(problem('round(1 2)')).toMatchObject({ message: expect.stringContaining('expected "," or ")"') })
     expect(problem('1 < 2 < 3')).toMatchObject({ message: expect.stringContaining('cannot be chained'), start: 6 })
-    expect(problem('Price * 2')).toMatchObject({ message: 'Unknown name "Price". To read a property, write prop("Price")', start: 0, end: 5 })
+    expect(problem('Price * 2')).toMatchObject({
+      message: 'Unknown name "Price". To read a property, write prop("Price")',
+      start: 0,
+      end: 5
+    })
     expect(problem('round + 1')).toMatchObject({ message: 'round is a function: write round(…)' })
     expect(problem('prop(Price)')).toMatchObject({ message: expect.stringContaining('in quotes') })
     expect(problem('prop("A", "B")')).toMatchObject({ message: expect.stringContaining('in quotes') })

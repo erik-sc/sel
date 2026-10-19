@@ -145,10 +145,7 @@ export function DatabaseView(props: {
   }, [rawContent])
   const rowBlocks = useBlocks(rowIds)
   const allRows = useMemo(
-    () =>
-      rowBlocks.filter(
-        (b): b is Block => !!b && b.type === 'page' && !b.trashedAt && b.parentId === rowsOwnerId
-      ),
+    () => rowBlocks.filter((b): b is Block => !!b && b.type === 'page' && !b.trashedAt && b.parentId === rowsOwnerId),
     [rowBlocks, rowsOwnerId]
   )
 
@@ -257,7 +254,9 @@ export function DatabaseView(props: {
   }
   if (resolved.status === 'loading') return <div className={inline ? 'db-root is-inline is-loading' : 'db-root is-loading'} />
   if (resolved.status !== 'ok') {
-    return <SourceUnavailable databaseId={databaseId} inline={inline} trashedId={resolved.status === 'trashed' ? resolved.trashedId : null} />
+    return (
+      <SourceUnavailable databaseId={databaseId} inline={inline} trashedId={resolved.status === 'trashed' ? resolved.trashedId : null} />
+    )
   }
 
   // A linked view shows its source's title and icon unless it was given its own.
@@ -418,7 +417,9 @@ export function DatabaseView(props: {
   // A panel only stays open on a view that has it (the chart panel on charts, sorts and properties on the views that order rows,
   // and the properties panel, which holds "Split by" there, on calculations).
   const openPanel: Panel | null =
-    panel === 'filter' || (panel === 'chart' ? isChart : panel === 'properties' ? ordersRows || view.type === 'calc' : ordersRows) ? panel : null
+    panel === 'filter' || (panel === 'chart' ? isChart : panel === 'properties' ? ordersRows || view.type === 'calc' : ordersRows)
+      ? panel
+      : null
   const panelAnchor =
     openPanel === 'filter'
       ? filterRef.current
@@ -458,13 +459,7 @@ export function DatabaseView(props: {
   const content = (
     <div className={inline ? 'db-root is-inline' : 'db-root'} data-view-type={view.type}>
       <div className="db-header">
-        <button
-          type="button"
-          ref={iconRef}
-          className="db-icon"
-          aria-label="Change icon"
-          onClick={() => setEmojiOpen((open) => !open)}
-        >
+        <button type="button" ref={iconRef} className="db-icon" aria-label="Change icon" onClick={() => setEmojiOpen((open) => !open)}>
           {icon ? <IconGlyph icon={icon} /> : <Table size={inline ? ICON_SIZE_INLINE : ICON_SIZE_PAGE} />}
         </button>
         {linked && (
@@ -519,33 +514,33 @@ export function DatabaseView(props: {
       <div className="db-bar">
         <div className="db-tabs">
           <div className="db-segmented" role="tablist">
-          {views.map((v) => (
-            <button
-              type="button"
-              key={v.id}
-              role="tab"
-              aria-selected={v.id === view.id}
-              className={v.id === view.id ? 'db-tab is-active' : 'db-tab'}
-              onPointerEnter={() => preloadView(v.type)}
-              onFocus={() => preloadView(v.type)}
-              onClick={(event) => {
-                if (v.id === view.id) {
-                  const anchor = event.currentTarget
-                  setViewMenu((prev) => (prev ? null : { viewId: v.id, anchor, renaming: false }))
-                } else {
-                  selectView(v.id)
-                }
-              }}
-              onDoubleClick={(event) => setViewMenu({ viewId: v.id, anchor: event.currentTarget, renaming: true })}
-              onContextMenu={(event) => {
-                event.preventDefault()
-                setViewMenu({ viewId: v.id, anchor: event.currentTarget, renaming: false })
-              }}
-            >
-              <ViewIcon type={v.type} />
-              <span className="db-tab-name">{v.name}</span>
-            </button>
-          ))}
+            {views.map((v) => (
+              <button
+                type="button"
+                key={v.id}
+                role="tab"
+                aria-selected={v.id === view.id}
+                className={v.id === view.id ? 'db-tab is-active' : 'db-tab'}
+                onPointerEnter={() => preloadView(v.type)}
+                onFocus={() => preloadView(v.type)}
+                onClick={(event) => {
+                  if (v.id === view.id) {
+                    const anchor = event.currentTarget
+                    setViewMenu((prev) => (prev ? null : { viewId: v.id, anchor, renaming: false }))
+                  } else {
+                    selectView(v.id)
+                  }
+                }}
+                onDoubleClick={(event) => setViewMenu({ viewId: v.id, anchor: event.currentTarget, renaming: true })}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  setViewMenu({ viewId: v.id, anchor: event.currentTarget, renaming: false })
+                }}
+              >
+                <ViewIcon type={v.type} />
+                <span className="db-tab-name">{v.name}</span>
+              </button>
+            ))}
           </div>
           <button
             type="button"

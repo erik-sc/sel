@@ -66,7 +66,17 @@ function db(id: string, schema: Schema, content: string[]): Block {
 }
 
 function row(id: string, parentId: string, title: string, values: Values = {}, extra: Partial<Block> = {}): Block {
-  return { id, type: 'page', parentId, content: [], props: { title: [[title]], values }, createdAt: 1, updatedAt: 1, trashedAt: null, ...extra }
+  return {
+    id,
+    type: 'page',
+    parentId,
+    content: [],
+    props: { title: [[title]], values },
+    createdAt: 1,
+    updatedAt: 1,
+    trashedAt: null,
+    ...extra
+  }
 }
 
 const PROJECTS = [row('p1', 'projects', 'Apollo'), row('p2', 'projects', 'Gemini')]
@@ -78,7 +88,16 @@ interface World {
 }
 
 function world(schema: Schema, rows: Block[]): World {
-  const blocks = [db('tasks', schema, rows.map((r) => r.id)), db('projects', { title: BASE.title }, ['p1', 'p2']), ...PROJECTS, ...rows]
+  const blocks = [
+    db(
+      'tasks',
+      schema,
+      rows.map((r) => r.id)
+    ),
+    db('projects', { title: BASE.title }, ['p1', 'p2']),
+    ...PROJECTS,
+    ...rows
+  ]
   const byId = new Map(blocks.map((b) => [b.id, b]))
   const ctx = cellContext({ get: (id) => byId.get(id) })
   return { ctx, schema: ctx.schemaOf('tasks') as Schema, rows }
@@ -247,7 +266,9 @@ describe('formula functions', () => {
     expect(value('dateBetween(today(), prop("Due"), "years")')).toBe(0)
     expect(value('dateBetween(today(), prop("Due"), "months")', { due: { start: '2026-09-15' } })).toBe(0)
     expect(value('formatDate(prop("Due"))')).toBe('Jan 31, 2026')
-    expect(value('formatDate(prop("Due"), "YYYY-MM-DD, D/M/YY, MMMM MMM, dddd ddd")')).toBe('2026-01-31, 31/1/26, January Jan, Saturday Sat')
+    expect(value('formatDate(prop("Due"), "YYYY-MM-DD, D/M/YY, MMMM MMM, dddd ddd")')).toBe(
+      '2026-01-31, 31/1/26, January Jan, Saturday Sat'
+    )
     expect(value('formatDate(prop("Due"), "year YYYY")')).toBe('year 2026')
     expect(value('formatDate(prop("Due"))', {})).toBe('')
     expect(value('year(prop("Due")) * 10000 + month(prop("Due")) * 100 + day(prop("Due"))')).toBe(20260131)
@@ -502,9 +523,9 @@ describe('formula cells', () => {
     const rows = [row('a', 'tasks', 'A', { price: 1 })]
     const w = world(broken, rows)
     expect(queryRows(rows, w.schema, views[0], '', w.ctx)).toEqual(rows)
-    expect(sanitizeViews([{ ...views[0], filters: [{ propertyId: 'f', operator: 'gt', value: { start: 'x' } }] }], broken)[0].filters).toEqual([
-      { propertyId: 'f', operator: 'gt' }
-    ])
+    expect(
+      sanitizeViews([{ ...views[0], filters: [{ propertyId: 'f', operator: 'gt', value: { start: 'x' } }] }], broken)[0].filters
+    ).toEqual([{ propertyId: 'f', operator: 'gt' }])
   })
 })
 
@@ -604,7 +625,9 @@ describe('the formula editor', () => {
       type: 'number',
       outcome: { ok: false, error: 'Division by zero' }
     })
-    expect(previewFormula('prop("Price") +', 'f', w.schema, r, w.ctx)).toMatchObject({ problem: { message: expect.stringContaining('ends early'), start: 15 } })
+    expect(previewFormula('prop("Price") +', 'f', w.schema, r, w.ctx)).toMatchObject({
+      problem: { message: expect.stringContaining('ends early'), start: 15 }
+    })
     // Reading the formula that reads this one closes a loop.
     expect(previewFormula('prop("Double")', 'f', w.schema, r, w.ctx)).toMatchObject({
       problem: { message: 'Circular reference: Total → Double → Total', start: 0, end: 14 }
@@ -676,7 +699,11 @@ describe('formulas on big tables', () => {
     const schema: Schema = {
       ...BASE,
       total: formula('total', 'Total', 'round(prop("Price") * prop("Qty") * 1.2, 2)'),
-      label: formula('label', 'Label', 'if(prop("Done"), "done", "open") + " · " + join(prop("Tags"), "/") + " · " + format(prop("Total"))'),
+      label: formula(
+        'label',
+        'Label',
+        'if(prop("Done"), "done", "open") + " · " + join(prop("Tags"), "/") + " · " + format(prop("Total"))'
+      ),
       late: formula('late', 'Late', 'dateBetween(today(), prop("Due"), "days") > 30 and not prop("Done")')
     }
     const w = world(schema, rows)

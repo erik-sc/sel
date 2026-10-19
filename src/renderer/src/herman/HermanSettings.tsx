@@ -27,7 +27,10 @@ const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'off', label: 'Off' }
 ]
 const VOICES = HERMAN_VOICES.map((value) => ({ value, label: HERMAN_VOICE_LABELS[value] }))
-const SIZES: { value: HermanSize; label: string }[] = HERMAN_SIZES.map((value) => ({ value, label: value === 'small' ? 'Small' : 'Medium' }))
+const SIZES: { value: HermanSize; label: string }[] = HERMAN_SIZES.map((value) => ({
+  value,
+  label: value === 'small' ? 'Small' : 'Medium'
+}))
 const FREQUENCY_LABELS: Record<HermanFrequency, string> = { rare: 'Rare', sometimes: 'Sometimes', often: 'Often' }
 const FREQUENCIES = HERMAN_FREQUENCIES.map((value) => ({ value, label: FREQUENCY_LABELS[value] }))
 const FREQUENCY_HELP: Record<HermanFrequency, string> = {
@@ -107,13 +110,20 @@ export function HermanSection(): JSX.Element {
               <span className="ap-row-help">When off, the plain assistant is back and no figure is shown.</span>
             </div>
             <div className="ap-row-control">
-              <Segmented label="Herman" value={enabled ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('enabled', value === 'on')} />
+              <Segmented
+                label="Herman"
+                value={enabled ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => change('enabled', value === 'on')}
+              />
             </div>
           </div>
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Voice</span>
-              <span className="ap-row-help">{VOICE_HELP[values.voice]} Used in the conversation and on Today; the writing tools are not affected.</span>
+              <span className="ap-row-help">
+                {VOICE_HELP[values.voice]} Used in the conversation and on Today; the writing tools are not affected.
+              </span>
             </div>
             <div className="ap-row-control">
               <Segmented label="Voice" value={values.voice} options={VOICES} onChange={(value) => change('voice', value)} />
@@ -130,10 +140,18 @@ export function HermanSection(): JSX.Element {
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Corner</span>
-              <span className="ap-row-help">Where he sits in the page area. He can also be dragged there, or moved with the arrow keys.</span>
+              <span className="ap-row-help">
+                Where he sits in the page area. He can also be dragged there, or moved with the arrow keys.
+              </span>
             </div>
             <div className="ap-row-control">
-              <select className="ap-field ai-select" value={values.corner} aria-label="Corner" disabled={!enabled} onChange={(event) => change('corner', event.target.value as HermanCorner)}>
+              <select
+                className="ap-field ai-select"
+                value={values.corner}
+                aria-label="Corner"
+                disabled={!enabled}
+                onChange={(event) => change('corner', event.target.value as HermanCorner)}
+              >
                 {HERMAN_CORNERS.map((corner) => (
                   <option key={corner} value={corner}>
                     {CORNER_LABELS[corner]}
@@ -153,10 +171,17 @@ export function HermanSection(): JSX.Element {
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Say what he notices</span>
-              <span className="ap-row-help">Now and then, one short line about your own day: something overdue, a meeting about to start, a long sitting.</span>
+              <span className="ap-row-help">
+                Now and then, one short line about your own day: something overdue, a meeting about to start, a long sitting.
+              </span>
             </div>
             <div className="ap-row-control">
-              <Segmented label="Say what he notices" value={values.nudges ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('nudges', value === 'on')} />
+              <Segmented
+                label="Say what he notices"
+                value={values.nudges ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => change('nudges', value === 'on')}
+              />
             </div>
           </div>
           <div className="ap-row">
@@ -165,18 +190,39 @@ export function HermanSection(): JSX.Element {
               <span className="ap-row-help">{FREQUENCY_HELP[values.frequency]} Never while you type.</span>
             </div>
             <div className="ap-row-control">
-              <Segmented label="How often" value={values.frequency} options={FREQUENCIES} onChange={(value) => change('frequency', value)} />
+              <Segmented
+                label="How often"
+                value={values.frequency}
+                options={FREQUENCIES}
+                onChange={(value) => change('frequency', value)}
+              />
             </div>
           </div>
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Quiet hours</span>
-              <span className="ap-row-help">{quietOn ? 'He says nothing between these hours, and sleeps.' : 'The same hour twice: no quiet hours.'}</span>
+              <span className="ap-row-help">
+                {quietOn ? 'He says nothing between these hours, and sleeps.' : 'The same hour twice: no quiet hours.'}
+              </span>
             </div>
             <div className="ap-row-control">
-              <input className="ap-field herman-time" type="time" aria-label="Quiet hours start" value={toClock(values.quietHours.from)} disabled={!enabled || !values.nudges} onChange={(event) => setQuiet('from', event.target.value)} />
+              <input
+                className="ap-field herman-time"
+                type="time"
+                aria-label="Quiet hours start"
+                value={toClock(values.quietHours.from)}
+                disabled={!enabled || !values.nudges}
+                onChange={(event) => setQuiet('from', event.target.value)}
+              />
               <span className="ap-unit">to</span>
-              <input className="ap-field herman-time" type="time" aria-label="Quiet hours end" value={toClock(values.quietHours.to)} disabled={!enabled || !values.nudges} onChange={(event) => setQuiet('to', event.target.value)} />
+              <input
+                className="ap-field herman-time"
+                type="time"
+                aria-label="Quiet hours end"
+                value={toClock(values.quietHours.to)}
+                disabled={!enabled || !values.nudges}
+                onChange={(event) => setQuiet('to', event.target.value)}
+              />
             </div>
           </div>
           <div className="ap-row">
@@ -190,8 +236,8 @@ export function HermanSection(): JSX.Element {
           </div>
         </div>
         <p className="ap-note">
-          His remarks are written in advance and chosen on this computer from your own tasks and calendar: no AI is used for them, and nothing is sent anywhere. These settings stay
-          on this device.
+          His remarks are written in advance and chosen on this computer from your own tasks and calendar: no AI is used for them, and
+          nothing is sent anywhere. These settings stay on this device.
         </p>
       </section>
 

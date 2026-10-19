@@ -40,7 +40,9 @@ function data(kind: ChartKind, series: (number | null)[][], labels?: string[]): 
 
 const bars = (scene: Scene) => scene.marks.filter((mark) => mark.shape === 'bar')
 const inside = (scene: Scene): boolean =>
-  [...scene.axisLabels, ...scene.categoryLabels, ...scene.valueLabels].every((label) => label.x >= -0.5 && label.x <= scene.width + 0.5 && label.y >= 0 && label.y <= scene.height)
+  [...scene.axisLabels, ...scene.categoryLabels, ...scene.valueLabels].every(
+    (label) => label.x >= -0.5 && label.x <= scene.width + 0.5 && label.y >= 0 && label.y <= scene.height
+  )
 
 describe('column charts', () => {
   it('draws one bar per value, on a zero baseline, taller for larger values', () => {
@@ -65,7 +67,14 @@ describe('column charts', () => {
   })
 
   it('groups series side by side, with a gap, inside the slot of their category', () => {
-    const scene = buildScene(data('column', [[1, 2], [2, 1], [3, 3]]), options())
+    const scene = buildScene(
+      data('column', [
+        [1, 2],
+        [2, 1],
+        [3, 3]
+      ]),
+      options()
+    )
     const first = bars(scene).filter((mark) => mark.ci === 0)
     expect(first.map((mark) => mark.si)).toEqual([0, 1, 2])
     expect(first[1].x).toBeCloseTo(first[0].x + first[0].width + 2)
@@ -76,7 +85,14 @@ describe('column charts', () => {
   })
 
   it('stacks series on top of each other, and the axis covers the stack', () => {
-    const scene = buildScene(data('column', [[1, 2], [2, 1], [3, 3]]), options({ stacked: true }))
+    const scene = buildScene(
+      data('column', [
+        [1, 2],
+        [2, 1],
+        [3, 3]
+      ]),
+      options({ stacked: true })
+    )
     const first = bars(scene).filter((mark) => mark.ci === 0)
     expect(first.every((mark) => mark.stacked && mark.clip === undefined)).toBe(true)
     expect(new Set(first.map((mark) => mark.x)).size).toBe(1)
@@ -86,7 +102,18 @@ describe('column charts', () => {
     expect(first[0].y - (first[1].y + first[1].height)).toBeLessThan(3)
     expect(Number(scene.axisLabels.at(-1)?.text)).toBeGreaterThanOrEqual(6)
     // Not stacked: the axis only needs the largest single value.
-    expect(Number(buildScene(data('column', [[1, 2], [2, 1], [3, 3]]), options()).axisLabels.at(-1)?.text)).toBe(3)
+    expect(
+      Number(
+        buildScene(
+          data('column', [
+            [1, 2],
+            [2, 1],
+            [3, 3]
+          ]),
+          options()
+        ).axisLabels.at(-1)?.text
+      )
+    ).toBe(3)
   })
 
   it('draws negative values below the baseline, clipped on the other side', () => {
@@ -114,14 +141,14 @@ describe('column charts', () => {
     const marks = bars(roomy)
     roomy.valueLabels.forEach((label, i) => expect(label.y).toBeLessThan(marks[i].y))
 
-    const crowded = buildScene(
-      data('column', [Array.from({ length: 60 }, (_, i) => 1000 + i)]),
-      options({ showValues: true, width: 420 })
-    )
+    const crowded = buildScene(data('column', [Array.from({ length: 60 }, (_, i) => 1000 + i)]), options({ showValues: true, width: 420 }))
     // Labels wider than the room of their own bar would sit on the neighbours: none is drawn.
     expect(crowded.valueLabels).toEqual([])
     // Labels of different widths: the ones that fit their bar stay, and never touch each other.
-    const mixed = buildScene(data('column', [Array.from({ length: 16 }, (_, i) => (i % 2 ? 7 : 123456))]), options({ showValues: true, width: 420 }))
+    const mixed = buildScene(
+      data('column', [Array.from({ length: 16 }, (_, i) => (i % 2 ? 7 : 123456))]),
+      options({ showValues: true, width: 420 })
+    )
     expect(mixed.valueLabels.map((label) => label.text)).toEqual(Array(8).fill('7'))
     const grouped = buildScene(data('line', [Array.from({ length: 30 }, (_, i) => 1000 + i)]), options({ showValues: true, width: 420 }))
     expect(grouped.valueLabels.length).toBeGreaterThan(0)
@@ -132,7 +159,14 @@ describe('column charts', () => {
   })
 
   it('stacked value labels show the total of each stack', () => {
-    const scene = buildScene(data('column', [[1, 2], [2, 1], [3, 3]]), options({ stacked: true, showValues: true }))
+    const scene = buildScene(
+      data('column', [
+        [1, 2],
+        [2, 1],
+        [3, 3]
+      ]),
+      options({ stacked: true, showValues: true })
+    )
     expect(scene.valueLabels.map((label) => label.text)).toEqual(['6', '6'])
   })
 
@@ -143,7 +177,14 @@ describe('column charts', () => {
     expect(first.full).toBe('A very long category name indeed')
     expect(long.categoryLabels[1].full).toBeUndefined()
 
-    const many = buildScene(data('column', [Array.from({ length: 80 }, () => 1)], Array.from({ length: 80 }, (_, i) => `Week ${i}`)), options())
+    const many = buildScene(
+      data(
+        'column',
+        [Array.from({ length: 80 }, () => 1)],
+        Array.from({ length: 80 }, (_, i) => `Week ${i}`)
+      ),
+      options()
+    )
     expect(many.categoryLabels.length).toBeLessThan(40)
     expect(many.categoryLabels.length).toBeGreaterThan(4)
     const xs = many.categoryLabels.map((label) => label.x)
@@ -194,7 +235,11 @@ describe('line and area charts', () => {
   })
 
   it('date axes skip labels instead of cutting them short', () => {
-    const months = data('line', [Array.from({ length: 12 }, (_, i) => i)], Array.from({ length: 12 }, (_, i) => `Month ${i + 1} 2025`))
+    const months = data(
+      'line',
+      [Array.from({ length: 12 }, (_, i) => i)],
+      Array.from({ length: 12 }, (_, i) => `Month ${i + 1} 2025`)
+    )
     const dated = buildScene({ ...months, bucket: 'month' }, options({ width: 640 }))
     expect(dated.categoryLabels.every((label) => !label.text.endsWith('…'))).toBe(true)
     expect(dated.categoryLabels.length).toBeLessThan(12)
@@ -213,7 +258,13 @@ describe('line and area charts', () => {
   })
 
   it('stacked areas pile up: each series is drawn on top of the one before', () => {
-    const scene = buildScene(data('area', [[1, 2, 3], [2, 2, 2]]), options({ stacked: true }))
+    const scene = buildScene(
+      data('area', [
+        [1, 2, 3],
+        [2, 2, 2]
+      ]),
+      options({ stacked: true })
+    )
     const lower = scene.marks.filter((mark) => mark.si === 0)
     const upper = scene.marks.filter((mark) => mark.si === 1)
     upper.forEach((mark, i) => expect(mark.y).toBeLessThan(lower[i].y))
@@ -265,10 +316,19 @@ describe('bar charts', () => {
   })
 
   it('value labels follow the end of each bar and stay inside the picture', () => {
-    const scene = buildScene(data('bar', [[10, 400000, 25]]), options({ showValues: true, format: (v) => (v === null ? '' : `${v} units`) }))
+    const scene = buildScene(
+      data('bar', [[10, 400000, 25]]),
+      options({ showValues: true, format: (v) => (v === null ? '' : `${v} units`) })
+    )
     expect(scene.valueLabels.map((label) => label.text)).toEqual(['10 units', '400000 units', '25 units'])
     for (const label of scene.valueLabels) expect(label.x + measure(label.text)).toBeLessThanOrEqual(scene.width)
-    const stacked = buildScene(data('bar', [[1, 2], [3, 4]]), options({ showValues: true, stacked: true }))
+    const stacked = buildScene(
+      data('bar', [
+        [1, 2],
+        [3, 4]
+      ]),
+      options({ showValues: true, stacked: true })
+    )
     expect(stacked.valueLabels.map((label) => label.text)).toEqual(['4', '6'])
     expect(bars(stacked).every((mark) => mark.stacked)).toBe(true)
   })
@@ -342,7 +402,9 @@ describe('degenerate input', () => {
     const finite = (scene: Scene): boolean =>
       scene.marks.every((mark) => [mark.x, mark.y, mark.width, mark.height, mark.ax, mark.ay].every(Number.isFinite)) &&
       scene.paths.every((path) => !/NaN|Infinity/.test(path.d)) &&
-      [...scene.axisLabels, ...scene.categoryLabels, ...scene.valueLabels].every((label) => Number.isFinite(label.x) && Number.isFinite(label.y))
+      [...scene.axisLabels, ...scene.categoryLabels, ...scene.valueLabels].every(
+        (label) => Number.isFinite(label.x) && Number.isFinite(label.y)
+      )
     for (const kind of ['column', 'bar', 'line', 'area', 'pie', 'donut'] as ChartKind[]) {
       for (const values of [[5], [0], [-5], [1e12, 1], [1e-9, 2e-9], [3, null, 3], [-2, 4, -6]]) {
         for (const stacked of [false, true]) {

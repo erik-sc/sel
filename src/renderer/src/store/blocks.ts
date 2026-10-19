@@ -587,9 +587,7 @@ function subscribe(): void {
   window.api.onChange((event) => {
     if (!event || !Array.isArray(event.ids)) return
     const own = event.origin === window.api.clientId
-    const ids = event.ids.filter(
-      (id) => typeof id === 'string' && !pending.has(id) && !(own && recentOwn.has(id))
-    )
+    const ids = event.ids.filter((id) => typeof id === 'string' && !pending.has(id) && !(own && recentOwn.has(id)))
     if (!ids.length) return
     // Foreign changes: refetch everything. Own changes that bypassed applyOps
     // (duplicate, restore, import, direct api calls): same treatment.

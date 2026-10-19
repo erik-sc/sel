@@ -18,7 +18,16 @@ const SCHEMA: Record<string, PropertySchema> = {
 
 let n = 0
 const row = (title: string, values: Record<string, unknown> = {}): Block =>
-  ({ id: `r${++n}`, type: 'page', parentId: 'db', content: [], props: { title: title ? [[title]] : [], values }, createdAt: 0, updatedAt: 0, trashedAt: null }) as unknown as Block
+  ({
+    id: `r${++n}`,
+    type: 'page',
+    parentId: 'db',
+    content: [],
+    props: { title: title ? [[title]] : [], values },
+    createdAt: 0,
+    updatedAt: 0,
+    trashedAt: null
+  }) as unknown as Block
 
 const ROWS = [
   row('Aluguel', { limit: 2600, spent: 2600, fixed: true, notes: 'dia 5' }),
@@ -111,7 +120,8 @@ describe('formulas', () => {
     expect(value('2 ** 3')).toBe('"*" is not expected here')
     expect(value('1; alert(1)')).toBe('";" is not expected here')
     expect(value('('.repeat(60) + '1' + ')'.repeat(60))).toMatch(/nested too deeply/)
-    for (const hostile of ['constructor()', '__proto__(Gasto)', 'sum(__proto__)', 'sum(constructor)', 'toString()']) expect(typeof value(hostile)).toBe('string')
+    for (const hostile of ['constructor()', '__proto__(Gasto)', 'sum(__proto__)', 'sum(constructor)', 'toString()'])
+      expect(typeof value(hostile)).toBe('string')
   })
 })
 
@@ -188,7 +198,12 @@ describe('figures from rollups and formulas, split by a select property', () => 
     budget: { id: 'budget', name: 'Orçamento', type: 'number', numberFormat: 'currency' },
     entries: { id: 'entries', name: 'Lançamentos', type: 'relation', relation: { databaseId: 'entries', syncedPropertyId: 'category' } },
     spent: { id: 'spent', name: 'Gasto', type: 'rollup', rollup: { relationId: 'entries', propertyId: 'expense', function: 'sum' } },
-    received: { id: 'received', name: 'Recebido', type: 'rollup', rollup: { relationId: 'entries', propertyId: 'income', function: 'sum' } },
+    received: {
+      id: 'received',
+      name: 'Recebido',
+      type: 'rollup',
+      rollup: { relationId: 'entries', propertyId: 'income', function: 'sum' }
+    },
     planned: {
       id: 'planned',
       name: 'Planejado',
@@ -196,7 +211,13 @@ describe('figures from rollups and formulas, split by a select property', () => 
       formula: { expression: 'if(prop("group") == "Renda", prop("budget"), 0 - prop("budget"))' },
       numberFormat: 'currency'
     },
-    actual: { id: 'actual', name: 'Realizado', type: 'formula', formula: { expression: 'prop("received") - prop("spent")' }, numberFormat: 'currency' }
+    actual: {
+      id: 'actual',
+      name: 'Realizado',
+      type: 'formula',
+      formula: { expression: 'prop("received") - prop("spent")' },
+      numberFormat: 'currency'
+    }
   }
   const ENTRIES: Record<string, PropertySchema> = {
     title: { id: 'title', name: 'Descrição', type: 'title' },
@@ -206,8 +227,10 @@ describe('figures from rollups and formulas, split by a select property', () => 
   }
   const block = (id: string, parentId: string | null, type: Block['type'], props: Block['props'], content: string[] = []): Block =>
     ({ id, type, parentId, content, props, createdAt: 1, updatedAt: 1, trashedAt: null }) as Block
-  const category = (id: string, title: string, values: Record<string, unknown>): Block => block(id, 'categories', 'page', { title: [[title]], values } as Block['props'])
-  const entry = (id: string, values: Record<string, unknown>): Block => block(id, 'entries', 'page', { title: [[id]], values } as Block['props'])
+  const category = (id: string, title: string, values: Record<string, unknown>): Block =>
+    block(id, 'categories', 'page', { title: [[title]], values } as Block['props'])
+  const entry = (id: string, values: Record<string, unknown>): Block =>
+    block(id, 'entries', 'page', { title: [[id]], values } as Block['props'])
 
   const cats = [
     category('salary', 'Salário', { group: 'income', budget: 10000, entries: ['e1'] }),
@@ -225,18 +248,26 @@ describe('figures from rollups and formulas, split by a select property', () => 
     entry('e6', { expense: 100, category: ['other'] })
   ]
   const blocks = [
-    block('categories', null, 'database', { schema: CATEGORIES, views: [] } as unknown as Block['props'], cats.map((c) => c.id)),
-    block('entries', null, 'database', { schema: ENTRIES, views: [] } as unknown as Block['props'], entries.map((e) => e.id)),
+    block(
+      'categories',
+      null,
+      'database',
+      { schema: CATEGORIES, views: [] } as unknown as Block['props'],
+      cats.map((c) => c.id)
+    ),
+    block(
+      'entries',
+      null,
+      'database',
+      { schema: ENTRIES, views: [] } as unknown as Block['props'],
+      entries.map((e) => e.id)
+    ),
     ...cats,
     ...entries
   ]
   const byId = new Map(blocks.map((b) => [b.id, b]))
   const ctx = cellContext({ get: (id) => byId.get(id) })
-  const calcs = [
-    { formula: 'sum(Planejado)' },
-    { formula: 'sum(Realizado)' },
-    { formula: 'sum(Realizado) - sum(Planejado)' }
-  ]
+  const calcs = [{ formula: 'sum(Planejado)' }, { formula: 'sum(Realizado)' }, { formula: 'sum(Realizado) - sum(Planejado)' }]
 
   it('sums what rollups and formulas give, written like what they read', () => {
     expect(evaluateCalc({ formula: 'sum(Gasto)' }, cats, CATEGORIES, ctx)).toEqual({ ok: true, value: 5150, format: 'currency' })

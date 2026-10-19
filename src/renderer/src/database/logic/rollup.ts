@@ -65,7 +65,8 @@ export function sanitizeRollupConfig(raw: unknown): RollupConfig {
   const badRelation = raw.relationId !== undefined && !isSafeKey(raw.relationId)
   const badProperty = raw.propertyId !== undefined && !isSafeKey(raw.propertyId)
   const filters = raw.filters === undefined ? undefined : wellFormedRules(raw.filters)
-  const badFilters = raw.filters !== undefined && (filters === undefined || filters.length === 0 || filters.length !== (raw.filters as unknown[]).length)
+  const badFilters =
+    raw.filters !== undefined && (filters === undefined || filters.length === 0 || filters.length !== (raw.filters as unknown[]).length)
   if (!badFunction && !badRelation && !badProperty && !badFilters) return raw as unknown as RollupConfig
   const out = { ...raw, function: badFunction ? DEFAULT_ROLLUP.function : raw.function } as RollupConfig
   if (badRelation) delete out.relationId
@@ -234,7 +235,11 @@ export function aggregateRollup(fn: RollupFunction, rows: readonly Block[], targ
   }
   const numbers = values.filter((value): value is number => typeof value === 'number' && isFinite(value))
   const format = target.numberFormat ?? 'number'
-  if (fn === 'sum') return number(numbers.reduce((sum, n) => sum + n, 0), format)
+  if (fn === 'sum')
+    return number(
+      numbers.reduce((sum, n) => sum + n, 0),
+      format
+    )
   if (!numbers.length) return number(null, format)
   const min = Math.min(...numbers)
   const max = Math.max(...numbers)

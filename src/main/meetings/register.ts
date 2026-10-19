@@ -39,7 +39,11 @@ export interface MeetingsHooks {
 
 const PRUNE_IDLE_MS = 30_000
 
-export function registerMeetingsIpc({ repo, flushChanges, eventPeople }: MeetingsIpcContext): MeetingsHooks & { handlers: Handlers<'meetings'> } {
+export function registerMeetingsIpc({
+  repo,
+  flushChanges,
+  eventPeople
+}: MeetingsIpcContext): MeetingsHooks & { handlers: Handlers<'meetings'> } {
   let bridge: MeetingsBridge | null = null
   const meetings = async (): Promise<MeetingsBridge> => (bridge ??= new (await import('./index')).MeetingsBridge(repo, flushChanges))
   const windowOf = (event: { sender: Electron.WebContents }): BrowserWindow | null => BrowserWindow.fromWebContents(event.sender)
@@ -143,7 +147,7 @@ export function registerMeetingsIpc({ repo, flushChanges, eventPeople }: Meeting
 
   return {
     handlers,
-    holdsRecording:(win) => !win.isDestroyed() && bridge?.service.recordingOwner === win.webContents.id,
+    holdsRecording: (win) => !win.isDestroyed() && bridge?.service.recordingOwner === win.webContents.id,
     recordingWindow,
     askToStop(win, then) {
       if (asking || win.isDestroyed()) return
@@ -198,13 +202,17 @@ export function handleDisplayMedia(ses: Session): void {
       const frame = request.frame
       const contents = frame ? webContents.fromFrame(frame) : undefined
       // The top frame of a window of the app, showing the app, asking for audio.
-      const top = !!frame && !!contents && !contents.isDestroyed() && contents.mainFrame.processId === frame.processId && contents.mainFrame.routingId === frame.routingId
+      const top =
+        !!frame &&
+        !!contents &&
+        !contents.isDestroyed() &&
+        contents.mainFrame.processId === frame.processId &&
+        contents.mainFrame.routingId === frame.routingId
       const trusted = top && !!frame && isAppUrl(frame.url) && isAppUrl(contents.getURL()) && request.audioRequested
       if (!contents || process.platform !== 'win32' || !recordingGrants.takeSystem(contents.id, trusted)) return deny()
-      desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } }).then(
-        (sources) => (sources[0] ? callback({ video: sources[0], audio: 'loopback' }) : deny()),
-        deny
-      )
+      desktopCapturer
+        .getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } })
+        .then((sources) => (sources[0] ? callback({ video: sources[0], audio: 'loopback' }) : deny()), deny)
     } catch {
       deny()
     }

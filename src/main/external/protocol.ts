@@ -46,7 +46,11 @@ export function parseDiscovery(text: string): Discovery | null {
  * Where the discovery file of an installed sel is when the command line does not say: its
  * profile folder, as Electron names it for the app "sel".
  */
-export function defaultDiscoveryPath(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env, home: string = homedir()): string {
+export function defaultDiscoveryPath(
+  platform: NodeJS.Platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+  home: string = homedir()
+): string {
   if (platform === 'win32') return join(env['APPDATA'] ?? join(home, 'AppData', 'Roaming'), 'sel', DISCOVERY_FILE)
   if (platform === 'darwin') return join(home, 'Library', 'Application Support', 'sel', DISCOVERY_FILE)
   return join(env['XDG_CONFIG_HOME'] || join(home, '.config'), 'sel', DISCOVERY_FILE)

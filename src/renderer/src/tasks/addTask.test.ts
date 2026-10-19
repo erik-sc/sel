@@ -21,11 +21,19 @@ describe('the values a line stores', () => {
 
   it('what the list implies, unless the line says otherwise', () => {
     const plain = parseTask('Ler', { now: NOW })
-    expect(taskValues(plain, { project: null, labels: [] }, listDefaults({ kind: 'today' }, TODAY))).toEqual({ [TASK_PROPS.due]: { start: TODAY } })
+    expect(taskValues(plain, { project: null, labels: [] }, listDefaults({ kind: 'today' }, TODAY))).toEqual({
+      [TASK_PROPS.due]: { start: TODAY }
+    })
     const dated = parseTask('Ler amanhã', { now: NOW })
-    expect(taskValues(dated, { project: null, labels: [] }, listDefaults({ kind: 'today' }, TODAY))).toEqual({ [TASK_PROPS.due]: { start: '2026-10-16' } })
-    expect(taskValues(plain, { project: 'work', labels: [] }, listDefaults({ kind: 'project', id: 'home' }, TODAY))).toEqual({ [TASK_PROPS.project]: 'work' })
-    expect(taskValues(plain, { project: null, labels: ['b'] }, listDefaults({ kind: 'label', id: 'a' }, TODAY))).toEqual({ [TASK_PROPS.labels]: ['a', 'b'] })
+    expect(taskValues(dated, { project: null, labels: [] }, listDefaults({ kind: 'today' }, TODAY))).toEqual({
+      [TASK_PROPS.due]: { start: '2026-10-16' }
+    })
+    expect(taskValues(plain, { project: 'work', labels: [] }, listDefaults({ kind: 'project', id: 'home' }, TODAY))).toEqual({
+      [TASK_PROPS.project]: 'work'
+    })
+    expect(taskValues(plain, { project: null, labels: ['b'] }, listDefaults({ kind: 'label', id: 'a' }, TODAY))).toEqual({
+      [TASK_PROPS.labels]: ['a', 'b']
+    })
     expect(listDefaults({ kind: 'upcoming' }, TODAY)).toEqual({ [TASK_PROPS.due]: { start: '2026-10-16' } })
     expect(listDefaults({ kind: 'inbox' }, TODAY)).toEqual({})
   })

@@ -78,7 +78,8 @@ export function toast(message: string, options: ToastOptions = {}): string {
   }
   const { id } = item
   clearTimer(id)
-  const duration = options.duration ?? (kind === 'error' ? ERROR_DURATION : options.action || options.actions?.length ? ACTION_DURATION : DEFAULT_DURATION)
+  const duration =
+    options.duration ?? (kind === 'error' ? ERROR_DURATION : options.action || options.actions?.length ? ACTION_DURATION : DEFAULT_DURATION)
   if (duration > 0) {
     timers.set(
       id,

@@ -59,7 +59,12 @@ export function failure(code: AiErrorCode, detail?: string): Failure {
  * Classifies a run that did not produce an answer, from everything the program said: the text
  * of an error result, its stderr, and how it exited.
  */
-export function classifyFailure(input: { resultText?: string; stderr?: string; exitCode?: number | null; spawnErrorCode?: string }): Failure {
+export function classifyFailure(input: {
+  resultText?: string
+  stderr?: string
+  exitCode?: number | null
+  spawnErrorCode?: string
+}): Failure {
   if (input.spawnErrorCode === 'ENOENT' || input.spawnErrorCode === 'EACCES' || input.spawnErrorCode === 'EPERM') {
     return failure('not-installed')
   }

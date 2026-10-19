@@ -655,7 +655,12 @@ export const PRESETS: Preset[] = [
     skin: 'luna',
     shared: {
       ...GLASS.shared,
-      ...fonts("Tahoma, 'Segoe UI', Verdana, sans-serif", "'Trebuchet MS', Tahoma, sans-serif", "'Times New Roman', Georgia, serif", "'Lucida Console', 'Courier New', monospace"),
+      ...fonts(
+        "Tahoma, 'Segoe UI', Verdana, sans-serif",
+        "'Trebuchet MS', Tahoma, sans-serif",
+        "'Times New Roman', Georgia, serif",
+        "'Lucida Console', 'Courier New', monospace"
+      ),
       ...RETRO_TYPE,
       '--weight-medium': '400',
       '--weight-title': '700',

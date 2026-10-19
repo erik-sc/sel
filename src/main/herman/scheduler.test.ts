@@ -30,7 +30,8 @@ const HOUR = 60 * MIN
 const at = (day: number, hour: number, minute = 0): number => new Date(2026, 9, day, hour, minute).getTime()
 const config: SchedulerConfig = { ...FREQUENCIES.sometimes, idleMs: IDLE_MS, quietHours: HERMAN_DEFAULTS.quietHours }
 const idle = IDLE_MS
-const said = (memory: HermanMemory, now: number, kind: HermanNudgeKind = 'overdue', id = `n-${now}`): HermanMemory => record(memory, { id, kind, variant: `${kind}:0` }, now)
+const said = (memory: HermanMemory, now: number, kind: HermanNudgeKind = 'overdue', id = `n-${now}`): HermanMemory =>
+  record(memory, { id, kind, variant: `${kind}:0` }, now)
 const refusal = (decision: Decision): string => (decision.ok ? 'ok' : decision.reason)
 const wait = (decision: Decision): number => (decision.ok ? 0 : decision.waitMs)
 
@@ -104,11 +105,19 @@ describe('typing, and being busy', () => {
   })
 
   it('says nothing during a recording, a presentation or anything full screen', () => {
-    expect(decide(config, EMPTY_MEMORY, { now: at(14, 10), idleMs: 10 * MIN, busy: true })).toEqual({ ok: false, reason: 'busy', waitMs: MIN })
+    expect(decide(config, EMPTY_MEMORY, { now: at(14, 10), idleMs: 10 * MIN, busy: true })).toEqual({
+      ok: false,
+      reason: 'busy',
+      waitMs: MIN
+    })
   })
 
   it('says nothing when nudges are off', () => {
-    expect(decide(config, EMPTY_MEMORY, { now: at(14, 10), idleMs: idle, enabled: false })).toEqual({ ok: false, reason: 'off', waitMs: RETRY_MS })
+    expect(decide(config, EMPTY_MEMORY, { now: at(14, 10), idleMs: idle, enabled: false })).toEqual({
+      ok: false,
+      reason: 'off',
+      waitMs: RETRY_MS
+    })
   })
 
   it('answers with the wait that lasts longest: the gap before the typing', () => {
@@ -123,7 +132,16 @@ describe('the quiet hours', () => {
 
   it('span midnight: from 21:00 to 08:00', () => {
     const quiet = (hour: number, minute = 0): boolean => isQuiet(night, at(14, hour, minute))
-    expect([quiet(20, 59), quiet(21), quiet(23, 59), quiet(0), quiet(3), quiet(7, 59), quiet(8), quiet(12)]).toEqual([false, true, true, true, true, true, false, false])
+    expect([quiet(20, 59), quiet(21), quiet(23, 59), quiet(0), quiet(3), quiet(7, 59), quiet(8), quiet(12)]).toEqual([
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ])
   })
 
   it('can sit inside one day, or not exist', () => {
@@ -139,7 +157,7 @@ describe('the quiet hours', () => {
     expect(quietEnd(night, at(15, 0, 30))).toBe(at(15, 8))
     expect(quietEnd(night, at(15, 7, 59))).toBe(at(15, 8))
     expect(decide(config, EMPTY_MEMORY, { now: at(14, 22), idleMs: idle })).toEqual({ ok: false, reason: 'quiet', waitMs: 10 * HOUR })
-    expect(decide(config, EMPTY_MEMORY, { now: at(15, 7, 59, ), idleMs: idle })).toEqual({ ok: false, reason: 'quiet', waitMs: MIN })
+    expect(decide(config, EMPTY_MEMORY, { now: at(15, 7, 59), idleMs: idle })).toEqual({ ok: false, reason: 'quiet', waitMs: MIN })
     expect(refusal(decide(config, EMPTY_MEMORY, { now: at(15, 8), idleMs: idle }))).toBe('ok')
   })
 
@@ -153,13 +171,23 @@ describe('the quiet hours', () => {
 describe('what he remembers', () => {
   it('records what he said: the count, the kind, the line, the moment', () => {
     const memory = said(said(EMPTY_MEMORY, at(14, 9), 'morning', 'a'), at(14, 11), 'overdue', 'b')
-    expect(memory).toEqual({ ...EMPTY_MEMORY, day: '2026-10-14', shown: 2, said: ['morning', 'overdue'], lastAt: at(14, 11), lastKind: 'overdue', lastId: 'b', recent: ['morning:0', 'overdue:0'] })
+    expect(memory).toEqual({
+      ...EMPTY_MEMORY,
+      day: '2026-10-14',
+      shown: 2,
+      said: ['morning', 'overdue'],
+      lastAt: at(14, 11),
+      lastKind: 'overdue',
+      lastId: 'b',
+      recent: ['morning:0', 'overdue:0']
+    })
     expect(said(memory, at(14, 13), 'overdue').said).toEqual(['morning', 'overdue'])
     // A new day starts the count again and keeps what he learned.
     const next = said({ ...memory, weights: { overdue: 0.5 } }, at(15, 9), 'morning', 'c')
     expect(next).toMatchObject({ day: '2026-10-15', shown: 1, said: ['morning'], weights: { overdue: 0.5 } })
     let long = EMPTY_MEMORY
-    for (let index = 0; index < RECENT_LINES + 15; index++) long = record(long, { id: 'x', kind: 'morning', variant: `morning:${index}` }, at(14, 9))
+    for (let index = 0; index < RECENT_LINES + 15; index++)
+      long = record(long, { id: 'x', kind: 'morning', variant: `morning:${index}` }, at(14, 9))
     expect(long.recent.length).toBe(RECENT_LINES)
     expect(long.recent[RECENT_LINES - 1]).toBe(`morning:${RECENT_LINES + 14}`)
   })
@@ -194,7 +222,17 @@ describe('what he remembers', () => {
     let memory = said(EMPTY_MEMORY, at(14, 10), 'overdue', 'n1')
     memory = { ...feedback(memory, 'n1', 'fewer', at(14, 10, 1)), met: true, launchDay: '2026-10-14' }
     const cleared = forget(memory)
-    expect(cleared).toMatchObject({ weights: {}, recent: [], lastKind: null, lastId: null, met: true, launchDay: '2026-10-14', shown: 1, lastAt: at(14, 10), day: '2026-10-14' })
+    expect(cleared).toMatchObject({
+      weights: {},
+      recent: [],
+      lastKind: null,
+      lastId: null,
+      met: true,
+      launchDay: '2026-10-14',
+      shown: 1,
+      lastAt: at(14, 10),
+      day: '2026-10-14'
+    })
     expect(refusal(decide(config, cleared, { now: at(14, 10, 30), idleMs: idle }))).toBe('too-soon')
   })
 
@@ -220,7 +258,12 @@ describe('what he remembers', () => {
       launchDay: 20261014,
       extra: { __proto__: { polluted: true } }
     })
-    expect(read).toEqual({ ...EMPTY_MEMORY, said: ['overdue'], weights: { overdue: MIN_WEIGHT, morning: 1, today: 0.5 }, recent: ['a', 'b'] })
+    expect(read).toEqual({
+      ...EMPTY_MEMORY,
+      said: ['overdue'],
+      weights: { overdue: MIN_WEIGHT, morning: 1, today: 0.5 },
+      recent: ['a', 'b']
+    })
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined()
     expect(readMemory({ shown: 1e308, lastAt: -5 })).toMatchObject({ shown: 1e308, lastAt: 0 })
   })

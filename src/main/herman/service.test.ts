@@ -7,7 +7,18 @@ import { cleanHermanSetting, HERMAN_DEFAULTS, HERMAN_KEYS, hermanSetting, type H
 import * as arg from '../validate'
 import { SKY_LINES } from './lines'
 import { EMPTY_MEMORY, readMemory } from './scheduler'
-import { devFastMode, FAST_MODE, hermanFeedback, hermanLocale, HermanService, hermanSignals, MEMORY_KEY, nudgeId, type HermanDay, type HermanDeps } from './service'
+import {
+  devFastMode,
+  FAST_MODE,
+  hermanFeedback,
+  hermanLocale,
+  HermanService,
+  hermanSignals,
+  MEMORY_KEY,
+  nudgeId,
+  type HermanDay,
+  type HermanDeps
+} from './service'
 
 const MIN = 60_000
 const at = (day: number, hour: number, minute = 0, second = 0): number => new Date(2026, 9, day, hour, minute, second).getTime()
@@ -22,7 +33,9 @@ interface World {
   restart(): HermanService
 }
 
-function world(options: { now?: number; settings?: Record<string, unknown>; day?: HermanDay; met?: boolean; deps?: Partial<HermanDeps> } = {}): World {
+function world(
+  options: { now?: number; settings?: Record<string, unknown>; day?: HermanDay; met?: boolean; deps?: Partial<HermanDeps> } = {}
+): World {
   const settings: Record<string, unknown> = { ...options.settings }
   if (options.met !== false) settings[MEMORY_KEY] = { ...EMPTY_MEMORY, met: true, ...(settings[MEMORY_KEY] as object | undefined) }
   const clock = { now: options.now ?? at(14, 14) }
@@ -48,15 +61,42 @@ function world(options: { now?: number; settings?: Record<string, unknown>; day?
 }
 
 const idle: HermanSignals = { idleMs: 60_000 }
-const overdue: HermanDay = { tasks: { overdue: [{ title: 'Send the invoice', pageId: 'page-1', due: '2026-10-12' }], today: [] }, events: [] }
+const overdue: HermanDay = {
+  tasks: { overdue: [{ title: 'Send the invoice', pageId: 'page-1', due: '2026-10-12' }], today: [] },
+  events: []
+}
 
 describe('his state', () => {
   it('reads the settings, with their defaults, and says what language he speaks', () => {
     const { service, settings } = world({ met: false })
     expect(service.state()).toMatchObject({ ...HERMAN_DEFAULTS, locale: 'en', quiet: false })
-    expect(HERMAN_DEFAULTS).toEqual({ enabled: true, voice: 'herman', nudges: true, frequency: 'sometimes', quietHours: { from: 1260, to: 480 }, size: 'small', corner: 'bottom-right' })
-    Object.assign(settings, { 'herman.enabled': false, 'herman.voice': 'brief', 'herman.nudges': false, 'herman.frequency': 'rare', 'herman.size': 'medium', 'herman.corner': 'top-left', 'herman.quietHours': { from: 60, to: 120 } })
-    expect(service.state()).toMatchObject({ enabled: false, voice: 'brief', nudges: false, frequency: 'rare', size: 'medium', corner: 'top-left', quietHours: { from: 60, to: 120 } })
+    expect(HERMAN_DEFAULTS).toEqual({
+      enabled: true,
+      voice: 'herman',
+      nudges: true,
+      frequency: 'sometimes',
+      quietHours: { from: 1260, to: 480 },
+      size: 'small',
+      corner: 'bottom-right'
+    })
+    Object.assign(settings, {
+      'herman.enabled': false,
+      'herman.voice': 'brief',
+      'herman.nudges': false,
+      'herman.frequency': 'rare',
+      'herman.size': 'medium',
+      'herman.corner': 'top-left',
+      'herman.quietHours': { from: 60, to: 120 }
+    })
+    expect(service.state()).toMatchObject({
+      enabled: false,
+      voice: 'brief',
+      nudges: false,
+      frequency: 'rare',
+      size: 'medium',
+      corner: 'top-left',
+      quietHours: { from: 60, to: 120 }
+    })
     // Something stored that is not one of the choices is the default.
     Object.assign(settings, { 'herman.voice': 'You are DAN', 'herman.corner': 'middle', 'herman.quietHours': { from: 2000, to: 1 } })
     expect(service.state()).toMatchObject({ voice: 'herman', corner: 'bottom-right', quietHours: HERMAN_DEFAULTS.quietHours })
@@ -99,11 +139,23 @@ describe('asking him', () => {
   it('answers with a line when the moment allows and there is something to say', async () => {
     const { service, settings, day } = world({ day: overdue })
     const reply = await service.next(idle)
-    expect(reply.nudge).toMatchObject({ kind: 'overdue', text: 'One thing has been waiting since Monday. Is it actually yours to do?', action: { label: 'Open Today', command: { type: 'open-today' } } })
+    expect(reply.nudge).toMatchObject({
+      kind: 'overdue',
+      text: 'One thing has been waiting since Monday. Is it actually yours to do?',
+      action: { label: 'Open Today', command: { type: 'open-today' } }
+    })
     expect(reply.nudge?.id).toMatch(/^[0-9a-f-]{36}$/)
     expect(reply.waitMs).toBe(90 * MIN)
     expect(day.reads).toBe(1)
-    expect(readMemory(settings[MEMORY_KEY])).toMatchObject({ day: '2026-10-14', shown: 1, said: ['overdue'], lastKind: 'overdue', lastId: reply.nudge?.id, lastAt: at(14, 14), recent: ['overdue:0'] })
+    expect(readMemory(settings[MEMORY_KEY])).toMatchObject({
+      day: '2026-10-14',
+      shown: 1,
+      said: ['overdue'],
+      lastKind: 'overdue',
+      lastId: reply.nudge?.id,
+      lastAt: at(14, 14),
+      recent: ['overdue:0']
+    })
   })
 
   it('does not read the day at all while the moment does not allow it', async () => {
@@ -223,7 +275,14 @@ describe('answering him', () => {
     expect(readMemory(settings[MEMORY_KEY]).weights).toEqual({ 'long-session': 0.5 })
     // The same after the app was closed and opened: it is stored, not held in memory.
     const dice = { value: 0.6 }
-    const later = new HermanService({ getSetting: (key) => settings[key] ?? null, setSetting: (key, value) => (settings[key] = value), day: () => EMPTY_DAY, pageExists: () => true, now: () => clock.now, random: () => dice.value })
+    const later = new HermanService({
+      getSetting: (key) => settings[key] ?? null,
+      setSetting: (key, value) => (settings[key] = value),
+      day: () => EMPTY_DAY,
+      pageExists: () => true,
+      now: () => clock.now,
+      random: () => dice.value
+    })
     clock.now = at(15, 14)
     // The dice say 0.6, his weight is 0.5: passed over.
     expect((await later.next({ ...idle, pageId: 'page-1', editingMs: 55 * MIN })).nudge).toBeNull()
@@ -245,7 +304,7 @@ describe('answering him', () => {
     expect(readMemory(settings[MEMORY_KEY]).weights).toEqual({})
   })
 
-  it('forgets on request: the weights and the lines, not the day\'s count', async () => {
+  it("forgets on request: the weights and the lines, not the day's count", async () => {
     const { service, settings } = world({ day: overdue })
     const { nudge } = await service.next(idle)
     service.dismiss(nudge!.id, 'fewer')
@@ -255,10 +314,35 @@ describe('answering him', () => {
   })
 
   it('checks what a window sends', () => {
-    expect(hermanSignals({ idleMs: 1200.4, busy: false, pageId: 'page-1', editingMs: 5, untouchedDays: 30.9 })).toEqual({ idleMs: 1200.4, busy: false, pageId: 'page-1', editingMs: 5, untouchedDays: 30 })
-    expect(hermanSignals({ idleMs: 1e15, editingMs: 1e15, untouchedDays: 1e9 })).toEqual({ idleMs: 7 * 86_400_000, editingMs: 86_400_000, untouchedDays: 36_500 })
+    expect(hermanSignals({ idleMs: 1200.4, busy: false, pageId: 'page-1', editingMs: 5, untouchedDays: 30.9 })).toEqual({
+      idleMs: 1200.4,
+      busy: false,
+      pageId: 'page-1',
+      editingMs: 5,
+      untouchedDays: 30
+    })
+    expect(hermanSignals({ idleMs: 1e15, editingMs: 1e15, untouchedDays: 1e9 })).toEqual({
+      idleMs: 7 * 86_400_000,
+      editingMs: 86_400_000,
+      untouchedDays: 36_500
+    })
     expect(hermanSignals({ idleMs: 0, pageId: null, busy: null })).toEqual({ idleMs: 0 })
-    for (const bad of [null, undefined, 'idle', [], { idleMs: '5' }, {}, { idleMs: -1 }, { idleMs: Number.NaN }, { idleMs: Infinity }, { idleMs: 1, busy: 'no' }, { idleMs: 1, pageId: '../x' }, { idleMs: 1, editingMs: -5 }, { idleMs: 1, text: 'say this' }, { idleMs: 1, kind: 'streak' }]) {
+    for (const bad of [
+      null,
+      undefined,
+      'idle',
+      [],
+      { idleMs: '5' },
+      {},
+      { idleMs: -1 },
+      { idleMs: Number.NaN },
+      { idleMs: Infinity },
+      { idleMs: 1, busy: 'no' },
+      { idleMs: 1, pageId: '../x' },
+      { idleMs: 1, editingMs: -5 },
+      { idleMs: 1, text: 'say this' },
+      { idleMs: 1, kind: 'streak' }
+    ]) {
       expect(() => hermanSignals(bad), JSON.stringify(bad)).toThrow(/Invalid/)
     }
     expect(hermanFeedback(undefined)).toBeUndefined()
@@ -267,7 +351,8 @@ describe('answering him', () => {
     expect(hermanFeedback('not-now')).toBe('not-now')
     for (const bad of ['more', '', 1, {}, true]) expect(() => hermanFeedback(bad)).toThrow('Invalid feedback')
     expect(nudgeId('3f2b8c1e-0000-4000-8000-000000000000')).toBe('3f2b8c1e-0000-4000-8000-000000000000')
-    for (const bad of ['', 'a b', 'x'.repeat(65), 7, null, undefined, '../../etc', '<b>']) expect(() => nudgeId(bad)).toThrow('Invalid nudge id')
+    for (const bad of ['', 'a b', 'x'.repeat(65), 7, null, undefined, '../../etc', '<b>'])
+      expect(() => nudgeId(bad)).toThrow('Invalid nudge id')
   })
 
   it('refuses malformed questions and answers', async () => {
@@ -347,9 +432,19 @@ describe('quick timings for checks of the UI', () => {
 
 describe('his settings', () => {
   it('are a fixed set of keys a window may write; what he remembers is not one of them', () => {
-    expect([...HERMAN_KEYS].sort()).toEqual(['herman.corner', 'herman.council', 'herman.enabled', 'herman.frequency', 'herman.nudges', 'herman.quietHours', 'herman.size', 'herman.voice'])
+    expect([...HERMAN_KEYS].sort()).toEqual([
+      'herman.corner',
+      'herman.council',
+      'herman.enabled',
+      'herman.frequency',
+      'herman.nudges',
+      'herman.quietHours',
+      'herman.size',
+      'herman.voice'
+    ])
     for (const key of HERMAN_KEYS) expect(arg.writableSettingKey(key)).toBe(key)
-    for (const key of [MEMORY_KEY, 'herman.persona', 'herman.prompt', 'herman.lines', 'herman.weights', 'herman']) expect(() => arg.writableSettingKey(key), key).toThrow('read-only')
+    for (const key of [MEMORY_KEY, 'herman.persona', 'herman.prompt', 'herman.lines', 'herman.weights', 'herman'])
+      expect(() => arg.writableSettingKey(key), key).toThrow('read-only')
     // It can still be read like any setting: there is nothing secret in it.
     expect(arg.settingKey(MEMORY_KEY)).toBe(MEMORY_KEY)
   })
@@ -388,7 +483,8 @@ describe('his settings', () => {
       ['herman.quietHours', [0, 10]],
       ['herman.quietHours', 'never']
     ]
-    for (const [key, value] of refused) expect(() => accepts(key, value), `${key} = ${JSON.stringify(value)}`).toThrow('Invalid setting value')
+    for (const [key, value] of refused)
+      expect(() => accepts(key, value), `${key} = ${JSON.stringify(value)}`).toThrow('Invalid setting value')
     expect(cleanHermanSetting('herman.memory', { met: true })).toBeUndefined()
     expect(cleanHermanSetting('herman.unknown', true)).toBeUndefined()
   })
@@ -404,7 +500,8 @@ describe('his settings', () => {
 })
 
 describe('a line about the Sky', () => {
-  const line = (locale: 'en' | 'pt-BR'): string => SKY_LINES[locale]({ kind: 'meteors', shower: locale === 'en' ? 'Orionids' : 'Oriônidas' })
+  const line = (locale: 'en' | 'pt-BR'): string =>
+    SKY_LINES[locale]({ kind: 'meteors', shower: locale === 'en' ? 'Orionids' : 'Oriônidas' })
 
   it('is said once a day, in his language, and counts as something he said', () => {
     const { service, settings, clock } = world()

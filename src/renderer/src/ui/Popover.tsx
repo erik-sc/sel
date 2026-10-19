@@ -144,9 +144,7 @@ function PopoverLayer({ anchor, onClose, placement = 'bottom-start', children, c
     }
   }, [opener])
 
-  const style: CSSProperties = pos
-    ? { left: pos.left, top: pos.top }
-    : { left: 0, top: 0, visibility: 'hidden' }
+  const style: CSSProperties = pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: 'hidden' }
 
   return createPortal(
     <div

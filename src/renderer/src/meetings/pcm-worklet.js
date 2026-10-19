@@ -35,7 +35,10 @@ class SelPcm extends AudioWorkletProcessor {
       if (loudA > this.micPeak) this.micPeak = loudA
       if (loudB > this.systemPeak) this.systemPeak = loudB
       if (++this.filled === BATCH) {
-        this.port.postMessage({ mic: this.mic.buffer, system: this.system.buffer, micPeak: this.micPeak, systemPeak: this.systemPeak }, [this.mic.buffer, this.system.buffer])
+        this.port.postMessage({ mic: this.mic.buffer, system: this.system.buffer, micPeak: this.micPeak, systemPeak: this.systemPeak }, [
+          this.mic.buffer,
+          this.system.buffer
+        ])
         this.reset()
       }
     }

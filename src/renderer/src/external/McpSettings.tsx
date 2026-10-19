@@ -95,12 +95,17 @@ export function McpSection(): JSX.Element {
             <div className="ap-row-text">
               <span className="ap-row-label">Connect other apps (MCP)</span>
               <span className="ap-row-help">
-                Lets Claude Desktop, Claude Code and other MCP apps on this computer search and read your notes, create pages, add to pages, and add or
-                change database rows. They can never delete anything. sel must be open.
+                Lets Claude Desktop, Claude Code and other MCP apps on this computer search and read your notes, create pages, add to pages,
+                and add or change database rows. They can never delete anything. sel must be open.
               </span>
             </div>
             <div className="ap-row-control">
-              <Segmented label="Connect other apps" value={enabled ? 'on' : 'off'} options={ON_OFF} onChange={(value) => setEnabled(value === 'on')} />
+              <Segmented
+                label="Connect other apps"
+                value={enabled ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => setEnabled(value === 'on')}
+              />
             </div>
           </div>
           <div className="ap-row">
@@ -116,7 +121,8 @@ export function McpSection(): JSX.Element {
           </div>
         </div>
         <p className="ap-note">
-          Apps set up as below read the token from sel’s folder by themselves, so they keep working after a new one. A new token shuts out every copy of the old one.
+          Apps set up as below read the token from sel’s folder by themselves, so they keep working after a new one. A new token shuts out
+          every copy of the old one.
           {status && !status.persistent ? ' This computer cannot keep the token sealed, so sel makes a new one each time it starts.' : ''}
         </p>
       </section>
@@ -139,14 +145,19 @@ export function McpSection(): JSX.Element {
             <div className="ap-row is-stacked">
               <div className="ap-row-text">
                 <span className="ap-row-label">Claude Desktop</span>
-                <span className="ap-row-help">Add this to claude_desktop_config.json (Claude Desktop → Settings → Developer → Edit Config), then restart Claude Desktop.</span>
+                <span className="ap-row-help">
+                  Add this to claude_desktop_config.json (Claude Desktop → Settings → Developer → Edit Config), then restart Claude Desktop.
+                </span>
               </div>
               <div className="ap-row-control">
                 <Snippet text={status.claudeDesktop} label="Copy configuration" block />
               </div>
             </div>
           </div>
-          <p className="ap-note">Both start sel’s own program as Node, with the paths of this installation: nothing else is installed, and nothing goes on the network.</p>
+          <p className="ap-note">
+            Both start sel’s own program as Node, with the paths of this installation: nothing else is installed, and nothing goes on the
+            network.
+          </p>
         </section>
       ) : null}
 

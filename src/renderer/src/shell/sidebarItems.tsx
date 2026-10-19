@@ -113,7 +113,13 @@ function TrashItem() {
 function SettingsItem() {
   const copy = useSidebarCopy()
   return (
-    <button type="button" className="sidebar-action" onPointerEnter={preloadSettings} onFocus={preloadSettings} onClick={() => setSettingsOpen(true)}>
+    <button
+      type="button"
+      className="sidebar-action"
+      onPointerEnter={preloadSettings}
+      onFocus={preloadSettings}
+      onClick={() => setSettingsOpen(true)}
+    >
       <Settings />
       <span>{copy.items.settings}</span>
     </button>
@@ -131,12 +137,20 @@ export const SIDEBAR_ITEM_DEFS: Record<SidebarItemId, SidebarItemDef> = {
   sky: { id: 'sky', icon: <Sky />, Render: () => <Action id="sky" icon={<Sky />} onClick={openSky} /> },
   'close-day': { id: 'close-day', icon: <Moon />, Render: () => <Action id="close-day" icon={<Moon />} onClick={openCloseDay} /> },
   'new-page': { id: 'new-page', icon: <Plus />, Render: NewPageButton },
-  'new-meeting': { id: 'new-meeting', icon: <Mic />, Render: () => <Action id="new-meeting" icon={<Mic />} onClick={() => void newMeeting()} /> },
+  'new-meeting': {
+    id: 'new-meeting',
+    icon: <Mic />,
+    Render: () => <Action id="new-meeting" icon={<Mic />} onClick={() => void newMeeting()} />
+  },
   favorites: { id: 'favorites', icon: <Star />, Render: FavoritesItem },
   pages: { id: 'pages', icon: <Page />, Render: PagesItem },
   trash: { id: 'trash', icon: <Trash />, Render: TrashItem },
   archive: { id: 'archive', icon: <Archive />, Render: ArchiveButton },
-  feedback: { id: 'feedback', icon: <Feedback />, Render: () => <Action id="feedback" icon={<Feedback />} onClick={() => openFeedback()} preload={preloadFeedback} /> },
+  feedback: {
+    id: 'feedback',
+    icon: <Feedback />,
+    Render: () => <Action id="feedback" icon={<Feedback />} onClick={() => openFeedback()} preload={preloadFeedback} />
+  },
   settings: { id: 'settings', icon: <Settings />, Render: SettingsItem },
   // Nothing at all until this device syncs; then a quiet icon that says how it is going.
   sync: { id: 'sync', icon: <SyncDone />, Render: SyncIndicator }

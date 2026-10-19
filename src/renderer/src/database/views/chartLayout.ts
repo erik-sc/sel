@@ -344,7 +344,8 @@ function vertical(data: L.ChartData, o: SceneOptions): Scene {
         const value = values[ci]
         if (typeof value !== 'number' || !isFinite(value)) continue
         const cy = yOf(upper[ci] as number)
-        const joins = (a: number, b: number): boolean => upper[a] !== null && upper[b] !== null && data.categories[a].kind === data.categories[b].kind
+        const joins = (a: number, b: number): boolean =>
+          upper[a] !== null && upper[b] !== null && data.categories[a].kind === data.categories[b].kind
         const isolated = !(ci > 0 && joins(ci - 1, ci)) && !(ci < n - 1 && joins(ci, ci + 1))
         scene.marks.push({ ci, si, shape: 'point', x: xOf(ci), y: cy, width: 0, height: 0, isolated, colour, ax: xOf(ci), ay: cy })
         tops[ci] = Math.min(tops[ci], cy)
@@ -371,7 +372,11 @@ function horizontal(data: L.ChartData, o: SceneOptions): Scene {
   const { lo, hi } = domainOf(data, stacked, true)
 
   const names = data.categories.map((category) => category.label)
-  const labelWidth = Math.min(names.reduce((max, name) => Math.max(max, o.measure(name)), 0), o.width * 0.32, 200)
+  const labelWidth = Math.min(
+    names.reduce((max, name) => Math.max(max, o.measure(name)), 0),
+    o.width * 0.32,
+    200
+  )
   const left = Math.ceil(labelWidth) + 14
   const bottom = o.fontSize + 16
   const lanes = stacked ? 1 : k
@@ -486,7 +491,16 @@ function horizontal(data: L.ChartData, o: SceneOptions): Scene {
     if (stacked && o.showValues && (up !== 0 || down !== 0)) {
       labels.push({ x: xOf(up) + 6, y: yOf(ci), text: o.format(up + down), anchor: 'start', middle: true })
     }
-    scene.bands.push({ ci, x: 0, y: top + slot * ci, width: o.width, height: slot, ax: reach, ay: top + slot * ci + 2, ab: top + slot * (ci + 1) - 2 })
+    scene.bands.push({
+      ci,
+      x: 0,
+      y: top + slot * ci,
+      width: o.width,
+      height: slot,
+      ax: reach,
+      ay: top + slot * ci + 2,
+      ab: top + slot * (ci + 1) - 2
+    })
   }
   scene.valueLabels = keepVisible(labels, o, scene)
   return scene

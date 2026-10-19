@@ -26,7 +26,13 @@ export function CouncilFace({ member, state = 'idle', draw = false, label = fals
   const { name, role } = COUNCIL_PEOPLE[member]
   const style = { '--member-color': `var(--c-${MEMBER_COLORS[member]})` } as CSSProperties
   return (
-    <svg className={classes.join(' ')} style={style} viewBox={FACE_VIEW_BOX} focusable="false" {...(label ? { role: 'img', 'aria-label': `${name}, ${role}` } : { 'aria-hidden': true })}>
+    <svg
+      className={classes.join(' ')}
+      style={style}
+      viewBox={FACE_VIEW_BOX}
+      focusable="false"
+      {...(label ? { role: 'img', 'aria-label': `${name}, ${role}` } : { 'aria-hidden': true })}
+    >
       {label && <title>{`${name}, ${role}`}</title>}
       {strokes.map((d, index) => (
         <path key={index} className="council-face-line" pathLength={1} d={d} style={{ '--stroke-index': index } as CSSProperties} />

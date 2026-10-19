@@ -42,7 +42,7 @@ const HALLUCINATIONS: ReadonlySet<string> = new Set(
     'bye',
     'gracias',
     'subtítulos realizados por la comunidad de amara.org',
-    'sous-titres réalisés par la communauté d\'amara.org',
+    "sous-titres réalisés par la communauté d'amara.org",
     'untertitel im auftrag des zdf für funk, 2017'
   ].map(normalise)
 )
@@ -113,7 +113,12 @@ export function mergeTranscript(mic: readonly Segment[], system: readonly Segmen
   const out: Paragraph[] = []
   for (const piece of all) {
     const last = out[out.length - 1]
-    if (last && last.stream === piece.stream && piece.start - last.end < PARAGRAPH_GAP_S && last.text.length + piece.text.length < PARAGRAPH_MAX_CHARS) {
+    if (
+      last &&
+      last.stream === piece.stream &&
+      piece.start - last.end < PARAGRAPH_GAP_S &&
+      last.text.length + piece.text.length < PARAGRAPH_MAX_CHARS
+    ) {
       last.text = `${last.text} ${piece.text}`
       last.end = Math.max(last.end, piece.end)
     } else out.push({ ...piece })
@@ -132,7 +137,12 @@ export const DEFAULT_SPEAKERS: Speakers = { mic: 'Me', system: 'Others' }
 export function cleanSpeaker(value: unknown, fallback: string): string {
   if (typeof value !== 'string') return fallback
   // eslint-disable-next-line no-control-regex
-  const name = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').replace(/[:*`[\]]/g, '').trim().slice(0, 40)
+  const name = value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/[:*`[\]]/g, '')
+    .trim()
+    .slice(0, 40)
   return name || fallback
 }
 
@@ -153,7 +163,10 @@ export function transcriptFromTitles(titles: readonly (RichText | undefined)[]):
     if (!title?.length) continue
     const first = title[0]
     const timed = first[1]?.some((mark) => mark[0] === 'c') === true
-    const rest = (timed ? title.slice(1) : title).map((span) => span[0]).join('').trim()
+    const rest = (timed ? title.slice(1) : title)
+      .map((span) => span[0])
+      .join('')
+      .trim()
     if (rest) lines.push(timed ? `[${first[0]}] ${rest}` : rest)
   }
   return lines.join('\n')

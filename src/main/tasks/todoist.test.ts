@@ -39,8 +39,22 @@ describe('a Todoist export', () => {
   it('becomes tasks with priorities, dates, repeats, labels, subtasks and notes', () => {
     const { tasks, skipped } = readTodoistCsv(EXPORT, NOW)
     expect(skipped).toBe(1)
-    expect(tasks.map((task) => task.title)).toEqual(['Buy paint', 'Pick the colour', 'Ask about primer', 'Water the plants', 'Pagar aluguel, sem falta', 'Someday', 'Back to top'])
-    expect(tasks[0]).toMatchObject({ priority: 1, due: '2026-10-20T09:00', labels: ['errands', 'home'], parent: null, notes: ['For the fence'] })
+    expect(tasks.map((task) => task.title)).toEqual([
+      'Buy paint',
+      'Pick the colour',
+      'Ask about primer',
+      'Water the plants',
+      'Pagar aluguel, sem falta',
+      'Someday',
+      'Back to top'
+    ])
+    expect(tasks[0]).toMatchObject({
+      priority: 1,
+      due: '2026-10-20T09:00',
+      labels: ['errands', 'home'],
+      parent: null,
+      notes: ['For the fence']
+    })
     expect(tasks[1]).toMatchObject({ priority: null, parent: 0 })
     expect(tasks[2]).toMatchObject({ priority: 3, parent: 1, notes: ['Shop closes at 6, "really"'] })
     expect(tasks[3].recurrence?.rule).toBe('FREQ=DAILY')
@@ -118,12 +132,16 @@ describe('the system-wide shortcut setting', () => {
     expect(cleanAccelerator('CommandOrControl+Alt+Space')).toBe('CommandOrControl+Alt+Space')
     expect(cleanAccelerator(' Ctrl + Shift + A ')).toBe('Ctrl+Shift+A')
     expect(cleanAccelerator('Alt+F12')).toBe('Alt+F12')
-    for (const bad of ['A', 'Space', 'Ctrl+Alt', 'Ctrl+Ctrl+A', 'Ctrl+A+B', 'Hyper+A', '', 'Ctrl+', 7, null]) expect(cleanAccelerator(bad)).toBeNull()
+    for (const bad of ['A', 'Space', 'Ctrl+Alt', 'Ctrl+Ctrl+A', 'Ctrl+A+B', 'Hyper+A', '', 'Ctrl+', 7, null])
+      expect(cleanAccelerator(bad)).toBeNull()
   })
 
   it('is off unless stored on, and falls back on the default keys', () => {
     expect(cleanGlobalShortcut(undefined)).toEqual(DEFAULT_GLOBAL_SHORTCUT)
-    expect(cleanGlobalShortcut({ enabled: true, accelerator: 'nope' })).toEqual({ enabled: true, accelerator: DEFAULT_GLOBAL_SHORTCUT.accelerator })
+    expect(cleanGlobalShortcut({ enabled: true, accelerator: 'nope' })).toEqual({
+      enabled: true,
+      accelerator: DEFAULT_GLOBAL_SHORTCUT.accelerator
+    })
     expect(cleanGlobalShortcut({ enabled: 'yes', accelerator: 'Alt+Shift+T' })).toEqual({ enabled: false, accelerator: 'Alt+Shift+T' })
   })
 })

@@ -261,7 +261,14 @@ export const MEETINGS_KEYS = [
   'meetings.consentReminder'
 ] as const
 
-export const MEETINGS_DEFAULTS = { model: 'small' as WhisperModelId, language: 'auto' as MeetingLanguage, keepOriginal: false, deleteAfterDays: 0, defaultSystem: true, consentReminder: true } as const
+export const MEETINGS_DEFAULTS = {
+  model: 'small' as WhisperModelId,
+  language: 'auto' as MeetingLanguage,
+  keepOriginal: false,
+  deleteAfterDays: 0,
+  defaultSystem: true,
+  consentReminder: true
+} as const
 
 export function isWhisperModel(value: unknown): value is WhisperModelId {
   return typeof value === 'string' && (WHISPER_MODELS as readonly string[]).includes(value)
@@ -279,7 +286,14 @@ export function cleanMic(value: unknown): { id: string; label: string } | undefi
   const { id, label } = value as { id?: unknown; label?: unknown }
   if (typeof id !== 'string' || !DEVICE_ID_RE.test(id) || typeof label !== 'string') return undefined
   // eslint-disable-next-line no-control-regex
-  return { id, label: label.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) }
+  return {
+    id,
+    label: label
+      .replace(/[\u0000-\u001f\u007f]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 120)
+  }
 }
 
 /** The value a meetings setting accepts from a renderer, or undefined when it does not. */

@@ -57,15 +57,64 @@ export function fold(text: unknown): string {
 
 const STATUS_NAMES = new Set(['status', 'state', 'estado', 'situacao', 'stage', 'etapa', 'progress', 'progresso', 'andamento'])
 const DONE_NAMES = new Set([
-  'done', 'complete', 'completed', 'finished', 'closed', 'concluido', 'concluida', 'feito', 'feita', 'pronto', 'pronta',
-  'finalizado', 'finalizada', 'terminado', 'terminada', 'resolved', 'resolvido', 'resolvida', 'shipped', 'entregue', 'ok'
+  'done',
+  'complete',
+  'completed',
+  'finished',
+  'closed',
+  'concluido',
+  'concluida',
+  'feito',
+  'feita',
+  'pronto',
+  'pronta',
+  'finalizado',
+  'finalizada',
+  'terminado',
+  'terminada',
+  'resolved',
+  'resolvido',
+  'resolvida',
+  'shipped',
+  'entregue',
+  'ok'
 ])
 /** Not done, but not open either: nothing to do about them today. */
-const DROPPED_NAMES = new Set(['cancelled', 'canceled', 'cancelado', 'cancelada', 'archived', 'arquivado', 'arquivada', 'wont do', 'won t do', 'dropped', 'abandoned', 'descartado', 'descartada'])
-const ACTIVE_NAMES = new Set(['in progress', 'doing', 'next', 'today', 'em andamento', 'hoje', 'fazendo', 'now', 'agora', 'started', 'ongoing', 'wip', 'working on it', 'em progresso'])
+const DROPPED_NAMES = new Set([
+  'cancelled',
+  'canceled',
+  'cancelado',
+  'cancelada',
+  'archived',
+  'arquivado',
+  'arquivada',
+  'wont do',
+  'won t do',
+  'dropped',
+  'abandoned',
+  'descartado',
+  'descartada'
+])
+const ACTIVE_NAMES = new Set([
+  'in progress',
+  'doing',
+  'next',
+  'today',
+  'em andamento',
+  'hoje',
+  'fazendo',
+  'now',
+  'agora',
+  'started',
+  'ongoing',
+  'wip',
+  'working on it',
+  'em progresso'
+])
 const CHECKBOX_DONE_NAMES = new Set([...DONE_NAMES, 'check', 'checked', 'completo', 'completa', 'is done', 'done?'.replace('?', '')])
 /** Checkboxes that mean something other than "done", even when they are the only one. */
-const CHECKBOX_OTHER = /\b(favou?rite|favorit[oa]|star(red)?|pinned|fixad[oa]|archived?|arquivad[oa]|private|privad[oa]|public[oa]?|important[e]?|urgent[e]?|read|lid[oa]|billable|recurring|recorrente|active|ativ[oa]|enabled|published|publicad[oa]|paid|pag[oa]|flag(ged)?)\b/
+const CHECKBOX_OTHER =
+  /\b(favou?rite|favorit[oa]|star(red)?|pinned|fixad[oa]|archived?|arquivad[oa]|private|privad[oa]|public[oa]?|important[e]?|urgent[e]?|read|lid[oa]|billable|recurring|recorrente|active|ativ[oa]|enabled|published|publicad[oa]|paid|pag[oa]|flag(ged)?)\b/
 const DATE_NAMES = ['due', 'due date', 'deadline', 'prazo', 'vencimento', 'entrega', 'date', 'data', 'when', 'quando', 'dia', 'day']
 const PRIORITY_NAMES = new Set(['priority', 'prioridade', 'importance', 'importancia', 'urgency', 'urgencia'])
 const HIGH = /^(urgent[e]?|critical|critic[oa]|highest|high|alta|alto|p0|p1|1|now|asap)$/
@@ -159,7 +208,8 @@ export function detectSignal(props: BlockProps | undefined | null): TaskSignal |
   }
 
   const priority =
-    builtIn(TASK_PROPS.priority, 'select') ?? properties.find((property) => property.type === 'select' && PRIORITY_NAMES.has(fold(property.name)))
+    builtIn(TASK_PROPS.priority, 'select') ??
+    properties.find((property) => property.type === 'select' && PRIORITY_NAMES.has(fold(property.name)))
   if (priority) {
     const options = new Map<string, { name: string; color: string; rank: number }>()
     for (const option of optionsOf(priority)) {
@@ -197,7 +247,10 @@ function titleOf(props: BlockProps | undefined | null): string {
   const title: unknown = props?.title
   if (!Array.isArray(title)) return ''
   try {
-    return plainText(title as BlockProps['title']).replace(/\s+/g, ' ').trim().slice(0, 300)
+    return plainText(title as BlockProps['title'])
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 300)
   } catch {
     return ''
   }
@@ -371,11 +424,16 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
     now.push({ task: { id: block.id, kind: 'todo', title, pageId, source: page.title || 'Untitled' }, rank: 4, seen: order })
   }
 
-  const byDue = (a: Ranked, b: Ranked): number => ((a.task.due ?? '') !== (b.task.due ?? '') ? ((a.task.due ?? '') < (b.task.due ?? '') ? -1 : 1) : a.rank - b.rank || a.seen - b.seen)
+  const byDue = (a: Ranked, b: Ranked): number =>
+    (a.task.due ?? '') !== (b.task.due ?? '') ? ((a.task.due ?? '') < (b.task.due ?? '') ? -1 : 1) : a.rank - b.rank || a.seen - b.seen
   overdue.sort(byDue)
   now.sort(compare)
   noDate.sort(compare)
-  const selection: TaskSelection = { overdue: overdue.map((item) => item.task), today: now.map((item) => item.task), noDate: noDate.map((item) => item.task) }
+  const selection: TaskSelection = {
+    overdue: overdue.map((item) => item.task),
+    today: now.map((item) => item.task),
+    noDate: noDate.map((item) => item.task)
+  }
   if (range) selection.dated = dated.sort(byDue).map((item) => item.task)
   return selection
 }
@@ -405,7 +463,10 @@ export function planCompletion(signal: TaskSignal, props: BlockProps | undefined
 }
 
 /** The values of a row with a completion taken back: only the properties it touched change. */
-export function planUndo(props: BlockProps | undefined | null, previous: Record<string, PropertyValue | undefined>): Record<string, PropertyValue> {
+export function planUndo(
+  props: BlockProps | undefined | null,
+  previous: Record<string, PropertyValue | undefined>
+): Record<string, PropertyValue> {
   const values = { ...valuesOf(props) }
   for (const [key, value] of Object.entries(previous)) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue

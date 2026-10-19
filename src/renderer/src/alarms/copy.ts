@@ -57,12 +57,14 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
     remindersHelp: 'A task with a reminder, or due at a time of day, is announced when it comes.',
     eventsGroup: 'Calendar',
     events: 'Events',
-    eventsHelp: 'Events of your calendars with a time are announced before they start. All-day events, declined ones and those shown as free are not.',
+    eventsHelp:
+      'Events of your calendars with a time are announced before they start. All-day events, declined ones and those shown as free are not.',
     lead: 'How long before',
     leadHelp: 'The calendars are read again every 15 minutes while sel is open.',
     leadOption: (minutes) => (minutes === 0 ? 'At the start' : `${minutes} min`),
     askRecord: 'Ask whether to record',
-    askRecordHelp: 'A meeting is an event with someone else invited or a link to a Meet, Teams or Zoom call. Record opens its page and starts recording; Just notes opens the page.',
+    askRecordHelp:
+      'A meeting is an event with someone else invited or a link to a Meet, Teams or Zoom call. Record opens its page and starts recording; Just notes opens the page.',
     askRecordOption: { meetings: 'Meetings', all: 'Every event', never: 'Never' },
     soundGroup: 'Sound and background',
     sound: 'Chime',
@@ -71,7 +73,8 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
     trayHelp: 'Closing the last window leaves sel running there, so notifications still come. Quit from its icon.',
     trayOff: 'With the window closed nothing rings: turn on “Keep running in the notification area”.',
     openAtLogin: 'Start with the computer',
-    openAtLoginHelp: (tray) => `${tray ? 'sel starts in the notification area when you sign in.' : 'sel opens when you sign in.'} Only in the installed app.`,
+    openAtLoginHelp: (tray) =>
+      `${tray ? 'sel starts in the notification area when you sign in.' : 'sel opens when you sign in.'} Only in the installed app.`,
     note: 'These settings stay on this device. The briefing times are under Herman.',
     on: 'On',
     off: 'Off',
@@ -91,12 +94,14 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
     remindersHelp: 'Uma tarefa com lembrete, ou com prazo numa hora do dia, é avisada quando chega a hora.',
     eventsGroup: 'Calendário',
     events: 'Eventos',
-    eventsHelp: 'Eventos com horário dos seus calendários são avisados antes de começar. Eventos de dia inteiro, recusados e marcados como livre, não.',
+    eventsHelp:
+      'Eventos com horário dos seus calendários são avisados antes de começar. Eventos de dia inteiro, recusados e marcados como livre, não.',
     lead: 'Com quanto tempo',
     leadHelp: 'Os calendários são lidos de novo a cada 15 minutos enquanto o sel está aberto.',
     leadOption: (minutes) => (minutes === 0 ? 'Na hora' : `${minutes} min`),
     askRecord: 'Perguntar se grava',
-    askRecordHelp: 'Reunião é um evento com outra pessoa convidada ou com link de Meet, Teams ou Zoom. Gravar abre a página e começa a gravar; Só notas abre a página.',
+    askRecordHelp:
+      'Reunião é um evento com outra pessoa convidada ou com link de Meet, Teams ou Zoom. Gravar abre a página e começa a gravar; Só notas abre a página.',
     askRecordOption: { meetings: 'Reuniões', all: 'Todos os eventos', never: 'Nunca' },
     soundGroup: 'Som e segundo plano',
     sound: 'Som',
@@ -105,7 +110,8 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
     trayHelp: 'Fechar a última janela deixa o sel rodando na área de notificação, e os avisos continuam. Para sair, use o ícone.',
     trayOff: 'Com a janela fechada nada toca — ative “Manter na bandeja”.',
     openAtLogin: 'Iniciar com o computador',
-    openAtLoginHelp: (tray) => `${tray ? 'O sel inicia na bandeja quando você entra.' : 'O sel abre quando você entra.'} Só no app instalado.`,
+    openAtLoginHelp: (tray) =>
+      `${tray ? 'O sel inicia na bandeja quando você entra.' : 'O sel abre quando você entra.'} Só no app instalado.`,
     note: 'Estas configurações ficam neste dispositivo. Os horários do briefing ficam no Herman.',
     on: 'Ligado',
     off: 'Desligado',

@@ -30,7 +30,11 @@ export interface Live<T> {
  * request, and again whenever `read` itself changes. `what` names it in the log.
  */
 export function useLive<T>(read: (force: boolean) => Promise<T>, what: string): Live<T> {
-  const [state, setState] = useState<{ data: T | null; failed: boolean; refreshing: boolean }>({ data: null, failed: false, refreshing: false })
+  const [state, setState] = useState<{ data: T | null; failed: boolean; refreshing: boolean }>({
+    data: null,
+    failed: false,
+    refreshing: false
+  })
   const alive = useRef(true)
   const latest = useRef(0)
   const loadedAt = useRef(0)
@@ -128,11 +132,27 @@ export function openSettings(): void {
 }
 
 /** One event of an agenda (a row of a `today-agenda` list). `time` is how its hours read on the day it is listed under. */
-export function EventRow({ event, calendar, moment, time }: { event: BriefingEvent; calendar: BriefingCalendar | undefined; moment: EventMoment; time: string }): JSX.Element {
+export function EventRow({
+  event,
+  calendar,
+  moment,
+  time
+}: {
+  event: BriefingEvent
+  calendar: BriefingCalendar | undefined
+  moment: EventMoment
+  time: string
+}): JSX.Element {
   return (
     <li className={`today-event is-${moment}`}>
       <span className="today-event-time">{time}</span>
-      <span className="today-dot" style={{ background: `var(--c-${calendar?.color ?? 'gray'})` }} role="img" aria-label={calendar?.label ?? 'Calendar'} title={calendar?.label} />
+      <span
+        className="today-dot"
+        style={{ background: `var(--c-${calendar?.color ?? 'gray'})` }}
+        role="img"
+        aria-label={calendar?.label ?? 'Calendar'}
+        title={calendar?.label}
+      />
       <span className="today-event-body">
         <span className="today-event-title">
           {event.title || 'Untitled'}
@@ -144,7 +164,18 @@ export function EventRow({ event, calendar, moment, time }: { event: BriefingEve
         <button
           type="button"
           className="today-event-notes"
-          onClick={() => void newMeeting({ event: { title: event.title, start: event.start, end: event.end, ...(event.uid ? { uid: event.uid } : {}), ...(event.location ? { location: event.location } : {}), ...(event.description ? { description: event.description } : {}) } })}
+          onClick={() =>
+            void newMeeting({
+              event: {
+                title: event.title,
+                start: event.start,
+                end: event.end,
+                ...(event.uid ? { uid: event.uid } : {}),
+                ...(event.location ? { location: event.location } : {}),
+                ...(event.description ? { description: event.description } : {})
+              }
+            })
+          }
         >
           Take notes
         </button>
@@ -154,13 +185,27 @@ export function EventRow({ event, calendar, moment, time }: { event: BriefingEve
 }
 
 /** One open task. `day` is the day it is listed under: a due date is only spelled out when it is another one. */
-export function TaskRow({ task, day, onComplete }: { task: BriefingTask; day: string; onComplete: (task: BriefingTask) => void }): JSX.Element {
+export function TaskRow({
+  task,
+  day,
+  onComplete
+}: {
+  task: BriefingTask
+  day: string
+  onComplete: (task: BriefingTask) => void
+}): JSX.Element {
   return (
     <li className="today-task">
       <button type="button" className="today-check" aria-label={`Mark "${task.title}" as done`} onClick={() => onComplete(task)} />
-      <button type="button" className="today-task-open" onClick={(event) => openPage(task.pageId, { newTab: event.ctrlKey || event.metaKey })}>
+      <button
+        type="button"
+        className="today-task-open"
+        onClick={(event) => openPage(task.pageId, { newTab: event.ctrlKey || event.metaKey })}
+      >
         <span className="today-task-title">{task.title}</span>
-        <span className="today-task-meta">{[task.source, task.due && task.due !== day ? dueLabel(task.due, day) : '', task.priority?.name].filter(Boolean).join(' · ')}</span>
+        <span className="today-task-meta">
+          {[task.source, task.due && task.due !== day ? dueLabel(task.due, day) : '', task.priority?.name].filter(Boolean).join(' · ')}
+        </span>
       </button>
     </li>
   )

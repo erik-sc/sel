@@ -2,16 +2,7 @@
 import type { DatabaseView, PropertySchema, PropertyType, ViewSort, ViewType } from '../../../../shared/types'
 import { defaultCalcs } from './calcConfig'
 import { defaultChartConfig } from './chartConfig'
-import {
-  VIEW_LABELS,
-  cleanName,
-  getTitleProperty,
-  isSafeKey,
-  makeId,
-  orderedProperties,
-  propOf,
-  type Schema
-} from './values'
+import { VIEW_LABELS, cleanName, getTitleProperty, isSafeKey, makeId, orderedProperties, propOf, type Schema } from './values'
 
 // ---------------------------------------------------------------------------
 // Ordering helpers
@@ -223,9 +214,7 @@ export function setPropertyVisible(view: DatabaseView, schema: Schema, propertyI
   if (!visible && prop.type === 'title') return view
   return {
     ...view,
-    visibleProperties: visible
-      ? [...view.visibleProperties, propertyId]
-      : view.visibleProperties.filter((id) => id !== propertyId)
+    visibleProperties: visible ? [...view.visibleProperties, propertyId] : view.visibleProperties.filter((id) => id !== propertyId)
   }
 }
 

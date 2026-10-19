@@ -29,7 +29,10 @@ vi.setConfig({ testTimeout: 180_000 })
 export const ROOT = mkdtempSync(join(tmpdir(), 'sel-sync-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }))
 
-export const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('IHDR-and-some-pixels-0123456789')])
+export const PNG = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.from('IHDR-and-some-pixels-0123456789')
+])
 const KDF = { N: 1 << 14, r: 8, p: 1 }
 let serial = 0
 /** A name no other folder of this run has. */
@@ -38,7 +41,12 @@ export function unique(prefix: string): string {
 }
 
 export function git(cwd: string, ...args: string[]): string {
-  return execFileSync(GIT as string, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
+  return execFileSync(GIT as string, args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+  })
 }
 
 export function bareRemote(): string {
@@ -116,7 +124,12 @@ export function device(name: string, start: number): Device {
     encrypt: (text) => Buffer.from(Buffer.from(text, 'utf8').map((byte) => byte ^ 0x5a)),
     decrypt: (data) => Buffer.from(data.map((byte) => byte ^ 0x5a)).toString('utf8')
   }
-  const calendars = new CalendarStore(join(dir, 'briefing', 'calendars.bin'), cipher, () => ({}), () => ++clock.t)
+  const calendars = new CalendarStore(
+    join(dir, 'briefing', 'calendars.bin'),
+    cipher,
+    () => ({}),
+    () => ++clock.t
+  )
   const forgotten: string[] = []
   const self: Device = {
     name,

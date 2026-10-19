@@ -57,7 +57,8 @@ export const numbered = (text: Text): TemplateBlock => block('numbered_list', { 
 export const todo = (text: Text, checked = false): TemplateBlock => block('to_do', { title: rich(text), checked })
 export const quote = (text: Text): TemplateBlock => block('quote', { title: rich(text) })
 export const divider = (): TemplateBlock => block('divider')
-export const toggle = (text: Text, children: TemplateNode[]): TemplateBlock => block('toggle', { title: rich(text), collapsed: true }, children)
+export const toggle = (text: Text, children: TemplateNode[]): TemplateBlock =>
+  block('toggle', { title: rich(text), collapsed: true }, children)
 export const callout = (icon: string, text: Text, color = 'gray_background'): TemplateBlock =>
   block('callout', { icon, title: rich(text), color })
 
@@ -91,7 +92,14 @@ export const prop = {
     }
   }),
   /** `filters`: only the related rows these rules keep count ("Date is this month"). */
-  rollup: (id: string, name: string, relationId: string, propertyId: string | undefined, fn: RollupFunction, filters?: ViewFilter[]): PropertySchema => ({
+  rollup: (
+    id: string,
+    name: string,
+    relationId: string,
+    propertyId: string | undefined,
+    fn: RollupFunction,
+    filters?: ViewFilter[]
+  ): PropertySchema => ({
     id,
     name,
     type: 'rollup',
@@ -99,7 +107,9 @@ export const prop = {
   }),
   /** `expression` names properties by id, as `prop("id")`. */
   formula: (id: string, name: string, expression: string, numberFormat?: PropertySchema['numberFormat']): PropertySchema =>
-    numberFormat ? { id, name, type: 'formula', formula: { expression }, numberFormat } : { id, name, type: 'formula', formula: { expression } }
+    numberFormat
+      ? { id, name, type: 'formula', formula: { expression }, numberFormat }
+      : { id, name, type: 'formula', formula: { expression } }
 }
 
 /** A schema from its properties, in the order given (the order the table shows them in). */
@@ -176,7 +186,11 @@ export function database(
   return { kind: 'database', key, title, ...(icon ? { icon } : {}), schema: props, views: dbViews, rows, ...(beside ? { beside } : {}) }
 }
 
-export function linked(source: string, linkedViews: TemplateView[], options: { title?: string; beside?: boolean; key?: string } = {}): TemplateLinked {
+export function linked(
+  source: string,
+  linkedViews: TemplateView[],
+  options: { title?: string; beside?: boolean; key?: string } = {}
+): TemplateLinked {
   return { kind: 'linked', source, views: linkedViews, ...options }
 }
 

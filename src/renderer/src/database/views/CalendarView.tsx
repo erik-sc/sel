@@ -13,10 +13,7 @@ export function CalendarView(p: ViewProps): JSX.Element {
   const [dropDay, setDropDay] = useState<string | null>(null)
   const weeks = useMemo(() => L.calendarMatrix(cursor.year, cursor.month), [cursor])
   const byDay = useMemo(() => L.rowsByDay(rows, dateProp), [rows, dateProp])
-  const undated = useMemo(
-    () => (dateProp ? rows.filter((row) => !L.dayKey(L.getCellValue(row, dateProp))).length : 0),
-    [rows, dateProp]
-  )
+  const undated = useMemo(() => (dateProp ? rows.filter((row) => !L.dayKey(L.getCellValue(row, dateProp))).length : 0), [rows, dateProp])
   const today = L.todayISO()
 
   if (!dateProp) {
@@ -42,9 +39,7 @@ export function CalendarView(p: ViewProps): JSX.Element {
     if (!dragged) return
     endDrag()
     // Day strings only, computed from the value in the store at drop time.
-    actions.updateCell(dragged.id, dateProp, (current) =>
-      L.isDateValue(current) ? L.shiftDateValue(current, day) : { start: day }
-    )
+    actions.updateCell(dragged.id, dateProp, (current) => (L.isDateValue(current) ? L.shiftDateValue(current, day) : { start: day }))
   }
 
   return (
@@ -60,11 +55,7 @@ export function CalendarView(p: ViewProps): JSX.Element {
         <button type="button" className="db-mini-button" aria-label="Previous month" onClick={() => shift(-1)}>
           <ChevronLeft size={14} />
         </button>
-        <button
-          type="button"
-          className="db-mini-button is-text"
-          onClick={() => setCursor(L.monthOf(L.todayISO()))}
-        >
+        <button type="button" className="db-mini-button is-text" onClick={() => setCursor(L.monthOf(L.todayISO()))}>
           Today
         </button>
         <button type="button" className="db-mini-button" aria-label="Next month" onClick={() => shift(1)}>

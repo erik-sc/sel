@@ -79,13 +79,23 @@ export function tasksDatabaseProps(): BlockProps {
     [TASK_PROPS.title]: { id: TASK_PROPS.title, name: 'Task', type: 'title' },
     [TASK_PROPS.done]: { id: TASK_PROPS.done, name: 'Done', type: 'checkbox' },
     [TASK_PROPS.due]: { id: TASK_PROPS.due, name: 'Due', type: 'date' },
-    [TASK_PROPS.priority]: { id: TASK_PROPS.priority, name: 'Priority', type: 'select', options: TASK_PRIORITIES.map((option) => ({ ...option })) },
+    [TASK_PROPS.priority]: {
+      id: TASK_PROPS.priority,
+      name: 'Priority',
+      type: 'select',
+      options: TASK_PRIORITIES.map((option) => ({ ...option }))
+    },
     [TASK_PROPS.project]: { id: TASK_PROPS.project, name: 'Project', type: 'select', options: [] },
     [TASK_PROPS.labels]: { id: TASK_PROPS.labels, name: 'Labels', type: 'multi_select', options: [] },
     [TASK_PROPS.recurrence]: { id: TASK_PROPS.recurrence, name: 'Recurrence', type: 'text' },
     [TASK_PROPS.completedAt]: { id: TASK_PROPS.completedAt, name: 'Completed at', type: 'date' },
     [TASK_PROPS.remind]: { id: TASK_PROPS.remind, name: 'Remind', type: 'date' },
-    [TASK_PROPS.parent]: { id: TASK_PROPS.parent, name: 'Parent task', type: 'relation', relation: { databaseId: TASKS_DATABASE_ID, limit: 'one' } }
+    [TASK_PROPS.parent]: {
+      id: TASK_PROPS.parent,
+      name: 'Parent task',
+      type: 'relation',
+      relation: { databaseId: TASKS_DATABASE_ID, limit: 'one' }
+    }
   }
   const views: DatabaseView[] = [
     { id: 'tasks.view.table', name: 'All tasks', type: 'table', visibleProperties: [...VISIBLE], filters: [], sorts: [] },

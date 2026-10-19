@@ -77,7 +77,15 @@ export const TEMPLATES_COPY: Record<TemplateLocale, TemplatesCopy> = {
     making: 'Criando…',
     failed: 'make the page from the template',
     untitled: 'Sem título',
-    views: { table: 'tabela', board: 'quadro', list: 'lista', gallery: 'galeria', calendar: 'calendário', chart: 'gráfico', calc: 'cálculos' },
+    views: {
+      table: 'tabela',
+      board: 'quadro',
+      list: 'lista',
+      gallery: 'galeria',
+      calendar: 'calendário',
+      chart: 'gráfico',
+      calc: 'cálculos'
+    },
     rows: (n) => (n === 1 ? '1 exemplo' : `${n} exemplos`),
     properties: (n) => (n === 1 ? '1 propriedade' : `${n} propriedades`),
     linkedView: (source) => `visão de ${source}`,

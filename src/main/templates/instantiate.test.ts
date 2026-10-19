@@ -65,7 +65,12 @@ describe('a template, made', () => {
           for (const row of rows) {
             if (property.type === 'formula') {
               const outcome = computeFormula(row, property, ctx)
-              expect([titleOf(db), property.name, titleOf(row), outcome?.ok ? 'ok' : outcome?.error]).toEqual([titleOf(db), property.name, titleOf(row), 'ok'])
+              expect([titleOf(db), property.name, titleOf(row), outcome?.ok ? 'ok' : outcome?.error]).toEqual([
+                titleOf(db),
+                property.name,
+                titleOf(row),
+                'ok'
+              ])
             }
             if (property.type === 'rollup') expect(computeRollup(row, property, ctx), `${titleOf(db)} › ${property.name}`).not.toBeNull()
             if (property.type === 'relation') {
@@ -98,7 +103,8 @@ describe('a template, made', () => {
         const rows = (resolved.source as Block).content.map((rowId) => byId.get(rowId) as Block)
         for (const v of normalized.views) {
           if (v.type !== 'calc') continue
-          for (const calc of v.calcs ?? []) expect(evaluateCalc(calc, queryRows(rows, normalized.schema, v, '', ctx), normalized.schema).ok).toBe(true)
+          for (const calc of v.calcs ?? [])
+            expect(evaluateCalc(calc, queryRows(rows, normalized.schema, v, '', ctx), normalized.schema).ok).toBe(true)
         }
       }
     }
@@ -158,7 +164,8 @@ describe('instantiateTemplate', () => {
       const blocks = everything(repo, page.id)
       for (const db of databases(blocks)) expect([titleOf(db), db.content]).toEqual([titleOf(db), []])
       expect(blocks.length).toBe([...templateNodes(template)].filter((n) => !(n.kind === 'block' && isRowChild(template, n))).length)
-      for (const view of linkedViews(blocks)) expect(normalizeResolved(resolveDatabase(view, { get: (x) => repo.get(x) ?? undefined })).changed).toBe(false)
+      for (const view of linkedViews(blocks))
+        expect(normalizeResolved(resolveDatabase(view, { get: (x) => repo.get(x) ?? undefined })).changed).toBe(false)
       // A filter on example rows is left out with them, never kept pointing at nothing.
       for (const block of blocks) {
         for (const view of block.props.views ?? []) {
@@ -224,7 +231,10 @@ describe('resolveDate', () => {
     expect(resolveDate({ days: 0 }, today)).toEqual({ start: '2026-10-15' })
     expect(resolveDate({ days: 20 }, today)).toEqual({ start: '2026-11-04' })
     expect(resolveDate({ days: -16 }, today)).toEqual({ start: '2026-09-29' })
-    expect(resolveDate({ days: 30, time: '22:40', endDays: 31, endTime: '12:15' }, today)).toEqual({ start: '2026-11-14T22:40', end: '2026-11-15T12:15' })
+    expect(resolveDate({ days: 30, time: '22:40', endDays: 31, endTime: '12:15' }, today)).toEqual({
+      start: '2026-11-14T22:40',
+      end: '2026-11-15T12:15'
+    })
     expect(resolveDate({ days: 1, endDays: 4 }, today)).toEqual({ start: '2026-10-16', end: '2026-10-19' })
     expect(() => resolveDate({ days: 0, time: '25:00' }, today)).toThrow(/time/)
   })
@@ -250,7 +260,12 @@ describe('resolveDate', () => {
 
 describe('the templates:create request', () => {
   it('takes a known template, a language, examples or not and a place', () => {
-    expect(templateRequest({ id: 'kitchen', locale: 'pt-BR', examples: false, parentId: null })).toEqual({ id: 'kitchen', locale: 'pt-BR', examples: false, parentId: null })
+    expect(templateRequest({ id: 'kitchen', locale: 'pt-BR', examples: false, parentId: null })).toEqual({
+      id: 'kitchen',
+      locale: 'pt-BR',
+      examples: false,
+      parentId: null
+    })
     expect(templateRequest({ id: 'trip', locale: 'en', examples: true, parentId: 'abc-123' }).parentId).toBe('abc-123')
   })
 
@@ -311,7 +326,9 @@ describe('what the examples say', () => {
     expect(cell('Meu plano', 'Meu salário', 'free')).toMatch(/R\$\s?470,00/)
     expect(cell('Meu plano', 'Meu salário', 'needs')).toMatch(/R\$\s?3\.450,00/)
     expect(cell('Meu plano', 'Meu salário', 'futureShare')).toBe('11,54%')
-    expect(cell('Meu plano', 'Meu salário', 'advice')).toBe('O essencial leva 66% do salário (o comum é até 50%). Reveja moradia e contas fixas.')
+    expect(cell('Meu plano', 'Meu salário', 'advice')).toBe(
+      'O essencial leva 66% do salário (o comum é até 50%). Reveja moradia e contas fixas.'
+    )
     const en = made('finances', 'en')
     expect(en.cell('My plan', 'My pay', 'free')).toBe('$1,300.00')
     expect(en.cell('My plan', 'My pay', 'advice')).toBe('Only 10% goes to savings (20% is usual). Put more aside.')

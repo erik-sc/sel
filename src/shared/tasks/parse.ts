@@ -108,7 +108,7 @@ function nextWeekday(today: Day, weekday: number): Day {
 
 /** The Monday after today (never today). */
 function nextMonday(today: Day): Day {
-  return addDays(today, ((8 - weekdayOf(today)) % 7) || 7)
+  return addDays(today, (8 - weekdayOf(today)) % 7 || 7)
 }
 
 /** The next day numbered `date` of a month, today included (months without it are skipped). */
@@ -165,18 +165,43 @@ const B = '(?<![\\p{L}\\p{N}_])'
 const E = '(?![\\p{L}\\p{N}_])'
 
 const WEEKDAY_WORDS: [string, number][] = [
-  ['domingos?', 0], ['dom', 0], ['sunday', 0], ['sun', 0],
-  ['segundas?(?:[- ]feiras?)?', 1], ['seg', 1], ['monday', 1], ['mon', 1],
-  ['tercas?(?:[- ]feiras?)?', 2], ['ter', 2], ['tuesday', 2], ['tues', 2], ['tue', 2],
-  ['quartas?(?:[- ]feiras?)?', 3], ['qua', 3], ['wednesday', 3], ['wed', 3],
-  ['quintas?(?:[- ]feiras?)?', 4], ['qui', 4], ['thursday', 4], ['thurs', 4], ['thu', 4],
-  ['sextas?(?:[- ]feiras?)?', 5], ['sex', 5], ['friday', 5], ['fri', 5],
-  ['sabados?', 6], ['sab', 6], ['saturday', 6], ['sat', 6]
+  ['domingos?', 0],
+  ['dom', 0],
+  ['sunday', 0],
+  ['sun', 0],
+  ['segundas?(?:[- ]feiras?)?', 1],
+  ['seg', 1],
+  ['monday', 1],
+  ['mon', 1],
+  ['tercas?(?:[- ]feiras?)?', 2],
+  ['ter', 2],
+  ['tuesday', 2],
+  ['tues', 2],
+  ['tue', 2],
+  ['quartas?(?:[- ]feiras?)?', 3],
+  ['qua', 3],
+  ['wednesday', 3],
+  ['wed', 3],
+  ['quintas?(?:[- ]feiras?)?', 4],
+  ['qui', 4],
+  ['thursday', 4],
+  ['thurs', 4],
+  ['thu', 4],
+  ['sextas?(?:[- ]feiras?)?', 5],
+  ['sex', 5],
+  ['friday', 5],
+  ['fri', 5],
+  ['sabados?', 6],
+  ['sab', 6],
+  ['saturday', 6],
+  ['sat', 6]
 ]
 /** Abbreviations that are also everyday words: only a weekday after a word like "on", "na", "next". */
 const AMBIGUOUS_WEEKDAYS = ['ter', 'sex', 'dom', 'sun', 'sat', 'qua', 'qui']
 const WEEKDAY = `(?:${WEEKDAY_WORDS.map(([word]) => word).join('|')})`
-const SAFE_WEEKDAY = `(?:${WEEKDAY_WORDS.filter(([word]) => !AMBIGUOUS_WEEKDAYS.includes(word)).map(([word]) => word).join('|')})`
+const SAFE_WEEKDAY = `(?:${WEEKDAY_WORDS.filter(([word]) => !AMBIGUOUS_WEEKDAYS.includes(word))
+  .map(([word]) => word)
+  .join('|')})`
 
 function weekdayNumber(word: string): number | null {
   for (const [pattern, weekday] of WEEKDAY_WORDS) if (new RegExp(`^${pattern}$`).test(word)) return weekday
@@ -186,22 +211,55 @@ function weekdayNumber(word: string): number | null {
 const RRULE_DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA']
 
 const MONTH_WORDS: [string, number][] = [
-  ['janeiro', 1], ['january', 1], ['jan', 1],
-  ['fevereiro', 2], ['february', 2], ['fev', 2], ['feb', 2],
-  ['marco', 3], ['march', 3], ['mar', 3],
-  ['abril', 4], ['april', 4], ['abr', 4], ['apr', 4],
-  ['maio', 5], ['may', 5], ['mai', 5],
-  ['junho', 6], ['june', 6], ['jun', 6],
-  ['julho', 7], ['july', 7], ['jul', 7],
-  ['agosto', 8], ['august', 8], ['ago', 8], ['aug', 8],
-  ['setembro', 9], ['september', 9], ['sept', 9], ['set', 9], ['sep', 9],
-  ['outubro', 10], ['october', 10], ['out', 10], ['oct', 10],
-  ['novembro', 11], ['november', 11], ['nov', 11],
-  ['dezembro', 12], ['december', 12], ['dez', 12], ['dec', 12]
+  ['janeiro', 1],
+  ['january', 1],
+  ['jan', 1],
+  ['fevereiro', 2],
+  ['february', 2],
+  ['fev', 2],
+  ['feb', 2],
+  ['marco', 3],
+  ['march', 3],
+  ['mar', 3],
+  ['abril', 4],
+  ['april', 4],
+  ['abr', 4],
+  ['apr', 4],
+  ['maio', 5],
+  ['may', 5],
+  ['mai', 5],
+  ['junho', 6],
+  ['june', 6],
+  ['jun', 6],
+  ['julho', 7],
+  ['july', 7],
+  ['jul', 7],
+  ['agosto', 8],
+  ['august', 8],
+  ['ago', 8],
+  ['aug', 8],
+  ['setembro', 9],
+  ['september', 9],
+  ['sept', 9],
+  ['set', 9],
+  ['sep', 9],
+  ['outubro', 10],
+  ['october', 10],
+  ['out', 10],
+  ['oct', 10],
+  ['novembro', 11],
+  ['november', 11],
+  ['nov', 11],
+  ['dezembro', 12],
+  ['december', 12],
+  ['dez', 12],
+  ['dec', 12]
 ]
 const MONTH = `(?:${MONTH_WORDS.map(([word]) => word).join('|')})\\.?`
 /** Before a number, "set" and "out" are more often verbs than months. */
-const LEADING_MONTH = `(?:${MONTH_WORDS.filter(([word]) => word !== 'set' && word !== 'out').map(([word]) => word).join('|')})\\.?`
+const LEADING_MONTH = `(?:${MONTH_WORDS.filter(([word]) => word !== 'set' && word !== 'out')
+  .map(([word]) => word)
+  .join('|')})\\.?`
 
 function monthNumber(word: string): number | null {
   const clean = word.replace(/\.$/, '')
@@ -209,10 +267,34 @@ function monthNumber(word: string): number | null {
 }
 
 const NUMBER_WORDS: Record<string, number> = {
-  um: 1, uma: 1, one: 1, a: 1, an: 1, dois: 2, duas: 2, two: 2, tres: 3, three: 3, quatro: 4, four: 4,
-  cinco: 5, five: 5, seis: 6, six: 6, sete: 7, seven: 7, oito: 8, eight: 8, nove: 9, nine: 9, dez: 10, ten: 10
+  um: 1,
+  uma: 1,
+  one: 1,
+  a: 1,
+  an: 1,
+  dois: 2,
+  duas: 2,
+  two: 2,
+  tres: 3,
+  three: 3,
+  quatro: 4,
+  four: 4,
+  cinco: 5,
+  five: 5,
+  seis: 6,
+  six: 6,
+  sete: 7,
+  seven: 7,
+  oito: 8,
+  eight: 8,
+  nove: 9,
+  nine: 9,
+  dez: 10,
+  ten: 10
 }
-const COUNT = `(\\d{1,3}|${Object.keys(NUMBER_WORDS).filter((word) => word !== 'a' && word !== 'an').join('|')})`
+const COUNT = `(\\d{1,3}|${Object.keys(NUMBER_WORDS)
+  .filter((word) => word !== 'a' && word !== 'an')
+  .join('|')})`
 
 function countOf(word: string): number {
   return /^\d+$/.test(word) ? Number(word) : (NUMBER_WORDS[word] ?? 0)
@@ -292,10 +374,19 @@ const RECURRENCES = [
     return recurrence(`FREQ=MONTHLY;BYMONTHDAY=${date}`, m[2], (from) => nextMonthDay(from, date) ?? from)
   }),
   rule(`${EVERY}\\s+${WEEKDAY_LIST}`, (m) => {
-    const days = [...new Set(m[3].split(/\s*(?:,|\be\b|\band\b|&)\s*/).map((word) => weekdayNumber(word.trim())).filter((day): day is number => day !== null))]
+    const days = [
+      ...new Set(
+        m[3]
+          .split(/\s*(?:,|\be\b|\band\b|&)\s*/)
+          .map((word) => weekdayNumber(word.trim()))
+          .filter((day): day is number => day !== null)
+      )
+    ]
     if (!days.length) return null
     days.sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7))
-    return recurrence(`FREQ=WEEKLY;BYDAY=${days.map((day) => RRULE_DAYS[day]).join(',')}`, m[2], (today) => Math.min(...days.map((day) => nextWeekday(today, day))))
+    return recurrence(`FREQ=WEEKLY;BYDAY=${days.map((day) => RRULE_DAYS[day]).join(',')}`, m[2], (today) =>
+      Math.min(...days.map((day) => nextWeekday(today, day)))
+    )
   }),
   // "every other week", "every other monday": every second one.
   rule(`(every)(!?)\\s+other\\s+${UNIT}`, (m) => {
@@ -357,7 +448,12 @@ const DATES = [
     const count = countOf(m[1])
     if (count < 1 || count > 999) return null
     const unit = unitOf(m[2])
-    const day = unit === 'day' ? addDays(today, count) : unit === 'week' ? addDays(today, 7 * count) : addMonths(today, unit === 'month' ? count : 12 * count)
+    const day =
+      unit === 'day'
+        ? addDays(today, count)
+        : unit === 'week'
+          ? addDays(today, 7 * count)
+          : addMonths(today, unit === 'month' ? count : 12 * count)
     return { kind: 'date', day }
   }),
   rule(`(?:(?:no|neste|nesse|this|next)\\s+)?(?:fim de semana|final de semana|fds|weekend)`, (_m, today) => ({
@@ -401,11 +497,14 @@ function numericDate(dayFirst: boolean): { re: RegExp; read: Matcher } {
 }
 
 const NAMED_DATES = [
-  rule(`${DATE_PREFIX}(?:(?:no )?dia\\s+)?(\\d{1,2})(?:st|nd|rd|th|º)?(?:\\s+de)?\\s+(${MONTH})(?:(?:\\s+de|,)?\\s+(\\d{4}))?`, (m, today) => {
-    const month = monthNumber(m[2])
-    const day = month === null ? null : nextDate(today, month, Number(m[1]), m[3] !== undefined ? Number(m[3]) : undefined)
-    return day === null ? null : { kind: 'date', day }
-  }),
+  rule(
+    `${DATE_PREFIX}(?:(?:no )?dia\\s+)?(\\d{1,2})(?:st|nd|rd|th|º)?(?:\\s+de)?\\s+(${MONTH})(?:(?:\\s+de|,)?\\s+(\\d{4}))?`,
+    (m, today) => {
+      const month = monthNumber(m[2])
+      const day = month === null ? null : nextDate(today, month, Number(m[1]), m[3] !== undefined ? Number(m[3]) : undefined)
+      return day === null ? null : { kind: 'date', day }
+    }
+  ),
   rule(`${DATE_PREFIX}(${LEADING_MONTH})\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?`, (m, today) => {
     const month = monthNumber(m[1])
     const day = month === null ? null : nextDate(today, month, Number(m[2]), m[3] !== undefined ? Number(m[3]) : undefined)
@@ -464,7 +563,8 @@ export function parseTask(text: string, options: ParseOptions = {}): ParsedTask 
 
   // What the user un-recognised stays text, and nothing else may take it either.
   for (const span of options.ignored ?? []) {
-    if (span.text && input.slice(span.start, span.start + span.text.length) === span.text) claimed.push({ start: span.start, end: span.start + span.text.length })
+    if (span.text && input.slice(span.start, span.start + span.text.length) === span.text)
+      claimed.push({ start: span.start, end: span.start + span.text.length })
   }
   const free = (span: Claimed): boolean => !claimed.some((other) => overlaps(other, span))
 
@@ -508,7 +608,9 @@ export function parseTask(text: string, options: ParseOptions = {}): ParsedTask 
     for (let i = folded.indexOf(sigil); i >= 0; i = folded.indexOf(sigil, i + 1)) {
       if (i > 0 && !/\s/u.test(folded[i - 1])) continue
       const rest = folded.slice(i + 1)
-      const exact = knownFolded.find((entry) => entry.folded && rest.startsWith(entry.folded) && !/[\p{L}\p{N}_-]/u.test(rest[entry.folded.length] ?? ''))
+      const exact = knownFolded.find(
+        (entry) => entry.folded && rest.startsWith(entry.folded) && !/[\p{L}\p{N}_-]/u.test(rest[entry.folded.length] ?? '')
+      )
       const word = /^[^\s#@]+/u.exec(input.slice(i + 1))?.[0] ?? ''
       const length = exact ? exact.folded.length : trimName(word).length
       if (!length) continue
@@ -567,7 +669,13 @@ export function parseTask(text: string, options: ParseOptions = {}): ParsedTask 
   return {
     title,
     due,
-    recurrence: recurrenceReading ? { rule: recurrenceReading.rule, from: recurrenceReading.from, text: tokens.find((token) => token.kind === 'recurrence')?.text.trim() ?? '' } : null,
+    recurrence: recurrenceReading
+      ? {
+          rule: recurrenceReading.rule,
+          from: recurrenceReading.from,
+          text: tokens.find((token) => token.kind === 'recurrence')?.text.trim() ?? ''
+        }
+      : null,
     priority: priority?.kind === 'priority' ? priority.priority : null,
     project,
     labels: [...new Set(labels)],

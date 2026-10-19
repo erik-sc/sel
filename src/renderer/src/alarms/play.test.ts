@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { pickVoice } from './play'
 
-const voice = (name: string, lang: string): SpeechSynthesisVoice => ({ name, lang, default: false, localService: true, voiceURI: name }) as SpeechSynthesisVoice
+const voice = (name: string, lang: string): SpeechSynthesisVoice =>
+  ({ name, lang, default: false, localService: true, voiceURI: name }) as SpeechSynthesisVoice
 
 describe('the voice he speaks with', () => {
-  const list = [voice('Microsoft David', 'en-US'), voice('Microsoft Maria', 'pt-BR'), voice('Microsoft Helia', 'pt-PT'), voice('Microsoft Zira', 'en-US')]
+  const list = [
+    voice('Microsoft David', 'en-US'),
+    voice('Microsoft Maria', 'pt-BR'),
+    voice('Microsoft Helia', 'pt-PT'),
+    voice('Microsoft Zira', 'en-US')
+  ]
 
   it('is the one chosen by name', () => {
     expect(pickVoice(list, 'pt-BR', 'Microsoft Zira')?.name).toBe('Microsoft Zira')

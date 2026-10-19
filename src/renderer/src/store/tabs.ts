@@ -220,9 +220,7 @@ export function closeTab(id?: string | null): void {
 }
 
 export function closeOtherTabs(id: string): void {
-  useTabs.setState((state) =>
-    state.tabs.some((t) => t.id === id) ? { tabs: state.tabs.filter((t) => t.id === id), activeId: id } : state
-  )
+  useTabs.setState((state) => (state.tabs.some((t) => t.id === id) ? { tabs: state.tabs.filter((t) => t.id === id), activeId: id } : state))
 }
 
 /** Closes every tab after this one; the active tab, if it was one of them, becomes this one. */
@@ -416,9 +414,7 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
     console.error('could not restore tabs', error)
   }
   let tabs = restored?.tabs ?? []
-  let activeId = tabs.some((t) => t.id === restored?.activeId)
-    ? restored!.activeId
-    : (tabs[0]?.id ?? null)
+  let activeId = tabs.some((t) => t.id === restored?.activeId) ? restored!.activeId : (tabs[0]?.id ?? null)
   const target = homeTarget(home)
   if (target !== null) {
     // The home in front: the restored tab that already shows it, or a new one.
@@ -439,9 +435,7 @@ function persistNow(): void {
   clearTimeout(persistTimer)
   persistTimer = null
   const { tabs, activeId } = useTabs.getState()
-  window.api.app
-    .setSetting(SETTING_KEY, { tabs, activeId })
-    .catch((error) => notifyError('Your open tabs could not be saved.', error))
+  window.api.app.setSetting(SETTING_KEY, { tabs, activeId }).catch((error) => notifyError('Your open tabs could not be saved.', error))
 }
 
 function schedulePersist(): void {

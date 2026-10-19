@@ -161,7 +161,7 @@ suite('sync with real git: recovery', () => {
     const work = unique('work')
     mkdirSync(work)
     git(work, 'init', '-q', '-b', 'main')
-    writeFileSync(join(work, 'README.md'), '# Someone else\'s project\n')
+    writeFileSync(join(work, 'README.md'), "# Someone else's project\n")
     mkdirSync(join(work, 'src'))
     writeFileSync(join(work, 'src', 'main.c'), 'int main(void) { return 0; }\n')
     git(work, 'add', '-A')
@@ -180,7 +180,7 @@ suite('sync with real git: recovery', () => {
     expect(accepted.lastError).toBeUndefined()
     const files = remoteFiles(remote)
     // Their files are all still there, untouched; sel's are next to them.
-    expect(files.get('README.md')!.toString()).toBe('# Someone else\'s project\n')
+    expect(files.get('README.md')!.toString()).toBe("# Someone else's project\n")
     expect(files.get('src/main.c')!.toString()).toContain('int main')
     expect(files.has('SEL.md')).toBe(true)
     expect(files.has(`pages/${page.id}.json`)).toBe(true)
@@ -194,7 +194,7 @@ suite('sync with real git: recovery', () => {
     await sync(b)
     const later = remoteFiles(remote)
     expect(later.has('src/main.c')).toBe(true)
-    expect(later.get('README.md')!.toString()).toBe('# Someone else\'s project\n')
+    expect(later.get('README.md')!.toString()).toBe("# Someone else's project\n")
     expect(later.has(`pages/${page.id}.json`)).toBe(false)
   })
 
@@ -285,7 +285,8 @@ suite('sync with real git: recovery', () => {
     // The same repository as the earlier app left it.
     const work = unique('work')
     git(ROOT, 'clone', '-q', remote, work)
-    const rewrite = (path: string, from: string, to: string): void => writeFileSync(join(work, path), readFileSync(join(work, path), 'utf8').replaceAll(from, to))
+    const rewrite = (path: string, from: string, to: string): void =>
+      writeFileSync(join(work, path), readFileSync(join(work, path), 'utf8').replaceAll(from, to))
     git(work, 'mv', 'sel.json', 'selida.json')
     rewrite('selida.json', '"app": "sel"', '"app": "selida"')
     rewrite('README.md', '<!-- sel:managed -->', '<!-- selida:managed -->')
@@ -306,7 +307,9 @@ suite('sync with real git: recovery', () => {
     // Whoever uploads next brings the repository over, and no file is lost on the way.
     await sync(a, b)
     const files = remoteFiles(remote)
-    expect([...files.keys()].sort()).toEqual(['README.md', `files/${name}`, `pages/${page.id}.json`, `pages/${words.id}.json`, 'sel.json', 'workspace.json'].sort())
+    expect([...files.keys()].sort()).toEqual(
+      ['README.md', `files/${name}`, `pages/${page.id}.json`, `pages/${words.id}.json`, 'sel.json', 'workspace.json'].sort()
+    )
     expect(JSON.parse(files.get('sel.json')!.toString())).toMatchObject({ app: 'sel', format: 1 })
     expect(files.get('README.md')!.toString()).toContain('<!-- sel:managed -->')
     expect(files.get(`pages/${page.id}.json`)!.toString()).toContain(`sel-file://files/${name}`)

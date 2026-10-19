@@ -27,16 +27,23 @@ export interface ToolSource extends WorkspaceSource {
 // ---- text --------------------------------------------------------------------
 
 // eslint-disable-next-line no-control-regex
-const oneLine = (text: string, max: number): string => text.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max)
+const oneLine = (text: string, max: number): string =>
+  text
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max)
 
 export function titleOf(block: Block | null | undefined): string {
   const text = oneLine(plainText(block?.props.title).replace(/[[\]]/g, ' '), TOOL_CAPS.title)
   return text || 'Untitled'
 }
 
-export const live = (block: Block | null | undefined): block is Block => !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database')
+export const live = (block: Block | null | undefined): block is Block =>
+  !!block && block.trashedAt === null && (block.type === 'page' || block.type === 'database')
 
-export const label = (block: Block): string => `${block.props.icon ? `${oneLine(String(block.props.icon), 8)} ` : ''}${titleOf(block)} [${block.id}]${block.type === 'database' ? ' (database)' : ''}`
+export const label = (block: Block): string =>
+  `${block.props.icon ? `${oneLine(String(block.props.icon), 8)} ` : ''}${titleOf(block)} [${block.id}]${block.type === 'database' ? ' (database)' : ''}`
 
 const day = (ms: number): string => new Date(ms).toISOString().slice(0, 10)
 
@@ -65,7 +72,11 @@ function cell(source: ToolSource, property: PropertySchema, row: Block): string 
   if (source.cellText) return oneLine(source.cellText(property, row), TOOL_CAPS.cell)
   const value = row.props.values?.[property.id]
   if (value === undefined || value === null) return ''
-  if (Array.isArray(value)) return oneLine(value.map((item) => property.options?.find((option) => option.id === item)?.name ?? String(item)).join(', '), TOOL_CAPS.cell)
+  if (Array.isArray(value))
+    return oneLine(
+      value.map((item) => property.options?.find((option) => option.id === item)?.name ?? String(item)).join(', '),
+      TOOL_CAPS.cell
+    )
   if (typeof value === 'object') {
     const range = value as { start?: unknown; end?: unknown }
     if (typeof range.start === 'string') return typeof range.end === 'string' && range.end ? `${range.start} → ${range.end}` : range.start
@@ -126,7 +137,9 @@ function outline(source: ToolSource, args: Record<string, unknown>): string {
 
 function database(source: ToolSource, block: Block, offset: number, limit: number): string {
   const schema = block.props.schema ?? {}
-  const properties = Object.values(schema).filter((property) => property && property.type !== 'created_time' && property.type !== 'last_edited_time')
+  const properties = Object.values(schema).filter(
+    (property) => property && property.type !== 'created_time' && property.type !== 'last_edited_time'
+  )
   const titleProperty = properties.find((property) => property.type === 'title')
   const others = properties.filter((property) => property.type !== 'title')
   const rows = source.children(block.id).filter((row) => row.type === 'page' && row.trashedAt === null)
@@ -139,9 +152,12 @@ function database(source: ToolSource, block: Block, offset: number, limit: numbe
     for (const row of shown) {
       const values = others.map((property) => [property.name, cell(source, property, row)] as const).filter(([, value]) => value)
       const name = titleProperty && !ROW_TITLE_NAMES.has(titleProperty.name.toLowerCase()) ? `${titleProperty.name}: ` : ''
-      lines.push(`- ${name}${titleOf(row)} [${row.id}]${values.length ? ` | ${values.map(([key, value]) => `${oneLine(key, 60)}: ${value}`).join(' | ')}` : ''}`)
+      lines.push(
+        `- ${name}${titleOf(row)} [${row.id}]${values.length ? ` | ${values.map(([key, value]) => `${oneLine(key, 60)}: ${value}`).join(' | ')}` : ''}`
+      )
     }
-    if (offset + shown.length < rows.length) lines.push(`- (${rows.length - offset - shown.length} more: read again with offset ${offset + shown.length})`)
+    if (offset + shown.length < rows.length)
+      lines.push(`- (${rows.length - offset - shown.length} more: read again with offset ${offset + shown.length})`)
   }
   return lines.join('\n')
 }
@@ -153,7 +169,8 @@ function readPage(source: ToolSource, args: Record<string, unknown>): string {
   if (page.type === 'database') return database(source, page, 0, 30)
   const inside = source.listChildren(page.id).filter(live)
   const head = [`Page ${label(page)}, in ${pathOf(source, page.id)}. Edited ${day(page.updatedAt)}.`]
-  if (inside.length) head.push(`Inside it: ${inside.slice(0, 40).map(label).join('; ')}${inside.length > 40 ? `; and ${inside.length - 40} more` : ''}`)
+  if (inside.length)
+    head.push(`Inside it: ${inside.slice(0, 40).map(label).join('; ')}${inside.length > 40 ? `; and ${inside.length - 40} more` : ''}`)
   const { markdown } = source.pageToMarkdown(page.id)
   return `${head.join('\n')}\n\n${truncateMiddle(markdown.trim(), TOOL_CAPS.page)}`
 }
@@ -167,7 +184,9 @@ function readDatabase(source: ToolSource, args: Record<string, unknown>): string
 
 function recent(source: ToolSource, args: Record<string, unknown>): string {
   const blocks = source.listRecent(clamp(args['limit'], 1, TOOL_CAPS.recent, 15)).filter(live)
-  return blocks.length ? blocks.map((block) => `- ${label(block)}, in ${pathOf(source, block.id)}, edited ${day(block.updatedAt)}`).join('\n') : 'Nothing has been edited yet.'
+  return blocks.length
+    ? blocks.map((block) => `- ${label(block)}, in ${pathOf(source, block.id)}, edited ${day(block.updatedAt)}`).join('\n')
+    : 'Nothing has been edited yet.'
 }
 
 function audit(source: ToolSource, now: number): string {
@@ -188,7 +207,9 @@ function audit(source: ToolSource, now: number): string {
   }
   walk(source.listRoot(), null)
 
-  const list = (items: readonly string[]): string => items.slice(0, TOOL_CAPS.auditList).join('\n') + (items.length > TOOL_CAPS.auditList ? `\n- (and ${items.length - TOOL_CAPS.auditList} more)` : '')
+  const list = (items: readonly string[]): string =>
+    items.slice(0, TOOL_CAPS.auditList).join('\n') +
+    (items.length > TOOL_CAPS.auditList ? `\n- (and ${items.length - TOOL_CAPS.auditList} more)` : '')
   const where = (parent: Block | null): string => (parent ? `in ${titleOf(parent)} [${parent.id}]` : 'at the top level')
   const sections: string[] = [`${pages.length} pages and databases${cut ? ' looked at (the workspace is larger; the rest was not)' : ''}.`]
 
@@ -199,10 +220,16 @@ function audit(source: ToolSource, now: number): string {
     byTitle.set(key, [...(byTitle.get(key) ?? []), block])
   }
   const duplicates = [...byTitle.values()].filter((group) => group.length > 1)
-  if (duplicates.length) sections.push(`Same title more than once:\n${list(duplicates.map((group) => `- ${titleOf(group[0])}: ${group.map((block) => `[${block.id}] in ${pathOf(source, block.id)}`).join('; ')}`))}`)
+  if (duplicates.length)
+    sections.push(
+      `Same title more than once:\n${list(duplicates.map((group) => `- ${titleOf(group[0])}: ${group.map((block) => `[${block.id}] in ${pathOf(source, block.id)}`).join('; ')}`))}`
+    )
 
   const untitled = pages.filter(({ block }) => titleOf(block) === 'Untitled')
-  if (untitled.length) sections.push(`Untitled:\n${list(untitled.map(({ block, parent }) => `- [${block.id}] ${where(parent)}, edited ${day(block.updatedAt)}`))}`)
+  if (untitled.length)
+    sections.push(
+      `Untitled:\n${list(untitled.map(({ block, parent }) => `- [${block.id}] ${where(parent)}, edited ${day(block.updatedAt)}`))}`
+    )
 
   const empty = pages.filter(({ block }) => block.type === 'page' && !source.listChildren(block.id).some(live) && isEmpty(source, block))
   if (empty.length) sections.push(`Empty pages:\n${list(empty.map(({ block, parent }) => `- ${label(block)} ${where(parent)}`))}`)
@@ -210,9 +237,15 @@ function audit(source: ToolSource, now: number): string {
   const stale = pages
     .filter(({ block }) => now - block.updatedAt > TOOL_CAPS.staleDays * 86_400_000)
     .sort((a, b) => a.block.updatedAt - b.block.updatedAt)
-  if (stale.length) sections.push(`Untouched for more than ${TOOL_CAPS.staleDays} days, the oldest first:\n${list(stale.map(({ block, parent }) => `- ${label(block)} ${where(parent)}, edited ${day(block.updatedAt)}`))}`)
+  if (stale.length)
+    sections.push(
+      `Untouched for more than ${TOOL_CAPS.staleDays} days, the oldest first:\n${list(stale.map(({ block, parent }) => `- ${label(block)} ${where(parent)}, edited ${day(block.updatedAt)}`))}`
+    )
 
-  if (crowded.length) sections.push(`Crowded places (many pages side by side):\n${list(crowded.sort((a, b) => b.count - a.count).map(({ parent, count }) => `- ${count} ${where(parent)}`))}`)
+  if (crowded.length)
+    sections.push(
+      `Crowded places (many pages side by side):\n${list(crowded.sort((a, b) => b.count - a.count).map(({ parent, count }) => `- ${count} ${where(parent)}`))}`
+    )
 
   const bare = pages.filter(({ block }) => block.type === 'database' && block.content.length === 0)
   if (bare.length) sections.push(`Databases without rows:\n${list(bare.map(({ block, parent }) => `- ${label(block)} ${where(parent)}`))}`)

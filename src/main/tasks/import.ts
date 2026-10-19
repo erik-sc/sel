@@ -8,7 +8,12 @@ import { projectNameOf, readTodoistCsv } from './todoist'
 
 const COLORS = ['blue', 'green', 'orange', 'purple', 'pink', 'brown', 'yellow', 'red']
 
-const fold = (text: string): string => text.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase().trim()
+const fold = (text: string): string =>
+  text
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .toLowerCase()
+    .trim()
 
 /** The option named `name` (case and accents aside), added to `property` when there is none. */
 function optionFor(property: PropertySchema, name: string): string {
@@ -25,7 +30,11 @@ function optionFor(property: PropertySchema, name: string): string {
  * transaction: new projects and labels become options, subtasks keep their parent, descriptions
  * and comments become the text of the task's page.
  */
-export function importTodoistFiles(repo: Repository, files: readonly { name: string; text: string }[], now: Date = new Date()): TodoistImportResult {
+export function importTodoistFiles(
+  repo: Repository,
+  files: readonly { name: string; text: string }[],
+  now: Date = new Date()
+): TodoistImportResult {
   const databaseId = ensureTasksDatabase(repo)
   const database = repo.get(databaseId)
   if (!database?.props.schema) throw new Error('The Tasks database could not be opened.')

@@ -87,7 +87,11 @@ describe('FeedbackStore', () => {
   it('reads what the agent changed and skips files it cannot read', async () => {
     const item = await store.create({ kind: 'bug', title: 'Crash', description: '', screen: 'page' })
     const file = join(dir, `${item.id}.json`)
-    const edited = { ...item, status: 'in-review', resolution: { pr: 'https://github.com/erik-sc/sel/pull/9', branch: 'nightly/x', note: null } }
+    const edited = {
+      ...item,
+      status: 'in-review',
+      resolution: { pr: 'https://github.com/erik-sc/sel/pull/9', branch: 'nightly/x', note: null }
+    }
     await writeFile(file, JSON.stringify(edited))
     await writeFile(join(dir, 'fb-20260101-000000-zzzz.json'), '{ not json')
     const [read] = await store.list()

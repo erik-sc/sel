@@ -92,8 +92,11 @@ describe('getCellValue', () => {
 })
 
 describe('applyFilters', () => {
-  const f = (propertyId: string, operator: L.Schema[string] extends never ? never : import('../../../shared/types').FilterOperator, value?: PropertyValue) =>
-    ids(L.applyFilters(rows, schema, [{ propertyId, operator, value }]))
+  const f = (
+    propertyId: string,
+    operator: L.Schema[string] extends never ? never : import('../../../shared/types').FilterOperator,
+    value?: PropertyValue
+  ) => ids(L.applyFilters(rows, schema, [{ propertyId, operator, value }]))
 
   it('returns the same rows without filters and ignores unknown properties', () => {
     expect(L.applyFilters(rows, schema, [])).toBe(rows)
@@ -228,7 +231,11 @@ describe('groupRows', () => {
 
   it('puts multi-select rows in every matching group', () => {
     const groups = L.groupRows(rows, schema.tags)
-    expect(groups.map((g) => ids(g.rows))).toEqual([['r3', 'r4'], ['r1', 'r2'], ['r2', 'r5']])
+    expect(groups.map((g) => ids(g.rows))).toEqual([
+      ['r3', 'r4'],
+      ['r1', 'r2'],
+      ['r2', 'r5']
+    ])
   })
 
   it('groups by other types and by nothing', () => {
@@ -290,12 +297,22 @@ describe('dates', () => {
     const monday = L.calendarMatrix(2026, 9, 1)
     expect(monday[0][0].date).toBe('2026-09-28')
     expect(L.calendarMatrix(2026, 7)).toHaveLength(6) // Aug 2026: starts Saturday
-    const flat = L.calendarMatrix(2024, 1).flat().filter((d) => d.inMonth)
+    const flat = L.calendarMatrix(2024, 1)
+      .flat()
+      .filter((d) => d.inMonth)
     expect(flat).toHaveLength(29)
   })
 
   it('weekOf gives the seven days around a day', () => {
-    expect(L.weekOf('2026-10-13')).toEqual(['2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17'])
+    expect(L.weekOf('2026-10-13')).toEqual([
+      '2026-10-11',
+      '2026-10-12',
+      '2026-10-13',
+      '2026-10-14',
+      '2026-10-15',
+      '2026-10-16',
+      '2026-10-17'
+    ])
     expect(L.weekOf('2026-10-11')[0]).toBe('2026-10-11')
     expect(L.weekOf('2026-10-11', 1)[0]).toBe('2026-10-05')
     expect(L.weekOf('2027-01-01')[0]).toBe('2026-12-27')

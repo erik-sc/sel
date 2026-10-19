@@ -49,10 +49,7 @@ function TrashBanner({ block }: { block: Block }) {
   return (
     <div className="trash-banner" role="status">
       <span>This page is in the Trash.</span>
-      <Button
-        icon={<Undo />}
-        onClick={() => void restorePage(block.id).catch(reportError('restore the page'))}
-      >
+      <Button icon={<Undo />} onClick={() => void restorePage(block.id).catch(reportError('restore the page'))}>
         Restore
       </Button>
       <Button
@@ -143,11 +140,7 @@ export function EmptyState() {
         <h1>sel</h1>
         <p>Open a page from the sidebar, or start something new.</p>
         <div className="page-state-actions">
-          <Button
-            variant="primary"
-            icon={<Plus />}
-            onClick={() => void createPage(null).catch(reportError('create the page'))}
-          >
+          <Button variant="primary" icon={<Plus />} onClick={() => void createPage(null).catch(reportError('create the page'))}>
             New page
           </Button>
           <Button icon={<Board />} onPointerEnter={preloadTemplates} onFocus={preloadTemplates} onClick={() => openTemplates()}>

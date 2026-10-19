@@ -33,13 +33,29 @@ const SCHEMA: Record<string, PropertySchema> = {
 }
 
 let stamp = 0
-function block(id: string, type: TaskBlock['type'], parentId: string | null, props: BlockProps = {}, extra: Partial<TaskBlock> = {}): TaskBlock {
+function block(
+  id: string,
+  type: TaskBlock['type'],
+  parentId: string | null,
+  props: BlockProps = {},
+  extra: Partial<TaskBlock> = {}
+): TaskBlock {
   return { id, type, parentId, props, updatedAt: ++stamp, trashedAt: null, ...extra }
 }
-const database = (id: string, schema: unknown = SCHEMA, title = 'Tasks', extra: Partial<TaskBlock> = {}, props: BlockProps = {}): TaskBlock =>
-  block(id, 'database', null, { title: [[title]], schema: schema as BlockProps['schema'], ...props }, extra)
-const row = (id: string, parentId: string, title: string, values: Record<string, unknown> = {}, extra: Partial<TaskBlock> = {}): TaskBlock =>
-  block(id, 'page', parentId, { title: [[title]], values: values as BlockProps['values'] }, extra)
+const database = (
+  id: string,
+  schema: unknown = SCHEMA,
+  title = 'Tasks',
+  extra: Partial<TaskBlock> = {},
+  props: BlockProps = {}
+): TaskBlock => block(id, 'database', null, { title: [[title]], schema: schema as BlockProps['schema'], ...props }, extra)
+const row = (
+  id: string,
+  parentId: string,
+  title: string,
+  values: Record<string, unknown> = {},
+  extra: Partial<TaskBlock> = {}
+): TaskBlock => block(id, 'page', parentId, { title: [[title]], values: values as BlockProps['values'] }, extra)
 
 const titles = (list: { title: string }[]): string[] => list.map((task) => task.title)
 
@@ -72,7 +88,17 @@ describe('finding the done signal', () => {
     ['Stage', 'Finished'],
     ['Status', 'Closed']
   ])('understands %s / %s', (name, done) => {
-    const schema = { s: { id: 's', name, type: 'select', options: [{ id: 'a', name: 'Aberto', color: 'gray' }, { id: 'z', name: done, color: 'green' }] } }
+    const schema = {
+      s: {
+        id: 's',
+        name,
+        type: 'select',
+        options: [
+          { id: 'a', name: 'Aberto', color: 'gray' },
+          { id: 'z', name: done, color: 'green' }
+        ]
+      }
+    }
     expect(detectSignal({ schema: schema as never })?.status?.done).toBe('z')
   })
 
@@ -97,7 +123,12 @@ describe('finding the done signal', () => {
   })
 
   it('prefers a date named like "due"', () => {
-    const schema = { ...SCHEMA, created: { id: 'created', name: 'Started', type: 'date' }, due: undefined, prazo: { id: 'prazo', name: 'Prazo', type: 'date' } }
+    const schema = {
+      ...SCHEMA,
+      created: { id: 'created', name: 'Started', type: 'date' },
+      due: undefined,
+      prazo: { id: 'prazo', name: 'Prazo', type: 'date' }
+    }
     expect(detectSignal({ schema: schema as never })?.date).toBe('prazo')
     const only = { ...SCHEMA, due: { id: 'due', name: 'Whenever', type: 'date' } }
     expect(detectSignal({ schema: only as never })?.date).toBe('due')
@@ -105,7 +136,17 @@ describe('finding the done signal', () => {
 
   it('does not crash on malformed schemas', () => {
     const shapes: unknown[] = [
-      null, 7, 'schema', [], [1, 2], { a: null }, { a: 7 }, { a: [] }, { a: {} }, { a: { type: 5 } }, { a: { type: 'select' } },
+      null,
+      7,
+      'schema',
+      [],
+      [1, 2],
+      { a: null },
+      { a: 7 },
+      { a: [] },
+      { a: {} },
+      { a: { type: 5 } },
+      { a: { type: 'select' } },
       { a: { type: 'select', name: 'Status', options: 'nope' } },
       { a: { type: 'select', name: 'Status', options: [null, 3, {}, { id: 1, name: 2 }, { id: 'x' }, { name: 'Done' }] } },
       { a: { type: 'select', name: { toString: () => 'Status' }, options: [{ id: 'd', name: 'Done' }] } },
@@ -145,7 +186,15 @@ describe('selecting tasks', () => {
     expect(titles(selected.today)).toEqual(['Call the bank', 'Write the report', 'Water the plants'])
     expect(titles(selected.noDate)).toEqual(['Read that book', 'Untitled'])
     const call = selected.today[0]
-    expect(call).toEqual({ id: 'now', kind: 'row', title: 'Call the bank', pageId: 'now', source: 'Tasks', due: '2026-10-13', priority: { name: 'High', color: 'red' } })
+    expect(call).toEqual({
+      id: 'now',
+      kind: 'row',
+      title: 'Call the bank',
+      pageId: 'now',
+      source: 'Tasks',
+      due: '2026-10-13',
+      priority: { name: 'High', color: 'red' }
+    })
     expect(selected.today[2].due).toBe('2026-10-13')
     expect(selected.today[1].due).toBe('2026-11-01')
   })
@@ -264,7 +313,19 @@ describe('selecting tasks', () => {
   })
 
   it('survives blocks that are not blocks', () => {
-    const junk = [null, undefined, 7, 'x', {}, { id: 5 }, { id: 'a', type: 'page', parentId: 'a', props: null }, { id: 'loop1', type: 'to_do', parentId: 'loop2', props: { title: [['x']] } }, { id: 'loop2', type: 'toggle', parentId: 'loop1', props: {} }, { id: 'r', type: 'page', parentId: 'db', props: { title: 'not rich text', values: 'nope' } }, { id: 'r2', type: 'page', parentId: 'db', props: { title: [[5]], values: [1, 2] } }] as unknown as TaskBlock[]
+    const junk = [
+      null,
+      undefined,
+      7,
+      'x',
+      {},
+      { id: 5 },
+      { id: 'a', type: 'page', parentId: 'a', props: null },
+      { id: 'loop1', type: 'to_do', parentId: 'loop2', props: { title: [['x']] } },
+      { id: 'loop2', type: 'toggle', parentId: 'loop1', props: {} },
+      { id: 'r', type: 'page', parentId: 'db', props: { title: 'not rich text', values: 'nope' } },
+      { id: 'r2', type: 'page', parentId: 'db', props: { title: [[5]], values: [1, 2] } }
+    ] as unknown as TaskBlock[]
     expect(() => selectTasks([database('db'), ...junk], { today: TODAY, includeTodos: true })).not.toThrow()
     expect(() => selectTasks([database('db')], { today: 'not a day' })).not.toThrow()
   })
@@ -276,9 +337,15 @@ describe('selecting tasks', () => {
     for (let p = 0; p < 400; p++) input.push(block(`page${p}`, 'page', null, { title: [[`Page ${p}`]] }, { updatedAt: p }))
     for (let i = 0; input.length < 50_000; i++) {
       if (i % 4 === 0) {
-        const status = ['todo', 'doing', 'done', 'dropped'][i % 7 % 4]
+        const status = ['todo', 'doing', 'done', 'dropped'][(i % 7) % 4]
         const day = String((i % 28) + 1).padStart(2, '0')
-        input.push(row(`row${i}`, `db${i % 12}`, `Row ${i}`, { status, due: i % 5 ? { start: `2026-${i % 2 ? '10' : '09'}-${day}` } : undefined, prio: ['hi', 'mid', 'lo'][i % 3] }))
+        input.push(
+          row(`row${i}`, `db${i % 12}`, `Row ${i}`, {
+            status,
+            due: i % 5 ? { start: `2026-${i % 2 ? '10' : '09'}-${day}` } : undefined,
+            prio: ['hi', 'mid', 'lo'][i % 3]
+          })
+        )
       } else if (i % 4 === 1) input.push(block(`todo${i}`, 'to_do', `page${i % 400}`, { title: [[`To-do ${i}`]], checked: i % 3 === 0 }))
       else input.push(block(`text${i}`, 'text', `page${i % 400}`, { title: [['Some text in a paragraph that is of no interest here.']] }))
     }
@@ -310,7 +377,11 @@ describe('completing and undoing', () => {
     expect(isOpenRow(signal, { values: plan.values })).toBe(false)
     expect(planCompletion(signal, { values: plan.values })).toBeNull()
     // Undo touches only what the completion touched, even if something else changed meanwhile.
-    expect(planUndo({ values: { ...plan.values, other: 'edited since', extra: 1 } }, plan.previous)).toEqual({ status: 'doing', other: 'edited since', extra: 1 })
+    expect(planUndo({ values: { ...plan.values, other: 'edited since', extra: 1 } }, plan.previous)).toEqual({
+      status: 'doing',
+      other: 'edited since',
+      extra: 1
+    })
     expect(props.values).toEqual({ status: 'doing', other: 'kept' })
   })
 

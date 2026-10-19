@@ -144,11 +144,9 @@ export function backlinksTo(source: SearchSource, pageId: string, limit = 50): S
   if (typeof pageId !== 'string' || !parsePageLink(pageLink(pageId))) return []
   const n = Math.max(1, Math.min(200, Math.floor(Number(limit)) || 50))
   // A substring narrows the rows down; the marks themselves decide (an id can begin another one).
-  const rows = source.all(
-    'SELECT id FROM blocks WHERE trashed_at IS NULL AND instr(props, ?) > 0 LIMIT ?',
-    pageLink(pageId),
-    n * 20
-  ) as { id: string }[]
+  const rows = source.all('SELECT id FROM blocks WHERE trashed_at IS NULL AND instr(props, ?) > 0 LIMIT ?', pageLink(pageId), n * 20) as {
+    id: string
+  }[]
   if (!rows.length) return []
   const candidates = source.getMany(rows.map((r) => r.id))
   const linking = candidates.filter((b) => linksTo(b.props.title, pageId) || linksTo(b.props.caption, pageId))

@@ -29,8 +29,22 @@ export interface GlobalShortcutState extends GlobalShortcutSetting {
 export const GLOBAL_SHORTCUT_KEY = 'tasks.globalShortcut'
 export const DEFAULT_GLOBAL_SHORTCUT: GlobalShortcutSetting = { enabled: false, accelerator: 'CommandOrControl+Alt+Space' }
 
-const MODIFIERS = new Set(['command', 'cmd', 'control', 'ctrl', 'commandorcontrol', 'cmdorctrl', 'alt', 'option', 'altgr', 'shift', 'super', 'meta'])
-const KEY_RE = /^(?:[A-Za-z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|Space|Tab|Backspace|Delete|Insert|Return|Enter|Up|Down|Left|Right|Home|End|PageUp|PageDown|Escape|Esc|Plus|[`~!@#$%^&*()\-_=[\]{};:'",.<>/?\\|])$/
+const MODIFIERS = new Set([
+  'command',
+  'cmd',
+  'control',
+  'ctrl',
+  'commandorcontrol',
+  'cmdorctrl',
+  'alt',
+  'option',
+  'altgr',
+  'shift',
+  'super',
+  'meta'
+])
+const KEY_RE =
+  /^(?:[A-Za-z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|Space|Tab|Backspace|Delete|Insert|Return|Enter|Up|Down|Left|Right|Home|End|PageUp|PageDown|Escape|Esc|Plus|[`~!@#$%^&*()\-_=[\]{};:'",.<>/?\\|])$/
 
 /**
  * A clean accelerator, or null: at least one modifier and exactly one key, as Electron spells them.

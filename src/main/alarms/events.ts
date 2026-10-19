@@ -117,7 +117,14 @@ function readEvent(value: unknown): AnnouncedEvent | null {
   const id = text(raw['id'], 500)
   const title = text(raw['title'], 400)
   if (id === null || title === null || !finite(raw['start']) || !finite(raw['end'])) return null
-  const out: AnnouncedEvent = { id, title, start: raw['start'], end: raw['end'], meeting: raw['meeting'] === true, ask: raw['ask'] === true }
+  const out: AnnouncedEvent = {
+    id,
+    title,
+    start: raw['start'],
+    end: raw['end'],
+    meeting: raw['meeting'] === true,
+    ask: raw['ask'] === true
+  }
   const uid = text(raw['uid'], 400)
   const location = text(raw['location'], 400)
   const description = text(raw['description'], 600)
@@ -160,7 +167,8 @@ export function takeDueSnoozed(list: readonly Snoozed[], now: number): { due: Sn
   const waiting: Snoozed[] = []
   for (const entry of list) {
     if (entry.at > now) waiting.push(entry)
-    else if (entry.kind === 'reminder' || entry.events.some((event) => now < Math.max(event.end, event.start + REMINDER_GRACE_MS))) due.push(entry)
+    else if (entry.kind === 'reminder' || entry.events.some((event) => now < Math.max(event.end, event.start + REMINDER_GRACE_MS)))
+      due.push(entry)
   }
   return { due, waiting }
 }

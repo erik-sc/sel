@@ -2,14 +2,7 @@
 // row data goes through here and tolerates missing / wrong-typed / dangling data.
 import type { Block, PropertySchema, PropertyType, PropertyValue, SelectOption, ViewType } from '../../../../shared/types'
 import { relationIds } from '../../../../shared/relation'
-import {
-  formatDate,
-  formatDay,
-  formatTimestamp,
-  isDateValue,
-  normalizeDateValue,
-  type FormatOptions
-} from './dates'
+import { formatDate, formatDay, formatTimestamp, isDateValue, normalizeDateValue, type FormatOptions } from './dates'
 
 export type Schema = Record<string, PropertySchema>
 export type Values = Record<string, PropertyValue>
@@ -447,8 +440,7 @@ export function safeExternalUrl(raw: unknown): string | null {
 
 export type CoverStyle = { kind: 'css'; background: string } | { kind: 'image'; backgroundImage: string }
 
-const CSS_COVER =
-  /^(var\(--c-[a-z-]+\)|linear-gradient\((\d+deg, )?var\(--c-[a-z-]+\)(, var\(--c-[a-z-]+\))+\))$/
+const CSS_COVER = /^(var\(--c-[a-z-]+\)|linear-gradient\((\d+deg, )?var\(--c-[a-z-]+\)(, var\(--c-[a-z-]+\))+\))$/
 const IMAGE_COVER = /^(sel-file:|https?:\/\/)/i
 
 /**

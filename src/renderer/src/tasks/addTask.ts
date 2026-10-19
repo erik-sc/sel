@@ -51,7 +51,12 @@ export function shiftIgnored(ignored: readonly IgnoredSpan[], before: string, af
   let prefix = 0
   while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) prefix++
   let suffix = 0
-  while (suffix < before.length - prefix && suffix < after.length - prefix && before[before.length - 1 - suffix] === after[after.length - 1 - suffix]) suffix++
+  while (
+    suffix < before.length - prefix &&
+    suffix < after.length - prefix &&
+    before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  )
+    suffix++
   const changedEnd = before.length - suffix
   const delta = after.length - before.length
   const out: IgnoredSpan[] = []
@@ -76,7 +81,11 @@ export function fragmentAt(value: string, caret: number): { sigil: '#' | '@'; st
   return null
 }
 
-const fold = (text: string): string => text.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase()
+const fold = (text: string): string =>
+  text
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .toLowerCase()
 
 /** Options matching what was typed: names that start with it first, then names that contain it. */
 export function suggest(options: readonly SelectOption[], typed: string, limit = 6): SelectOption[] {

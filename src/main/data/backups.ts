@@ -135,7 +135,9 @@ export function pruneBackups(dir: string, now: number): void {
   }
 }
 
-export type DatabaseCheck = { ok: true; pages: number; lastEdit: number | null } | { ok: false; problem: Exclude<BackupFileProblem, 'current'> }
+export type DatabaseCheck =
+  | { ok: true; pages: number; lastEdit: number | null }
+  | { ok: false; problem: Exclude<BackupFileProblem, 'current'> }
 
 /** Opens a database file read-only: better-sqlite3 in the app, node:sqlite in tests. */
 export type ReadOnlyOpener = (file: string) => SqlDriver

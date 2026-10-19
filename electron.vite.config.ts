@@ -16,9 +16,8 @@ const ELECTRON_MAJOR = 44
 const NODE_TARGET = 'node24'
 const CHROME_TARGET = 'chrome152'
 
-const electronVersion = (
-  JSON.parse(readFileSync(resolve(__dirname, 'node_modules/electron/package.json'), 'utf8')) as { version: string }
-).version
+const electronVersion = (JSON.parse(readFileSync(resolve(__dirname, 'node_modules/electron/package.json'), 'utf8')) as { version: string })
+  .version
 if (!electronVersion.startsWith(`${ELECTRON_MAJOR}.`)) {
   throw new Error(
     `electron.vite.config.ts targets Electron ${ELECTRON_MAJOR} but ${electronVersion} is installed: update the build targets`
@@ -53,7 +52,9 @@ function katexWoff2Only(): Plugin {
     enforce: 'pre',
     transform(code, id) {
       if (!KATEX_CSS.test(id)) return null
-      const out = code.replace(/,\s*url\([^)]*\.woff\)\s*format\("woff"\)/g, '').replace(/,\s*url\([^)]*\.ttf\)\s*format\("truetype"\)/g, '')
+      const out = code
+        .replace(/,\s*url\([^)]*\.woff\)\s*format\("woff"\)/g, '')
+        .replace(/,\s*url\([^)]*\.ttf\)\s*format\("truetype"\)/g, '')
       if (out === code) throw new Error('katex.css: expected woff and ttf fallbacks to drop')
       return { code: out, map: null }
     }

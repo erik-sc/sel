@@ -26,7 +26,8 @@ export const COPY: Record<'en' | 'pt-BR', PomodoroCopy> = {
   en: {
     phase: { focus: 'Focus', short: 'Break', long: 'Long break' },
     paused: 'Paused',
-    ask: (next, minutes) => (next === 'focus' ? 'Back to focus?' : next === 'long' ? `A ${minutes} min long break?` : `A ${minutes} min break?`),
+    ask: (next, minutes) =>
+      next === 'focus' ? 'Back to focus?' : next === 'long' ? `A ${minutes} min long break?` : `A ${minutes} min break?`,
     start: 'Start',
     skipBreak: 'Skip the break',
     pause: 'Pause',
@@ -41,7 +42,8 @@ export const COPY: Record<'en' | 'pt-BR', PomodoroCopy> = {
   'pt-BR': {
     phase: { focus: 'Foco', short: 'Pausa', long: 'Pausa longa' },
     paused: 'Pausado',
-    ask: (next, minutes) => (next === 'focus' ? 'Voltar ao foco?' : next === 'long' ? `Pausa longa de ${minutes} min?` : `Pausa de ${minutes} min?`),
+    ask: (next, minutes) =>
+      next === 'focus' ? 'Voltar ao foco?' : next === 'long' ? `Pausa longa de ${minutes} min?` : `Pausa de ${minutes} min?`,
     start: 'Começar',
     skipBreak: 'Pular a pausa',
     pause: 'Pausar',

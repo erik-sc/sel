@@ -13,7 +13,10 @@ export async function bell(kind: 'rest' | 'focus'): Promise<void> {
   const notes = kind === 'rest' ? [783.99, 587.33] : [587.33, 783.99]
   notes.forEach((frequency, index) => {
     const at = start + index * 0.22
-    for (const [ratio, level] of [[1, 0.14], [3, 0.012]] as const) {
+    for (const [ratio, level] of [
+      [1, 0.14],
+      [3, 0.012]
+    ] as const) {
       const oscillator = ctx.createOscillator()
       const gain = ctx.createGain()
       oscillator.type = 'sine'

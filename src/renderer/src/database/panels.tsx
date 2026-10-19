@@ -130,11 +130,7 @@ function FilterValueEditor({
     case 'multi_select': {
       const current = Array.isArray(value) ? (value[0] ?? '') : typeof value === 'string' ? value : ''
       return (
-        <select
-          className="db-select db-rule-value"
-          value={current}
-          onChange={(event) => onChange(event.target.value || undefined)}
-        >
+        <select className="db-select db-rule-value" value={current} onChange={(event) => onChange(event.target.value || undefined)}>
           <option value="">Select an option…</option>
           {L.optionsOf(prop).map((option) => (
             <option key={option.id} value={option.id}>
@@ -159,13 +155,7 @@ function FilterValueEditor({
     case 'date':
     case 'created_time':
     case 'last_edited_time':
-      return (
-        <DebouncedInput
-          type="date"
-          value={L.dayKey(value ?? null) ?? ''}
-          onCommit={(text) => onChange(text || undefined)}
-        />
-      )
+      return <DebouncedInput type="date" value={L.dayKey(value ?? null) ?? ''} onCommit={(text) => onChange(text || undefined)} />
     default:
       return (
         <DebouncedInput
@@ -251,7 +241,8 @@ export function FilterPanel({ databaseId, schema, view }: PanelProps): JSX.Eleme
                   const next: ViewFilter = { propertyId: rule.propertyId, operator }
                   // A day and a span of days relative to today do not stand for one another.
                   if (operator === 'date_is') next.value = L.isRelativeDate(rule.value) ? rule.value : 'today'
-                  else if (L.operatorNeedsValue(operator) && rule.value !== undefined && rule.operator !== 'date_is') next.value = rule.value
+                  else if (L.operatorNeedsValue(operator) && rule.value !== undefined && rule.operator !== 'date_is')
+                    next.value = rule.value
                   return next
                 })
               }}
@@ -279,9 +270,7 @@ export function FilterPanel({ databaseId, schema, view }: PanelProps): JSX.Eleme
               type="button"
               className="db-mini-button"
               aria-label="Remove filter"
-              onClick={() =>
-                edit((current) => (current[index]?.propertyId === prop.id ? current.filter((_, i) => i !== index) : current))
-              }
+              onClick={() => edit((current) => (current[index]?.propertyId === prop.id ? current.filter((_, i) => i !== index) : current))}
             >
               <Close size={12} />
             </button>

@@ -11,7 +11,16 @@ import { rowsOf } from '@/editor/layout'
 import { blockColorClass, classesForMarks, parseRichText, slice } from '@/editor/richtext-dom'
 import { isSafeImageUrl, sanitizeHref } from '@/editor/sanitize'
 import { formatValue, orderedProperties, sanitizeValue, VIEW_LABELS } from '@/database/logic/values'
-import { ArrowUpRight, Check, ChevronRight, Database as DatabaseIcon, DatabaseLinked, Image as ImageIcon, Link as LinkIcon, Page as PageIcon } from '@/ui/icons'
+import {
+  ArrowUpRight,
+  Check,
+  ChevronRight,
+  Database as DatabaseIcon,
+  DatabaseLinked,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Page as PageIcon
+} from '@/ui/icons'
 import type { BlockChange, PropChange, RowChange, TreeDiff, WordOp } from './diff'
 import { IconGlyph } from '@/ui/IconGlyph'
 
@@ -47,7 +56,17 @@ function Spans({ value }: { value: RichText }): JSX.Element {
  * cut out of the version's own rich text (so they keep their formatting); deleted ones are
  * what the current page has there, as plain text.
  */
-function Rich({ value, ops, className, placeholder }: { value: RichText | undefined; ops?: WordOp[]; className?: string; placeholder?: string }): JSX.Element {
+function Rich({
+  value,
+  ops,
+  className,
+  placeholder
+}: {
+  value: RichText | undefined
+  ops?: WordOp[]
+  className?: string
+  placeholder?: string
+}): JSX.Element {
   const clean = useMemo(() => parseRichText(value), [value])
   let content: ReactNode
   if (!ops) content = <Spans value={clean} />
@@ -85,7 +104,11 @@ function markOf(change: { status: string; moved: boolean } | undefined): { class
   if (change.status === 'added') return { className: 'vh-added', glyph: '+', label: 'Added in this version' }
   if (change.status === 'removed') return { className: 'vh-removed', glyph: '−', label: 'Not in this version' }
   if (change.status === 'changed') {
-    return { className: change.moved ? 'vh-changed vh-moved' : 'vh-changed', glyph: '•', label: change.moved ? 'Changed and moved' : 'Changed' }
+    return {
+      className: change.moved ? 'vh-changed vh-moved' : 'vh-changed',
+      glyph: '•',
+      label: change.moved ? 'Changed and moved' : 'Changed'
+    }
   }
   if (change.moved) return { className: 'vh-moved', glyph: '↕', label: 'In another place' }
   return null
@@ -121,7 +144,15 @@ function PropList({ changes, note }: { changes: PropChange[]; note?: string }): 
 
 // ---------------------------------------------------------------------- blocks
 
-function RefBlock({ entry, change, fromVersion }: { entry: SnapshotRef; change: BlockChange | undefined; fromVersion: boolean }): JSX.Element {
+function RefBlock({
+  entry,
+  change,
+  fromVersion
+}: {
+  entry: SnapshotRef
+  change: BlockChange | undefined
+  fromVersion: boolean
+}): JSX.Element {
   const mark = markOf(change)
   const note =
     change?.status === 'added'
@@ -136,7 +167,9 @@ function RefBlock({ entry, change, fromVersion }: { entry: SnapshotRef; change: 
       <div className="blk-row">
         {mark && <Mark mark={mark} />}
         <div className="blk-pagelink vh-ref">
-          <span className="blk-pagelink-icon">{entry.icon ? <IconGlyph icon={entry.icon} /> : entry.type === 'database' ? <DatabaseIcon size={16} /> : <PageIcon size={16} />}</span>
+          <span className="blk-pagelink-icon">
+            {entry.icon ? <IconGlyph icon={entry.icon} /> : entry.type === 'database' ? <DatabaseIcon size={16} /> : <PageIcon size={16} />}
+          </span>
           <span className={entry.title ? 'blk-pagelink-title' : 'blk-pagelink-title is-empty'}>{entry.title || 'Untitled'}</span>
           <span className="vh-ref-note">{entry.type === 'database' ? 'Database with its own history' : 'Page with its own history'}</span>
         </div>
@@ -278,7 +311,17 @@ const BlockList = memo(function BlockList({ ids, lookup }: { ids: string[]; look
   )
 })
 
-function BlockItem({ block, change, number, lookup }: { block: SnapshotBlock; change: BlockChange | undefined; number: number; lookup: Lookup }): JSX.Element {
+function BlockItem({
+  block,
+  change,
+  number,
+  lookup
+}: {
+  block: SnapshotBlock
+  change: BlockChange | undefined
+  number: number
+  lookup: Lookup
+}): JSX.Element {
   const mark = markOf(change)
   const classes = ['blk', `blk-${block.type}`]
   if (block.type === 'to_do' && block.props.checked) classes.push('is-checked')
@@ -312,7 +355,17 @@ function cellText(prop: PropertySchema, value: PropertyValue | undefined, row: S
   return formatValue(sanitizeValue(prop, value ?? null), prop)
 }
 
-function RowLine({ row, change, properties, inVersion }: { row: SnapshotRow; change: RowChange | undefined; properties: PropertySchema[]; inVersion: boolean }): JSX.Element {
+function RowLine({
+  row,
+  change,
+  properties,
+  inVersion
+}: {
+  row: SnapshotRow
+  change: RowChange | undefined
+  properties: PropertySchema[]
+  inVersion: boolean
+}): JSX.Element {
   const mark = markOf(change)
   const cells = new Map((change?.cells ?? []).map((cell) => [cell.propertyId, cell]))
   const classes = [mark?.className, !inVersion ? 'vh-later' : ''].filter(Boolean).join(' ')
@@ -324,9 +377,11 @@ function RowLine({ row, change, properties, inVersion }: { row: SnapshotRow; cha
             <th key={prop.id} scope="row">
               <span className="vh-cell-title">
                 {mark && <Mark mark={mark} />}
-                {row.icon && <span className="vh-cell-icon">
+                {row.icon && (
+                  <span className="vh-cell-icon">
                     <IconGlyph icon={row.icon} />
-                  </span>}
+                  </span>
+                )}
                 <Rich value={row.title} ops={change?.title} placeholder="Untitled" />
               </span>
               {!inVersion && <span className="vh-ref-note">Added since. A restore keeps it.</span>}
@@ -349,7 +404,15 @@ function RowLine({ row, change, properties, inVersion }: { row: SnapshotRow; cha
   )
 }
 
-function DatabaseTable({ version, current, diff }: { version: SnapshotContent; current: SnapshotContent | null; diff: TreeDiff | null }): JSX.Element {
+function DatabaseTable({
+  version,
+  current,
+  diff
+}: {
+  version: SnapshotContent
+  current: SnapshotContent | null
+  diff: TreeDiff | null
+}): JSX.Element {
   const root = version.blocks[0]
   const properties = useMemo(() => orderedProperties(root.props.schema ?? {}), [root.props.schema])
   const versionRows = useMemo(() => new Map((version.rows ?? []).map((row) => [row.id, row])), [version.rows])
@@ -432,9 +495,11 @@ export function SnapshotView({ version, current, diff }: SnapshotViewProps): JSX
   return (
     <div className={`pe-root vh-doc${diff ? ' is-diff' : ''}`} tabIndex={-1}>
       <div className={`pe-content pe-head${root.props.icon ? ' has-icon' : ''}`}>
-        {root.props.icon && <div className="pe-icon">
+        {root.props.icon && (
+          <div className="pe-icon">
             <IconGlyph icon={root.props.icon} />
-          </div>}
+          </div>
+        )}
         <div className={`vh-title${mark ? ` ${mark.className}` : ''}`}>
           <Rich value={root.props.title} ops={change?.text} className="pe-title" placeholder="Untitled" />
         </div>

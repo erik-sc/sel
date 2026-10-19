@@ -30,7 +30,9 @@ function tasksSchema(projectLimit?: 'one'): Schema {
       id: 'project',
       name: 'Project',
       type: 'relation',
-      relation: projectLimit ? { databaseId: 'projects', syncedPropertyId: 'tasks', limit: projectLimit } : { databaseId: 'projects', syncedPropertyId: 'tasks' }
+      relation: projectLimit
+        ? { databaseId: 'projects', syncedPropertyId: 'tasks', limit: projectLimit }
+        : { databaseId: 'projects', syncedPropertyId: 'tasks' }
     },
     hours: { id: 'hours', name: 'Hours', type: 'number' }
   }
@@ -43,17 +45,39 @@ function projectsSchema(tasksLimit?: 'one'): Schema {
       id: 'tasks',
       name: 'Tasks',
       type: 'relation',
-      relation: tasksLimit ? { databaseId: 'tasks', syncedPropertyId: 'project', limit: tasksLimit } : { databaseId: 'tasks', syncedPropertyId: 'project' }
+      relation: tasksLimit
+        ? { databaseId: 'tasks', syncedPropertyId: 'project', limit: tasksLimit }
+        : { databaseId: 'tasks', syncedPropertyId: 'project' }
     }
   }
 }
 
 function db(id: string, schema: Schema, content: string[], extra: Partial<Block> = {}): Block {
-  return { id, type: 'database', parentId: 'home', content, props: { schema, views: [] }, createdAt: 1, updatedAt: 1, trashedAt: null, ...extra }
+  return {
+    id,
+    type: 'database',
+    parentId: 'home',
+    content,
+    props: { schema, views: [] },
+    createdAt: 1,
+    updatedAt: 1,
+    trashedAt: null,
+    ...extra
+  }
 }
 
 function row(id: string, parentId: string, title: string, values: Values = {}, extra: Partial<Block> = {}): Block {
-  return { id, type: 'page', parentId, content: [], props: { title: [[title]], values }, createdAt: 1, updatedAt: 1, trashedAt: null, ...extra }
+  return {
+    id,
+    type: 'page',
+    parentId,
+    content: [],
+    props: { title: [[title]], values },
+    createdAt: 1,
+    updatedAt: 1,
+    trashedAt: null,
+    ...extra
+  }
 }
 
 function contextOf(blocks: Block[], missing: string[] = []): CellContext {
@@ -107,11 +131,25 @@ describe('relation values', () => {
     const schema = tasksSchema()
     expect(normalizeDatabase(db('tasks', schema, [])).schema.project).toBe(schema.project)
     const broken = normalizeDatabase(
-      db('t', { title: TITLE, r: { id: 'r', name: 'R', type: 'relation', relation: { databaseId: 'bad id', limit: 'many' } } as unknown as PropertySchema }, [])
+      db(
+        't',
+        {
+          title: TITLE,
+          r: { id: 'r', name: 'R', type: 'relation', relation: { databaseId: 'bad id', limit: 'many' } } as unknown as PropertySchema
+        },
+        []
+      )
     ).schema.r
     expect(broken.relation).toBeUndefined()
     const fixed = normalizeDatabase(
-      db('t', { title: TITLE, r: { id: 'r', name: 'R', type: 'relation', relation: { databaseId: 'ok', limit: 'many' } } as unknown as PropertySchema }, [])
+      db(
+        't',
+        {
+          title: TITLE,
+          r: { id: 'r', name: 'R', type: 'relation', relation: { databaseId: 'ok', limit: 'many' } } as unknown as PropertySchema
+        },
+        []
+      )
     ).schema.r
     expect(fixed.relation).toEqual({ databaseId: 'ok' })
     const leftover = normalizeDatabase(
@@ -121,7 +159,9 @@ describe('relation values', () => {
   })
 
   it('lists the databases a schema relates to once each', () => {
-    expect(relationTargets({ ...tasksSchema(), again: { id: 'again', name: 'Again', type: 'relation', relation: { databaseId: 'projects' } } })).toEqual(['projects'])
+    expect(
+      relationTargets({ ...tasksSchema(), again: { id: 'again', name: 'Again', type: 'relation', relation: { databaseId: 'projects' } } })
+    ).toEqual(['projects'])
     expect(relationTargets({ title: TITLE, none: { id: 'none', name: 'None', type: 'relation' } })).toEqual([])
   })
 })
@@ -180,7 +220,10 @@ describe('two-way relations', () => {
   const project = prop(tasksSchema(), 'project')
 
   it('a one-way relation writes the row alone', () => {
-    const oneWay = prop({ title: TITLE, project: { id: 'project', name: 'P', type: 'relation', relation: { databaseId: 'projects' } } }, 'project')
+    const oneWay = prop(
+      { title: TITLE, project: { id: 'project', name: 'P', type: 'relation', relation: { databaseId: 'projects' } } },
+      'project'
+    )
     const { ctx, get } = world()
     const writes = relationWrites(get('t3'), oneWay, ['p2'], ctx)
     expect([...writes.keys()]).toEqual(['t3'])
@@ -210,7 +253,11 @@ describe('two-way relations', () => {
   it('a partner that holds one link gives up the previous one, on both sides', () => {
     // Tasks.project is many here; Projects.tasks holds one task only.
     const schema = tasksSchema()
-    const { ctx, get } = world([db('projects', projectsSchema('one'), ['p1', 'p2']), row('p1', 'projects', 'Alpha', { tasks: ['t1'] }), row('t2', 'tasks', 'Test', {})])
+    const { ctx, get } = world([
+      db('projects', projectsSchema('one'), ['p1', 'p2']),
+      row('p1', 'projects', 'Alpha', { tasks: ['t1'] }),
+      row('t2', 'tasks', 'Test', {})
+    ])
     const writes = relationWrites(get('t2'), prop(schema, 'project'), ['p1'], ctx)
     expect(writes.get('t2')).toEqual({ project: ['p1'] })
     expect(writes.get('p1')).toEqual({ tasks: ['t2'] })
@@ -221,7 +268,12 @@ describe('two-way relations', () => {
   it('keeps a self-relation in step within one database', () => {
     const people: Schema = {
       title: TITLE,
-      manager: { id: 'manager', name: 'Manager', type: 'relation', relation: { databaseId: 'people', syncedPropertyId: 'reports', limit: 'one' } },
+      manager: {
+        id: 'manager',
+        name: 'Manager',
+        type: 'relation',
+        relation: { databaseId: 'people', syncedPropertyId: 'reports', limit: 'one' }
+      },
       reports: { id: 'reports', name: 'Reports', type: 'relation', relation: { databaseId: 'people', syncedPropertyId: 'manager' } }
     }
     const blocks = [db('people', people, ['ann', 'bob']), row('ann', 'people', 'Ann'), row('bob', 'people', 'Bob')]
@@ -250,8 +302,18 @@ describe('two-way relations', () => {
   })
 
   it('names the partner after the database it comes from and points it back', () => {
-    const { schema, partner } = addPartnerProperty(projectsSchema(), { partnerId: 'new', sourceDatabaseId: 'tasks', sourceTitle: 'Tasks', propertyId: 'project' })
-    expect(partner).toEqual({ id: 'new', name: 'Tasks 1', type: 'relation', relation: { databaseId: 'tasks', syncedPropertyId: 'project' } })
+    const { schema, partner } = addPartnerProperty(projectsSchema(), {
+      partnerId: 'new',
+      sourceDatabaseId: 'tasks',
+      sourceTitle: 'Tasks',
+      propertyId: 'project'
+    })
+    expect(partner).toEqual({
+      id: 'new',
+      name: 'Tasks 1',
+      type: 'relation',
+      relation: { databaseId: 'tasks', syncedPropertyId: 'project' }
+    })
     expect(schema.new).toBe(partner)
     expect(dropPartnerLink(schema, 'new').new.relation).toEqual({ databaseId: 'tasks' })
     expect(dropPartnerLink(schema, 'title')).toBe(schema)
@@ -281,8 +343,14 @@ describe('relation schema changes', () => {
     expect(moved.project.relation).toEqual({ databaseId: 'people' })
     expect(setRelationTarget(schema, 'project', 'projects')).toBe(schema)
     expect(setRelationTarget(schema, 'hours', 'people')).toBe(schema)
-    expect(setRelationLimit(schema, 'project', 'one').project.relation).toEqual({ databaseId: 'projects', syncedPropertyId: 'tasks', limit: 'one' })
-    expect(setRelationLimit(setRelationLimit(schema, 'project', 'one'), 'project', undefined).project.relation).toEqual(schema.project.relation)
+    expect(setRelationLimit(schema, 'project', 'one').project.relation).toEqual({
+      databaseId: 'projects',
+      syncedPropertyId: 'tasks',
+      limit: 'one'
+    })
+    expect(setRelationLimit(setRelationLimit(schema, 'project', 'one'), 'project', undefined).project.relation).toEqual(
+      schema.project.relation
+    )
     expect(setRelationLimit(schema, 'project', undefined)).toBe(schema)
   })
 })
@@ -301,19 +369,40 @@ describe('filtering and sorting by a relation', () => {
   it('matches the rows that link to a page, and empty cells by what they show', () => {
     const { ctx, get } = world([row('p1', 'projects', 'Alpha', {}, { trashedAt: 3 })])
     const rows = ['t1', 't2', 't3'].map(get)
-    const view = (filters: DatabaseView['filters']): DatabaseView => ({ id: 'v', name: 'V', type: 'table', visibleProperties: [], filters, sorts: [] })
+    const view = (filters: DatabaseView['filters']): DatabaseView => ({
+      id: 'v',
+      name: 'V',
+      type: 'table',
+      visibleProperties: [],
+      filters,
+      sorts: []
+    })
     // p1 is in the trash: t1 and t2 show nothing, so they count as empty.
-    expect(queryRows(rows, tasks, view([{ propertyId: 'project', operator: 'is_empty' }]), '', ctx).map((r) => r.id)).toEqual(['t1', 't2', 't3'])
+    expect(queryRows(rows, tasks, view([{ propertyId: 'project', operator: 'is_empty' }]), '', ctx).map((r) => r.id)).toEqual([
+      't1',
+      't2',
+      't3'
+    ])
     const live = world()
     const liveRows = ['t1', 't2', 't3'].map(live.get)
-    expect(queryRows(liveRows, tasks, view([{ propertyId: 'project', operator: 'contains', value: ['p1'] }]), '', live.ctx).map((r) => r.id)).toEqual(['t1', 't2'])
-    expect(queryRows(liveRows, tasks, view([{ propertyId: 'project', operator: 'not_contains', value: 'p1' }]), '', live.ctx).map((r) => r.id)).toEqual(['t3'])
+    expect(
+      queryRows(liveRows, tasks, view([{ propertyId: 'project', operator: 'contains', value: ['p1'] }]), '', live.ctx).map((r) => r.id)
+    ).toEqual(['t1', 't2'])
+    expect(
+      queryRows(liveRows, tasks, view([{ propertyId: 'project', operator: 'not_contains', value: 'p1' }]), '', live.ctx).map((r) => r.id)
+    ).toEqual(['t3'])
     expect(matchesFilter(live.get('t3'), tasks.project, { propertyId: 'project', operator: 'is_not_empty' }, live.ctx)).toBe(false)
   })
 
   it('sorts by the titles of the linked rows, empty cells last', () => {
     const { ctx, get } = world([row('t3', 'tasks', 'Ship', { project: ['p2'] }), row('t2', 'tasks', 'Test', {})])
-    const sorted = queryRows(['t1', 't2', 't3'].map(get), tasks, { id: 'v', name: 'V', type: 'table', visibleProperties: [], filters: [], sorts: [{ propertyId: 'project', direction: 'desc' }] }, '', ctx)
+    const sorted = queryRows(
+      ['t1', 't2', 't3'].map(get),
+      tasks,
+      { id: 'v', name: 'V', type: 'table', visibleProperties: [], filters: [], sorts: [{ propertyId: 'project', direction: 'desc' }] },
+      '',
+      ctx
+    )
     expect(sorted.map((r) => r.id)).toEqual(['t3', 't1', 't2'])
   })
 

@@ -66,7 +66,14 @@ function Rest({ copy, onWake, day, sky }: { copy: CloseCopy; onWake: () => void;
   }, [onWake])
 
   return createPortal(
-    <div ref={ref} className={['close-rest', sky ? 'has-sky' : '', waking ? 'is-waking' : ''].join(' ').trim()} role="dialog" aria-modal="true" aria-label={copy.rest} tabIndex={-1}>
+    <div
+      ref={ref}
+      className={['close-rest', sky ? 'has-sky' : '', waking ? 'is-waking' : ''].join(' ').trim()}
+      role="dialog"
+      aria-modal="true"
+      aria-label={copy.rest}
+      tabIndex={-1}
+    >
       <div className="close-rest-inner">
         {sky && <RestSky day={day} />}
         <p className="close-rest-words">{copy.rest}</p>
@@ -252,7 +259,11 @@ export function CloseDayScreen(): JSX.Element {
 
       <ol className="close-steps" aria-label={copy.stepOf(step + 1, STEPS)}>
         {copy.steps.map((name, index) => (
-          <li key={name} className={index === step ? 'close-step is-current' : index < step ? 'close-step is-past' : 'close-step'} aria-current={index === step ? 'step' : undefined}>
+          <li
+            key={name}
+            className={index === step ? 'close-step is-current' : index < step ? 'close-step is-past' : 'close-step'}
+            aria-current={index === step ? 'step' : undefined}
+          >
             <span className="close-step-mark" aria-hidden="true" />
             <span className="close-step-name">{name}</span>
           </li>

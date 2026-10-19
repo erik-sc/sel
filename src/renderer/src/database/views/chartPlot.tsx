@@ -106,7 +106,9 @@ export const ChartPlot = memo(function ChartPlot(p: PlotProps): JSX.Element {
       const ci = categories[to]
       const series = seriesAt(ci)
       // Stay on the same series where it exists, else the nearest one.
-      const si = series.includes(mark.si) ? mark.si : series.reduce((best, s) => (Math.abs(s - mark.si) < Math.abs(best - mark.si) ? s : best), series[0])
+      const si = series.includes(mark.si)
+        ? mark.si
+        : series.reduce((best, s) => (Math.abs(s - mark.si) < Math.abs(best - mark.si) ? s : best), series[0])
       if (ci !== undefined && si !== undefined) next = keyOf(ci, si)
     } else if (event.key === across[0] || event.key === across[1]) {
       const series = seriesAt(mark.ci)
@@ -264,11 +266,17 @@ export const ChartPlot = memo(function ChartPlot(p: PlotProps): JSX.Element {
               )
             }
             if (mark.shape === 'slice') {
-              return <path key={key} {...markProps(mark)} className={`db-chart-mark db-chart-slice${active ? ' is-active' : ''}`} d={mark.d} />
+              return (
+                <path key={key} {...markProps(mark)} className={`db-chart-mark db-chart-slice${active ? ' is-active' : ''}`} d={mark.d} />
+              )
             }
             const shown = scene.showPoints || mark.isolated || active
             return (
-              <g key={key} {...markProps(mark)} className={`db-chart-mark db-chart-point${shown ? ' is-shown' : ''}${active ? ' is-active' : ''}`}>
+              <g
+                key={key}
+                {...markProps(mark)}
+                className={`db-chart-mark db-chart-point${shown ? ' is-shown' : ''}${active ? ' is-active' : ''}`}
+              >
                 <circle className="db-chart-point-hit" cx={mark.x} cy={mark.y} r={9} />
                 <circle className="db-chart-point-dot" cx={mark.x} cy={mark.y} />
               </g>
@@ -329,9 +337,7 @@ function PlotTooltip(p: {
   const category = data.categories[hover.ci]
   if (!category) return null
   const rows =
-    hover.si !== null
-      ? [hover.si]
-      : data.series.map((_, si) => si).filter((si) => typeof data.series[si].values[hover.ci] === 'number')
+    hover.si !== null ? [hover.si] : data.series.map((_, si) => si).filter((si) => typeof data.series[si].values[hover.ci] === 'number')
   if (!rows.length) return null
   const perCategory = !data.split && data.kind !== 'line' && data.kind !== 'area'
   // Kept inside the plot without measuring: the bubble is at most this wide.

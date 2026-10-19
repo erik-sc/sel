@@ -22,7 +22,18 @@ import {
 } from '../../shared/sync'
 import type { Block, RichText } from '../../shared/types'
 import type { Repository, SyncChange } from '../db/repository'
-import { createEncryption, exportKeys, hiddenName, importKeys, keysMatch, open, seal, unlockEncryption, WrongKeyError, type Keys } from './crypto'
+import {
+  createEncryption,
+  exportKeys,
+  hiddenName,
+  importKeys,
+  keysMatch,
+  open,
+  seal,
+  unlockEncryption,
+  WrongKeyError,
+  type Keys
+} from './crypto'
 import {
   APP,
   cleanCalendars,
@@ -162,7 +173,17 @@ const STATE_CALENDARS = '~calendars'
 const STATE_META = '~meta'
 const DIRTY = ''
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024
-const MID_OPERATION = ['MERGE_HEAD', 'MERGE_MSG', 'MERGE_MODE', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'BISECT_LOG', 'rebase-merge', 'rebase-apply', 'AUTO_MERGE']
+const MID_OPERATION = [
+  'MERGE_HEAD',
+  'MERGE_MSG',
+  'MERGE_MODE',
+  'CHERRY_PICK_HEAD',
+  'REVERT_HEAD',
+  'BISECT_LOG',
+  'rebase-merge',
+  'rebase-apply',
+  'AUTO_MERGE'
+]
 const LOCKS = ['index.lock', 'HEAD.lock', 'config.lock', 'packed-refs.lock', 'shallow.lock', 'FETCH_HEAD.lock', 'ORIG_HEAD.lock', 'gc.pid']
 
 interface Config {
@@ -252,7 +273,25 @@ interface Outcome {
 }
 
 function emptyTree(): RepoTree {
-  return { commit: null, meta: null, codec: PLAIN, entries: new Map(), pages: new Map(), rootText: null, appearanceText: null, appearance: null, homeText: null, home: null, sidebarText: null, sidebar: null, calendarsText: null, calendars: null, ws: emptyWorkspace(), foreign: 0, author: 'another device' }
+  return {
+    commit: null,
+    meta: null,
+    codec: PLAIN,
+    entries: new Map(),
+    pages: new Map(),
+    rootText: null,
+    appearanceText: null,
+    appearance: null,
+    homeText: null,
+    home: null,
+    sidebarText: null,
+    sidebar: null,
+    calendarsText: null,
+    calendars: null,
+    ws: emptyWorkspace(),
+    foreign: 0,
+    author: 'another device'
+  }
 }
 
 function isOurPath(path: string): boolean {
@@ -274,7 +313,10 @@ function isOurPath(path: string): boolean {
 
 function toFailure(err: unknown): SyncFailure {
   if (err instanceof SyncFailure) return err
-  if (err instanceof FormatError) return err.newer ? new SyncFailure('unsupported-format') : new SyncFailure('failed', 'The repository holds data sel cannot read. Nothing was changed on this device.')
+  if (err instanceof FormatError)
+    return err.newer
+      ? new SyncFailure('unsupported-format')
+      : new SyncFailure('failed', 'The repository holds data sel cannot read. Nothing was changed on this device.')
   if (err instanceof WrongKeyError) return new SyncFailure('wrong-passphrase')
   const code = (err as { code?: unknown } | null)?.code
   if (code === 'ENOSPC' || code === 'EDQUOT') return new SyncFailure('disk-full')
@@ -343,14 +385,24 @@ export class SyncEngine {
 
   private activity(): SyncActivity[] {
     const value = this.setting<unknown>(KEYS.activity)
-    return Array.isArray(value) ? (value.filter((item) => item !== null && typeof item === 'object' && typeof (item as SyncActivity).at === 'number') as SyncActivity[]) : []
+    return Array.isArray(value)
+      ? (value.filter(
+          (item) => item !== null && typeof item === 'object' && typeof (item as SyncActivity).at === 'number'
+        ) as SyncActivity[])
+      : []
   }
 
   private secrets(): Secrets {
     try {
       const raw = this.options.secrets.load()
       const parsed: unknown = raw ? JSON.parse(raw) : null
-      if (parsed !== null && typeof parsed === 'object' && typeof (parsed as Secrets).keys === 'object' && (parsed as Secrets).keys !== null) return parsed as Secrets
+      if (
+        parsed !== null &&
+        typeof parsed === 'object' &&
+        typeof (parsed as Secrets).keys === 'object' &&
+        (parsed as Secrets).keys !== null
+      )
+        return parsed as Secrets
     } catch {
       /* unreadable: as if there were none */
     }
@@ -365,7 +417,9 @@ export class SyncEngine {
   private rememberKeys(params: EncryptionParams, keys: Keys, pending: boolean): void {
     const secrets = this.secrets()
     // The few most recent ones: an older commit may still have to be read with the previous key.
-    const kept = Object.entries(secrets.keys).filter(([salt]) => salt !== params.salt).slice(-3)
+    const kept = Object.entries(secrets.keys)
+      .filter(([salt]) => salt !== params.salt)
+      .slice(-3)
     const next: Secrets = { keys: Object.fromEntries([...kept, [params.salt, exportKeys(keys)]]) }
     if (pending) next.pending = params
     this.options.secrets.save(JSON.stringify(next))
@@ -476,7 +530,11 @@ export class SyncEngine {
 
   private async openGit(device: string): Promise<Git> {
     const explicit = this.setting<unknown>(KEYS.gitPath)
-    const gitPath = locateGit({ explicit: typeof explicit === 'string' ? explicit : null, env: this.options.env, platform: this.options.platform })
+    const gitPath = locateGit({
+      explicit: typeof explicit === 'string' ? explicit : null,
+      env: this.options.env,
+      platform: this.options.platform
+    })
     if (!gitPath) throw new SyncFailure('git-not-found')
     await mkdir(this.hooksDir, { recursive: true })
     await mkdir(this.repoDir, { recursive: true })
@@ -503,7 +561,8 @@ export class SyncEngine {
   private async removeClone(): Promise<void> {
     const base = resolve(this.options.dir)
     const target = resolve(this.repoDir)
-    if (target !== join(base, 'repo') || !target.startsWith(base + sep)) throw new Error('Refusing to remove a folder that is not the clone')
+    if (target !== join(base, 'repo') || !target.startsWith(base + sep))
+      throw new Error('Refusing to remove a folder that is not the clone')
     await rm(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
     this.blobs.clear()
   }
@@ -579,7 +638,10 @@ export class SyncEngine {
   /** Downloads the branch. Returns its head, or null when the remote has no such branch (an empty repository). */
   private async fetch(git: Git, branch: string): Promise<string | null> {
     const ref = `refs/remotes/origin/${branch}`
-    const result = await git.run(['fetch', '--quiet', '--no-tags', 'origin', `+refs/heads/${branch}:${ref}`], { allowFailure: true, network: true })
+    const result = await git.run(['fetch', '--quiet', '--no-tags', 'origin', `+refs/heads/${branch}:${ref}`], {
+      allowFailure: true,
+      network: true
+    })
     if (result.code !== 0) {
       if (!/couldn'?t find remote ref|no such ref was fetched/i.test(result.stderr)) {
         throw classifyGitFailure(result.stderr, result.code)
@@ -599,7 +661,11 @@ export class SyncEngine {
     const out = new Map<string, Buffer>()
     const wanted = [...new Set(shas)]
     if (!wanted.length) return out
-    const { stdout } = await git.run(['cat-file', '--batch'], { input: `${wanted.join('\n')}\n`, maxOutputBytes: 1024 * 1024 * 1024, timeoutMs: 5 * 60_000 })
+    const { stdout } = await git.run(['cat-file', '--batch'], {
+      input: `${wanted.join('\n')}\n`,
+      maxOutputBytes: 1024 * 1024 * 1024,
+      timeoutMs: 5 * 60_000
+    })
     let at = 0
     while (at < stdout.length) {
       const eol = stdout.indexOf(0x0a, at)
@@ -608,7 +674,8 @@ export class SyncEngine {
       at = eol + 1
       if (type === 'missing' || size === undefined) continue
       const length = Number(size)
-      if (!Number.isInteger(length) || length < 0 || at + length > stdout.length) throw new SyncFailure('failed', SYNC_MESSAGES.failed, true)
+      if (!Number.isInteger(length) || length < 0 || at + length > stdout.length)
+        throw new SyncFailure('failed', SYNC_MESSAGES.failed, true)
       if (type === 'blob' || type === 'commit') out.set(sha, stdout.subarray(at, at + length))
       at += length + 1
     }
@@ -666,7 +733,8 @@ export class SyncEngine {
         const decoded = tree.codec.decode(raw)
         const text = decoded.bytes.toString('utf8')
         const parsed = parsePage(text)
-        if (decoded.logical !== null && decoded.logical !== `${PATHS.pages}${parsed.pageId}.json`) throw new FormatError('A page file is not the one its name says')
+        if (decoded.logical !== null && decoded.logical !== `${PATHS.pages}${parsed.pageId}.json`)
+          throw new FormatError('A page file is not the one its name says')
         page = { pageId: parsed.pageId, text, blocks: parsed.blocks }
       }
       next.set(sha, page)
@@ -722,7 +790,8 @@ export class SyncEngine {
 
   private async writeTreeFile(path: string, bytes: Buffer | string): Promise<void> {
     const full = resolve(this.repoDir, path)
-    if (!full.startsWith(resolve(this.repoDir) + sep) || full.startsWith(join(resolve(this.repoDir), '.git') + sep)) throw new Error('Path outside the clone')
+    if (!full.startsWith(resolve(this.repoDir) + sep) || full.startsWith(join(resolve(this.repoDir), '.git') + sep))
+      throw new Error('Path outside the clone')
     await mkdir(dirname(full), { recursive: true })
     await writeFile(full, bytes)
   }
@@ -773,7 +842,10 @@ export class SyncEngine {
     const value = cleanBriefingSetting(DATABASES_KEY, this.setting(DATABASES_KEY))
     return {
       ...cleanCalendars(mine.calendars, mine.removed),
-      databases: { updatedAt: typeof at === 'number' && Number.isFinite(at) && at > 0 ? Math.floor(at) : 0, value: Array.isArray(value) ? (value as string[]) : null }
+      databases: {
+        updatedAt: typeof at === 'number' && Number.isFinite(at) && at > 0 ? Math.floor(at) : 0,
+        value: Array.isArray(value) ? (value as string[]) : null
+      }
     }
   }
 
@@ -820,7 +892,17 @@ export class SyncEngine {
     if (!remote.meta) {
       if (remote.foreign > 0 && !config.useAnyway) throw new SyncFailure('not-sel-repo')
       // Nothing of sel's is there (yet): this device's pages go on top of what is.
-      this.repo.applySync({ put: [], remove: [], snapshots: [], foreign: [], resetPages: [], settings: { [KEYS.lastCommit]: remoteHead, [KEYS.encrypted]: null } }, () => new Map())
+      this.repo.applySync(
+        {
+          put: [],
+          remove: [],
+          snapshots: [],
+          foreign: [],
+          resetPages: [],
+          settings: { [KEYS.lastCommit]: remoteHead, [KEYS.encrypted]: null }
+        },
+        () => new Map()
+      )
       return outcome
     }
     // A base that is not in the clone, or that this device can no longer read, is treated as
@@ -849,13 +931,18 @@ export class SyncEngine {
       baseWs = { blocks: shared, root: local.root.filter((id) => shared.has(id)), rootAt: local.rootAt ?? 0 }
     }
     const merged = mergeWorkspace(baseWs, local, remote.ws)
-    if (checkWorkspace(merged.result).length) throw new SyncFailure('failed', 'The merge did not produce a consistent workspace. Nothing was changed on this device.')
+    if (checkWorkspace(merged.result).length)
+      throw new SyncFailure('failed', 'The merge did not produce a consistent workspace. Nothing was changed on this device.')
     const result = merged.result
     const diff = diffWorkspace(local, result)
 
     const localAppearance = this.appearanceNow()
     const appearance = mergeAppearance(baseTree.appearance, localAppearance, remote.appearance)
-    const settings: Record<string, unknown> = { [KEYS.lastCommit]: remoteHead, [KEYS.encrypted]: remote.codec.encrypted ? true : null, [KEYS.firstMode]: null }
+    const settings: Record<string, unknown> = {
+      [KEYS.lastCommit]: remoteHead,
+      [KEYS.encrypted]: remote.codec.encrypted ? true : null,
+      [KEYS.firstMode]: null
+    }
     if (appearance !== localAppearance && sha1(serializeAppearance(appearance)) !== sha1(serializeAppearance(localAppearance))) {
       settings[APPEARANCE_KEY] = appearance.value
       settings[KEYS.appearanceAt] = appearance.updatedAt
@@ -940,11 +1027,22 @@ export class SyncEngine {
       // Still in the repository, gone here: the upload removes their files.
       for (const pageId of remote.pages.keys()) if (!states.has(pageId)) states.set(pageId, DIRTY)
       states.set(STATE_ROOT, remote.rootText === rootText ? sha1(rootText) : DIRTY)
-      states.set(STATE_APPEARANCE, remote.appearanceText === appearanceText || (remote.appearanceText === null && appearance.value == null) ? sha1(appearanceText) : DIRTY)
+      states.set(
+        STATE_APPEARANCE,
+        remote.appearanceText === appearanceText || (remote.appearanceText === null && appearance.value == null)
+          ? sha1(appearanceText)
+          : DIRTY
+      )
       states.set(STATE_HOME, remote.homeText === homeText || (remote.homeText === null && home.value === null) ? sha1(homeText) : DIRTY)
-      states.set(STATE_SIDEBAR, remote.sidebarText === sidebarText || (remote.sidebarText === null && sidebar.value === null) ? sha1(sidebarText) : DIRTY)
+      states.set(
+        STATE_SIDEBAR,
+        remote.sidebarText === sidebarText || (remote.sidebarText === null && sidebar.value === null) ? sha1(sidebarText) : DIRTY
+      )
       if (calendars && calendarsText !== null) {
-        states.set(STATE_CALENDARS, remote.calendarsText === calendarsText || (remote.calendarsText === null && noCalendars(calendars)) ? sha1(calendarsText) : DIRTY)
+        states.set(
+          STATE_CALENDARS,
+          remote.calendarsText === calendarsText || (remote.calendarsText === null && noCalendars(calendars)) ? sha1(calendarsText) : DIRTY
+        )
       }
       // A repository still under the app's earlier name counts as not written yet: the upload renames it.
       if (!remote.entries.has(LEGACY.meta)) states.set(STATE_META, remoteHead)
@@ -968,7 +1066,12 @@ export class SyncEngine {
    * Writes what changed here on top of `base`, commits and pushes. Returns how many pages
    * went up, or `rejected` when the remote moved in the meantime (the caller starts over).
    */
-  private async upload(git: Git, config: Config, base: string | null, remoteHead: string | null): Promise<{ sent: number; rejected: boolean }> {
+  private async upload(
+    git: Git,
+    config: Config,
+    base: string | null,
+    remoteHead: string | null
+  ): Promise<{ sent: number; rejected: boolean }> {
     // The calendars are looked at only when the repository is (or is about to be) encrypted.
     const hook = this.setting(KEYS.encrypted) === true || this.secrets().pending ? await this.calendarHook() : null
     // ---- one consistent look at the database, nothing awaited
@@ -994,14 +1097,19 @@ export class SyncEngine {
     }
     for (const pageId of states.keys()) if (!pageId.startsWith('~') && !prints.has(pageId)) removed.push(pageId)
     const rootDirty = states.get(STATE_ROOT) !== sha1(rootText)
-    const appearanceDirty = states.get(STATE_APPEARANCE) !== sha1(appearanceText) && (appearance.value != null || states.has(STATE_APPEARANCE))
+    const appearanceDirty =
+      states.get(STATE_APPEARANCE) !== sha1(appearanceText) && (appearance.value != null || states.has(STATE_APPEARANCE))
     // A home that was set and then cleared is written too, so that the other devices clear theirs.
     const homeDirty = states.get(STATE_HOME) !== sha1(homeText) && (home.value !== null || states.has(STATE_HOME))
     // So is a layout put back to the default.
     const sidebarDirty = states.get(STATE_SIDEBAR) !== sha1(sidebarText) && (sidebar.value !== null || states.has(STATE_SIDEBAR))
     const calendars = hook ? this.calendarsNow(hook) : null
     let calendarsText = calendars ? serializeCalendars(calendars) : null
-    const calendarsDirty = calendars !== null && calendarsText !== null && states.get(STATE_CALENDARS) !== sha1(calendarsText) && (!noCalendars(calendars) || states.has(STATE_CALENDARS))
+    const calendarsDirty =
+      calendars !== null &&
+      calendarsText !== null &&
+      states.get(STATE_CALENDARS) !== sha1(calendarsText) &&
+      (!noCalendars(calendars) || states.has(STATE_CALENDARS))
     const first = !states.has(STATE_META)
     this.pending = changed.size + removed.length
     const recorded = (): Map<string, string> => {
@@ -1015,7 +1123,18 @@ export class SyncEngine {
       next.set(STATE_META, 'written')
       return next
     }
-    if (!changed.size && !removed.length && !rootDirty && !appearanceDirty && !homeDirty && !sidebarDirty && !calendarsDirty && !first && (remoteHead !== null || base === null)) return { sent: 0, rejected: false }
+    if (
+      !changed.size &&
+      !removed.length &&
+      !rootDirty &&
+      !appearanceDirty &&
+      !homeDirty &&
+      !sidebarDirty &&
+      !calendarsDirty &&
+      !first &&
+      (remoteHead !== null || base === null)
+    )
+      return { sent: 0, rejected: false }
 
     await this.step('write')
     await this.prepareTree(git, config.branch, base)
@@ -1064,7 +1183,8 @@ export class SyncEngine {
       await this.writeTreeFile(codec.pathOf(logical), codec.encode(logical, Buffer.from(text, 'utf8')))
     }
     for (const pageId of removed) await rm(join(this.repoDir, codec.pathOf(`${PATHS.pages}${pageId}.json`)), { force: true })
-    if (rootDirty || !exists(PATHS.workspace)) await this.writeTreeFile(PATHS.workspace, codec.encode(PATHS.workspace, Buffer.from(rootText, 'utf8')))
+    if (rootDirty || !exists(PATHS.workspace))
+      await this.writeTreeFile(PATHS.workspace, codec.encode(PATHS.workspace, Buffer.from(rootText, 'utf8')))
     if (appearance.value != null && (appearanceDirty || !exists(PATHS.appearance))) {
       await this.writeTreeFile(PATHS.appearance, codec.encode(PATHS.appearance, Buffer.from(appearanceText, 'utf8')))
     }
@@ -1097,10 +1217,14 @@ export class SyncEngine {
     await git.run(['add', '-A', '--', '.'])
     let head = base
     const summary = `sel-sync: pages=${changed.size} removed=${removed.length} format=${FORMAT}`
-    const commit = await git.run(['commit', '-q', '--no-verify', '-F', '-'], { input: `Sync from ${config.device}\n\n${summary}\n`, allowFailure: true })
+    const commit = await git.run(['commit', '-q', '--no-verify', '-F', '-'], {
+      input: `Sync from ${config.device}\n\n${summary}\n`,
+      allowFailure: true
+    })
     if (commit.code === 0) head = await this.headCommit(git, config.branch)
     // The files came out exactly as they already were: there is nothing to commit, and that is fine.
-    else if (!/nothing to commit|nothing added to commit|no changes added/i.test(`${commit.stdout.toString('utf8')}\n${commit.stderr}`)) throw classifyGitFailure(commit.stderr, commit.code)
+    else if (!/nothing to commit|nothing added to commit|no changes added/i.test(`${commit.stdout.toString('utf8')}\n${commit.stderr}`))
+      throw classifyGitFailure(commit.stderr, commit.code)
     if (head !== null && head !== remoteHead) {
       await this.step('push')
       const ref = `refs/heads/${config.branch}`
@@ -1174,7 +1298,8 @@ export class SyncEngine {
       }
     } catch (err) {
       failure = toFailure(err)
-      if (!(err instanceof SyncFailure) && !(err instanceof FormatError) && !(err instanceof WrongKeyError)) console.error('[sync] cycle failed', err)
+      if (!(err instanceof SyncFailure) && !(err instanceof FormatError) && !(err instanceof WrongKeyError))
+        console.error('[sync] cycle failed', err)
     } finally {
       this.git?.resume()
       this.running = false
@@ -1185,12 +1310,22 @@ export class SyncEngine {
       if (failure.code !== 'cancelled') this.lastError = failure.toError()
     } else this.lastError = undefined
     try {
-      const entry: SyncActivity = { at: this.clock(), sent: outcome?.sent ?? 0, received: outcome?.received ?? 0, conflicts: outcome?.conflicts ?? [] }
+      const entry: SyncActivity = {
+        at: this.clock(),
+        sent: outcome?.sent ?? 0,
+        received: outcome?.received ?? 0,
+        conflicts: outcome?.conflicts ?? []
+      }
       if (outcome?.from && outcome.received) entry.from = outcome.from
       if (outcome?.appearance) entry.appearance = true
       if (failure && failure.code !== 'cancelled') entry.error = failure.code
       // Only what did something is worth a line; a failure is listed once, not on every retry.
-      const worth = entry.sent > 0 || entry.received > 0 || entry.conflicts.length > 0 || entry.appearance === true || (entry.error !== undefined && entry.error !== previous)
+      const worth =
+        entry.sent > 0 ||
+        entry.received > 0 ||
+        entry.conflicts.length > 0 ||
+        entry.appearance === true ||
+        (entry.error !== undefined && entry.error !== previous)
       if (worth) this.repo.setSetting(KEYS.activity, [entry, ...this.activity()].slice(0, SYNC_LIMITS.activity))
       if (!failure) this.repo.setSetting(KEYS.lastSyncAt, this.clock())
     } catch (err) {
@@ -1218,12 +1353,19 @@ export class SyncEngine {
       const url = checkRemoteUrl(input.remoteUrl, this.options.allowLocal)
       if (!url.ok) return this.fail('invalid-url')
       if (input.branch !== undefined && cleanBranch(input.branch) === null) return this.fail('failed', 'That is not a valid branch name.')
-      if (input.passphrase !== undefined && !isPassphrase(input.passphrase)) return this.fail('failed', `A passphrase has between ${SYNC_LIMITS.passphraseMin} and ${SYNC_LIMITS.passphraseMax} characters.`)
+      if (input.passphrase !== undefined && !isPassphrase(input.passphrase))
+        return this.fail('failed', `A passphrase has between ${SYNC_LIMITS.passphraseMin} and ${SYNC_LIMITS.passphraseMax} characters.`)
       const current = this.config()
-      if (current && current.url !== url.url) return this.fail('failed', 'This device already syncs with another repository. Disconnect it first.')
+      if (current && current.url !== url.url)
+        return this.fail('failed', 'This device already syncs with another repository. Disconnect it first.')
       const device = cleanDeviceName(input.deviceName, this.deviceName())
       // A device that is already connected stays on its branch: the commit it last merged is on that one.
-      const config: Config = { url: url.url, branch: current?.branch ?? cleanBranch(input.branch) ?? SYNC_DEFAULT_BRANCH, device, useAnyway: input.useAnyway === true || current?.useAnyway === true }
+      const config: Config = {
+        url: url.url,
+        branch: current?.branch ?? cleanBranch(input.branch) ?? SYNC_DEFAULT_BRANCH,
+        device,
+        useAnyway: input.useAnyway === true || current?.useAnyway === true
+      }
 
       this.running = true
       this.cancelled = false
@@ -1257,7 +1399,10 @@ export class SyncEngine {
           this.rememberKeys(meta.encryption, keys, false)
         } else if (input.passphrase !== undefined) {
           if (meta) {
-            throw new SyncFailure('failed', 'This repository already holds a workspace that is not encrypted. Start without a passphrase; encryption can be turned on afterwards in the Sync settings.')
+            throw new SyncFailure(
+              'failed',
+              'This repository already holds a workspace that is not encrypted. Start without a passphrase; encryption can be turned on afterwards in the Sync settings.'
+            )
           }
           const made = await createEncryption(input.passphrase, this.options.kdfCost)
           this.rememberKeys(made.params, made.keys, true)
@@ -1373,7 +1518,8 @@ export class SyncEngine {
     return this.exclusive(async () => {
       const config = this.config()
       if (!config) return this.status()
-      if (passphrase !== null && !isPassphrase(passphrase)) return this.fail('failed', `A passphrase has between ${SYNC_LIMITS.passphraseMin} and ${SYNC_LIMITS.passphraseMax} characters.`)
+      if (passphrase !== null && !isPassphrase(passphrase))
+        return this.fail('failed', `A passphrase has between ${SYNC_LIMITS.passphraseMin} and ${SYNC_LIMITS.passphraseMax} characters.`)
       // Up to date first: the re-upload must not undo what another device sent.
       const before = await this.runCycle(config)
       if (before) return this.status()
@@ -1396,7 +1542,10 @@ export class SyncEngine {
         // Images are carried over from the old form; everything else is written from the database.
         const images = new Map<string, Buffer>()
         const imageShas = [...old.entries].filter(([path]) => path.startsWith(PATHS.files))
-        const blobs = await this.readBlobs(git, imageShas.map(([, sha]) => sha))
+        const blobs = await this.readBlobs(
+          git,
+          imageShas.map(([, sha]) => sha)
+        )
         for (const [path, sha] of imageShas) {
           const raw = blobs.get(sha)
           if (!raw) continue
@@ -1424,11 +1573,25 @@ export class SyncEngine {
 
         await this.prepareTree(git, config.branch, base)
         for (const path of old.entries.keys()) {
-          if (path.startsWith(PATHS.pages) || path.startsWith(PATHS.files) || path === PATHS.workspace || path === PATHS.appearance || path === PATHS.home || path === PATHS.sidebar || path === PATHS.calendars || path === LEGACY.meta) {
+          if (
+            path.startsWith(PATHS.pages) ||
+            path.startsWith(PATHS.files) ||
+            path === PATHS.workspace ||
+            path === PATHS.appearance ||
+            path === PATHS.home ||
+            path === PATHS.sidebar ||
+            path === PATHS.calendars ||
+            path === LEGACY.meta
+          ) {
             await rm(join(this.repoDir, path), { force: true })
           }
         }
-        const meta: RepoMeta = { app: APP, format: FORMAT, workspaceId: old.meta.workspaceId ?? randomUUID(), createdBy: old.meta.createdBy ?? config.device }
+        const meta: RepoMeta = {
+          app: APP,
+          format: FORMAT,
+          workspaceId: old.meta.workspaceId ?? randomUUID(),
+          createdBy: old.meta.createdBy ?? config.device
+        }
         if (params) meta.encryption = params
         await this.writeTreeFile(PATHS.meta, serializeMeta(meta))
         for (const [pageId, blocks] of pages) {
@@ -1436,9 +1599,12 @@ export class SyncEngine {
           await this.writeTreeFile(codec.pathOf(logical), codec.encode(logical, Buffer.from(serializePage(pageId, blocks), 'utf8')))
         }
         await this.writeTreeFile(PATHS.workspace, codec.encode(PATHS.workspace, Buffer.from(rootText, 'utf8')))
-        if (appearance.value != null) await this.writeTreeFile(PATHS.appearance, codec.encode(PATHS.appearance, Buffer.from(appearanceText, 'utf8')))
-        if (home.value !== null || old.homeText !== null) await this.writeTreeFile(PATHS.home, codec.encode(PATHS.home, Buffer.from(homeText, 'utf8')))
-        if (sidebar.value !== null || old.sidebarText !== null) await this.writeTreeFile(PATHS.sidebar, codec.encode(PATHS.sidebar, Buffer.from(sidebarText, 'utf8')))
+        if (appearance.value != null)
+          await this.writeTreeFile(PATHS.appearance, codec.encode(PATHS.appearance, Buffer.from(appearanceText, 'utf8')))
+        if (home.value !== null || old.homeText !== null)
+          await this.writeTreeFile(PATHS.home, codec.encode(PATHS.home, Buffer.from(homeText, 'utf8')))
+        if (sidebar.value !== null || old.sidebarText !== null)
+          await this.writeTreeFile(PATHS.sidebar, codec.encode(PATHS.sidebar, Buffer.from(sidebarText, 'utf8')))
         // A new passphrase keeps the calendars: this device's, or (when it cannot read its own) those that were there.
         const carried = codec.encrypted ? (calendars ? calendarsText : old.calendarsText) : null
         if (carried !== null) await this.writeTreeFile(PATHS.calendars, codec.encode(PATHS.calendars, Buffer.from(carried, 'utf8')))
@@ -1447,15 +1613,18 @@ export class SyncEngine {
         await this.step('commit')
         await git.run(['add', '-A', '--', '.'])
         const what = passphrase === null ? 'Remove encryption' : old.codec.encrypted ? 'Change passphrase' : 'Turn on encryption'
-        await git.run(['commit', '-q', '--no-verify', '--allow-empty', '-F', '-'], { input: `${what} from ${config.device}\n\nsel-sync: reupload format=${FORMAT}\n` })
+        await git.run(['commit', '-q', '--no-verify', '--allow-empty', '-F', '-'], {
+          input: `${what} from ${config.device}\n\nsel-sync: reupload format=${FORMAT}\n`
+        })
         const head = await this.headCommit(git, config.branch)
         await this.step('push')
         const ref = `refs/heads/${config.branch}`
         const push = await git.run(['push', '--porcelain', 'origin', `${ref}:${ref}`], { allowFailure: true, network: true })
         if (push.code !== 0) {
           const said = `${push.stdout.toString('utf8')}\n${push.stderr}`
-          if (isNonFastForward(said)) throw new SyncFailure('conflict-retry-exhausted', 'Another device synced at the same moment. Nothing was changed; try again.')
-            throw classifyGitFailure(said, push.code)
+          if (isNonFastForward(said))
+            throw new SyncFailure('conflict-retry-exhausted', 'Another device synced at the same moment. Nothing was changed; try again.')
+          throw classifyGitFailure(said, push.code)
         }
         const states = new Map<string, string>(prints)
         states.set(STATE_ROOT, sha1(rootText))
@@ -1464,7 +1633,11 @@ export class SyncEngine {
         states.set(STATE_SIDEBAR, sha1(sidebarText))
         if (codec.encrypted && calendars) states.set(STATE_CALENDARS, sha1(serializeCalendars(calendars)))
         states.set(STATE_META, 'written')
-        this.repo.setSyncStates(states, { [KEYS.lastCommit]: head, [KEYS.lastSyncAt]: this.clock(), [KEYS.encrypted]: params ? true : null })
+        this.repo.setSyncStates(states, {
+          [KEYS.lastCommit]: head,
+          [KEYS.lastSyncAt]: this.clock(),
+          [KEYS.encrypted]: params ? true : null
+        })
         this.lastError = undefined
       } catch (err) {
         const failure = toFailure(err)
@@ -1485,7 +1658,18 @@ export class SyncEngine {
     return this.exclusive(async () => {
       this.repo.transaction(() => {
         this.repo.clearSyncStates()
-        for (const key of [KEYS.url, KEYS.branch, KEYS.lastCommit, KEYS.lastSyncAt, KEYS.paused, KEYS.activity, KEYS.useAnyway, KEYS.encrypted, KEYS.firstMode]) this.repo.setSetting(key, null)
+        for (const key of [
+          KEYS.url,
+          KEYS.branch,
+          KEYS.lastCommit,
+          KEYS.lastSyncAt,
+          KEYS.paused,
+          KEYS.activity,
+          KEYS.useAnyway,
+          KEYS.encrypted,
+          KEYS.firstMode
+        ])
+          this.repo.setSetting(key, null)
       })
       this.lastError = undefined
       this.pending = 0
