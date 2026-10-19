@@ -144,7 +144,6 @@ function clock(ms: number): string {
 
 function line(value: unknown, max: number): string | undefined {
   if (typeof value !== 'string') return undefined
-  // eslint-disable-next-line no-control-regex
   const text = value
     .replace(/[\u0000-\u001f\u007f]+/g, ' ')
     .replace(/\s+/g, ' ')

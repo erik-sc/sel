@@ -103,7 +103,6 @@ export function newAgent(kind: AgentKind, path: string, existing: readonly AiAge
   let id = ''
   do id = `${kind}-${randomBytes(3).toString('hex')}`
   while (existing.some((agent) => agent.id === id))
-  // eslint-disable-next-line no-control-regex
   const file = basename(path)
     .replace(/\.(exe|cmd|bat|ps1)$/i, '')
     .replace(/[\u0000-\u001f\u007f]+/g, ' ')

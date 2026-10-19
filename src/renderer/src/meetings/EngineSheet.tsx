@@ -59,6 +59,7 @@ export function useEngine(): {
       (error: unknown) => setMessage(clean(error))
     )
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once on mount: `refresh` is new on every render and only calls state setters.
   useEffect(() => {
     refresh()
     return window.api.meetings.onProgress((progress) => {
@@ -69,7 +70,7 @@ export function useEngine(): {
         refresh()
       }
     })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
   return {
     status,
     download,
@@ -116,12 +117,13 @@ export function EngineSheet(): JSX.Element {
   const [model, setModel] = useState<WhisperModelId>(MEETINGS_DEFAULTS.model)
   const { status, download } = engine
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only when the sheet opens or closes; `engine` is a new object on every render.
   useEffect(() => {
     if (setup) engine.refresh()
     void window.api.app.getSetting<unknown>('meetings.model').then((value) => {
       if (isWhisperModel(value)) setModel(value)
     })
-  }, [setup !== null]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setup !== null])
 
   const pending = setup?.pageId ?? null
   const ready = status?.state === 'ready'

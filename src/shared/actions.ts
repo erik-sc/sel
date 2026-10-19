@@ -85,7 +85,6 @@ const REF_RE = /^[A-Za-z0-9_-]{1,32}$/
 
 const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
 
-// eslint-disable-next-line no-control-regex
 const oneLine = (value: unknown, max: number): string =>
   typeof value === 'string'
     ? value

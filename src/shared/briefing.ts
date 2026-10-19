@@ -66,7 +66,6 @@ export const BRIEFING_LIMITS = {
 /** A calendar's name as it is kept: one line, no control characters, at most `label` long. */
 export function cleanCalendarLabel(value: unknown, fallback: string): string {
   if (typeof value !== 'string') return fallback
-  // eslint-disable-next-line no-control-regex
   const label = value
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -286,7 +285,6 @@ export function cleanBriefingSetting(key: string, value: unknown): unknown {
       return (OPEN_ON_LAUNCH as readonly unknown[]).includes(value) ? value : undefined
     case 'briefing.name': {
       if (typeof value !== 'string') return undefined
-      // eslint-disable-next-line no-control-regex
       const name = value
         .replace(/[\u0000-\u001f\u007f]/g, ' ')
         .replace(/\s+/g, ' ')

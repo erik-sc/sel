@@ -36,15 +36,12 @@ export function isMonth(value: unknown): value is string {
 /** A name given to a month: one line, tidied like a Meditation, 1–40 characters (empty = none). */
 export function cleanSkyName(value: unknown): string {
   if (typeof value !== 'string') return ''
-  return (
-    value
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\u0000-\u001f\u007f]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, SKY_NAME_MAX)
-      .trim()
-  )
+  return value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, SKY_NAME_MAX)
+    .trim()
 }
 
 // ---- what the scene is built from ----------------------------------------------

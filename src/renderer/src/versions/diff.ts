@@ -497,7 +497,6 @@ function mergeOrder(to: string[], from: string[], isExtra: (id: string) => boole
 
 export function diffSnapshots(from: SnapshotContent, to: SnapshotContent): TreeDiff {
   const fromBlocks = new Map(from.blocks.map((b) => [b.id, b]))
-  const toBlocks = new Map(to.blocks.map((b) => [b.id, b]))
   const fromRefs = new Set(from.refs.map((r) => r.id))
   const toRefs = new Set(to.refs.map((r) => r.id))
   const fromRoot = from.blocks[0]

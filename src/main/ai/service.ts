@@ -106,7 +106,6 @@ export interface RunTarget {
 export const TOOL_TIMEOUT_MS = 300_000
 
 /** Colour and cursor sequences a program may print even when nobody is looking. */
-// eslint-disable-next-line no-control-regex
 const ANSI_RE = /\u001b\[[0-9;?]*[ -/]*[@-~]|\r(?!\n)/g
 
 interface Job {

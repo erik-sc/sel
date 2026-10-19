@@ -136,7 +136,6 @@ export const DEFAULT_SPEAKERS: Speakers = { mic: 'Me', system: 'Others' }
 /** A speaker's name as it may be stored and shown: one short line. */
 export function cleanSpeaker(value: unknown, fallback: string): string {
   if (typeof value !== 'string') return fallback
-  // eslint-disable-next-line no-control-regex
   const name = value
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
     .replace(/\s+/g, ' ')

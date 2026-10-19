@@ -322,6 +322,7 @@ export function LatexDocument({ pageId }: { pageId: string }): JSX.Element {
     }
   }, [text, engine, busy, locale, commit, pageId, copy])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `setView` is new on every render and only writes state and a setting.
   useEffect(
     () =>
       onLatexAction((id, action) => {

@@ -163,7 +163,6 @@ export function validateCalendarUrl(input: unknown, policy: NetPolicy = {}): URL
   const blocked = (): CalendarError => new CalendarError('blocked-address')
   if (typeof input !== 'string') throw blocked()
   let text = input.trim()
-  // eslint-disable-next-line no-control-regex
   if (!text || text.length > NET_LIMITS.url || /[\u0000- \u007f\\]/.test(text)) throw blocked()
   if (/^webcals?:\/\//i.test(text)) text = text.replace(/^webcals?:/i, 'https:')
   let url: URL
@@ -278,7 +277,6 @@ function reasonOf(err: unknown): CalendarErrorCode {
 
 function headerText(value: string | string[] | undefined, max: number): string | undefined {
   const text = Array.isArray(value) ? value[0] : value
-  // eslint-disable-next-line no-control-regex
   return typeof text === 'string' && text.length <= max && !/[\u0000-\u001f\u007f]/.test(text) ? text : undefined
 }
 

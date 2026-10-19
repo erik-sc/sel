@@ -571,7 +571,7 @@ describe('batches that reorder one parent many times', () => {
     const run = (batch: boolean): { order: string[]; newest: string[]; titles: unknown[] } => {
       const r = openTestRepository()
       const p = r.create({ id: 'p', type: 'page', parentId: null, props: { title: [['P']] } })
-      const q = r.create({ id: 'q', type: 'page', parentId: null, props: { title: [['Q']] } })
+      r.create({ id: 'q', type: 'page', parentId: null, props: { title: [['Q']] } })
       r.create({ id: 'old', type: 'text', parentId: p.id, props: { title: [['old']] } })
       const ops: Parameters<Repository['apply']>[0] = [
         { op: 'create', input: { id: 'a', type: 'text', parentId: 'p', props: { title: [['a']] } } },

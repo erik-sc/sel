@@ -122,7 +122,6 @@ export function cleanLine(value: unknown): string {
   return (
     value
       .replace(/\r\n?/g, '\n')
-      // eslint-disable-next-line no-control-regex
       .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ')
       // Paragraph breaks fold into one: it is a line, a short paragraph at most.
       .replace(/\s*\n\s*/g, '\n')
@@ -140,7 +139,6 @@ export function cleanPlans(value: unknown): string[] {
   for (const item of value.slice(0, 20) as unknown[]) {
     if (typeof item !== 'string') continue
     const text = item
-      // eslint-disable-next-line no-control-regex
       .replace(/[\u0000-\u001f\u007f]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()

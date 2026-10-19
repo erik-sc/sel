@@ -119,7 +119,6 @@ export const SYNC_MESSAGES: Record<SyncErrorCode, string> = {
 
 // ---- validation (shared so that the field in Settings says the same as the main process) ----
 
-// eslint-disable-next-line no-control-regex
 const CONTROL_OR_SPACE_RE = /[\u0000-\u0020\u007f-\u009f\u2028\u2029]/
 const SSH_USER_RE = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,63}$/
 const HOST_RE = /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/
@@ -160,7 +159,6 @@ export function checkRemoteUrl(value: unknown, allowLocal = false): RemoteUrlRes
   if (value.startsWith('-')) return { ok: false, problem: 'scheme' }
 
   if (allowLocal && isLocalPath(value)) {
-    // eslint-disable-next-line no-control-regex
     if (/[\u0000-\u001f\u007f]/.test(value) || value.includes('::')) return { ok: false, problem: 'characters' }
     return { ok: true, url: value, kind: 'local' }
   }

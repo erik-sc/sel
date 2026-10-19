@@ -32,9 +32,6 @@
           "level": "error",
           "options": { "reportUnnecessaryDependencies": false }
         }
-      },
-      "suspicious": {
-        "noControlCharactersInRegex": "error"
       }
     }
   }

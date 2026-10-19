@@ -81,7 +81,6 @@ export function isTrustedSender(event: IpcMainInvokeEvent | IpcMainEvent): boole
  */
 export function toExternalUrl(url: unknown): string | null {
   if (typeof url !== 'string' || !url || url.length > MAX_EXTERNAL_URL) return null
-  // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f]/.test(url)) return null
   let parsed: URL
   try {

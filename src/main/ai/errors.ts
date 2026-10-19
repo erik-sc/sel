@@ -21,9 +21,7 @@ const RATE_LIMITED_RE = /rate[ _-]?limit|usage limit|limit reached|too many requ
 
 const MAX_DETAIL_CHARS = 160
 
-// eslint-disable-next-line no-control-regex
 const ANSI_RE = /\u001b\[[0-9;?]*[ -/]*[@-~]|\u001b\][^\u0007]*(?:\u0007|\u001b\\)/g
-// eslint-disable-next-line no-control-regex
 const CONTROL_RE = /[\u0000-\u0008\u000b-\u001f\u007f]/g
 /** Windows (`C:\…`, `\\server\…`) and POSIX absolute paths, and `~/…`. */
 const PATH_RE = /(?:[A-Za-z]:[\\/]|\\\\|~[\\/]|\/(?=[A-Za-z0-9._-]+[\\/]))[^\s"'<>|:*?]*(?::\d+)*/g

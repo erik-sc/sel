@@ -132,13 +132,11 @@ export class WhisperError extends Error {
 /** The last thing the program said, without colours and without paths (which name the user's folders). */
 export function sanitiseStderr(text: string): string | undefined {
   const lines = text
-    // eslint-disable-next-line no-control-regex
     .replace(/\u001b\[[0-9;]*[A-Za-z]/g, '')
     .split(/\r?\n/)
     .map((line) =>
       line
         .replace(/(?:[A-Za-z]:)?(?:[\\/][^\\/\s'":]+){2,}/g, '…')
-        // eslint-disable-next-line no-control-regex
         .replace(/[\u0000-\u001f\u007f]/g, ' ')
         .trim()
     )

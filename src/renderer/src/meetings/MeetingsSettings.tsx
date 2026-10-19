@@ -58,6 +58,7 @@ export function MeetingsSection(): JSX.Element {
   const { status, download } = engine
 
   const loadStorage = (): void => void window.api.meetings.storage().then(setStorage, () => undefined)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once on mount; `loadStorage` is new on every render and only calls a state setter.
   useEffect(() => {
     const get = <T,>(key: string): Promise<T | null> => window.api.app.getSetting<T>(key).catch(() => null)
     void Promise.all([

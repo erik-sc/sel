@@ -101,7 +101,6 @@ export interface Counsel {
 /** A title as it may appear in a line: one line, no control characters, capped. */
 export function tidyTitle(raw: unknown): string {
   if (typeof raw !== 'string') return ''
-  // eslint-disable-next-line no-control-regex
   const clean = raw
     .replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202f]+/g, ' ')
     .replace(/[\u201c\u201d"]/g, '')

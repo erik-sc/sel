@@ -407,7 +407,6 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
       ['Date', meeting?.date],
       ['Attendees', meeting?.attendees]
     ]
-      // eslint-disable-next-line no-control-regex
       .map(([label, value]) => [
         label,
         value
@@ -497,7 +496,6 @@ export function buildCondensePrompt(part: string, index: number, total: number, 
 /** The day as one section body: now, the agenda, the tasks. Every line is tidied and capped. */
 function dayBody(data: BriefingPromptData): string {
   const line = (text: string): string => {
-    // eslint-disable-next-line no-control-regex
     const clean = String(text)
       .replace(/[\u0000-\u001f\u007f]+/g, ' ')
       .replace(/\s+/g, ' ')
@@ -542,7 +540,6 @@ export function buildBriefingPrompt(data: BriefingPromptData, options: PromptOpt
   const nonce = options.nonce ?? newNonce()
   const scrub = (text: string): string => text.split(nonce).join('')
   const line = (text: string): string => {
-    // eslint-disable-next-line no-control-regex
     const clean = scrub(String(text))
       .replace(/[\u0000-\u001f\u007f]+/g, ' ')
       .replace(/\s+/g, ' ')

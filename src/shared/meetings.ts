@@ -285,7 +285,6 @@ export function cleanMic(value: unknown): { id: string; label: string } | undefi
   if (value === null || typeof value !== 'object') return undefined
   const { id, label } = value as { id?: unknown; label?: unknown }
   if (typeof id !== 'string' || !DEVICE_ID_RE.test(id) || typeof label !== 'string') return undefined
-  // eslint-disable-next-line no-control-regex
   return {
     id,
     label: label

@@ -107,11 +107,10 @@ function PickList(props: {
     return items.filter((item) => fold(item.title).includes(needle) || fold(item.path).includes(needle))
   }, [items, trimmed])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `onQuery` is the caller's latest closure; only a new query is a reason to call it.
   useEffect(() => {
     onQuery?.(trimmed)
     setActive(0)
-    // `onQuery` is the caller's latest closure; only a new query is a reason to call it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trimmed])
 
   useEffect(() => {

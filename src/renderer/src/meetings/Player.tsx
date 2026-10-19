@@ -50,6 +50,7 @@ export function Player({
   }
   useImperativeHandle(ref, () => ({ seek }))
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `all` reads the elements ref; the rate is set again when the tracks change.
   useEffect(() => {
     for (const element of all()) element.playbackRate = rate
   }, [rate, tracks])

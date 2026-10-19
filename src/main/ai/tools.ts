@@ -26,7 +26,6 @@ export interface ToolSource extends WorkspaceSource {
 
 // ---- text --------------------------------------------------------------------
 
-// eslint-disable-next-line no-control-regex
 const oneLine = (text: string, max: number): string =>
   text
     .replace(/[\u0000-\u001f\u007f]+/g, ' ')

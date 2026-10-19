@@ -291,13 +291,14 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
   }, [notice])
 
   const [percent, setPercent] = useState(0)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one subscription per transcription, not one per percent.
   useEffect(() => {
     setPercent(transcribing?.percent ?? 0)
     if (!transcribing) return
     return window.api.meetings.onProgress((progress) => {
       if (progress.kind === 'transcribe' && progress.pageId === meetingId) setPercent(progress.percent)
     })
-  }, [meetingId, transcribing === null]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [meetingId, transcribing === null])
 
   // A time in the transcript (`12:34`, written as code) moves the player there. The editor draws a
   // code mark as a span that carries its marks in `data-m`; read-only views draw a <code>.
@@ -338,11 +339,12 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
   // "Record" on an event's alarm opened this page: start as the button would, consent first.
   // A meeting that already has its audio, or a recording going on elsewhere, is left as it is.
   const autoStart = useMeetings((state) => state.autoStart === meetingId)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the request and the info are both there; the rest is read at that moment.
   useEffect(() => {
     if (!autoStart || !loaded) return
     useMeetings.setState({ autoStart: null })
     if (role === 'meeting' && info.state === 'none' && session === null && recording === null && !busyElsewhere) start()
-  }, [autoStart, loaded]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [autoStart, loaded])
   const stop = (): void => {
     stopRecording()
       .then((result) => {

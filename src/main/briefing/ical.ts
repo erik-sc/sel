@@ -132,24 +132,6 @@ export function unescapeText(value: string): string {
   return value.replace(/\\([\\;,nN])/g, (_all, ch: string) => (ch === 'n' || ch === 'N' ? '\n' : ch))
 }
 
-/** Splits a value on the commas that are not escaped. */
-function splitList(value: string): string[] {
-  if (!value.includes('\\')) return value.split(',')
-  const out: string[] = []
-  let current = ''
-  for (let i = 0; i < value.length; i++) {
-    const ch = value[i]
-    if (ch === '\\' && i + 1 < value.length) {
-      current += ch + value[++i]
-    } else if (ch === ',') {
-      out.push(current)
-      current = ''
-    } else current += ch
-  }
-  out.push(current)
-  return out
-}
-
 function entities(text: string): string {
   return text
     .replace(/&nbsp;/gi, ' ')
@@ -162,7 +144,6 @@ function entities(text: string): string {
 
 /** One line of plain text: control characters out, whitespace collapsed, capped. */
 function plainLine(value: string, max: number): string {
-  // eslint-disable-next-line no-control-regex
   const text = unescapeText(value)
     .replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -177,7 +158,6 @@ function plainLine(value: string, max: number): string {
 export function plainDescription(value: string, max: number = ICAL_LIMITS.description): string {
   const raw = unescapeText(value.length > 20_000 ? value.slice(0, 20_000) : value)
   const text = entities(raw.replace(/<br\s*\/?>|<\/p>|<\/div>|<\/li>/gi, '\n').replace(/<[^>]{0,2000}>/g, ''))
-    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u0009\u000b-\u001f\u007f\u2028\u2029]+/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .replace(/ ?\n ?/g, '\n')

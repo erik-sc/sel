@@ -54,7 +54,6 @@ export interface WorkspaceContext {
 
 /** A title as one line of the outline. */
 function title(block: Block | null | undefined): string {
-  // eslint-disable-next-line no-control-regex
   const text = plainText(block?.props.title)
     .replace(/[\u0000-\u001f\u007f]+/g, ' ')
     .replace(/[[\]]/g, ' ')
@@ -70,7 +69,6 @@ const live = (block: Block | null | undefined): block is Block =>
 const label = (block: Block): string => `${title(block)} [${block.id}]${block.type === 'database' ? ' (database)' : ''}`
 
 function oneLine(value: unknown, max: number): string {
-  // eslint-disable-next-line no-control-regex
   return typeof value === 'string'
     ? value
         .replace(/[\u0000-\u001f\u007f]+/g, ' ')
