@@ -167,7 +167,12 @@ function HistoryBody({ pageId }: { pageId: string }): JSX.Element {
   const move = (delta: number | 'first' | 'last'): void => {
     if (!versions?.length) return
     const index = versions.findIndex((v) => v.id === selectedId)
-    const next = delta === 'first' ? 0 : delta === 'last' ? versions.length - 1 : Math.max(0, Math.min(versions.length - 1, (index < 0 ? 0 : index) + delta))
+    const next =
+      delta === 'first'
+        ? 0
+        : delta === 'last'
+          ? versions.length - 1
+          : Math.max(0, Math.min(versions.length - 1, (index < 0 ? 0 : index) + delta))
     setSelectedId(versions[next].id)
   }
 
@@ -355,7 +360,10 @@ function HistoryBody({ pageId }: { pageId: string }): JSX.Element {
           ) : versions && versions.length === 0 ? (
             <div className="vh-preview-empty">
               <h3>Nothing to compare yet</h3>
-              <p>When this page has versions, pick one on the left to see the page as it was, compare it with the page as it is now, and restore it.</p>
+              <p>
+                When this page has versions, pick one on the left to see the page as it was, compare it with the page as it is now, and
+                restore it.
+              </p>
             </div>
           ) : (
             <div className="vh-preview-empty" aria-busy="true" />
@@ -377,12 +385,7 @@ function HistoryBody({ pageId }: { pageId: string }): JSX.Element {
       </footer>
 
       {sheet?.kind === 'restore' && selected && (
-        <ConfirmSheet
-          title="Restore this version?"
-          confirm="Restore"
-          onCancel={() => setSheet(null)}
-          onConfirm={() => void doRestore()}
-        >
+        <ConfirmSheet title="Restore this version?" confirm="Restore" onCancel={() => setSheet(null)} onConfirm={() => void doRestore()}>
           <p>
             The page goes back to how it was on {stampLabel(selected.createdAt, now)}
             {selected.label ? ` (${selected.label})` : ''}.
@@ -477,7 +480,15 @@ function TimelineItem({
 }
 
 /** Inline name editor: Enter or leaving the field keeps the name, Escape gives it up. */
-function RenameField({ initial, onCommit, onCancel }: { initial: string; onCommit: (label: string) => void; onCancel: () => void }): JSX.Element {
+function RenameField({
+  initial,
+  onCommit,
+  onCancel
+}: {
+  initial: string
+  onCommit: (label: string) => void
+  onCancel: () => void
+}): JSX.Element {
   const [value, setValue] = useState(initial)
   const done = useRef(false)
   const cancel = useRef(onCancel)

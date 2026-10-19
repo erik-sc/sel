@@ -122,10 +122,7 @@ export function SelectEditor({
   const options = L.optionsOf(prop)
 
   const q = L.cleanName(query).toLocaleLowerCase()
-  const filtered = useMemo(
-    () => (q ? options.filter((o) => o.name.toLocaleLowerCase().includes(q)) : options),
-    [options, q]
-  )
+  const filtered = useMemo(() => (q ? options.filter((o) => o.name.toLocaleLowerCase().includes(q)) : options), [options, q])
   const selected = useMemo(() => new Set(value), [value])
   const exact = q ? options.some((o) => L.cleanName(o.name).toLocaleLowerCase() === q) : false
   const canCreate = q !== '' && !exact
@@ -215,9 +212,7 @@ export function SelectEditor({
           }}
         />
       </div>
-      <div className="db-menu-heading">
-        {options.length ? 'Select an option or create one' : 'Type a name to create an option'}
-      </div>
+      <div className="db-menu-heading">{options.length ? 'Select an option or create one' : 'Type a name to create an option'}</div>
       <div className="db-select-list">
         {filtered.map((option, index) => (
           <div

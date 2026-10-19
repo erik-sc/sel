@@ -97,7 +97,12 @@ export interface AiOptions {
 }
 
 /** An action on the text selected inside one block (the selection toolbar). `null` asks what to do first. */
-export function aiOnRange(ctrl: EditorController, action: AiAction | null, range: { id: string; start: number; end: number }, options: AiOptions = {}): void {
+export function aiOnRange(
+  ctrl: EditorController,
+  action: AiAction | null,
+  range: { id: string; start: number; end: number },
+  options: AiOptions = {}
+): void {
   start(ctrl, () => {
     ctrl.flush(range.id)
     const text = textOf(slice(getBlock(range.id)?.props.title, range.start, range.end))
@@ -238,7 +243,11 @@ export function applyAiTitle(ctrl: EditorController, title: string, emoji: strin
   if (!page) return
   ctrl.flushAll()
   ctrl.history.seal()
-  ctrl.update(ctrl.pageId, { title: [[title]], ...(emoji && !page.props.icon ? { icon: emoji } : {}) }, { before: session?.restore ?? null, silent: true })
+  ctrl.update(
+    ctrl.pageId,
+    { title: [[title]], ...(emoji && !page.props.icon ? { icon: emoji } : {}) },
+    { before: session?.restore ?? null, silent: true }
+  )
   ctrl.history.seal()
   if (session?.restore) ctrl.restoreSel(session.restore)
 }
@@ -247,7 +256,13 @@ export function applyAiTitle(ctrl: EditorController, title: string, emoji: strin
  * For the assistant panel: puts an answer into the page, below the block that last had the
  * caret (at the end of the page without one) or over what is selected.
  */
-export function insertFromAssistant(ctrl: EditorController, markdown: string, mode: 'below' | 'replace', scope: AiTarget | null, lastBlockId: string | null): boolean {
+export function insertFromAssistant(
+  ctrl: EditorController,
+  markdown: string,
+  mode: 'below' | 'replace',
+  scope: AiTarget | null,
+  lastBlockId: string | null
+): boolean {
   ctrl.flushAll()
   let target: AiTarget
   if (mode === 'replace' && scope) target = scope
@@ -269,7 +284,10 @@ export function scopeOf(ctrl: EditorController, sel: Sel): { target: AiTarget; t
   if (!sel) return null
   if (sel.kind === 'blocks') {
     const tops = topLevel(ctrl.tree, sel.ids)
-    const text = tops.map((id) => textOf(getBlock(id)?.props.title)).filter(Boolean).join('\n')
+    const text = tops
+      .map((id) => textOf(getBlock(id)?.props.title))
+      .filter(Boolean)
+      .join('\n')
     return tops.length && text ? { target: { kind: 'blocks', ids: tops }, text } : null
   }
   const id = sel.blockId.split(':')[0]
@@ -280,7 +298,12 @@ export function scopeOf(ctrl: EditorController, sel: Sel): { target: AiTarget; t
 }
 
 /** An item of the slash menu's "AI" group, run on the block the menu was opened in. */
-export function aiFromSlash(ctrl: EditorController, kind: 'continue' | 'summarize' | 'ask' | 'actions' | 'outline', blockId: string, caret: number): void {
+export function aiFromSlash(
+  ctrl: EditorController,
+  kind: 'continue' | 'summarize' | 'ask' | 'actions' | 'outline',
+  blockId: string,
+  caret: number
+): void {
   if (kind === 'continue') aiContinue(ctrl, blockId, caret)
   else aiOnPage(ctrl, kind === 'ask' ? null : kind, blockId, caret)
 }

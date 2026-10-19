@@ -49,17 +49,45 @@ export const PINNED: PinnedSet = {
   // Tag v1.9.5 and build b5454 are commit d1be6fde11ac6e0407606b4e42fe72d34add8037.
   version: '1.9.5',
   programs: {
-    'win32-x64': { url: `${RELEASE}/whisper-bin-x64.zip`, size: 8_928_640, sha256: '6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb' },
-    'win32-arm64': { url: `${RELEASE}/whisper-bin-win-cpu-arm64.zip`, size: 4_371_193, sha256: '28c37e7b598c3d9bbfef94f3bd67f2ee6f12b7c86f3da5edcf5e4308d615ff6d' }
+    'win32-x64': {
+      url: `${RELEASE}/whisper-bin-x64.zip`,
+      size: 8_928_640,
+      sha256: '6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb'
+    },
+    'win32-arm64': {
+      url: `${RELEASE}/whisper-bin-win-cpu-arm64.zip`,
+      size: 4_371_193,
+      sha256: '28c37e7b598c3d9bbfef94f3bd67f2ee6f12b7c86f3da5edcf5e4308d615ff6d'
+    }
     // macOS and Linux: no archive with a ready `whisper-cli` and a digest that sel unpacks
     // (the Ubuntu builds are tarballs, there is none for macOS). There the user chooses a
     // program and a model file themselves.
   },
   models: {
-    base: { file: 'ggml-base.bin', url: `${MODELS}/ggml-base.bin`, size: 147_951_465, sha256: '60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe' },
-    small: { file: 'ggml-small.bin', url: `${MODELS}/ggml-small.bin`, size: 487_601_967, sha256: '1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b' },
-    medium: { file: 'ggml-medium.bin', url: `${MODELS}/ggml-medium.bin`, size: 1_533_763_059, sha256: '6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208' },
-    'large-v3-turbo': { file: 'ggml-large-v3-turbo.bin', url: `${MODELS}/ggml-large-v3-turbo.bin`, size: 1_624_555_275, sha256: '1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69' }
+    base: {
+      file: 'ggml-base.bin',
+      url: `${MODELS}/ggml-base.bin`,
+      size: 147_951_465,
+      sha256: '60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe'
+    },
+    small: {
+      file: 'ggml-small.bin',
+      url: `${MODELS}/ggml-small.bin`,
+      size: 487_601_967,
+      sha256: '1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b'
+    },
+    medium: {
+      file: 'ggml-medium.bin',
+      url: `${MODELS}/ggml-medium.bin`,
+      size: 1_533_763_059,
+      sha256: '6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208'
+    },
+    'large-v3-turbo': {
+      file: 'ggml-large-v3-turbo.bin',
+      url: `${MODELS}/ggml-large-v3-turbo.bin`,
+      size: 1_624_555_275,
+      sha256: '1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69'
+    }
   }
 }
 

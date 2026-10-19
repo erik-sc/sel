@@ -75,7 +75,12 @@ export class AiBridge {
     const override = devCliOverride(process.env['SEL_AI_CLI'], app.isPackaged)
     const script = override && /\.(m|c)?js$/i.test(override) ? override : null
     const sandboxDir = join(app.getPath('userData'), 'ai-sandbox')
-    this.tools = new ToolHost({ source: () => this.toolSource(), dir: sandboxDir, execPath: process.execPath, script: toolScript(__dirname) })
+    this.tools = new ToolHost({
+      source: () => this.toolSource(),
+      dir: sandboxDir,
+      execPath: process.execPath,
+      script: toolScript(__dirname)
+    })
     this.service = new AiService({
       // Empty and dedicated: the program's file tools are off, and there is nothing here to read but the configuration of its one MCP server.
       sandboxDir,
@@ -148,7 +153,8 @@ export class AiBridge {
   run(rawRequest: unknown, sender: WebContents): { id: string } {
     const request = aiRequest(rawRequest)
     // "Write up notes" on a meeting page: the transcript is read here, not sent by the window.
-    if (request.action === 'consolidate' && !request.transcript?.trim() && request.pageId) return this.startMeeting(request, request.pageId, sender)
+    if (request.action === 'consolidate' && !request.transcript?.trim() && request.pageId)
+      return this.startMeeting(request, request.pageId, sender)
     if (request.action === 'ask' && request.council) return this.startCouncil(request, sender)
     // A question may be answered from anywhere in the workspace: the tools let the answer look.
     if (request.action === 'ask') return this.start(request, sender, undefined, undefined, { tools: { maxTurns: HERMAN_TURNS } })
@@ -201,7 +207,11 @@ export class AiBridge {
             if (!settled) tell({ member, status: 'thinking', text: activity })
           })
         } catch (err) {
-          tell({ member, status: 'failed', text: err instanceof Error && err.message ? err.message.slice(0, 160) : 'This seat could not be asked.' })
+          tell({
+            member,
+            status: 'failed',
+            text: err instanceof Error && err.message ? err.message.slice(0, 160) : 'This seat could not be asked.'
+          })
           return resolve(null)
         }
         tell({ member, status: 'thinking' })
@@ -231,11 +241,20 @@ export class AiBridge {
     const build: PromptBuilder = async (language, voice, tools) => {
       const context = await this.context(request)
       const asked = await Promise.all(
-        seats.map(({ member, seat }) => consult(member, seat, buildPrompt(request, context, { defaultLanguage: language, member, tools: seat.agent === CLAUDE_AGENT })))
+        seats.map(({ member, seat }) =>
+          consult(member, seat, buildPrompt(request, context, { defaultLanguage: language, member, tools: seat.agent === CLAUDE_AGENT }))
+        )
       )
       const council = asked.filter((opinion): opinion is CouncilOpinion => opinion !== null)
-      const passageIds = voice ? selectPassages(`${request.instruction ?? ''}\n${request.selectionText ?? ''}`).map((quote) => quote.id) : []
-      return buildPrompt(request, context, { defaultLanguage: language, council, ...(tools ? { tools: true } : {}), ...(voice ? { voice, passageIds } : {}) })
+      const passageIds = voice
+        ? selectPassages(`${request.instruction ?? ''}\n${request.selectionText ?? ''}`).map((quote) => quote.id)
+        : []
+      return buildPrompt(request, context, {
+        defaultLanguage: language,
+        council,
+        ...(tools ? { tools: true } : {}),
+        ...(voice ? { voice, passageIds } : {})
+      })
     }
     const started = this.start(
       request,
@@ -277,7 +296,12 @@ export class AiBridge {
         title: `Choose the program for ${AGENT_LABELS[kind]}`,
         buttonLabel: 'Choose',
         properties: ['openFile'],
-        filters: windows ? [{ name: 'Programs', extensions: ['exe', 'cmd', 'bat', 'ps1'] }, { name: 'All files', extensions: ['*'] }] : undefined
+        filters: windows
+          ? [
+              { name: 'Programs', extensions: ['exe', 'cmd', 'bat', 'ps1'] },
+              { name: 'All files', extensions: ['*'] }
+            ]
+          : undefined
       }
       const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
       const file = result.filePaths[0]
@@ -331,10 +355,18 @@ export class AiBridge {
       })
     const build: PromptBuilder = async (language) => {
       const markdown = await import('../markdown')
-      const source: MeetingSource = { get: (id) => this.repo.get(id), children: (id) => this.repo.children(id), blocksToMarkdown: (blocks) => markdown.blocksToMarkdown(this.repo, blocks) }
+      const source: MeetingSource = {
+        get: (id) => this.repo.get(id),
+        children: (id) => this.repo.children(id),
+        blocksToMarkdown: (blocks) => markdown.blocksToMarkdown(this.repo, blocks)
+      }
       const meeting = loadMeeting(source, pageId)
       if (!meeting) throw new Error('This meeting has no transcript yet.')
-      return buildPrompt(request, { meeting: await prepareMeeting(meeting, language, condense, abort.signal) }, { defaultLanguage: language })
+      return buildPrompt(
+        request,
+        { meeting: await prepareMeeting(meeting, language, condense, abort.signal) },
+        { defaultLanguage: language }
+      )
     }
     return this.start(request, sender, build, () => {
       abort.abort()
@@ -412,7 +444,12 @@ export class AiBridge {
       title: 'Choose the claude program',
       buttonLabel: 'Choose',
       properties: ['openFile'],
-      filters: windows ? [{ name: 'Programs', extensions: ['exe', 'cmd', 'bat', 'ps1'] }, { name: 'All files', extensions: ['*'] }] : undefined
+      filters: windows
+        ? [
+            { name: 'Programs', extensions: ['exe', 'cmd', 'bat', 'ps1'] },
+            { name: 'All files', extensions: ['*'] }
+          ]
+        : undefined
     }
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     const file = result.filePaths[0]

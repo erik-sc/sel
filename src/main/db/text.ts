@@ -33,10 +33,7 @@ export function likePattern(text: string): string {
 }
 
 function fold(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
 
 export function makeSnippet(text: string, query: string, width = 140): string {

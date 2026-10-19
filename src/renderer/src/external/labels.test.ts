@@ -24,7 +24,18 @@ describe('Settings → MCP', () => {
 
   it('names every tool an app can call', () => {
     // The tools of src/main/ai/toolspecs.ts, which the renderer does not import.
-    for (const name of ['search', 'outline', 'read_page', 'read_database', 'recent', 'audit', 'create_page', 'append_to_page', 'add_database_row', 'update_database_row']) {
+    for (const name of [
+      'search',
+      'outline',
+      'read_page',
+      'read_database',
+      'recent',
+      'audit',
+      'create_page',
+      'append_to_page',
+      'add_database_row',
+      'update_database_row'
+    ]) {
       expect(TOOL_LABELS[name]).toBeTruthy()
     }
   })

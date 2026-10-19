@@ -151,7 +151,15 @@ export function addDays(day: string, n: number): string {
 }
 
 /** The draws of a night, in a fixed order, one per chance event. */
-function draws(day: string): { comet: number; halo: number; fireflies: number; flock: number; shooting: number; satellite: number; cloud: number } {
+function draws(day: string): {
+  comet: number
+  halo: number
+  fireflies: number
+  flock: number
+  shooting: number
+  satellite: number
+  cloud: number
+} {
   const r = rng('sel-sky-event:' + day)
   return { comet: r(), halo: r(), fireflies: r(), flock: r(), shooting: r(), satellite: r(), cloud: r() }
 }

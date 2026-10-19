@@ -28,14 +28,30 @@ export interface InsertPlan {
 
 /** An answer as the blocks a paste of it would create. */
 export function markdownToNodes(markdown: string): ClipNode[] {
-  return parseMarkdownBlocks(markdown).map((block): ClipNode => ({ type: block.type, props: { ...block.props, title: block.title }, children: [] }))
+  return parseMarkdownBlocks(markdown).map(
+    (block): ClipNode => ({ type: block.type, props: { ...block.props, title: block.title }, children: [] })
+  )
 }
 
 /** The same blocks in the shape the read-only renderer takes, for the preview. */
 export function markdownToSnapshot(markdown: string): SnapshotContent {
   const nodes = markdownToNodes(markdown)
-  const blocks: SnapshotBlock[] = nodes.map((node, index) => ({ id: `ai-${index}`, type: node.type, parentId: 'ai-root', content: [], props: node.props, createdAt: 0 }))
-  const root: SnapshotBlock = { id: 'ai-root', type: 'page', parentId: null, content: blocks.map((block) => block.id), props: {}, createdAt: 0 }
+  const blocks: SnapshotBlock[] = nodes.map((node, index) => ({
+    id: `ai-${index}`,
+    type: node.type,
+    parentId: 'ai-root',
+    content: [],
+    props: node.props,
+    createdAt: 0
+  }))
+  const root: SnapshotBlock = {
+    id: 'ai-root',
+    type: 'page',
+    parentId: null,
+    content: blocks.map((block) => block.id),
+    props: {},
+    createdAt: 0
+  }
   return { rootId: root.id, blocks: [root, ...blocks], refs: [] }
 }
 
@@ -49,8 +65,11 @@ function afterBlocks(nodes: readonly ClipNode[], ids: string[]): Sel {
 function below(tree: Tree, blockId: string | null, nodes: readonly ClipNode[], newId: () => string): InsertPlan | null {
   const block = blockId ? tree.get(blockId) : undefined
   if (blockId && (!block || !block.parentId)) return below(tree, null, nodes, newId)
-  const { ops, ids } = block?.parentId ? buildCreateOps(nodes, block.parentId, block.id, newId) : buildCreateOps(nodes, tree.pageId, null, newId)
-  if (block && block.type === 'text' && rtLength(block.props.title) === 0 && block.content.length === 0) ops.push({ op: 'delete', id: block.id })
+  const { ops, ids } = block?.parentId
+    ? buildCreateOps(nodes, block.parentId, block.id, newId)
+    : buildCreateOps(nodes, tree.pageId, null, newId)
+  if (block && block.type === 'text' && rtLength(block.props.title) === 0 && block.content.length === 0)
+    ops.push({ op: 'delete', id: block.id })
   return { ops, after: afterBlocks(nodes, ids) }
 }
 
@@ -101,7 +120,10 @@ export function planAccept(tree: Tree, target: AiTarget, markdown: string, newId
       const end = Math.min(Math.max(target.end, start), length)
       if (inline) {
         const title = replaceRange(block.props.title, start, end, inline)
-        return { ops: [{ op: 'update', id: block.id, patch: { props: { title } } }], after: textSel(block.id, start, start + rtLength(inline)) }
+        return {
+          ops: [{ op: 'update', id: block.id, patch: { props: { title } } }],
+          after: textSel(block.id, start, start + rtLength(inline))
+        }
       }
       // Several blocks cannot live inside a line: the selected text leaves the block and the
       // answer follows it as blocks. A block left empty by that (and childless) goes.

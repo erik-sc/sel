@@ -36,7 +36,11 @@ const titleOf = (block: Block | undefined): string => plainText(block?.props.tit
 const count = (n: number, one: string): string => `${n} ${one}${n === 1 ? '' : 's'}`
 
 /** One line saying what an action would do, for the proposal card. */
-export function describeAction(action: HermanAction, env: Pick<ActionEnv, 'currentPageId' | 'get'>, created?: ReadonlyMap<string, string>): string {
+export function describeAction(
+  action: HermanAction,
+  env: Pick<ActionEnv, 'currentPageId' | 'get'>,
+  created?: ReadonlyMap<string, string>
+): string {
   const isDatabase = action.do === 'add-rows' || action.do === 'update-rows' || action.do === 'add-properties'
   const named = (target: string | undefined): string => {
     if (!target) return ''
@@ -59,7 +63,9 @@ export function describeAction(action: HermanAction, env: Pick<ActionEnv, 'curre
     case 'move':
       return `Move ${named(action.page)} ${action.parent ? `into ${named(action.parent)}` : 'to the top level'}`
     case 'update-page':
-      return action.title ? `Rename ${named(action.page)} to ${quoted(action.title)}${action.icon ? ` ${action.icon}` : ''}` : `Give ${named(action.page)} the icon ${action.icon ?? ''}`
+      return action.title
+        ? `Rename ${named(action.page)} to ${quoted(action.title)}${action.icon ? ` ${action.icon}` : ''}`
+        : `Give ${named(action.page)} the icon ${action.icon ?? ''}`
     case 'update-rows':
       return `Change ${count(action.rows.length, 'row')} of ${named(action.database)}`
     case 'add-properties':
@@ -72,7 +78,8 @@ export function describeAction(action: HermanAction, env: Pick<ActionEnv, 'curre
 /** What each `ref` of a proposal names: the title of what that action creates. */
 export function createdTitles(actions: readonly HermanAction[]): Map<string, string> {
   const out = new Map<string, string>()
-  for (const action of actions) if ((action.do === 'create-page' || action.do === 'create-database') && action.ref) out.set(action.ref, action.title)
+  for (const action of actions)
+    if ((action.do === 'create-page' || action.do === 'create-database') && action.ref) out.set(action.ref, action.title)
   return out
 }
 
@@ -93,7 +100,12 @@ export function summarizeActions(actions: readonly HermanAction[]): string {
     else if (action.do === 'add-properties') add('properties added', action.properties.length)
     else add('to the Trash')
   }
-  return [...tally.entries()].map(([key, n]) => `${n} ${n === 1 ? key.replace(/^(page|database|row|propert)(s|ies)\b/, (_, stem: string) => (stem === 'propert' ? 'property' : stem)) : key}`).join(', ')
+  return [...tally.entries()]
+    .map(
+      ([key, n]) =>
+        `${n} ${n === 1 ? key.replace(/^(page|database|row|propert)(s|ies)\b/, (_, stem: string) => (stem === 'propert' ? 'property' : stem)) : key}`
+    )
+    .join(', ')
 }
 
 /** The ids a proposal names: what has to be in the store before it is planned. */
@@ -135,9 +147,7 @@ function toValue(schema: L.Schema, prop: PropertySchema, cell: ActionCell): { sc
       raw = option(Array.isArray(cell) ? (cell[0] ?? '') : String(cell))
       break
     case 'multi_select':
-      raw = (Array.isArray(cell) ? cell : String(cell).split(','))
-        .map((name) => option(name))
-        .filter((id): id is string => !!id)
+      raw = (Array.isArray(cell) ? cell : String(cell).split(',')).map((name) => option(name)).filter((id): id is string => !!id)
       break
     case 'number':
       raw = typeof cell === 'number' ? cell : typeof cell === 'string' && cell.trim() !== '' ? Number(cell.replace(',', '.')) : null
@@ -305,7 +315,9 @@ export function planActions(actions: readonly HermanAction[], env: ActionEnv): A
         break
       }
       case 'add-rows': {
-        const block = action.database.startsWith('@') ? undefined : env.get(action.database === 'current' ? (env.currentPageId ?? '') : action.database)
+        const block = action.database.startsWith('@')
+          ? undefined
+          : env.get(action.database === 'current' ? (env.currentPageId ?? '') : action.database)
         const resolved = block?.type === 'database' && !block.trashedAt ? L.resolveDatabase(block, lookup) : undefined
         const source = resolved?.status === 'ok' ? resolved.source : null
         if (!source) {
@@ -353,7 +365,9 @@ export function planActions(actions: readonly HermanAction[], env: ActionEnv): A
         parentOf.set(block.id, parentId)
         parentChanged(parentId)
         parentChanged(from)
-        plan.done.push(`Moved ${quoted(nameOf(block))} ${parentId ? `into ${quoted(made.get(parentId) ?? titleOf(env.get(parentId)))}` : 'to the top level'}.`)
+        plan.done.push(
+          `Moved ${quoted(nameOf(block))} ${parentId ? `into ${quoted(made.get(parentId) ?? titleOf(env.get(parentId)))}` : 'to the top level'}.`
+        )
         break
       }
       case 'update-page': {
@@ -366,7 +380,9 @@ export function planActions(actions: readonly HermanAction[], env: ActionEnv): A
         if (action.title) props.title = toRichText(action.title)
         if (action.icon) props.icon = action.icon
         plan.ops.push({ op: 'update', id: block.id, patch: { props } })
-        plan.done.push(action.title ? `Renamed ${quoted(nameOf(block))} to ${quoted(action.title)}.` : `Gave ${quoted(nameOf(block))} a new icon.`)
+        plan.done.push(
+          action.title ? `Renamed ${quoted(nameOf(block))} to ${quoted(action.title)}.` : `Gave ${quoted(nameOf(block))} a new icon.`
+        )
         if (action.title) made.set(block.id, action.title)
         parentChanged(parentNow(block.id))
         break
@@ -397,7 +413,11 @@ export function planActions(actions: readonly HermanAction[], env: ActionEnv): A
           if (!input) continue
           const props: BlockProps = {}
           const titleName = fold(L.getTitleProperty(schema)?.name ?? 'name')
-          if (Object.keys(cells).some((key) => fold(key) === 'name' || fold(key) === 'title' || fold(key) === titleName) && input.props?.title) props.title = input.props.title
+          if (
+            Object.keys(cells).some((key) => fold(key) === 'name' || fold(key) === 'title' || fold(key) === titleName) &&
+            input.props?.title
+          )
+            props.title = input.props.title
           const values = input.props?.values
           if (values && Object.keys(values).length) props.values = { ...(row.props.values ?? {}), ...values }
           if (!Object.keys(props).length) continue
@@ -410,7 +430,8 @@ export function planActions(actions: readonly HermanAction[], env: ActionEnv): A
         }
         plan.ops.push(...updates)
         if (changed) plan.done.push(`Changed ${count(changed, 'row')} of ${quoted(titleOf(source))}.`)
-        if (missing) plan.skipped.push(`${count(missing, 'row')} of ${quoted(titleOf(source))} ${missing === 1 ? 'was' : 'were'} not found.`)
+        if (missing)
+          plan.skipped.push(`${count(missing, 'row')} of ${quoted(titleOf(source))} ${missing === 1 ? 'was' : 'were'} not found.`)
         if (!changed && !missing) plan.skipped.push(`No rows of ${quoted(titleOf(source))} were changed: nothing new was said about them.`)
         if (changed) plan.open ??= block.id
         break

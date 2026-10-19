@@ -46,7 +46,13 @@ function RollupValue({ row, prop }: { row: Block; prop: PropertySchema }): JSX.E
     return (
       <span className="db-tags">
         {result.items.map((item, index) =>
-          item.option ? <OptionTag key={index} option={item.option} /> : <span key={index} className="db-text">{item.text}</span>
+          item.option ? (
+            <OptionTag key={index} option={item.option} />
+          ) : (
+            <span key={index} className="db-text">
+              {item.text}
+            </span>
+          )
         )}
       </span>
     )
@@ -74,7 +80,11 @@ function FormulaValue({ row, prop }: { row: Block; prop: PropertySchema }): JSX.
   }
   if (outcome.type === 'checkbox') {
     return (
-      <span className={outcome.value === true ? 'db-checkbox is-checked' : 'db-checkbox'} role="img" aria-label={outcome.value === true ? 'Yes' : 'No'}>
+      <span
+        className={outcome.value === true ? 'db-checkbox is-checked' : 'db-checkbox'}
+        role="img"
+        aria-label={outcome.value === true ? 'Yes' : 'No'}
+      >
         {outcome.value === true && <Check size={12} />}
       </span>
     )
@@ -305,7 +315,17 @@ function isRelatedType(type: PropertySchema['type']): boolean {
 }
 
 /** What a cell shows when it is not being edited: its value, or the placeholder when it is empty. */
-function CellBody({ row, prop, placeholder, cells }: { row: Block; prop: PropertySchema; placeholder?: string; cells?: L.CellContext }): JSX.Element | null {
+function CellBody({
+  row,
+  prop,
+  placeholder,
+  cells
+}: {
+  row: Block
+  prop: PropertySchema
+  placeholder?: string
+  cells?: L.CellContext
+}): JSX.Element | null {
   const isEmpty = prop.type !== 'title' && !hasDisplayValue(row, prop, cells)
   return isEmpty && placeholder ? <span className="db-text is-muted">{placeholder}</span> : <CellDisplay row={row} prop={prop} />
 }

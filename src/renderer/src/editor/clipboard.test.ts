@@ -102,7 +102,13 @@ describe('parseClipNodes', () => {
     const count = (nodes: ClipNode[]): number => nodes.reduce((n, x) => n + 1 + count(x.children), 0)
     const wide = Array.from({ length: MAX_CLIP_NODES + 500 }, () => node('text'))
     expect(count(parseClipNodes(wide))).toBe(MAX_CLIP_NODES)
-    const fanOut = Array.from({ length: 100 }, () => node('text', {}, Array.from({ length: 100 }, () => node('text'))))
+    const fanOut = Array.from({ length: 100 }, () =>
+      node(
+        'text',
+        {},
+        Array.from({ length: 100 }, () => node('text'))
+      )
+    )
     expect(count(parseClipNodes(fanOut))).toBe(MAX_CLIP_NODES)
   })
 })
@@ -110,7 +116,12 @@ describe('parseClipNodes', () => {
 describe('cleanProps', () => {
   it('validates rich text marks', () => {
     const title = [['a', [['b'], ['zz'], ['a', 'javascript:alert(1)'], ['h', 'x" onload="y']]], ['b', [['a', 'https://ok.dev']]], [1], 'x']
-    expect(cleanProps('text', { title })).toEqual({ title: [['a', [['b']]], ['b', [['a', 'https://ok.dev']]]] })
+    expect(cleanProps('text', { title })).toEqual({
+      title: [
+        ['a', [['b']]],
+        ['b', [['a', 'https://ok.dev']]]
+      ]
+    })
     expect(cleanProps('text', { title: 'not rich text' })).toEqual({ title: [] })
   })
 
@@ -135,7 +146,14 @@ describe('cleanProps', () => {
   })
 
   it('flattens code to plain text', () => {
-    expect(cleanProps('code', { title: [['let ', [['b']]], ['x', [['a', 'https://x.dev']]]] })).toEqual({ title: [['let x']] })
+    expect(
+      cleanProps('code', {
+        title: [
+          ['let ', [['b']]],
+          ['x', [['a', 'https://x.dev']]]
+        ]
+      })
+    ).toEqual({ title: [['let x']] })
   })
 
   it.each([
@@ -274,7 +292,10 @@ describe('linked database views', () => {
 
   it('keeps the figures of a calculations view, and its place beside the block before it', () => {
     const calcs = [{ id: 'c1', name: 'Total', formula: 'sum(Points)', format: 'number' }]
-    const cleaned = cleanViews([{ id: 'v', type: 'calc', calcs: [...calcs, { id: 'c2', name: 'No formula' }, 'junk'] }, { id: 'w', type: 'table', calcs: 'junk' }])
+    const cleaned = cleanViews([
+      { id: 'v', type: 'calc', calcs: [...calcs, { id: 'c2', name: 'No formula' }, 'junk'] },
+      { id: 'w', type: 'table', calcs: 'junk' }
+    ])
     expect(cleaned[0]).toEqual({ id: 'v', name: '', type: 'calc', visibleProperties: [], filters: [], sorts: [], calcs })
     expect(cleaned[1]).not.toHaveProperty('calcs')
     expect(cleanProps('database', { sourceId: 'src-1', beside: true } as never)).toEqual({ sourceId: 'src-1', views: [], beside: true })
@@ -310,7 +331,13 @@ describe('linked database views', () => {
     expect(ids).toEqual(['new-1', 'new-2'])
     expect(ops[0]).toEqual({
       op: 'create',
-      input: { id: 'new-1', type: 'database', parentId: 'target', afterId: 'after-me', props: { sourceId: 'src-1', views, title: [['Mine']] } }
+      input: {
+        id: 'new-1',
+        type: 'database',
+        parentId: 'target',
+        afterId: 'after-me',
+        props: { sourceId: 'src-1', views, title: [['Mine']] }
+      }
     })
     // The pasted view does not share its views array with the original.
     const created = ops[0].op === 'create' ? ops[0].input.props : undefined
@@ -376,7 +403,10 @@ describe('serializeBlocks / buildCreateOps', () => {
     const { ops, ids } = buildCreateOps(serializeBlocks(get, ['a']), 'page', 'a', () => `new${++n}`)
     expect(ids).toEqual(['new1'])
     expect(ops).toEqual([
-      { op: 'create', input: { id: 'new1', type: 'toggle', parentId: 'page', afterId: 'a', props: { title: [['A']], collapsed: true, color: 'red' } } },
+      {
+        op: 'create',
+        input: { id: 'new1', type: 'toggle', parentId: 'page', afterId: 'a', props: { title: [['A']], collapsed: true, color: 'red' } }
+      },
       { op: 'create', input: { id: 'new2', type: 'to_do', parentId: 'new1', afterId: null, props: { title: [['A1']], checked: true } } }
     ])
   })
@@ -399,7 +429,11 @@ describe('nodesToText', () => {
   it('writes Markdown-ish text with numbering and indentation', () => {
     const nodes: ClipNode[] = [
       { type: 'heading_1', props: { title: [['Title']] }, children: [] },
-      { type: 'numbered_list', props: { title: [['one']] }, children: [{ type: 'bulleted_list', props: { title: [['sub']] }, children: [] }] },
+      {
+        type: 'numbered_list',
+        props: { title: [['one']] },
+        children: [{ type: 'bulleted_list', props: { title: [['sub']] }, children: [] }]
+      },
       { type: 'numbered_list', props: { title: [['two']] }, children: [] },
       { type: 'to_do', props: { title: [['done']], checked: true }, children: [] },
       { type: 'code', props: { title: [['x = 1']], language: 'python' }, children: [] },

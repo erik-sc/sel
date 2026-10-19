@@ -45,15 +45,7 @@ export function Segmented<T extends string>({
 }
 
 /** A button that asks for a second click before acting. */
-export function ConfirmButton({
-  label,
-  confirmLabel,
-  onConfirm
-}: {
-  label: string
-  confirmLabel: string
-  onConfirm: () => void
-}) {
+export function ConfirmButton({ label, confirmLabel, onConfirm }: { label: string; confirmLabel: string; onConfirm: () => void }) {
   const [armed, setArmed] = useState(false)
   useEffect(() => {
     if (!armed) return
@@ -328,14 +320,7 @@ function FontControl({ token, value, commit }: ControlProps) {
   const fallback = fallbackFor(token)
   return (
     <>
-      <TextField
-        label={token.label}
-        className="is-wide"
-        value={value}
-        commit={commit}
-        list={listId}
-        onFocus={load}
-      />
+      <TextField label={token.label} className="is-wide" value={value} commit={commit} list={listId} onFocus={load} />
       <datalist id={listId}>
         {FONT_SUGGESTIONS.map((stack) => (
           <option key={stack} value={stack} />

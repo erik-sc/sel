@@ -53,20 +53,10 @@ export function WindowControls() {
         onClick={() => window.api.app.window.toggleMaximize()}
       >
         <svg {...icon} aria-hidden="true">
-          {maximized ? (
-            <path d="M2.5 2.5v-2h7v7h-2M.5 2.5h7v7h-7z" />
-          ) : (
-            <path d="M.5.5h9v9h-9z" />
-          )}
+          {maximized ? <path d="M2.5 2.5v-2h7v7h-2M.5 2.5h7v7h-7z" /> : <path d="M.5.5h9v9h-9z" />}
         </svg>
       </button>
-      <button
-        type="button"
-        className="is-close"
-        aria-label="Close"
-        tabIndex={-1}
-        onClick={() => window.api.app.window.close()}
-      >
+      <button type="button" className="is-close" aria-label="Close" tabIndex={-1} onClick={() => window.api.app.window.close()}>
         <svg {...icon} aria-hidden="true">
           <path d="M0 0l10 10M10 0L0 10" />
         </svg>

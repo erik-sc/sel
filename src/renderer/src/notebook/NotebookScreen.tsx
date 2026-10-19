@@ -32,7 +32,17 @@ function withToday(view: NotebookView, entry: NotebookEntry): NotebookView {
   return { ...view, todayEntry: entry, entries }
 }
 
-function TodayLine({ view, copy, onWritten, onEnded }: { view: NotebookView; copy: NotebookCopy; onWritten: (entry: NotebookEntry) => void; onEnded: () => void }): JSX.Element {
+function TodayLine({
+  view,
+  copy,
+  onWritten,
+  onEnded
+}: {
+  view: NotebookView
+  copy: NotebookCopy
+  onWritten: (entry: NotebookEntry) => void
+  onEnded: () => void
+}): JSX.Element {
   const stored = view.todayEntry?.text ?? ''
   const [draft, setDraft] = useState(stored)
   const [status, setStatus] = useState<Status>('idle')
@@ -132,7 +142,10 @@ function TodayLine({ view, copy, onWritten, onEnded }: { view: NotebookView; cop
         }}
       />
       <div className="notebook-meta">
-        <span className={status === 'failed' || status === 'ended' ? 'notebook-note is-alert' : 'notebook-note'} role={status === 'failed' || status === 'ended' ? 'alert' : undefined}>
+        <span
+          className={status === 'failed' || status === 'ended' ? 'notebook-note is-alert' : 'notebook-note'}
+          role={status === 'failed' || status === 'ended' ? 'alert' : undefined}
+        >
           {note}
         </span>
         <span className="notebook-status" role="status" aria-live="polite">
@@ -190,7 +203,10 @@ export function NotebookScreen(): JSX.Element {
     }
   }, [load])
 
-  const onWritten = useCallback((entry: NotebookEntry) => setView((current) => (current && current.today === entry.day ? withToday(current, entry) : current)), [])
+  const onWritten = useCallback(
+    (entry: NotebookEntry) => setView((current) => (current && current.today === entry.day ? withToday(current, entry) : current)),
+    []
+  )
 
   if (!view) {
     const copy = COPY.en

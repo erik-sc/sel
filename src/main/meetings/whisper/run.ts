@@ -90,10 +90,15 @@ export function parseWhisperJson(text: string): WhisperOutput {
     throw new Error('The transcription program wrote something that is not JSON.')
   }
   const root = data as { result?: { language?: unknown }; transcription?: unknown } | null
-  if (!root || typeof root !== 'object' || !Array.isArray(root.transcription)) throw new Error('The transcription program wrote a result sel does not understand.')
+  if (!root || typeof root !== 'object' || !Array.isArray(root.transcription))
+    throw new Error('The transcription program wrote a result sel does not understand.')
   const language = typeof root.result?.language === 'string' && LANGUAGE_RE.test(root.result.language) ? root.result.language : null
   const segments: Segment[] = []
-  for (const item of root.transcription.slice(0, MAX_SEGMENTS) as { offsets?: { from?: unknown; to?: unknown }; timestamps?: { from?: unknown; to?: unknown }; text?: unknown }[]) {
+  for (const item of root.transcription.slice(0, MAX_SEGMENTS) as {
+    offsets?: { from?: unknown; to?: unknown }
+    timestamps?: { from?: unknown; to?: unknown }
+    text?: unknown
+  }[]) {
     if (!item || typeof item !== 'object' || typeof item.text !== 'string') continue
     const from = typeof item.offsets?.from === 'number' ? item.offsets.from / 1000 : stampSeconds(item.timestamps?.from)
     const to = typeof item.offsets?.to === 'number' ? item.offsets.to / 1000 : stampSeconds(item.timestamps?.to)
@@ -127,13 +132,11 @@ export class WhisperError extends Error {
 /** The last thing the program said, without colours and without paths (which name the user's folders). */
 export function sanitiseStderr(text: string): string | undefined {
   const lines = text
-    // eslint-disable-next-line no-control-regex
     .replace(/\u001b\[[0-9;]*[A-Za-z]/g, '')
     .split(/\r?\n/)
     .map((line) =>
       line
         .replace(/(?:[A-Za-z]:)?(?:[\\/][^\\/\s'":]+){2,}/g, '…')
-        // eslint-disable-next-line no-control-regex
         .replace(/[\u0000-\u001f\u007f]/g, ' ')
         .trim()
     )
@@ -142,7 +145,19 @@ export function sanitiseStderr(text: string): string | undefined {
   return last ? last.slice(0, 200) : undefined
 }
 
-const ENV_KEEP: ReadonlySet<string> = new Set(['SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'TMPDIR', 'HOME', 'USERPROFILE', 'LANG', 'LC_ALL', 'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE'])
+const ENV_KEEP: ReadonlySet<string> = new Set([
+  'SYSTEMROOT',
+  'WINDIR',
+  'TEMP',
+  'TMP',
+  'TMPDIR',
+  'HOME',
+  'USERPROFILE',
+  'LANG',
+  'LC_ALL',
+  'NUMBER_OF_PROCESSORS',
+  'PROCESSOR_ARCHITECTURE'
+])
 
 /** The child's environment: what a program needs to start, and a PATH of system folders only. */
 export function whisperEnv(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): Record<string, string> {
@@ -257,14 +272,21 @@ export function runWhisper(run: WhisperRun): Promise<WhisperOutput> {
           // The result file is gone before anybody hears of the result, whichever way it went.
           .finally(() => rm(jsonFile, { force: true }).catch(() => undefined))
           .then((text) => resolve(parseWhisperJson(text)))
-          .catch((err: unknown) => reject(new WhisperError('failed', err instanceof Error && !('code' in err) ? err.message.slice(0, 200) : 'It wrote no result.')))
+          .catch((err: unknown) =>
+            reject(new WhisperError('failed', err instanceof Error && !('code' in err) ? err.message.slice(0, 200) : 'It wrote no result.'))
+          )
       })
     })
   })
 }
 
 /** Runs the program with one flag and returns what it printed (`--help`, `--version`). Never rejects. */
-export function probeWhisper(program: WhisperProgram, flag: '--help' | '--version', cwd: string, timeoutMs = 10_000): Promise<{ ran: boolean; code: number | null; output: string }> {
+export function probeWhisper(
+  program: WhisperProgram,
+  flag: '--help' | '--version',
+  cwd: string,
+  timeoutMs = 10_000
+): Promise<{ ran: boolean; code: number | null; output: string }> {
   return new Promise((resolve) => {
     const script = program.kind === 'node-script'
     let child: ChildProcess

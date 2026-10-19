@@ -47,7 +47,12 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { id: 'open-settings', label: 'Settings', command: 'open-settings', keywords: ['preferences'] },
       { id: 'toggle-theme', label: 'Light or dark theme', command: 'toggle-theme', keywords: ['dark mode'] },
       { id: 'toggle-sidebar', label: 'Show or hide the sidebar', command: 'toggle-sidebar' },
-      { id: 'toggle-focus-mode', label: 'Focus mode: only the page', command: 'toggle-focus-mode', keywords: ['zen', 'distraction', 'writing', 'hide'] },
+      {
+        id: 'toggle-focus-mode',
+        label: 'Focus mode: only the page',
+        command: 'toggle-focus-mode',
+        keywords: ['zen', 'distraction', 'writing', 'hide']
+      },
       { id: 'focus-leave', label: 'Leave focus mode, when nothing else takes the key', keys: ['Escape'], keywords: ['zen'] },
       { id: 'new-window', label: 'New window', command: 'new-window' }
     ]
@@ -72,11 +77,21 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { id: 'open-tasks', label: 'Tasks', command: 'open-tasks', keywords: ['todo'] },
       { id: 'add-task', label: 'Add a task', command: 'add-task', keywords: ['quick add', 'todo'] },
       { id: 'add-task-here', label: 'Add a task, on the Tasks screen', keys: ['Q'], keywords: ['quick add'] },
-      { id: 'open-notebook', label: 'Meditations', command: 'open-notebook', keywords: ['meditações', 'journal', 'diary', 'notebook', 'ink', 'caderno'] },
+      {
+        id: 'open-notebook',
+        label: 'Meditations',
+        command: 'open-notebook',
+        keywords: ['meditações', 'journal', 'diary', 'notebook', 'ink', 'caderno']
+      },
       { id: 'open-sky', label: 'Sky', command: 'open-sky', keywords: ['céu', 'stars', 'estrelas', 'constellations', 'garden', 'jardim'] },
       { id: 'calendar-day', label: 'A day earlier or later, in the calendar', keys: ['Left', 'Right'] },
       { id: 'calendar-week', label: 'A week earlier or later, in the calendar', keys: ['Up', 'Down'] },
-      { id: 'start-pomodoro', label: 'Start a pomodoro, or show its controls', command: 'start-pomodoro', keywords: ['timer', 'focus', 'break'] }
+      {
+        id: 'start-pomodoro',
+        label: 'Start a pomodoro, or show its controls',
+        command: 'start-pomodoro',
+        keywords: ['timer', 'focus', 'break']
+      }
     ]
   },
   {
@@ -172,7 +187,12 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
       { id: 'herman-send', label: 'Send the message', keys: ['Enter'], ai: true },
       { id: 'herman-line', label: 'New line in the message', keys: ['Shift+Enter'], ai: true },
       { id: 'herman-stop', label: 'Stop the answer, or close the conversation', keys: ['Escape'], ai: true },
-      { id: 'herman-corner', label: 'Move Herman to another corner, when he has the focus', keys: ['Up', 'Down', 'Left', 'Right'], ai: true }
+      {
+        id: 'herman-corner',
+        label: 'Move Herman to another corner, when he has the focus',
+        keys: ['Up', 'Down', 'Left', 'Right'],
+        ai: true
+      }
     ]
   }
 ]

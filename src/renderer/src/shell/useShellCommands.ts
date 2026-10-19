@@ -8,10 +8,7 @@ import { runMenuCommand } from './menuCommands'
 import { escapeLeavesFocus } from './focusMode'
 
 function isEditable(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')
-  )
+  return target instanceof HTMLElement && (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')
 }
 
 /** Wires menu commands from the main process plus the renderer-side shortcuts. */

@@ -27,8 +27,24 @@ function tasksDatabase(repo: Repository, props: Record<string, unknown> = {}): B
       title: [['Tasks']],
       schema: {
         title: { id: 'title', name: 'Name', type: 'title' },
-        s: { id: 's', name: 'Status', type: 'select', options: [{ id: 'o1', name: 'Doing', color: 'blue' }, { id: 'o2', name: 'Done', color: 'green' }] },
-        t: { id: 't', name: 'Tags', type: 'multi_select', options: [{ id: 'g1', name: 'home', color: 'gray' }, { id: 'g2', name: 'work', color: 'red' }] },
+        s: {
+          id: 's',
+          name: 'Status',
+          type: 'select',
+          options: [
+            { id: 'o1', name: 'Doing', color: 'blue' },
+            { id: 'o2', name: 'Done', color: 'green' }
+          ]
+        },
+        t: {
+          id: 't',
+          name: 'Tags',
+          type: 'multi_select',
+          options: [
+            { id: 'g1', name: 'home', color: 'gray' },
+            { id: 'g2', name: 'work', color: 'red' }
+          ]
+        },
         d: { id: 'd', name: 'Due', type: 'date' },
         c: { id: 'c', name: 'Done', type: 'checkbox' },
         n: { id: 'n', name: 'Points', type: 'number' },
@@ -109,7 +125,9 @@ describe('the writing tools', () => {
       }
       throw new Error('accepted')
     }
-    expect(refuse({ Owner: 'me' })).toBe('Tasks has no property “Owner”. Its properties: “Name”, “Status”, “Tags”, “Due”, “Done”, “Points”.')
+    expect(refuse({ Owner: 'me' })).toBe(
+      'Tasks has no property “Owner”. Its properties: “Name”, “Status”, “Tags”, “Due”, “Done”, “Points”.'
+    )
     expect(refuse({ Status: 'Later' })).toBe('Status has no option “Later”. Its options: “Doing”, “Done”.')
     expect(refuse({ Due: 'next friday' })).toMatch(/^Due: a date is "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"/)
     expect(refuse({ Due: '2026-02-30' })).toMatch(/^Due: a date/)
@@ -119,15 +137,24 @@ describe('the writing tools', () => {
     expect(repo.children(db.id)).toHaveLength(1)
     // A linked view adds to the database it shows.
     const view = repo.create({ type: 'database', parentId: null, props: { title: [['Mine']], sourceId: db.id } })
-    write(repo, 'add_database_row', { database: view.id, values: { Name: 'Through the view', Due: { start: '2026-10-21', end: '2026-10-23' } } })
-    expect(repo.children(db.id).map((r) => r.props.values?.['d'])).toEqual([{ start: '2026-10-20T09:30' }, { start: '2026-10-21', end: '2026-10-23' }])
+    write(repo, 'add_database_row', {
+      database: view.id,
+      values: { Name: 'Through the view', Due: { start: '2026-10-21', end: '2026-10-23' } }
+    })
+    expect(repo.children(db.id).map((r) => r.props.values?.['d'])).toEqual([
+      { start: '2026-10-20T09:30' },
+      { start: '2026-10-21', end: '2026-10-23' }
+    ])
   })
 
   it('update a row: the values named change, null clears, the rest stays', () => {
     const db = tasksDatabase(repo)
     const row = repo.create({ type: 'page', parentId: db.id, props: { title: [['Book a room']], values: { s: 'o1', c: false, n: 2 } } })
     clock += 60 * 60_000
-    const said = write(repo, 'update_database_row', { id: row.id, values: { Status: 'Done', Due: '2026-11-01', Points: null, Name: 'Book the room' } })
+    const said = write(repo, 'update_database_row', {
+      id: row.id,
+      values: { Status: 'Done', Due: '2026-11-01', Points: null, Name: 'Book the room' }
+    })
     expect(said).toBe(`Updated Book the room [${row.id}] in Tasks [${db.id}] (database): Status, Due, Points, Name.`)
     expect(repo.get(row.id)!.props.values).toEqual({ s: 'o2', c: false, d: { start: '2026-11-01' } })
     // A row's values belong to the history of its database.
@@ -139,9 +166,13 @@ describe('the writing tools', () => {
   it('refuse to write into a built-in database with a message that can be read', () => {
     const builtin = tasksDatabase(repo, { system: 'tasks' })
     expect(builtin.props.system).toBe('tasks')
-    expect(() => write(repo, 'append_to_page', { id: builtin.id, markdown: 'hello' })).toThrow(`Tasks [${builtin.id}] (database) is a database: add a row to it with add_database_row.`)
+    expect(() => write(repo, 'append_to_page', { id: builtin.id, markdown: 'hello' })).toThrow(
+      `Tasks [${builtin.id}] (database) is a database: add a row to it with add_database_row.`
+    )
     expect(() => write(repo, 'create_page', { parent: builtin.id })).toThrow(/is a database/)
-    expect(() => write(repo, 'update_database_row', { id: builtin.id, values: { Name: 'Renamed' } })).toThrow('No row of a database has that id.')
+    expect(() => write(repo, 'update_database_row', { id: builtin.id, values: { Name: 'Renamed' } })).toThrow(
+      'No row of a database has that id.'
+    )
     // Rows of it come and go as in any database.
     expect(write(repo, 'add_database_row', { database: builtin.id, values: { Name: 'Buy milk' } })).toContain('Buy milk')
     expect(repo.get(builtin.id)!.props.system).toBe('tasks')
@@ -179,14 +210,23 @@ describe('the endpoint for other apps', () => {
     const found = discovery(dir)
     expect(found.pipe).toBe(pipeName(dir, found.token))
     if (process.platform !== 'win32') expect(statSync(join(dir, DISCOVERY_FILE)).mode & 0o777).toBe(0o600)
-    expect(endpoint.answer(JSON.stringify({ token: found.token, id: 1, name: 'search', args: { query: 'x' } }))).toEqual({ id: 1, text: 'ok' })
-    expect(endpoint.answer(JSON.stringify({ token: 'f'.repeat(48), id: 2, name: 'search' }))).toEqual({ id: 2, error: EXTERNAL_MESSAGES.refused })
+    expect(endpoint.answer(JSON.stringify({ token: found.token, id: 1, name: 'search', args: { query: 'x' } }))).toEqual({
+      id: 1,
+      text: 'ok'
+    })
+    expect(endpoint.answer(JSON.stringify({ token: 'f'.repeat(48), id: 2, name: 'search' }))).toEqual({
+      id: 2,
+      error: EXTERNAL_MESSAGES.refused
+    })
     expect(endpoint.answer(JSON.stringify({ id: 3, name: 'search' }))).toEqual({ id: 3, error: EXTERNAL_MESSAGES.refused })
     expect(endpoint.answer('{oops')).toEqual({ id: null, error: 'Not understood.' })
     await endpoint.stop(false)
     expect(existsSync(join(dir, DISCOVERY_FILE))).toBe(true)
     // Closed, the endpoint answers nothing, even with the right token.
-    expect(endpoint.answer(JSON.stringify({ token: found.token, id: 4, name: 'search' }))).toEqual({ id: 4, error: EXTERNAL_MESSAGES.refused })
+    expect(endpoint.answer(JSON.stringify({ token: found.token, id: 4, name: 'search' }))).toEqual({
+      id: 4,
+      error: EXTERNAL_MESSAGES.refused
+    })
     await endpoint.start()
     expect(discovery(dir).token).toBe(found.token)
     await endpoint.stop(true)
@@ -218,7 +258,8 @@ describe('the endpoint for other apps', () => {
     const { endpoint, dir } = make({ limits: { perMinute: 3, argsChars: 100 }, now: () => now })
     await endpoint.start()
     const { token } = discovery(dir)
-    const call = (id: number, name: string, args: unknown = {}): { error?: string; text?: string } => endpoint.answer(JSON.stringify({ token, id, name, args }))
+    const call = (id: number, name: string, args: unknown = {}): { error?: string; text?: string } =>
+      endpoint.answer(JSON.stringify({ token, id, name, args }))
     expect(call(1, 'read_page', { id: 'secret-page' }).text).toBe('ok')
     expect(call(2, 'search', { query: 'x'.repeat(200) }).error).toBe('That call is too large for sel (at most 0 KB of arguments).')
     expect(call(3, 'nonsense').text).toBe('ok')
@@ -236,7 +277,11 @@ describe('the endpoint for other apps', () => {
   })
 
   it('says what the repository refused, but nothing of what the system said', async () => {
-    const errors = [new ToolError('No page has that id.'), new Error('A built-in database cannot be moved'), Object.assign(new Error('SQLITE_BUSY: C:\\Users\\me\\sel.db'), { code: 'SQLITE_BUSY' })]
+    const errors = [
+      new ToolError('No page has that id.'),
+      new Error('A built-in database cannot be moved'),
+      Object.assign(new Error('SQLITE_BUSY: C:\\Users\\me\\sel.db'), { code: 'SQLITE_BUSY' })
+    ]
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const { endpoint, dir } = make({
       run: () => {
@@ -256,7 +301,10 @@ describe('the endpoint for other apps', () => {
   it('writes through the repository and tells the windows and sync what changed', async () => {
     const repo = openTestRepository()
     const delivered: ChangeEvent[] = []
-    const feed = new ChangeFeed((change) => delivered.push(change), (flush) => flush())
+    const feed = new ChangeFeed(
+      (change) => delivered.push(change),
+      (flush) => flush()
+    )
     let synced = 0
     const dir = mkdtempSync(join(tmpdir(), 'sel-mcp-'))
     dirs.push(dir)
@@ -290,20 +338,37 @@ describe('the endpoint for other apps', () => {
 describe('the discovery file and the setup snippets', () => {
   it('accept only what sel writes', () => {
     const token = 'a'.repeat(48)
-    expect(parseDiscovery(JSON.stringify({ version: 1, pipe: '\\\\.\\pipe\\x', token }))).toEqual({ version: 1, pipe: '\\\\.\\pipe\\x', token })
-    for (const bad of ['', 'null', '[]', JSON.stringify({ version: 2, pipe: 'p', token }), JSON.stringify({ version: 1, pipe: '', token }), JSON.stringify({ version: 1, pipe: 'p', token: 'short' })]) {
+    expect(parseDiscovery(JSON.stringify({ version: 1, pipe: '\\\\.\\pipe\\x', token }))).toEqual({
+      version: 1,
+      pipe: '\\\\.\\pipe\\x',
+      token
+    })
+    for (const bad of [
+      '',
+      'null',
+      '[]',
+      JSON.stringify({ version: 2, pipe: 'p', token }),
+      JSON.stringify({ version: 1, pipe: '', token }),
+      JSON.stringify({ version: 1, pipe: 'p', token: 'short' })
+    ]) {
       expect(parseDiscovery(bad)).toBeNull()
     }
   })
 
   it('are found in the profile folder of an installed sel', () => {
-    expect(defaultDiscoveryPath('win32', { APPDATA: 'C:\\Users\\me\\AppData\\Roaming' }, 'C:\\Users\\me')).toBe(join('C:\\Users\\me\\AppData\\Roaming', 'sel', 'mcp.json'))
+    expect(defaultDiscoveryPath('win32', { APPDATA: 'C:\\Users\\me\\AppData\\Roaming' }, 'C:\\Users\\me')).toBe(
+      join('C:\\Users\\me\\AppData\\Roaming', 'sel', 'mcp.json')
+    )
     expect(defaultDiscoveryPath('darwin', {}, '/Users/me')).toBe(join('/Users/me', 'Library', 'Application Support', 'sel', 'mcp.json'))
     expect(defaultDiscoveryPath('linux', {}, '/home/me')).toBe(join('/home/me', '.config', 'sel', 'mcp.json'))
   })
 
   it('name this install’s executable, run as Node, with the script and the discovery file', () => {
-    const { claudeCode, claudeDesktop } = connectSnippets('C:\\Program Files\\sel\\sel.exe', 'C:\\Program Files\\sel\\resources\\app.asar\\out\\main\\mcp.js', 'C:\\Users\\me\\AppData\\Roaming\\sel\\mcp.json')
+    const { claudeCode, claudeDesktop } = connectSnippets(
+      'C:\\Program Files\\sel\\sel.exe',
+      'C:\\Program Files\\sel\\resources\\app.asar\\out\\main\\mcp.js',
+      'C:\\Users\\me\\AppData\\Roaming\\sel\\mcp.json'
+    )
     expect(claudeCode).toBe(
       'claude mcp add --scope user --env ELECTRON_RUN_AS_NODE=1 sel -- "C:\\Program Files\\sel\\sel.exe" "C:\\Program Files\\sel\\resources\\app.asar\\out\\main\\mcp.js" --discovery "C:\\Users\\me\\AppData\\Roaming\\sel\\mcp.json"'
     )
@@ -311,7 +376,11 @@ describe('the discovery file and the setup snippets', () => {
       mcpServers: {
         sel: {
           command: 'C:\\Program Files\\sel\\sel.exe',
-          args: ['C:\\Program Files\\sel\\resources\\app.asar\\out\\main\\mcp.js', '--discovery', 'C:\\Users\\me\\AppData\\Roaming\\sel\\mcp.json'],
+          args: [
+            'C:\\Program Files\\sel\\resources\\app.asar\\out\\main\\mcp.js',
+            '--discovery',
+            'C:\\Users\\me\\AppData\\Roaming\\sel\\mcp.json'
+          ],
           env: { ELECTRON_RUN_AS_NODE: '1' }
         }
       }
@@ -329,7 +398,14 @@ describe('the server script for other apps', () => {
   beforeAll(async () => {
     // The script as built: esbuild (a dependency of the build) bundles it as the app's build does.
     const { build } = await import('esbuild')
-    await build({ entryPoints: [join(__dirname, '..', 'mcp.ts')], bundle: true, platform: 'node', format: 'cjs', outfile: script, logLevel: 'silent' })
+    await build({
+      entryPoints: [join(__dirname, '..', 'mcp.ts')],
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      outfile: script,
+      logLevel: 'silent'
+    })
   }, 30_000)
 
   afterAll(async () => {
@@ -341,7 +417,10 @@ describe('the server script for other apps', () => {
   })
 
   /** Starts the script as an MCP client would: no grant in the environment, the discovery file on the command line. */
-  function client(discoveryPath: string, env: Record<string, string> = {}): { send: (message: unknown) => void; reply: (id: number) => Promise<Record<string, unknown>> } {
+  function client(
+    discoveryPath: string,
+    env: Record<string, string> = {}
+  ): { send: (message: unknown) => void; reply: (id: number) => Promise<Record<string, unknown>> } {
     const clean = { ...process.env, ...env }
     if (!env['SEL_TOOLS_PIPE']) delete clean['SEL_TOOLS_PIPE']
     if (!env['SEL_TOOLS_TOKEN']) delete clean['SEL_TOOLS_TOKEN']
@@ -374,12 +453,18 @@ describe('the server script for other apps', () => {
 
   it('says to turn the setting on when there is no discovery file, and still lists every tool', async () => {
     const { send, reply } = client(join(dir, 'nowhere', DISCOVERY_FILE))
-    send({ id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } })
+    send({
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } }
+    })
     const init = (await reply(1))['result'] as { instructions: string }
     expect(init.instructions).not.toMatch(/read-only/i)
     expect(init.instructions).toContain('Nothing can be deleted')
     send({ id: 2, method: 'tools/list' })
-    expect(((await reply(2))['result'] as { tools: { name: string }[] }).tools.map((tool) => tool.name)).toEqual(EXTERNAL_TOOL_SPECS.map((spec) => spec.name))
+    expect(((await reply(2))['result'] as { tools: { name: string }[] }).tools.map((tool) => tool.name)).toEqual(
+      EXTERNAL_TOOL_SPECS.map((spec) => spec.name)
+    )
     send({ id: 3, method: 'tools/call', params: { name: 'search', arguments: { query: 'x' } } })
     expect(text(await reply(3))).toEqual({ text: EXTERNAL_MESSAGES.off, isError: true })
   }, 20_000)
@@ -436,7 +521,8 @@ describe('the server script for other apps', () => {
     const host = new ToolHost({ source: () => repositorySource(repo, markdown), dir, execPath: process.execPath, script })
     try {
       const grant = await host.grant()
-      const { env } = (JSON.parse(readFileSync(grant.configPath, 'utf8')) as { mcpServers: { sel: { env: Record<string, string> } } }).mcpServers.sel
+      const { env } = (JSON.parse(readFileSync(grant.configPath, 'utf8')) as { mcpServers: { sel: { env: Record<string, string> } } })
+        .mcpServers.sel
       const { send, reply } = client(join(dir, 'unused.json'), env)
       send({ id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {} } })
       expect(((await reply(1))['result'] as { instructions: string }).instructions).toMatch(/^Read-only/)

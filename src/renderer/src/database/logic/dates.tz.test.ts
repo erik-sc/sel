@@ -48,7 +48,11 @@ describe('day strings never shift', () => {
     expect(L.addDays(day, 0)).toBe(day)
     expect(L.diffDays(day, L.addDays(day, 40))).toBe(40)
     const month = L.monthOf(day)
-    expect(L.calendarMatrix(month.year, month.month).flat().filter((d) => d.inMonth && d.date === day)).toHaveLength(1)
+    expect(
+      L.calendarMatrix(month.year, month.month)
+        .flat()
+        .filter((d) => d.inMonth && d.date === day)
+    ).toHaveLength(1)
   })
 
   it('formats the stored day, not the day before', () => {
@@ -124,8 +128,7 @@ describe('day strings never shift', () => {
     expect(byDay.get('2024-03-09')).toBeUndefined()
     expect(['2018-11-03', '2018-11-04', '2018-11-05'].map((d) => byDay.get(d)?.[0].id)).toEqual(['b', 'b', 'b'])
     const schema = { d: dateProp }
-    const on = (value: string): string[] =>
-      L.applyFilters(rows, schema, [{ propertyId: 'd', operator: 'equals', value }]).map((r) => r.id)
+    const on = (value: string): string[] => L.applyFilters(rows, schema, [{ propertyId: 'd', operator: 'equals', value }]).map((r) => r.id)
     expect(on('2024-03-10')).toEqual(['a', 'c'])
     expect(on('2024-03-09')).toEqual([])
     expect(on('2018-11-04')).toEqual(['b'])
@@ -148,7 +151,19 @@ describe('day strings never shift', () => {
 })
 
 describe('invalid dates never become Invalid Date', () => {
-  const bad = ['', ' ', 'soon', '2024-13-01', '2024-00-10', '2024-02-30', '2023-02-29', '2024-1', '2024-01-155', '0000-01-01', '99999-01-01']
+  const bad = [
+    '',
+    ' ',
+    'soon',
+    '2024-13-01',
+    '2024-00-10',
+    '2024-02-30',
+    '2023-02-29',
+    '2024-1',
+    '2024-01-155',
+    '0000-01-01',
+    '99999-01-01'
+  ]
 
   it.each(bad)('%j is rejected everywhere', (text) => {
     expect(L.parseISODate(text)).toBeNull()

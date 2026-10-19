@@ -7,8 +7,7 @@ import { openTestRepository } from './testing'
 let repo: Repository
 
 const ids = (blocks: Block[]): string[] => blocks.map((b) => b.id)
-const page = (title: string, parentId: string | null = null): Block =>
-  repo.create({ type: 'page', parentId, props: { title: [[title]] } })
+const page = (title: string, parentId: string | null = null): Block => repo.create({ type: 'page', parentId, props: { title: [[title]] } })
 const text = (title: string, parentId: string, afterId?: string | null): Block =>
   repo.create({ type: 'text', parentId, props: { title: [[title]] }, afterId })
 
@@ -572,7 +571,7 @@ describe('batches that reorder one parent many times', () => {
     const run = (batch: boolean): { order: string[]; newest: string[]; titles: unknown[] } => {
       const r = openTestRepository()
       const p = r.create({ id: 'p', type: 'page', parentId: null, props: { title: [['P']] } })
-      const q = r.create({ id: 'q', type: 'page', parentId: null, props: { title: [['Q']] } })
+      r.create({ id: 'q', type: 'page', parentId: null, props: { title: [['Q']] } })
       r.create({ id: 'old', type: 'text', parentId: p.id, props: { title: [['old']] } })
       const ops: Parameters<Repository['apply']>[0] = [
         { op: 'create', input: { id: 'a', type: 'text', parentId: 'p', props: { title: [['a']] } } },
@@ -697,9 +696,7 @@ describe('query plans', () => {
 
     // The only statement allowed to walk a whole table ("SCAN x" without "USING ... INDEX")
     // is the substring fallback of search, which has no index to use by design.
-    const scans = [...plans]
-      .filter(([, plan]) => /\bSCAN (blocks|b|c|p|blocks_fts_content)\b(?! USING)/.test(plan))
-      .map(([sql]) => sql)
+    const scans = [...plans].filter(([, plan]) => /\bSCAN (blocks|b|c|p|blocks_fts_content)\b(?! USING)/.test(plan)).map(([sql]) => sql)
     expect(scans).toEqual(["SELECT c0 AS id FROM blocks_fts_content WHERE c1 LIKE ? ESCAPE '\\' LIMIT ?"])
 
     const planOf = (fragment: string): string => {

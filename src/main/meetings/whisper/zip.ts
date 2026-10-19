@@ -93,7 +93,8 @@ export function readZipDirectory(archive: Buffer): ZipEntry[] {
     at += 46 + nameLength + extraLength + commentLength
 
     if (flags & 0x1) throw new ZipError('it is encrypted')
-    if (compressedSize === 0xffffffff || size === 0xffffffff || offset === 0xffffffff) throw new ZipError('zip64 archives are not supported')
+    if (compressedSize === 0xffffffff || size === 0xffffffff || offset === 0xffffffff)
+      throw new ZipError('zip64 archives are not supported')
     if (!isSafeEntryName(name)) throw new ZipError('it has an entry that points outside the folder')
     // Made on a Unix system: the high half of the attributes is the file mode. 0o12 is a symbolic link.
     if (madeBy >> 8 === 3 && ((external >>> 16) & 0o170000) === 0o120000) throw new ZipError('it contains a symbolic link')

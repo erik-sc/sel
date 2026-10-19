@@ -42,7 +42,8 @@ function tidy(title: string): string {
 
 const WORDS = {
   en: {
-    hello: (hour: number, name: string) => `${hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'}${name ? `, ${name}` : ''}.`,
+    hello: (hour: number, name: string) =>
+      `${hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'}${name ? `, ${name}` : ''}.`,
     noEvents: 'Nothing on the calendar today.',
     oneEvent: (title: string, time: string) => `One thing on the calendar: ${title}, at ${time}.`,
     events: (count: number, title: string, time: string) => `${count} things on the calendar; the next is ${title}, at ${time}.`,
@@ -81,7 +82,9 @@ const WORDS = {
     tasks: (today: number, overdue: number) => {
       const due = today === 1 ? 'uma tarefa para hoje' : `${today} tarefas para hoje`
       const late = overdue === 0 ? '' : overdue === 1 ? ' e uma atrasada' : ` e ${overdue} atrasadas`
-      return today === 0 ? `${overdue === 1 ? 'Uma tarefa atrasada' : `${overdue} tarefas atrasadas`}.` : `${due[0].toUpperCase()}${due.slice(1)}${late}.`
+      return today === 0
+        ? `${overdue === 1 ? 'Uma tarefa atrasada' : `${overdue} tarefas atrasadas`}.`
+        : `${due[0].toUpperCase()}${due.slice(1)}${late}.`
     },
     start: (title: string) => `Eu começaria por ${title}.`,
     end: 'É isso.',
@@ -145,7 +148,11 @@ export const reminderTitle = (locale: AlarmLocale): string => WORDS[locale].remi
  * one a meeting page is made from); the others due with it are named after it. `title` heads the
  * system's notification.
  */
-export function composeEvents(events: readonly { title: string; start: number; meeting: boolean }[], now: number, locale: AlarmLocale): Spoken & { title: string } {
+export function composeEvents(
+  events: readonly { title: string; start: number; meeting: boolean }[],
+  now: number,
+  locale: AlarmLocale
+): Spoken & { title: string } {
   const w = WORDS[locale]
   const [first, ...rest] = events
   const name = tidy(first.title) || w.untitled

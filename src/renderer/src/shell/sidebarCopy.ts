@@ -124,7 +124,17 @@ export const SIDEBAR_COPY: Record<SidebarLocale, SidebarCopy> = {
 }
 
 /** Words that find the sidebar's commands in the palette, in both languages. */
-export const SIDEBAR_KEYWORDS = ['sidebar', 'barra lateral', 'reorder', 'reordenar', 'hide', 'esconder', 'customize', 'personalizar', 'menu']
+export const SIDEBAR_KEYWORDS = [
+  'sidebar',
+  'barra lateral',
+  'reorder',
+  'reordenar',
+  'hide',
+  'esconder',
+  'customize',
+  'personalizar',
+  'menu'
+]
 
 export function sidebarLocale(aiLanguage: unknown, systemLocale: string | undefined): SidebarLocale {
   if (isAiLanguage(aiLanguage)) return aiLanguage === 'pt-BR' ? 'pt-BR' : 'en'

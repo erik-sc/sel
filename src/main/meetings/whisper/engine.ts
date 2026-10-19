@@ -1,7 +1,14 @@
 import { randomBytes } from 'node:crypto'
 import { readdir, readFile, rename, rm, stat } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import { isWhisperModel, MEETINGS_DEFAULTS, WHISPER_MODELS, type EngineDownload, type EngineStatus, type WhisperModelId } from '../../../shared/meetings'
+import {
+  isWhisperModel,
+  MEETINGS_DEFAULTS,
+  WHISPER_MODELS,
+  type EngineDownload,
+  type EngineStatus,
+  type WhisperModelId
+} from '../../../shared/meetings'
 import type { NetPolicy, Resolver } from '../../briefing/net'
 import { DownloadError, downloadVerified } from './download'
 import { DOWNLOAD_HOSTS, PINNED, PROGRAM_NAME, type PinnedSet } from './pinned'
@@ -88,11 +95,13 @@ export class WhisperEngine {
     return isWhisperModel(value) ? value : MEETINGS_DEFAULTS.model
   }
 
-  private async findProgram(): Promise<EngineStatus['program'] & { kind: WhisperProgram['kind'] } | null> {
+  private async findProgram(): Promise<(EngineStatus['program'] & { kind: WhisperProgram['kind'] }) | null> {
     const dev = this.options.devProgram
-    if (dev && (await isFile(dev)) !== null) return { path: dev, managed: false, version: 'development stand-in', kind: /\.(m|c)?js$/i.test(dev) ? 'node-script' : 'exe' }
+    if (dev && (await isFile(dev)) !== null)
+      return { path: dev, managed: false, version: 'development stand-in', kind: /\.(m|c)?js$/i.test(dev) ? 'node-script' : 'exe' }
     const chosen = this.text('meetings.whisperPath')
-    if (chosen && (await isFile(chosen)) !== null) return { path: chosen, managed: false, version: this.text('meetings.whisperVersion') ?? 'unknown', kind: 'exe' }
+    if (chosen && (await isFile(chosen)) !== null)
+      return { path: chosen, managed: false, version: this.text('meetings.whisperVersion') ?? 'unknown', kind: 'exe' }
     const own = join(this.managedDir, this.programName)
     if ((await isFile(own)) !== null) return { path: own, managed: true, version: this.pins.version, kind: 'exe' }
     return null
@@ -118,7 +127,13 @@ export class WhisperEngine {
     const [program, model] = await Promise.all([this.findProgram(), this.findModel()])
     const canDownload = this.pins.programs[this.platformKey] !== undefined
     const status: EngineStatus = {
-      state: !program ? (canDownload || this.text('meetings.whisperPath') ? 'missing-program' : 'unsupported') : !model ? 'missing-model' : 'ready',
+      state: !program
+        ? canDownload || this.text('meetings.whisperPath')
+          ? 'missing-program'
+          : 'unsupported'
+        : !model
+          ? 'missing-model'
+          : 'ready',
       canDownload,
       offer: {
         version: this.pins.version,
@@ -157,7 +172,13 @@ export class WhisperEngine {
     if (this.download) throw new Error('A download is already running.')
     const abort = new AbortController()
     this.lastError = undefined
-    const common = { hosts: this.options.hosts ?? DOWNLOAD_HOSTS, policy: this.options.policy, resolve: this.options.resolve, signal: abort.signal, freeBytes: this.options.freeBytes }
+    const common = {
+      hosts: this.options.hosts ?? DOWNLOAD_HOSTS,
+      policy: this.options.policy,
+      resolve: this.options.resolve,
+      signal: abort.signal,
+      freeBytes: this.options.freeBytes
+    }
     const work = async (): Promise<void> => {
       const archiveSpec = this.pins.programs[this.platformKey]
       if ((await isFile(join(this.managedDir, this.programName))) === null) {
@@ -165,7 +186,10 @@ export class WhisperEngine {
         const archive = join(this.options.dir, `program-${this.pins.version}.zip`)
         // An archive left by a run that ended between download and unpacking is not trusted: it is fetched and verified again.
         await rm(archive, { force: true })
-        await downloadVerified(archiveSpec, archive, { ...common, onProgress: (received, total) => this.progress('program', received, total) })
+        await downloadVerified(archiveSpec, archive, {
+          ...common,
+          onProgress: (received, total) => this.progress('program', received, total)
+        })
         this.progress('unpacking', archiveSpec.size, archiveSpec.size)
         try {
           await this.unpack(archive)
@@ -199,10 +223,14 @@ export class WhisperEngine {
       (err: unknown) => {
         this.download = null
         const cancelled = err instanceof DownloadError && err.reason === 'cancelled'
-        const message = err instanceof DownloadError || err instanceof ZipError || (err instanceof Error && !('code' in err)) ? err.message.slice(0, 300) : 'The download failed.'
+        const message =
+          err instanceof DownloadError || err instanceof ZipError || (err instanceof Error && !('code' in err))
+            ? err.message.slice(0, 300)
+            : 'The download failed.'
         if (!cancelled) {
           this.lastError = message
-          if (!(err instanceof DownloadError) && !(err instanceof ZipError)) console.error('[meetings] the engine could not be installed', err)
+          if (!(err instanceof DownloadError) && !(err instanceof ZipError))
+            console.error('[meetings] the engine could not be installed', err)
         }
         this.options.onDownload?.(null, { ok: false, message: cancelled ? undefined : message })
       }

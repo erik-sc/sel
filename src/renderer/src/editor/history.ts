@@ -23,7 +23,12 @@ function singleUpdate(ops: Op[]): { id: string; keys: string } | null {
   if (ops.length !== 1) return null
   const op = ops[0]
   if (op.op !== 'update' || op.patch.type !== undefined) return null
-  return { id: op.id, keys: Object.keys(op.patch.props ?? {}).sort().join(',') }
+  return {
+    id: op.id,
+    keys: Object.keys(op.patch.props ?? {})
+      .sort()
+      .join(',')
+  }
 }
 
 export class History<S> {

@@ -137,7 +137,12 @@ export function HistorySection(): JSX.Element {
               <span className="ap-row-help">Every page keeps a timeline of earlier states that you can browse, compare and restore.</span>
             </div>
             <div className="ap-row-control">
-              <Segmented label="Save versions automatically" value={settings.enabled ? 'on' : 'off'} options={ON_OFF} onChange={(value) => save('enabled', value === 'on')} />
+              <Segmented
+                label="Save versions automatically"
+                value={settings.enabled ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => save('enabled', value === 'on')}
+              />
             </div>
           </div>
           <NumberRow
@@ -186,7 +191,10 @@ export function HistorySection(): JSX.Element {
             </div>
           </div>
         </div>
-        <p className="ap-note">Older automatic versions are thinned out over time: one per hour after a day, one per day after a week, one per week after 90 days.</p>
+        <p className="ap-note">
+          Older automatic versions are thinned out over time: one per hour after a day, one per day after a week, one per week after 90
+          days.
+        </p>
       </section>
     </div>
   )

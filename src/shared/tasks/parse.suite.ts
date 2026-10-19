@@ -117,7 +117,10 @@ const CASES: [string, Expect, ParseOptions?][] = [
   ['Ligar @telefone @rua', { title: 'Ligar', labels: ['telefone', 'rua'] }],
   ['Mandar email para ana@exemplo.com', { title: 'Mandar email para ana@exemplo.com', labels: [] }],
   ['Item #1 da lista', { title: 'Item da lista', project: '1' }],
-  ['Pagar aluguel amanhã 9h p1 #Casa @contas', { title: 'Pagar aluguel', due: '2026-10-16T09:00', priority: 1, project: 'Casa', labels: ['contas'] }],
+  [
+    'Pagar aluguel amanhã 9h p1 #Casa @contas',
+    { title: 'Pagar aluguel', due: '2026-10-16T09:00', priority: 1, project: 'Casa', labels: ['contas'] }
+  ],
   // ---- reminders
   ['Consulta amanhã 15h lembrar 8h', { title: 'Consulta', due: '2026-10-16T15:00', remind: '2026-10-16T08:00' }],
   ['Consulta amanhã 15h lembrar 30 min antes', { title: 'Consulta', due: '2026-10-16T15:00', remind: '2026-10-16T14:30' }],
@@ -179,7 +182,11 @@ export function defineParseSuite(zone: string): void {
     })
 
     it('keeps the recurrence words for display', () => {
-      expect(parseTask('Academia toda seg e qua 7h', { now: NOW() }).recurrence).toEqual({ rule: 'FREQ=WEEKLY;BYDAY=MO,WE', from: 'due', text: 'toda seg e qua' })
+      expect(parseTask('Academia toda seg e qua 7h', { now: NOW() }).recurrence).toEqual({
+        rule: 'FREQ=WEEKLY;BYDAY=MO,WE',
+        from: 'due',
+        text: 'toda seg e qua'
+      })
     })
 
     it('counts days on the calendar across month and year ends', () => {

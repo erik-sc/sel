@@ -2,7 +2,16 @@
 // Alt+↑/↓), to show or hide, and a way back to the default. Writes the synced `sidebar` setting.
 import { useEffect, useRef, useState } from 'react'
 import type { DragEvent, JSX, KeyboardEvent } from 'react'
-import { dropItem, isDefaultSidebar, isMiddleItem, sidebarOrder, stepItem, zoneOf, type SidebarItemId, type SidebarZone } from '@shared/sidebar'
+import {
+  dropItem,
+  isDefaultSidebar,
+  isMiddleItem,
+  sidebarOrder,
+  stepItem,
+  zoneOf,
+  type SidebarItemId,
+  type SidebarZone
+} from '@shared/sidebar'
 import { acceleratorOf, formatAccelerator } from '@shared/shortcuts'
 import { Button } from '@/ui/Button'
 import { DragHandle } from '@/ui/icons'

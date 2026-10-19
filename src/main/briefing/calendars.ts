@@ -132,7 +132,15 @@ function fromCached(calendarId: string, cached: CachedEvent): BriefingEvent | nu
     end = localMidnight(cached.endDay)
   }
   if (typeof start !== 'number' || typeof end !== 'number' || !Number.isFinite(start) || !Number.isFinite(end)) return null
-  const event: BriefingEvent = { id: cached.id, calendarId, title: cached.title, start, end, allDay: cached.allDay, recurring: cached.recurring }
+  const event: BriefingEvent = {
+    id: cached.id,
+    calendarId,
+    title: cached.title,
+    start,
+    end,
+    allDay: cached.allDay,
+    recurring: cached.recurring
+  }
   if (cached.location) event.location = cached.location
   if (cached.description) event.description = cached.description
   if (cached.uid) event.uid = cached.uid
@@ -147,7 +155,12 @@ function readCachedEvent(value: unknown): CachedEvent | null {
   if (!value || typeof value !== 'object') return null
   const raw = value as Record<string, unknown>
   if (typeof raw['id'] !== 'string' || typeof raw['title'] !== 'string') return null
-  const event: CachedEvent = { id: raw['id'].slice(0, 500), title: raw['title'].slice(0, 400), allDay: raw['allDay'] === true, recurring: raw['recurring'] === true }
+  const event: CachedEvent = {
+    id: raw['id'].slice(0, 500),
+    title: raw['title'].slice(0, 400),
+    allDay: raw['allDay'] === true,
+    recurring: raw['recurring'] === true
+  }
   if (typeof raw['start'] === 'number') event.start = raw['start']
   if (typeof raw['end'] === 'number') event.end = raw['end']
   if (typeof raw['startDay'] === 'string') event.startDay = raw['startDay'].slice(0, 10)
@@ -156,12 +169,17 @@ function readCachedEvent(value: unknown): CachedEvent | null {
   if (typeof raw['description'] === 'string') event.description = raw['description'].slice(0, 600)
   if (typeof raw['uid'] === 'string') event.uid = raw['uid'].slice(0, 400)
   if (raw['transparent'] === true) event.transparent = true
-  if (typeof raw['attendees'] === 'number' && Number.isInteger(raw['attendees']) && raw['attendees'] > 0) event.attendees = Math.min(raw['attendees'], 1000)
+  if (typeof raw['attendees'] === 'number' && Number.isInteger(raw['attendees']) && raw['attendees'] > 0)
+    event.attendees = Math.min(raw['attendees'], 1000)
   if (Array.isArray(raw['people'])) {
-    const people = (raw['people'] as unknown[]).filter((name): name is string => typeof name === 'string' && name.length > 0).slice(0, 50).map((name) => name.slice(0, 80))
+    const people = (raw['people'] as unknown[])
+      .filter((name): name is string => typeof name === 'string' && name.length > 0)
+      .slice(0, 50)
+      .map((name) => name.slice(0, 80))
     if (people.length) event.people = people
   }
-  if (typeof raw['meetingUrl'] === 'string' && raw['meetingUrl'].startsWith('https://') && raw['meetingUrl'].length <= 1000) event.meetingUrl = raw['meetingUrl']
+  if (typeof raw['meetingUrl'] === 'string' && raw['meetingUrl'].startsWith('https://') && raw['meetingUrl'].length <= 1000)
+    event.meetingUrl = raw['meetingUrl']
   return event
 }
 
@@ -172,10 +190,23 @@ function within(event: BriefingEvent, from: number, to: number): boolean {
 
 /** All-day first, then by start. */
 function byTime(a: BriefingEvent, b: BriefingEvent): number {
-  return a.allDay !== b.allDay ? (a.allDay ? -1 : 1) : a.start - b.start || a.end - b.end || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0)
+  return a.allDay !== b.allDay
+    ? a.allDay
+      ? -1
+      : 1
+    : a.start - b.start || a.end - b.end || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0)
 }
 
-const ERROR_CODES: ReadonlySet<string> = new Set(['offline', 'not-found', 'forbidden', 'not-calendar', 'too-large', 'timeout', 'blocked-address', 'failed'])
+const ERROR_CODES: ReadonlySet<string> = new Set([
+  'offline',
+  'not-found',
+  'forbidden',
+  'not-calendar',
+  'too-large',
+  'timeout',
+  'blocked-address',
+  'failed'
+])
 
 export class CalendarService {
   private cache: CacheFile | null = null
@@ -331,7 +362,9 @@ export class CalendarService {
    */
   async cover(from: number, to: number): Promise<void> {
     const cache = this.load()
-    const wanting = this.options.store.list().filter((entry) => entry.enabled && !this.parsed.has(entry.id) && !CalendarService.covers(cache.calendars[entry.id], from, to))
+    const wanting = this.options.store
+      .list()
+      .filter((entry) => entry.enabled && !this.parsed.has(entry.id) && !CalendarService.covers(cache.calendars[entry.id], from, to))
     await Promise.all(
       wanting.map(async (entry) => {
         // A read already under way may be a conditional one, which brings no file: wait it out first.
@@ -383,7 +416,11 @@ export class CalendarService {
         const event = fromCached(id, item)
         return !!event && (event.end > event.start ? event.start < to && event.end > today : event.start >= today && event.start < to)
       }).length
-    return { ok: true, today: count(startOfLocalDay(today + 26 * 3_600_000)), week: count(startOfLocalDay(today + 7 * DAY_MS + 2 * 3_600_000)) }
+    return {
+      ok: true,
+      today: count(startOfLocalDay(today + 26 * 3_600_000)),
+      week: count(startOfLocalDay(today + 7 * DAY_MS + 2 * 3_600_000))
+    }
   }
 
   private read(id: string, full: boolean): Promise<void> {
@@ -414,7 +451,11 @@ export class CalendarService {
     const to = from + (CALENDAR_TIMING.aheadDays + 2) * DAY_MS
     // The cached events cover a fixed span; once it runs short, an unchanged file is of no use
     // and the calendar is asked for in full.
-    const covered = previous.fetchedAt !== undefined && previous.to !== undefined && previous.to - now >= CALENDAR_TIMING.refetchDays * DAY_MS && !previous.error
+    const covered =
+      previous.fetchedAt !== undefined &&
+      previous.to !== undefined &&
+      previous.to - now >= CALENDAR_TIMING.refetchDays * DAY_MS &&
+      !previous.error
     const conditional = !full && covered
     const next: CachedCalendar = { ...previous, checkedAt: now }
     try {

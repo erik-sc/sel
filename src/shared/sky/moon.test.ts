@@ -15,15 +15,27 @@ function near(md: string): string[] {
 describe('moonPhase', () => {
   it('names the full moons of 2026, within a day', () => {
     for (const md of FULL_2026) {
-      expect(near(md).some((d) => phaseIndex(moonPhase(d)) === 4), md).toBe(true)
-      expect(near(md).some((d) => isFullMoonNight(d)), md).toBe(true)
+      expect(
+        near(md).some((d) => phaseIndex(moonPhase(d)) === 4),
+        md
+      ).toBe(true)
+      expect(
+        near(md).some((d) => isFullMoonNight(d)),
+        md
+      ).toBe(true)
     }
   })
 
   it('names the new moons of 2026, within a day', () => {
     for (const md of NEW_2026) {
-      expect(near(md).some((d) => phaseIndex(moonPhase(d)) === 0), md).toBe(true)
-      expect(near(md).some((d) => isNewMoonNight(d)), md).toBe(true)
+      expect(
+        near(md).some((d) => phaseIndex(moonPhase(d)) === 0),
+        md
+      ).toBe(true)
+      expect(
+        near(md).some((d) => isNewMoonNight(d)),
+        md
+      ).toBe(true)
     }
   })
 

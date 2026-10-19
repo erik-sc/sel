@@ -1,7 +1,16 @@
 process.env.TZ = 'America/Sao_Paulo'
 
 import { describe, expect, it, vi } from 'vitest'
-import { ALARMS_FIRED_KEY, ALARMS_SETTING, ALARMS_SNOOZED_KEY, cleanAlarmsSetting, cleanAlarmTimes, readAlarmSettings, SNOOZE_MS, type Announcement } from '../../shared/alarms'
+import {
+  ALARMS_FIRED_KEY,
+  ALARMS_SETTING,
+  ALARMS_SNOOZED_KEY,
+  cleanAlarmsSetting,
+  cleanAlarmTimes,
+  readAlarmSettings,
+  SNOOZE_MS,
+  type Announcement
+} from '../../shared/alarms'
 import type { Briefing, BriefingEvent, BriefingTask } from '../../shared/briefing'
 import type { Block, BlockProps } from '../../shared/types'
 import { expandCalendar, parseCalendar } from '../briefing/ical'
@@ -105,8 +114,23 @@ describe('reminders', () => {
 
 // ---- words ----
 
-const event = (title: string, start: number, end: number, allDay = false): BriefingEvent => ({ id: title, calendarId: 'c', title, start, end, allDay, recurring: false })
-const task = (title: string, due?: string): BriefingTask => ({ id: title, kind: 'row', title, pageId: title, source: 'Tasks', ...(due ? { due } : {}) })
+const event = (title: string, start: number, end: number, allDay = false): BriefingEvent => ({
+  id: title,
+  calendarId: 'c',
+  title,
+  start,
+  end,
+  allDay,
+  recurring: false
+})
+const task = (title: string, due?: string): BriefingTask => ({
+  id: title,
+  kind: 'row',
+  title,
+  pageId: title,
+  source: 'Tasks',
+  ...(due ? { due } : {})
+})
 
 describe('his words', () => {
   const now = local(2026, 10, 15, 8, 30)
@@ -116,15 +140,26 @@ describe('his words', () => {
       now,
       locale: 'pt-BR',
       name: 'Érik',
-      events: [event('Daily', local(2026, 10, 15, 10, 0), local(2026, 10, 15, 10, 30)), event('Almoço', local(2026, 10, 15, 12, 0), local(2026, 10, 15, 13, 0))],
+      events: [
+        event('Daily', local(2026, 10, 15, 10, 0), local(2026, 10, 15, 10, 30)),
+        event('Almoço', local(2026, 10, 15, 12, 0), local(2026, 10, 15, 13, 0))
+      ],
       tasks: { overdue: [task('Enviar proposta', '2026-10-13')], today: [task('Revisar plano'), task('Pagar conta')] }
     })
-    expect(text).toBe('Bom dia, Érik. 2 compromissos na agenda; o próximo é Daily, às 10:00. 2 tarefas para hoje e uma atrasada. Eu começaria por Enviar proposta. É isso.')
+    expect(text).toBe(
+      'Bom dia, Érik. 2 compromissos na agenda; o próximo é Daily, às 10:00. 2 tarefas para hoje e uma atrasada. Eu começaria por Enviar proposta. É isso.'
+    )
     expect(speech).toBe(text)
   })
 
   it('brief an empty day in English', () => {
-    const { text } = composeBriefing({ now: local(2026, 10, 15, 19, 0), locale: 'en', name: '', events: [], tasks: { overdue: [], today: [] } })
+    const { text } = composeBriefing({
+      now: local(2026, 10, 15, 19, 0),
+      locale: 'en',
+      name: '',
+      events: [],
+      tasks: { overdue: [], today: [] }
+    })
     expect(text).toBe('Good evening. Nothing on the calendar today. No tasks for today. That is all.')
   })
 
@@ -133,10 +168,15 @@ describe('his words', () => {
       now: local(2026, 10, 15, 18, 0),
       locale: 'en',
       name: 'Ana',
-      events: [event('Standup', local(2026, 10, 15, 9, 0), local(2026, 10, 15, 9, 15)), event('Holiday', local(2026, 10, 15), local(2026, 10, 16), true)],
+      events: [
+        event('Standup', local(2026, 10, 15, 9, 0), local(2026, 10, 15, 9, 15)),
+        event('Holiday', local(2026, 10, 15), local(2026, 10, 16), true)
+      ],
       tasks: { overdue: [task('Old thing')], today: [] }
     })
-    expect(text).toBe('Good evening, Ana. 1 things were on the calendar today; they are behind you. One all-day event. One task overdue. I would begin with Old thing. That is all.')
+    expect(text).toBe(
+      'Good evening, Ana. 1 things were on the calendar today; they are behind you. One all-day event. One task overdue. I would begin with Old thing. That is all.'
+    )
   })
 
   it('remind of a task', () => {
@@ -156,7 +196,14 @@ const settle = async (): Promise<void> => {
 
 function harness(
   settings: Record<string, unknown>,
-  options: { now: number; rows?: Block[]; recording?: boolean; write?: AlarmsDeps['writeBriefing']; events?: BriefingEvent[]; locale?: 'en' | 'pt-BR' }
+  options: {
+    now: number
+    rows?: Block[]
+    recording?: boolean
+    write?: AlarmsDeps['writeBriefing']
+    events?: BriefingEvent[]
+    locale?: 'en' | 'pt-BR'
+  }
 ) {
   const store = new Map<string, unknown>(Object.entries(settings))
   let now = options.now
@@ -190,7 +237,9 @@ function harness(
     },
     briefing: async () => day,
     tasks: () => (options.rows ? { database: db, rows: options.rows } : null),
-    ...(options.events ? { calendar: async (from: number, to: number) => options.events!.filter((e) => e.end > from && e.start < to) } : {}),
+    ...(options.events
+      ? { calendar: async (from: number, to: number) => options.events!.filter((e) => e.end > from && e.start < to) }
+      : {}),
     locale: () => options.locale ?? 'en',
     recording: () => options.recording === true,
     deliver: (a) => void said.push(a),
@@ -391,7 +440,16 @@ describe('event alarms', () => {
     expect(composeEvents([{ title: 'Dentist', start: ten, meeting: false }], ten - 10 * MIN, 'en').text).toBe('In 10 min: Dentist.')
     expect(composeEvents([{ title: 'Standup', start: ten, meeting: true }], ten, 'en').text).toBe('Meeting now: Standup.')
     expect(composeEvents([{ title: 'Standup', start: ten, meeting: true }], ten + 3 * MIN, 'pt-BR').text).toBe('Começou há 3 min: Standup.')
-    expect(composeEvents([{ title: 'A', start: ten, meeting: true }, { title: 'B', start: ten, meeting: false }], ten - 5 * MIN, 'en').text).toBe('Meeting in 5 min: A. Also: B.')
+    expect(
+      composeEvents(
+        [
+          { title: 'A', start: ten, meeting: true },
+          { title: 'B', start: ten, meeting: false }
+        ],
+        ten - 5 * MIN,
+        'en'
+      ).text
+    ).toBe('Meeting in 5 min: A. Also: B.')
   })
 
   it('ask to record a meeting, or every event, or none', () => {
@@ -403,9 +461,14 @@ describe('event alarms', () => {
 
   it('read back what was snoozed, and drop what is malformed or long past', () => {
     const now = ten
-    const entry = snoozeOf({ kind: 'event', events: [{ id: 'cal:a:1', title: 'A', start: ten, end: ten + MIN, meeting: true, ask: true }] }, now)
+    const entry = snoozeOf(
+      { kind: 'event', events: [{ id: 'cal:a:1', title: 'A', start: ten, end: ten + MIN, meeting: true, ask: true }] },
+      now
+    )
     expect(entry.at).toBe(now + SNOOZE_MS)
-    expect(readSnoozed([entry, { kind: 'event', at: now, events: [{ title: 'no id' }] }, { kind: 'other', at: now }, 'junk'], now)).toEqual([entry])
+    expect(readSnoozed([entry, { kind: 'event', at: now, events: [{ title: 'no id' }] }, { kind: 'other', at: now }, 'junk'], now)).toEqual(
+      [entry]
+    )
     expect(readSnoozed([entry], now + SNOOZE_MS + 16 * MIN)).toEqual([])
     expect(readSnoozed('junk', now)).toEqual([])
   })
@@ -415,7 +478,14 @@ describe('the clock and the calendar', () => {
   const ten = local(2026, 10, 15, 10, 0)
 
   it('announces an event its lead before, as a meeting that asks to be recorded', async () => {
-    const h = harness({}, { now: ten - 30 * MIN, events: [ev('Standup', ten, { attendees: 3, meetingUrl: 'https://meet.google.com/abc-defg-hij' })], locale: 'pt-BR' })
+    const h = harness(
+      {},
+      {
+        now: ten - 30 * MIN,
+        events: [ev('Standup', ten, { attendees: 3, meetingUrl: 'https://meet.google.com/abc-defg-hij' })],
+        locale: 'pt-BR'
+      }
+    )
     h.service.plan()
     await h.advance(ten - 6 * MIN)
     expect(h.said).toEqual([])
@@ -457,7 +527,13 @@ describe('the clock and the calendar', () => {
     off.service.plan()
     await off.advance(ten + 5 * MIN)
     expect(off.said).toEqual([])
-    const skipped = harness({}, { now: ten - 30 * MIN, events: [ev('Holiday', local(2026, 10, 15), { allDay: true, end: local(2026, 10, 16) }), ev('Focus', ten, { transparent: true })] })
+    const skipped = harness(
+      {},
+      {
+        now: ten - 30 * MIN,
+        events: [ev('Holiday', local(2026, 10, 15), { allDay: true, end: local(2026, 10, 16) }), ev('Focus', ten, { transparent: true })]
+      }
+    )
     skipped.service.plan()
     await skipped.advance(ten + 5 * MIN)
     expect(skipped.said).toEqual([])
@@ -506,7 +582,12 @@ describe('the clock and the calendar', () => {
     h.setRecording(false)
     await h.advance(ten + 13 * MIN)
     expect(h.said.length).toBe(2)
-    expect(h.said[1]).toMatchObject({ kind: 'reminder', text: 'Call the bank: it is 10:00 AM, the time you gave it.', pageId: 'Call the bank', at: ten + 10 * MIN })
+    expect(h.said[1]).toMatchObject({
+      kind: 'reminder',
+      text: 'Call the bank: it is 10:00 AM, the time you gave it.',
+      pageId: 'Call the bank',
+      at: ten + 10 * MIN
+    })
   })
 
   it('does not snooze a briefing', async () => {

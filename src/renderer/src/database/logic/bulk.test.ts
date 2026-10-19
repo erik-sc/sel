@@ -89,7 +89,14 @@ describe('quick search', () => {
     row('r2', 'Call Ana', { st: 'done', tags: ['b'], n: 1250 }),
     row('r3', 'Renew passport', { url: 'https://example.org/Passport' })
   ]
-  const view = (visible: string[]): DatabaseView => ({ id: 'v', name: 'T', type: 'table', visibleProperties: visible, filters: [], sorts: [] })
+  const view = (visible: string[]): DatabaseView => ({
+    id: 'v',
+    name: 'T',
+    type: 'table',
+    visibleProperties: visible,
+    filters: [],
+    sorts: []
+  })
   const ids = (search: string, visible = Object.keys(schema)): string[] => L.queryRows(rows, schema, view(visible), search).map((r) => r.id)
 
   it('finds rows by the title, as before', () => {

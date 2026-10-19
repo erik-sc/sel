@@ -14,7 +14,9 @@ export function SyncIndicator(): JSX.Element | null {
   if (!status.configured) return null
   const summary = summarize(status)
   const label =
-    summary.tone === 'quiet' && status.lastSyncAt && status.pending === 0 ? `${summary.label} ${ago(status.lastSyncAt, Date.now())}` : summary.label
+    summary.tone === 'quiet' && status.lastSyncAt && status.pending === 0
+      ? `${summary.label} ${ago(status.lastSyncAt, Date.now())}`
+      : summary.label
   const icon =
     status.state === 'syncing' ? (
       <SyncBusy />
@@ -28,7 +30,13 @@ export function SyncIndicator(): JSX.Element | null {
       <SyncDone />
     )
   return (
-    <IconButton label={label} className={`sync-indicator is-${summary.tone}`} onPointerEnter={preloadSettings} onFocus={preloadSettings} onClick={openSyncSettings}>
+    <IconButton
+      label={label}
+      className={`sync-indicator is-${summary.tone}`}
+      onPointerEnter={preloadSettings}
+      onFocus={preloadSettings}
+      onClick={openSyncSettings}
+    >
       {icon}
     </IconButton>
   )

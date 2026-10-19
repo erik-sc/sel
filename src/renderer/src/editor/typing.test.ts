@@ -78,7 +78,10 @@ describe('inlineShortcut', () => {
 
   it('text typed next keeps the marks the run had before the shortcut', () => {
     const r = inlineShortcut([['see `code`', [['b']]]], 10, '`')
-    expect(r?.rt).toEqual([['see ', [['b']]], ['code', [['b'], ['c']]]])
+    expect(r?.rt).toEqual([
+      ['see ', [['b']]],
+      ['code', [['b'], ['c']]]
+    ])
     expect(r?.next).toEqual([['b']])
   })
 

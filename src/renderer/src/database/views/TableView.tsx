@@ -46,10 +46,7 @@ export function TableView(p: ViewProps): JSX.Element {
   const [rowDrop, setRowDrop] = useState<DropEdge | null>(null)
   const [colDrop, setColDrop] = useState<DropEdge | null>(null)
 
-  const widths = useMemo(
-    () => props.map((prop) => liveWidths[prop.id] ?? L.columnWidth(view, prop)),
-    [props, view, liveWidths]
-  )
+  const widths = useMemo(() => props.map((prop) => liveWidths[prop.id] ?? L.columnWidth(view, prop)), [props, view, liveWidths])
   const rowHeight = useRowHeight(rootRef)
   const range = useWindowedRange(bodyRef, rows.length, rowHeight, rows.length > WINDOW_THRESHOLD)
   const rowIndex = useMemo(() => new Map(rows.map((row, index) => [row.id, index])), [rows])
@@ -60,8 +57,7 @@ export function TableView(p: ViewProps): JSX.Element {
 
   // Drop selection, focus and editing state of rows / columns that left the view.
   useEffect(() => {
-    const gone = (cell: CellRef | null): boolean =>
-      !!cell && (!rowIndex.has(cell.row) || !props.some((prop) => prop.id === cell.prop))
+    const gone = (cell: CellRef | null): boolean => !!cell && (!rowIndex.has(cell.row) || !props.some((prop) => prop.id === cell.prop))
     setSelected((prev) => {
       const kept = [...prev].filter((id) => rowIndex.has(id))
       return kept.length === prev.size ? prev : new Set(kept)
@@ -109,7 +105,10 @@ export function TableView(p: ViewProps): JSX.Element {
       return true
     }
     let r = index.get(f.row) ?? 0
-    let c = Math.max(0, ps.findIndex((x) => x.id === f.prop))
+    let c = Math.max(
+      0,
+      ps.findIndex((x) => x.id === f.prop)
+    )
     c += dCol
     r += dRow
     if (wrap) {

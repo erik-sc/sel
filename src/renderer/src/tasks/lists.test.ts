@@ -9,13 +9,32 @@ const TODAY = '2026-10-15'
 const props = tasksDatabaseProps()
 const schema: L.Schema = {
   ...(props.schema as L.Schema),
-  [TASK_PROPS.project]: { id: TASK_PROPS.project, name: 'Project', type: 'select', options: [{ id: 'home', name: 'Home', color: 'green' }] },
-  [TASK_PROPS.labels]: { id: TASK_PROPS.labels, name: 'Labels', type: 'multi_select', options: [{ id: 'calls', name: 'calls', color: 'blue' }] }
+  [TASK_PROPS.project]: {
+    id: TASK_PROPS.project,
+    name: 'Project',
+    type: 'select',
+    options: [{ id: 'home', name: 'Home', color: 'green' }]
+  },
+  [TASK_PROPS.labels]: {
+    id: TASK_PROPS.labels,
+    name: 'Labels',
+    type: 'multi_select',
+    options: [{ id: 'calls', name: 'calls', color: 'blue' }]
+  }
 }
 
 let order = 0
 function row(title: string, values: Record<string, PropertyValue> = {}, updatedAt = 0): Block {
-  const block: Block = { id: `row-${order++}`, type: 'page', parentId: TASKS_DATABASE_ID, content: [], props: { title: [[title]], values } as BlockProps, createdAt: 0, updatedAt, trashedAt: null }
+  const block: Block = {
+    id: `row-${order++}`,
+    type: 'page',
+    parentId: TASKS_DATABASE_ID,
+    content: [],
+    props: { title: [[title]], values } as BlockProps,
+    createdAt: 0,
+    updatedAt,
+    trashedAt: null
+  }
   return block
 }
 
@@ -32,7 +51,16 @@ afterEach(() => {
 
 describe('the seeded database', () => {
   it('is already in the shape the database views keep: nothing to repair', () => {
-    const block: Block = { id: TASKS_DATABASE_ID, type: 'database', parentId: null, content: [], props, createdAt: 0, updatedAt: 0, trashedAt: null }
+    const block: Block = {
+      id: TASKS_DATABASE_ID,
+      type: 'database',
+      parentId: null,
+      content: [],
+      props,
+      createdAt: 0,
+      updatedAt: 0,
+      trashedAt: null
+    }
     expect(L.normalizeDatabase(block).changed).toBe(false)
   })
 })
@@ -40,7 +68,15 @@ describe('the seeded database', () => {
 describe('reading tasks', () => {
   it('by property id, with options resolved and unknown ones dropped', () => {
     const [task] = readTasks(
-      [row('Call mum', { [TASK_PROPS.due]: { start: '2026-10-15T09:30' }, [TASK_PROPS.priority]: 'tasks.p1', [TASK_PROPS.project]: 'home', [TASK_PROPS.labels]: ['calls', 'gone'], [TASK_PROPS.recurrence]: 'FREQ=WEEKLY' })],
+      [
+        row('Call mum', {
+          [TASK_PROPS.due]: { start: '2026-10-15T09:30' },
+          [TASK_PROPS.priority]: 'tasks.p1',
+          [TASK_PROPS.project]: 'home',
+          [TASK_PROPS.labels]: ['calls', 'gone'],
+          [TASK_PROPS.recurrence]: 'FREQ=WEEKLY'
+        })
+      ],
       schema
     )
     expect(task).toMatchObject({ title: 'Call mum', done: false, due: '2026-10-15T09:30', priority: 1, recurring: true })
@@ -85,11 +121,15 @@ describe('the lists', () => {
   })
 
   it('Inbox: open tasks without a project, in the manual order', () => {
-    expect(titles(listTasks(readTasks(rows(), schema), schema, { kind: 'inbox' }, TODAY))).toEqual([['Late', 'This afternoon', 'This morning', 'Tomorrow', 'Someday']])
+    expect(titles(listTasks(readTasks(rows(), schema), schema, { kind: 'inbox' }, TODAY))).toEqual([
+      ['Late', 'This afternoon', 'This morning', 'Tomorrow', 'Someday']
+    ])
   })
 
   it('Completed: the latest completion first, then the latest edit', () => {
-    expect(titles(listTasks(readTasks(rows(), schema), schema, { kind: 'completed' }, TODAY))).toEqual([['Done just now', 'Done earlier', 'Done long ago']])
+    expect(titles(listTasks(readTasks(rows(), schema), schema, { kind: 'completed' }, TODAY))).toEqual([
+      ['Done just now', 'Done earlier', 'Done long ago']
+    ])
   })
 
   it('a project and a label', () => {
@@ -108,7 +148,8 @@ describe('the lists', () => {
 })
 
 describe('subtasks', () => {
-  const child = (title: string, parent: Block, values: Record<string, PropertyValue> = {}): Block => row(title, { ...values, [TASK_PROPS.parent]: [parent.id] })
+  const child = (title: string, parent: Block, values: Record<string, PropertyValue> = {}): Block =>
+    row(title, { ...values, [TASK_PROPS.parent]: [parent.id] })
 
   it('sit right under their parent, indented, in the list order', () => {
     const plan = row('Plan trip')
@@ -144,7 +185,11 @@ describe('subtasks', () => {
     const done = child('Done', top, { [TASK_PROPS.done]: true })
     const deep = child('Under done', done)
     const tasks = readTasks([top, one, two, done, deep], schema)
-    expect(openDescendants(tasks, top.id).map((task) => task.title).sort()).toEqual(['One', 'Two', 'Under done'])
+    expect(
+      openDescendants(tasks, top.id)
+        .map((task) => task.title)
+        .sort()
+    ).toEqual(['One', 'Two', 'Under done'])
     expect(openDescendants(tasks, two.id)).toEqual([])
   })
 
@@ -160,7 +205,9 @@ describe('naming days', () => {
     expect(relativeDay('2026-10-15', TODAY)).toBe('Today')
     expect(relativeDay('2026-10-16', TODAY)).toBe('Tomorrow')
     expect(relativeDay('2026-10-14', TODAY)).toBe('Yesterday')
-    expect(relativeDay('2026-10-19', TODAY)).toBe(new Intl.DateTimeFormat(undefined, { weekday: 'long', timeZone: 'UTC' }).format(Date.UTC(2026, 9, 19)))
+    expect(relativeDay('2026-10-19', TODAY)).toBe(
+      new Intl.DateTimeFormat(undefined, { weekday: 'long', timeZone: 'UTC' }).format(Date.UTC(2026, 9, 19))
+    )
     expect(relativeDay('2026-11-30', TODAY)).toBe(L.formatDay('2026-11-30'))
   })
 

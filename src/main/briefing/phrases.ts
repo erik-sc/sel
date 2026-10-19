@@ -64,7 +64,11 @@ function schemaOf(props: BlockProps | undefined | null): PropertySchema[] {
     if (!value || typeof value !== 'object' || Array.isArray(value)) continue
     const property = value as Partial<PropertySchema>
     if (typeof property.type !== 'string') continue
-    out.push({ ...(property as PropertySchema), id: typeof property.id === 'string' && property.id ? property.id : key, name: typeof property.name === 'string' ? property.name : '' })
+    out.push({
+      ...(property as PropertySchema),
+      id: typeof property.id === 'string' && property.id ? property.id : key,
+      name: typeof property.name === 'string' ? property.name : ''
+    })
   }
   return out
 }
@@ -88,7 +92,8 @@ export interface PhraseColumns {
  */
 export function phraseColumns(props: BlockProps | undefined | null): PhraseColumns {
   const schema = schemaOf(props)
-  const find = (type: string, names: ReadonlySet<string>): PropertySchema | undefined => schema.find((property) => property.type === type && names.has(fold(property.name)))
+  const find = (type: string, names: ReadonlySet<string>): PropertySchema | undefined =>
+    schema.find((property) => property.type === type && names.has(fold(property.name)))
   const tradition = find('select', TRADITION_NAMES)
   const columns: PhraseColumns = { traditions: new Map() }
   const author = find('text', AUTHOR_NAMES)
@@ -113,7 +118,10 @@ export function phraseColumns(props: BlockProps | undefined | null): PhraseColum
  * The phrases in a database of the user's: one per row with a title. A database without the
  * usual columns still gives phrases, just without an author.
  */
-export function ownPhrases(database: Pick<Block, 'props'> | null | undefined, rows: readonly Pick<Block, 'id' | 'type' | 'props' | 'trashedAt'>[]): PhraseCandidate[] {
+export function ownPhrases(
+  database: Pick<Block, 'props'> | null | undefined,
+  rows: readonly Pick<Block, 'id' | 'type' | 'props' | 'trashedAt'>[]
+): PhraseCandidate[] {
   const columns = phraseColumns(database?.props)
   const traditions = new Map<string, Tradition>()
   for (const [name, option] of columns.traditions) traditions.set(option, name)
@@ -129,8 +137,10 @@ export function ownPhrases(database: Pick<Block, 'props'> | null | undefined, ro
       text = ''
     }
     if (!text) continue
-    const values = props.values && typeof props.values === 'object' && !Array.isArray(props.values) ? (props.values as Record<string, unknown>) : {}
-    const get = (property: string | undefined): unknown => (property && Object.prototype.hasOwnProperty.call(values, property) ? values[property] : undefined)
+    const values =
+      props.values && typeof props.values === 'object' && !Array.isArray(props.values) ? (props.values as Record<string, unknown>) : {}
+    const get = (property: string | undefined): unknown =>
+      property && Object.prototype.hasOwnProperty.call(values, property) ? values[property] : undefined
     const phrase: PhraseCandidate = { id: `own:${row.id}`, text, author: textOf(get(columns.author), 120), own: true, rowId: row.id }
     const work = textOf(get(columns.source), 200)
     if (work) phrase.work = work

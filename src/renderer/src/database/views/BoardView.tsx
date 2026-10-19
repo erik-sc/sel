@@ -6,17 +6,7 @@ import * as L from '../logic'
 import * as actions from '../actions'
 import { RowProps } from '../cells'
 import { OptionEditPane } from '../SelectEditor'
-import {
-  Floating,
-  OptionTag,
-  RowIcon,
-  RowTitleInput,
-  beginDrag,
-  draggedOf,
-  endDrag,
-  rowTitle,
-  type ViewProps
-} from '../common'
+import { Floating, OptionTag, RowIcon, RowTitleInput, beginDrag, draggedOf, endDrag, rowTitle, type ViewProps } from '../common'
 
 interface DropTarget {
   group: string | null
@@ -175,9 +165,7 @@ export function BoardView(p: ViewProps): JSX.Element {
                   aria-label={`Edit group ${group.label}`}
                   onClick={(event) => {
                     const anchor = event.currentTarget
-                    setOptionMenu((prev) =>
-                      prev?.optionId === group.key ? null : { optionId: group.key as string, anchor }
-                    )
+                    setOptionMenu((prev) => (prev?.optionId === group.key ? null : { optionId: group.key as string, anchor }))
                   }}
                 >
                   <MoreHorizontal size={14} />

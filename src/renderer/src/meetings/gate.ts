@@ -37,7 +37,11 @@ export function initMeetings(): void {
       take(status)
       // The app ended in the middle of a recording last time: what was recorded is on disk. Say so once.
       const lost = status.interrupted[0]
-      if (lost) toast(`The recording of “${lost.title}” was interrupted. What was recorded is saved.`, { duration: 0, action: { label: 'Open', run: () => openPage(lost.pageId) } })
+      if (lost)
+        toast(`The recording of “${lost.title}” was interrupted. What was recorded is saved.`, {
+          duration: 0,
+          action: { label: 'Open', run: () => openPage(lost.pageId) }
+        })
     },
     (error: unknown) => console.error('meetings status failed', error)
   )
@@ -63,7 +67,11 @@ export async function newMeeting(input: MeetingCreateInput = {}, options: { reco
 }
 
 /** What a page is to this feature: a meeting, the transcript of one, or neither. */
-export function meetingRole(page: Block | undefined, parent: Block | undefined, databaseId: string | null | undefined): { role: 'meeting' | 'transcript'; meetingId: string } | null {
+export function meetingRole(
+  page: Block | undefined,
+  parent: Block | undefined,
+  databaseId: string | null | undefined
+): { role: 'meeting' | 'transcript'; meetingId: string } | null {
   if (!page || !databaseId || page.type !== 'page') return null
   if (page.parentId === databaseId) return { role: 'meeting', meetingId: page.id }
   if (parent && parent.type === 'page' && parent.parentId === databaseId) return { role: 'transcript', meetingId: parent.id }

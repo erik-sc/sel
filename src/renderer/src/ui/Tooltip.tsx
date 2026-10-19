@@ -60,11 +60,7 @@ export function Tooltip({ label, shortcut, side = 'bottom', delay = 450, childre
           <div
             className="ui-tooltip glass-thick"
             role="tooltip"
-            style={
-              below
-                ? { left: center, top: rect.bottom + 6 }
-                : { left: center, bottom: window.innerHeight - rect.top + 6 }
-            }
+            style={below ? { left: center, top: rect.bottom + 6 } : { left: center, bottom: window.innerHeight - rect.top + 6 }}
           >
             {label}
             {shortcut && <span className="ui-tooltip-shortcut">{shortcut}</span>}

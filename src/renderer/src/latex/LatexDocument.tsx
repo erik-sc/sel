@@ -114,9 +114,7 @@ export function LatexDocument({ pageId }: { pageId: string }): JSX.Element {
   const [engineFailed, setEngineFailed] = useState(false)
   const [text, setText] = useState<string | null>(null)
   const [result, setResult] = useState<LatexResult | null>(null)
-  const [view, setViewState] = useState<View>(() =>
-    readStored(VIEW_KEY, (raw) => (raw === 'code' || raw === 'preview' ? raw : 'split'))
-  )
+  const [view, setViewState] = useState<View>(() => readStored(VIEW_KEY, (raw) => (raw === 'code' || raw === 'preview' ? raw : 'split')))
   const [split, setSplit] = useState(() => readStored(SPLIT_KEY, (raw) => clampSplit(Number(raw) || 0.5)))
   const [showProblems, setShowProblems] = useState(true)
   const [busy, setBusy] = useState<'pdf' | 'tex' | null>(null)
@@ -154,7 +152,10 @@ export function LatexDocument({ pageId }: { pageId: string }): JSX.Element {
   useEffect(() => {
     if (!loaded || !page || page.trashedAt || source || page.content.some((id) => !children.find((b) => b?.id === id))) return
     void applyOps([
-      { op: 'create', input: { id: newId(), type: 'code', parentId: pageId, afterId: null, props: { title: [], language: LATEX_LANGUAGE } } }
+      {
+        op: 'create',
+        input: { id: newId(), type: 'code', parentId: pageId, afterId: null, props: { title: [], language: LATEX_LANGUAGE } }
+      }
     ]).catch(reportError('restore the document source'))
   }, [loaded, page, source, children, pageId])
 
@@ -321,6 +322,7 @@ export function LatexDocument({ pageId }: { pageId: string }): JSX.Element {
     }
   }, [text, engine, busy, locale, commit, pageId, copy])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `setView` is new on every render and only writes state and a setting.
   useEffect(
     () =>
       onLatexAction((id, action) => {

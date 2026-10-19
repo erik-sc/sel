@@ -157,7 +157,10 @@ export function Dock(): JSX.Element | null {
   const [held, setHeld] = useState(false)
   useEffect(() => {
     if (!bubbleKey || held) return
-    const timer = setTimeout(() => dismiss(), bubbleRef.current?.greeting ? GREETING_MS : bubbleRef.current?.announcement ? ANNOUNCE_MS : BUBBLE_MS)
+    const timer = setTimeout(
+      () => dismiss(),
+      bubbleRef.current?.greeting ? GREETING_MS : bubbleRef.current?.announcement ? ANNOUNCE_MS : BUBBLE_MS
+    )
     return () => clearTimeout(timer)
   }, [bubbleKey, held, dismiss])
 
@@ -277,7 +280,12 @@ export function Dock(): JSX.Element | null {
       const rect = dock.getBoundingClientRect()
       // His place at rest: where he is now, less the step he may have taken.
       const matrix = new DOMMatrixReadOnly(getComputedStyle(dock).transform)
-      const home: Box = { left: rect.left - matrix.m41, top: rect.top - matrix.m42, right: rect.right - matrix.m41, bottom: rect.bottom - matrix.m42 }
+      const home: Box = {
+        left: rect.left - matrix.m41,
+        top: rect.top - matrix.m42,
+        right: rect.right - matrix.m41,
+        bottom: rect.bottom - matrix.m42
+      }
       const margin = asideRef.current ? CLEAR_PX : NEAR_PX
       const caret = caretBox(area)
       let close = caret !== null && near(home, caret, margin)

@@ -137,7 +137,21 @@ export function isPublicAddress(address: string): boolean {
   return v6 ? publicV6(v6) : false
 }
 
-const LOCAL_SUFFIXES = ['.localhost', '.local', '.localdomain', '.internal', '.intranet', '.lan', '.home', '.corp', '.home.arpa', '.test', '.example', '.invalid', '.onion']
+const LOCAL_SUFFIXES = [
+  '.localhost',
+  '.local',
+  '.localdomain',
+  '.internal',
+  '.intranet',
+  '.lan',
+  '.home',
+  '.corp',
+  '.home.arpa',
+  '.test',
+  '.example',
+  '.invalid',
+  '.onion'
+]
 
 /**
  * The address a calendar may be read from, normalised, or a `blocked-address` error.
@@ -149,7 +163,6 @@ export function validateCalendarUrl(input: unknown, policy: NetPolicy = {}): URL
   const blocked = (): CalendarError => new CalendarError('blocked-address')
   if (typeof input !== 'string') throw blocked()
   let text = input.trim()
-  // eslint-disable-next-line no-control-regex
   if (!text || text.length > NET_LIMITS.url || /[\u0000- \u007f\\]/.test(text)) throw blocked()
   if (/^webcals?:\/\//i.test(text)) text = text.replace(/^webcals?:/i, 'https:')
   let url: URL
@@ -215,7 +228,11 @@ export async function resolvePinned(hostname: string, resolve: Resolver = system
 /** A `lookup` for Node's http(s) clients that answers with `pinned` whatever name is asked. */
 export function pinnedLookup(pinned: ResolvedAddress): https.RequestOptions['lookup'] {
   return ((_hostname: string, lookupOptions: unknown, callback?: unknown): void => {
-    const done = (typeof lookupOptions === 'function' ? lookupOptions : callback) as (err: Error | null, address: string | ResolvedAddress[], family?: number) => void
+    const done = (typeof lookupOptions === 'function' ? lookupOptions : callback) as (
+      err: Error | null,
+      address: string | ResolvedAddress[],
+      family?: number
+    ) => void
     const wantsAll = typeof lookupOptions === 'object' && lookupOptions !== null && (lookupOptions as { all?: boolean }).all === true
     if (wantsAll) done(null, [pinned])
     else done(null, pinned.address, pinned.family)
@@ -234,9 +251,7 @@ export interface FetchOptions {
   onConnect?: (address: string) => void
 }
 
-export type FetchResult =
-  | { status: 'ok'; text: string; etag?: string; lastModified?: string }
-  | { status: 'not-modified' }
+export type FetchResult = { status: 'ok'; text: string; etag?: string; lastModified?: string } | { status: 'not-modified' }
 
 const OFFLINE_CODES: ReadonlySet<string> = new Set([
   'ENOTFOUND',
@@ -262,7 +277,6 @@ function reasonOf(err: unknown): CalendarErrorCode {
 
 function headerText(value: string | string[] | undefined, max: number): string | undefined {
   const text = Array.isArray(value) ? value[0] : value
-  // eslint-disable-next-line no-control-regex
   return typeof text === 'string' && text.length <= max && !/[\u0000-\u001f\u007f]/.test(text) ? text : undefined
 }
 

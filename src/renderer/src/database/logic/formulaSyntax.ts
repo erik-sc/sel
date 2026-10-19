@@ -122,7 +122,10 @@ export function tokenize(text: string): TokenizeResult {
         i++
         while (isDigit(text[i])) i++
       }
-      if ((text[i] === 'e' || text[i] === 'E') && (isDigit(text[i + 1]) || ((text[i + 1] === '+' || text[i + 1] === '-') && isDigit(text[i + 2])))) {
+      if (
+        (text[i] === 'e' || text[i] === 'E') &&
+        (isDigit(text[i + 1]) || ((text[i + 1] === '+' || text[i + 1] === '-') && isDigit(text[i + 2])))
+      ) {
         i += 2
         while (isDigit(text[i])) i++
       }

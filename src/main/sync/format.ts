@@ -127,7 +127,8 @@ export function parseMeta(text: string): RepoMeta {
   } catch {
     throw new FormatError('sel.json cannot be read')
   }
-  if (!isPlain(raw) || (raw['app'] !== APP && raw['app'] !== LEGACY.app) || typeof raw['format'] !== 'number') throw new FormatError('sel.json is not a sel file')
+  if (!isPlain(raw) || (raw['app'] !== APP && raw['app'] !== LEGACY.app) || typeof raw['format'] !== 'number')
+    throw new FormatError('sel.json is not a sel file')
   if (raw['format'] > FORMAT) throw new FormatError('newer format', true)
   if (raw['format'] < 1) throw new FormatError('sel.json has an unknown format')
   const meta: RepoMeta = { app: APP, format: raw['format'] }
@@ -137,12 +138,14 @@ export function parseMeta(text: string): RepoMeta {
   if (enc !== undefined && enc !== null) {
     if (!isPlain(enc) || enc['v'] !== 1 || enc['kdf'] !== 'scrypt') throw new FormatError('newer format', true)
     const { N, r, p, salt, check } = enc
-    const int = (value: unknown, min: number, max: number): value is number => typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max
+    const int = (value: unknown, min: number, max: number): value is number =>
+      typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max
     // Bounded: a tampered file must not be able to ask for gigabytes of memory.
     if (!int(N, 1 << 14, 1 << 20) || (N & (N - 1)) !== 0 || !int(r, 1, 16) || !int(p, 1, 4) || 128 * N * r > 512 * 1024 * 1024) {
       throw new FormatError('sel.json asks for an unsupported key derivation')
     }
-    if (typeof salt !== 'string' || !BASE64_RE.test(salt) || typeof check !== 'string' || !BASE64_RE.test(check)) throw new FormatError('sel.json is damaged')
+    if (typeof salt !== 'string' || !BASE64_RE.test(salt) || typeof check !== 'string' || !BASE64_RE.test(check))
+      throw new FormatError('sel.json is damaged')
     meta.encryption = { v: 1, kdf: 'scrypt', N, r, p, salt, check }
   }
   return meta
@@ -213,11 +216,14 @@ export function parsePage(text: string): { pageId: string; blocks: SyncBlock[] }
   let raw: unknown
   try {
     // A key named `__proto__` has no business in a block at any depth: it is dropped while reading.
-    raw = text.includes('__proto__') ? JSON.parse(text, (key, value: unknown) => (key === '__proto__' ? undefined : value)) : JSON.parse(text)
+    raw = text.includes('__proto__')
+      ? JSON.parse(text, (key, value: unknown) => (key === '__proto__' ? undefined : value))
+      : JSON.parse(text)
   } catch {
     throw new FormatError('A page file cannot be read')
   }
-  if (!isPlain(raw) || typeof raw['format'] !== 'number' || !isValidId(raw['page']) || !Array.isArray(raw['blocks'])) throw new FormatError('A page file is damaged')
+  if (!isPlain(raw) || typeof raw['format'] !== 'number' || !isValidId(raw['page']) || !Array.isArray(raw['blocks']))
+    throw new FormatError('A page file is damaged')
   if (raw['format'] > FORMAT) throw new FormatError('newer format', true)
   const list = raw['blocks'] as unknown[]
   if (list.length > MAX_BLOCKS_PER_PAGE) throw new FormatError('A page file is too large')
@@ -387,7 +393,10 @@ export function fingerprintPages(rows: readonly Row[]): Map<string, string> {
   for (const [page, list] of groups) {
     list.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     const hash = createHash('sha1')
-    for (const r of list) hash.update(`${r.id}\u0000${r.type}\u0000${r.parent_id ?? ''}\u0000${r.content}\u0000${r.props}\u0000${r.created_at}\u0000${r.updated_at}\u0000${r.trashed_at ?? ''}\u0001`)
+    for (const r of list)
+      hash.update(
+        `${r.id}\u0000${r.type}\u0000${r.parent_id ?? ''}\u0000${r.content}\u0000${r.props}\u0000${r.created_at}\u0000${r.updated_at}\u0000${r.trashed_at ?? ''}\u0001`
+      )
     out.set(page, hash.digest('hex'))
   }
   return out
@@ -468,7 +477,8 @@ export function mergeAppearance(base: AppearanceFile | null, local: AppearanceFi
   const lv = local.value
   const rv = remote.value
   const bv = isPlain(b) ? b : {}
-  const pick = (bx: unknown, lx: unknown, rx: unknown): unknown => (same(lx, rx) ? lx : same(lx, bx) ? rx : same(rx, bx) ? lx : localLater ? lx : rx)
+  const pick = (bx: unknown, lx: unknown, rx: unknown): unknown =>
+    same(lx, rx) ? lx : same(lx, bx) ? rx : same(rx, bx) ? lx : localLater ? lx : rx
   const out: Record<string, unknown> = {}
   for (const key of new Set([...Object.keys(lv), ...Object.keys(rv)])) {
     if (key === '__proto__') continue
@@ -554,7 +564,8 @@ export function parseSidebar(text: string): SidebarFile {
 /** Three-way merge of the layout, which is one value: where both devices changed it, the later change wins. */
 export function mergeSidebar(base: SidebarFile | null, local: SidebarFile, remote: SidebarFile | null): SidebarFile {
   if (!remote) return local
-  const same = (a: SidebarLayout | null | undefined, b: SidebarLayout | null | undefined): boolean => canonicalJson(a ?? null) === canonicalJson(b ?? null)
+  const same = (a: SidebarLayout | null | undefined, b: SidebarLayout | null | undefined): boolean =>
+    canonicalJson(a ?? null) === canonicalJson(b ?? null)
   if (same(remote.value, base?.value)) return local
   if (same(local.value, base?.value) || same(local.value, remote.value)) return remote
   return local.updatedAt > remote.updatedAt ? local : remote
@@ -641,7 +652,10 @@ function capCalendars(calendars: SyncedCalendar[], removed: CalendarTombstone[])
  * like an address typed into the app: https only, a public host, at most
  * `BRIEFING_LIMITS.calendars` of them. What does not pass is dropped.
  */
-export function cleanCalendars(calendars: readonly unknown[], removed: readonly unknown[] = []): Pick<CalendarsFile, 'calendars' | 'removed'> {
+export function cleanCalendars(
+  calendars: readonly unknown[],
+  removed: readonly unknown[] = []
+): Pick<CalendarsFile, 'calendars' | 'removed'> {
   const live = new Map<string, SyncedCalendar>()
   for (const item of calendars.slice(0, 1000)) {
     if (!isPlain(item)) continue

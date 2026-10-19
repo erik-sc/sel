@@ -8,13 +8,7 @@ import { weekdayLabels } from './common'
  * Month grid for picking a day or a range, each optionally at a time of day. Works on
  * `YYYY-MM-DD[THH:mm]` strings only: no value is ever round-tripped through a local-time Date.
  */
-export function DatePicker({
-  value,
-  onChange
-}: {
-  value: L.DateValue | null
-  onChange: (value: L.DateValue | null) => void
-}): JSX.Element {
+export function DatePicker({ value, onChange }: { value: L.DateValue | null; onChange: (value: L.DateValue | null) => void }): JSX.Element {
   const today = L.todayISO()
   const start = value ? L.dayKey(value.start) : null
   const end = value?.end ? L.dayKey(value.end) : null
@@ -83,10 +77,10 @@ export function DatePicker({
         {withEnd && (
           <>
             <span className="db-date-arrow">→</span>
-            <span className={picking === 'end' ? 'db-date-slot is-active' : 'db-date-slot'}>
-              {end ? L.formatDay(end) : 'End date'}
-            </span>
-            {withTime && end && <TimeInput label="End time" time={endTime ?? startTime ?? DEFAULT_TIME} onChange={(time) => setTime('end', time)} />}
+            <span className={picking === 'end' ? 'db-date-slot is-active' : 'db-date-slot'}>{end ? L.formatDay(end) : 'End date'}</span>
+            {withTime && end && (
+              <TimeInput label="End time" time={endTime ?? startTime ?? DEFAULT_TIME} onChange={(time) => setTime('end', time)} />
+            )}
           </>
         )}
       </div>

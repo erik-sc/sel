@@ -32,7 +32,8 @@ suite('sync with real git: scale', () => {
       expect(path).not.toContain(name)
       if (path === 'sel.json' || path === 'README.md') continue
       const bytes = files.get(path)!
-      for (const secret of ['swordfish', 'Top secret', page.id, '#123456', 'IHDR-and-some-pixels']) expect(bytes.includes(secret), `${path}: ${secret}`).toBe(false)
+      for (const secret of ['swordfish', 'Top secret', page.id, '#123456', 'IHDR-and-some-pixels'])
+        expect(bytes.includes(secret), `${path}: ${secret}`).toBe(false)
     }
     const meta = JSON.parse(files.get('sel.json')!.toString()) as Record<string, unknown>
     expect(Object.keys(meta).sort()).toEqual(['app', 'encryption', 'format'])
@@ -41,12 +42,17 @@ suite('sync with real git: scale', () => {
     expect(JSON.stringify(a.repo.getSetting('sync.remoteUrl'))).not.toContain('correct horse')
     expect(a.secrets.value).not.toContain('correct horse')
     for (const key of ['sync.remoteUrl', 'sync.deviceName', 'sync.lastCommit', 'sync.activity', 'sync.encrypted']) {
-      expect(JSON.stringify(a.repo.getSetting(key))).not.toContain(JSON.parse(a.secrets.value!).keys[(meta['encryption'] as { salt: string }).salt].enc)
+      expect(JSON.stringify(a.repo.getSetting(key))).not.toContain(
+        JSON.parse(a.secrets.value!).keys[(meta['encryption'] as { salt: string }).salt].enc
+      )
     }
 
     const b = device('Device B', 2_000_000)
     expect(await b.setup(remote)).toMatchObject({ configured: false, lastError: { code: 'passphrase-required' } })
-    expect(await b.setup(remote, { passphrase: 'wrong horse battery' })).toMatchObject({ configured: false, lastError: { code: 'wrong-passphrase' } })
+    expect(await b.setup(remote, { passphrase: 'wrong horse battery' })).toMatchObject({
+      configured: false,
+      lastError: { code: 'wrong-passphrase' }
+    })
     expect(b.titles()).toEqual([])
     const ok = await b.setup(remote, { passphrase: 'correct horse battery' })
     expect(ok).toMatchObject({ configured: true, encrypted: true })
@@ -164,7 +170,10 @@ suite('sync with real git: scale', () => {
     const a = device('Device A', 1_000_000)
     const home = a.page('Home')
     const db = a.repo.create({ type: 'database', parentId: home.id, props: { title: [['Tasks']] } })
-    const schema = { ...db.props.schema!, status: { id: 'status', name: 'Status', type: 'select' as const, options: [{ id: 'o1', name: 'Todo', color: 'gray' }] } }
+    const schema = {
+      ...db.props.schema!,
+      status: { id: 'status', name: 'Status', type: 'select' as const, options: [{ id: 'o1', name: 'Todo', color: 'gray' }] }
+    }
     a.repo.update(db.id, { props: { schema } })
     const row = a.repo.create({ type: 'page', parentId: db.id, props: { title: [['Row 1']], values: { status: 'o1' } } })
     const linked = a.repo.create({ type: 'database', parentId: home.id, props: { sourceId: db.id } })
@@ -182,7 +191,18 @@ suite('sync with real git: scale', () => {
     b.repo.update(db.id, {
       props: {
         schema: { ...fromB.props.schema!, points: { id: 'points', name: 'Points', type: 'number' } },
-        views: [...fromB.props.views!, { id: 'chart-1', name: 'Chart', type: 'chart', visibleProperties: ['title'], filters: [], sorts: [], chart: { kind: 'bar', x: 'status', y: { aggregate: 'count' } } }]
+        views: [
+          ...fromB.props.views!,
+          {
+            id: 'chart-1',
+            name: 'Chart',
+            type: 'chart',
+            visibleProperties: ['title'],
+            filters: [],
+            sorts: [],
+            chart: { kind: 'bar', x: 'status', y: { aggregate: 'count' } }
+          }
+        ]
       }
     })
     b.repo.update(row.id, { props: { values: { status: 'o1', points: 3 } } })
@@ -191,10 +211,16 @@ suite('sync with real git: scale', () => {
     for (const d of [a, b]) {
       const merged = d.repo.get(db.id)!
       expect(Object.keys(merged.props.schema!).sort(), d.name).toEqual(['due', 'points', 'status', 'title'])
-      expect(merged.props.views!.map((v) => v.type), d.name).toEqual(['table', 'chart'])
+      expect(
+        merged.props.views!.map((v) => v.type),
+        d.name
+      ).toEqual(['table', 'chart'])
       expect(merged.props.views![1].chart, d.name).toMatchObject({ kind: 'bar', x: 'status' })
       expect(d.repo.get(row.id)!.props.values, d.name).toEqual({ status: 'o1', due: { start: '2026-10-13' }, points: 3 })
-      expect(d.repo.children(db.id).map((r) => plain(r.props.title)), d.name).toEqual(['Row 1', 'Row 2'])
+      expect(
+        d.repo.children(db.id).map((r) => plain(r.props.title)),
+        d.name
+      ).toEqual(['Row 1', 'Row 2'])
     }
     expect(Object.keys(a.repo.get(db.id)!.props.schema!)).toEqual(Object.keys(b.repo.get(db.id)!.props.schema!))
   })
@@ -247,7 +273,11 @@ suite('sync with real git: scale', () => {
   it('goes quiet when the repository disappears and resumes when it is back', async () => {
     const { remote, a, pageId } = await pair()
     const hidden = `${remote}.away`
-    execFileSync(process.platform === 'win32' ? 'cmd.exe' : 'mv', process.platform === 'win32' ? ['/d', '/c', 'move', remote, hidden] : [remote, hidden], { stdio: 'ignore' })
+    execFileSync(
+      process.platform === 'win32' ? 'cmd.exe' : 'mv',
+      process.platform === 'win32' ? ['/d', '/c', 'move', remote, hidden] : [remote, hidden],
+      { stdio: 'ignore' }
+    )
     a.text(pageId, 'written while the remote was away')
     const down = await a.engine.now()
     expect(down.lastError?.code).toBe('repo-not-found')
@@ -255,7 +285,11 @@ suite('sync with real git: scale', () => {
     await a.engine.now()
     // Listed once, not once per attempt.
     expect(a.engine.status().activity.filter((entry) => entry.error === 'repo-not-found')).toHaveLength(1)
-    execFileSync(process.platform === 'win32' ? 'cmd.exe' : 'mv', process.platform === 'win32' ? ['/d', '/c', 'move', hidden, remote] : [hidden, remote], { stdio: 'ignore' })
+    execFileSync(
+      process.platform === 'win32' ? 'cmd.exe' : 'mv',
+      process.platform === 'win32' ? ['/d', '/c', 'move', hidden, remote] : [hidden, remote],
+      { stdio: 'ignore' }
+    )
     await sync(a)
     expect(remoteFiles(remote).get(`pages/${pageId}.json`)!.toString()).toContain('written while the remote was away')
   })
@@ -271,7 +305,10 @@ suite('sync with real git: scale', () => {
         {
           type: 'page',
           props: { title: [[`Page ${p}`]] },
-          children: Array.from({ length: PER_PAGE }, (_, i) => ({ type: 'text' as const, props: { title: [[`Paragraph ${i} of page ${p}: the quick brown fox jumps over the lazy dog.`]] } }))
+          children: Array.from({ length: PER_PAGE }, (_, i) => ({
+            type: 'text' as const,
+            props: { title: [[`Paragraph ${i} of page ${p}: the quick brown fox jumps over the lazy dog.`]] }
+          }))
         },
         null
       )

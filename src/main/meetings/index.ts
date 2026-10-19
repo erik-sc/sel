@@ -60,7 +60,9 @@ export class MeetingsBridge {
       devProgram: dev.program,
       ...(dev.pins ? { pins: dev.pins, policy: { allowLoopbackHttp: devLoopback('1', app.isPackaged) } } : {}),
       onDownload: (state, outcome) => {
-        const progress: MeetingsProgress = state ? { kind: 'download', ...state } : { kind: 'download-done', ok: outcome?.ok === true, ...(outcome?.message ? { message: outcome.message } : {}) }
+        const progress: MeetingsProgress = state
+          ? { kind: 'download', ...state }
+          : { kind: 'download-done', ok: outcome?.ok === true, ...(outcome?.message ? { message: outcome.message } : {}) }
         broadcast(MEETINGS_CHANNELS.progress, progress)
       }
     })
@@ -86,7 +88,8 @@ export class MeetingsBridge {
     if (this.watched.has(sender)) return
     this.watched.add(sender)
     const owner = sender.id
-    const gone = (): void => void this.service.ownerGone(owner).catch((err: unknown) => console.error('[meetings] could not finish a recording', err))
+    const gone = (): void =>
+      void this.service.ownerGone(owner).catch((err: unknown) => console.error('[meetings] could not finish a recording', err))
     sender.once('destroyed', gone)
     sender.on('render-process-gone', gone)
     sender.on('did-start-navigation', (details) => {

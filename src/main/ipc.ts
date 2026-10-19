@@ -114,8 +114,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     })
   }
 
-  const windowOf = (event: { sender: Electron.WebContents }): BrowserWindow | null =>
-    BrowserWindow.fromWebContents(event.sender)
+  const windowOf = (event: { sender: Electron.WebContents }): BrowserWindow | null => BrowserWindow.fromWebContents(event.sender)
 
   // ---- blocks (the repository validates the fields of inputs, patches and ops)
   const blockHandlers: Handlers<'blocks'> = {

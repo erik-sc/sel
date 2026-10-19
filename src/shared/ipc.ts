@@ -30,9 +30,15 @@ export type InvokeChannels<T> = {
 
 /** `T` with only its invoke methods, and the namespaces that hold any: what the preload builds from the channels. */
 export type Invokers<T> = {
-  [K in keyof T as T[K] extends InvokeFunction ? K : T[K] extends AnyFunction ? never : T[K] extends object ? ([InvokePaths<T[K], ''>] extends [never] ? never : K) : never]: T[K] extends InvokeFunction
-    ? T[K]
-    : Invokers<T[K]>
+  [K in keyof T as T[K] extends InvokeFunction
+    ? K
+    : T[K] extends AnyFunction
+      ? never
+      : T[K] extends object
+        ? [InvokePaths<T[K], ''>] extends [never]
+          ? never
+          : K
+        : never]: T[K] extends InvokeFunction ? T[K] : Invokers<T[K]>
 }
 
 const SEGMENT = /^[A-Za-z][A-Za-z0-9]*$/
@@ -41,7 +47,8 @@ const SEGMENT = /^[A-Za-z][A-Za-z0-9]*$/
 export function channelPath(channel: string): string[] {
   const colon = channel.indexOf(':')
   const path = colon > 0 ? [channel.slice(0, colon), ...channel.slice(colon + 1).split('.')] : []
-  if (path.length < 2 || !path.every((segment) => SEGMENT.test(segment) && !(segment in Object.prototype))) throw new Error(`Invalid invoke channel: ${channel}`)
+  if (path.length < 2 || !path.every((segment) => SEGMENT.test(segment) && !(segment in Object.prototype)))
+    throw new Error(`Invalid invoke channel: ${channel}`)
   return path
 }
 
@@ -49,7 +56,10 @@ export function channelPath(channel: string): string[] {
  * The nested object of invoke methods for these channels, each made by `call` for its own
  * channel and for no other. Throws on a malformed channel, or on two that claim the same place.
  */
-export function buildInvokers(channels: readonly string[], call: (channel: string) => (...args: unknown[]) => Promise<unknown>): Record<string, unknown> {
+export function buildInvokers(
+  channels: readonly string[],
+  call: (channel: string) => (...args: unknown[]) => Promise<unknown>
+): Record<string, unknown> {
   const root: Record<string, unknown> = {}
   for (const channel of channels) {
     const path = channelPath(channel)

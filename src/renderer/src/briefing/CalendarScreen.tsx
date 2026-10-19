@@ -6,9 +6,36 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, JSX, KeyboardEvent, Ref } from 'react'
 import { localDay, type BriefingCalendar, type BriefingEvent, type BriefingTask } from '@shared/briefing'
-import { addDays, calendarMatrix, monthLabel, monthOf, monthRangeLabel, shiftMonth, weekOf, weekdayLabels, type CalendarDay, type MonthCursor } from '@/database/logic/dates'
+import {
+  addDays,
+  calendarMatrix,
+  monthLabel,
+  monthOf,
+  monthRangeLabel,
+  shiftMonth,
+  weekOf,
+  weekdayLabels,
+  type CalendarDay,
+  type MonthCursor
+} from '@/database/logic/dates'
 import { ChevronLeft, ChevronRight } from '@/ui/icons'
-import { agendaByDay, calendarNotes, dayStart, dayTimeline, dueLabel, eventMoments, eventTime, fillsDay, longDate, nextDayStart, shortClock, tickedKey, updatedLabel, type DayAgenda, type EventMoment } from './format'
+import {
+  agendaByDay,
+  calendarNotes,
+  dayStart,
+  dayTimeline,
+  dueLabel,
+  eventMoments,
+  eventTime,
+  fillsDay,
+  longDate,
+  nextDayStart,
+  shortClock,
+  tickedKey,
+  updatedLabel,
+  type DayAgenda,
+  type EventMoment
+} from './format'
 import { EventRow, TaskRow, openSettings, useCompleteTask, useLive, useNow } from './parts'
 import './today.css'
 import './calendar.css'
@@ -57,7 +84,12 @@ type Calendars = ReadonlyMap<string, BriefingCalendar>
 
 /** How a day is read out: its date and how much it holds. */
 function dayLabel(day: string, agenda: DayAgenda): string {
-  const count = [agenda.events.length && `${agenda.events.length} ${agenda.events.length === 1 ? 'event' : 'events'}`, agenda.tasks.length && `${agenda.tasks.length} ${agenda.tasks.length === 1 ? 'task' : 'tasks'}`].filter(Boolean).join(', ')
+  const count = [
+    agenda.events.length && `${agenda.events.length} ${agenda.events.length === 1 ? 'event' : 'events'}`,
+    agenda.tasks.length && `${agenda.tasks.length} ${agenda.tasks.length === 1 ? 'task' : 'tasks'}`
+  ]
+    .filter(Boolean)
+    .join(', ')
   return count ? `${longDate(day)}: ${count}` : longDate(day)
 }
 
@@ -65,7 +97,11 @@ function dayLabel(day: string, agenda: DayAgenda): string {
 function Band({ event, calendars }: { event: BriefingEvent; calendars: Calendars }): JSX.Element {
   const title = event.title || 'Untitled'
   return (
-    <span className="cal-item is-band" style={{ background: `var(--c-${calendars.get(event.calendarId)?.color ?? 'gray'}-bg)` }} title={title}>
+    <span
+      className="cal-item is-band"
+      style={{ background: `var(--c-${calendars.get(event.calendarId)?.color ?? 'gray'}-bg)` }}
+      title={title}
+    >
       <span className="cal-item-title">{title}</span>
     </span>
   )
@@ -81,7 +117,25 @@ function TaskLine({ task, overdue }: { task: BriefingTask; overdue: boolean }): 
 }
 
 /** One day of the grid: its number, and as many of its events and tasks as fit. */
-function DayCell({ day, number, outside, today, selected, agenda, calendars, onPick }: { day: string; number: number; outside: boolean; today: string; selected: boolean; agenda: DayAgenda; calendars: Calendars; onPick: (day: string) => void }): JSX.Element {
+function DayCell({
+  day,
+  number,
+  outside,
+  today,
+  selected,
+  agenda,
+  calendars,
+  onPick
+}: {
+  day: string
+  number: number
+  outside: boolean
+  today: string
+  selected: boolean
+  agenda: DayAgenda
+  calendars: Calendars
+  onPick: (day: string) => void
+}): JSX.Element {
   const from = dayStart(day) ?? 0
   const to = nextDayStart(from)
   const total = agenda.events.length + agenda.tasks.length
@@ -96,7 +150,14 @@ function DayCell({ day, number, outside, today, selected, agenda, calendars, onP
   return (
     <div className={classes.join(' ')} onClick={() => onPick(day)}>
       {/* The day's one control: the lines below it are a preview, read out as a count. */}
-      <button type="button" className="cal-day-number" data-day={day} tabIndex={selected ? 0 : -1} aria-pressed={selected} aria-label={dayLabel(day, agenda)}>
+      <button
+        type="button"
+        className="cal-day-number"
+        data-day={day}
+        tabIndex={selected ? 0 : -1}
+        aria-pressed={selected}
+        aria-label={dayLabel(day, agenda)}
+      >
         {number}
       </button>
       {events.map((event) => {
@@ -122,7 +183,23 @@ function DayCell({ day, number, outside, today, selected, agenda, calendars, onP
 }
 
 /** The top of a day of the week: its name and number, then what fills it and what is due on it. */
-function WeekDayHead({ day, weekday, today, selected, agenda, calendars, onPick }: { day: string; weekday: string; today: string; selected: boolean; agenda: DayAgenda; calendars: Calendars; onPick: (day: string) => void }): JSX.Element {
+function WeekDayHead({
+  day,
+  weekday,
+  today,
+  selected,
+  agenda,
+  calendars,
+  onPick
+}: {
+  day: string
+  weekday: string
+  today: string
+  selected: boolean
+  agenda: DayAgenda
+  calendars: Calendars
+  onPick: (day: string) => void
+}): JSX.Element {
   const from = dayStart(day) ?? 0
   const to = nextDayStart(from)
   const bands = agenda.events.filter((event) => fillsDay(event, from, to))
@@ -140,7 +217,14 @@ function WeekDayHead({ day, weekday, today, selected, agenda, calendars, onPick 
         <span className="cal-week-weekday" aria-hidden="true">
           {weekday}
         </span>
-        <button type="button" className="cal-day-number" data-day={day} tabIndex={selected ? 0 : -1} aria-pressed={selected} aria-label={dayLabel(day, agenda)}>
+        <button
+          type="button"
+          className="cal-day-number"
+          data-day={day}
+          tabIndex={selected ? 0 : -1}
+          aria-pressed={selected}
+          aria-label={dayLabel(day, agenda)}
+        >
           {Number(day.slice(8))}
         </button>
       </span>
@@ -156,7 +240,23 @@ function WeekDayHead({ day, weekday, today, selected, agenda, calendars, onPick 
 }
 
 /** The hours of a day of the week: each event where it happens, as tall as it is long. */
-function WeekDayHours({ day, today, now, selected, agenda, calendars, onPick }: { day: string; today: string; now: number; selected: boolean; agenda: DayAgenda; calendars: Calendars; onPick: (day: string) => void }): JSX.Element {
+function WeekDayHours({
+  day,
+  today,
+  now,
+  selected,
+  agenda,
+  calendars,
+  onPick
+}: {
+  day: string
+  today: string
+  now: number
+  selected: boolean
+  agenda: DayAgenda
+  calendars: Calendars
+  onPick: (day: string) => void
+}): JSX.Element {
   const from = dayStart(day) ?? 0
   const to = nextDayStart(from)
   const timed = useMemo(() => dayTimeline(agenda.events, from, to), [agenda.events, from, to])
@@ -178,20 +278,57 @@ function WeekDayHours({ day, today, now, selected, agenda, calendars, onPick }: 
             key={event.id}
             className={block.join(' ')}
             title={`${title}, ${eventTime(event, from, to)}`}
-            style={{ top: `${(start / DAY_MINUTES) * 100}%`, height: `${((end - start) / DAY_MINUTES) * 100}%`, left: `${(lane / lanes) * 100}%`, width: `${100 / lanes}%`, '--block': `var(--c-${color})`, '--block-bg': `var(--c-${color}-bg)` } as CSSProperties}
+            style={
+              {
+                top: `${(start / DAY_MINUTES) * 100}%`,
+                height: `${((end - start) / DAY_MINUTES) * 100}%`,
+                left: `${(lane / lanes) * 100}%`,
+                width: `${100 / lanes}%`,
+                '--block': `var(--c-${color})`,
+                '--block-bg': `var(--c-${color}-bg)`
+              } as CSSProperties
+            }
           >
             <span className="cal-block-title">{title}</span>
             {event.start >= from && <span className="cal-block-time">{shortClock(event.start)}</span>}
           </span>
         )
       })}
-      {day === today && <span className="cal-now" style={{ top: `${((clock.getHours() * 60 + clock.getMinutes()) / DAY_MINUTES) * 100}%` }} />}
+      {day === today && (
+        <span className="cal-now" style={{ top: `${((clock.getHours() * 60 + clock.getMinutes()) / DAY_MINUTES) * 100}%` }} />
+      )}
     </div>
   )
 }
 
 /** A week, hour by hour. What fills a day and what is due on it stay in sight above the hours. */
-function WeekGrid({ ref, title, busy, days, weekdays, today, now, selected, byDay, calendars, onPick, onKeyDown }: { ref: Ref<HTMLDivElement>; title: string; busy: boolean; days: readonly CalendarDay[]; weekdays: readonly string[]; today: string; now: number; selected: string; byDay: ReadonlyMap<string, DayAgenda>; calendars: Calendars; onPick: (day: string) => void; onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void }): JSX.Element {
+function WeekGrid({
+  ref,
+  title,
+  busy,
+  days,
+  weekdays,
+  today,
+  now,
+  selected,
+  byDay,
+  calendars,
+  onPick,
+  onKeyDown
+}: {
+  ref: Ref<HTMLDivElement>
+  title: string
+  busy: boolean
+  days: readonly CalendarDay[]
+  weekdays: readonly string[]
+  today: string
+  now: number
+  selected: string
+  byDay: ReadonlyMap<string, DayAgenda>
+  calendars: Calendars
+  onPick: (day: string) => void
+  onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void
+}): JSX.Element {
   const hours = useRef<HTMLDivElement>(null)
   // Opens on the morning: the first hours of the day are rarely the ones looked for.
   useEffect(() => {
@@ -205,7 +342,16 @@ function WeekGrid({ ref, title, busy, days, weekdays, today, now, selected, byDa
       <div className="cal-week-row is-head">
         <div className="cal-week-gutter" />
         {days.map((day, index) => (
-          <WeekDayHead key={day.date} day={day.date} weekday={weekdays[index]} today={today} selected={day.date === selected} agenda={byDay.get(day.date) ?? NOTHING} calendars={calendars} onPick={onPick} />
+          <WeekDayHead
+            key={day.date}
+            day={day.date}
+            weekday={weekdays[index]}
+            today={today}
+            selected={day.date === selected}
+            agenda={byDay.get(day.date) ?? NOTHING}
+            calendars={calendars}
+            onPick={onPick}
+          />
         ))}
       </div>
       <div className="cal-week-row is-hours" ref={hours}>
@@ -217,7 +363,16 @@ function WeekGrid({ ref, title, busy, days, weekdays, today, now, selected, byDa
           ))}
         </div>
         {days.map((day) => (
-          <WeekDayHours key={day.date} day={day.date} today={today} now={now} selected={day.date === selected} agenda={byDay.get(day.date) ?? NOTHING} calendars={calendars} onPick={onPick} />
+          <WeekDayHours
+            key={day.date}
+            day={day.date}
+            today={today}
+            now={now}
+            selected={day.date === selected}
+            agenda={byDay.get(day.date) ?? NOTHING}
+            calendars={calendars}
+            onPick={onPick}
+          />
         ))}
       </div>
     </div>
@@ -225,11 +380,30 @@ function WeekGrid({ ref, title, busy, days, weekdays, today, now, selected, byDa
 }
 
 /** The chosen day in full: its agenda and what is due on it. */
-function DayDetail({ day, today, now, agenda, calendars, loading, onComplete }: { day: string; today: string; now: number; agenda: DayAgenda; calendars: Calendars; loading: boolean; onComplete: (task: BriefingTask) => void }): JSX.Element {
+function DayDetail({
+  day,
+  today,
+  now,
+  agenda,
+  calendars,
+  loading,
+  onComplete
+}: {
+  day: string
+  today: string
+  now: number
+  agenda: DayAgenda
+  calendars: Calendars
+  loading: boolean
+  onComplete: (task: BriefingTask) => void
+}): JSX.Element {
   const from = dayStart(day) ?? 0
   const to = nextDayStart(from)
   const moments = useMemo<EventMoment[]>(
-    () => (day === today ? eventMoments(agenda.events, now) : agenda.events.map((event: BriefingEvent) => (event.allDay ? 'day' : day < today ? 'past' : 'later'))),
+    () =>
+      day === today
+        ? eventMoments(agenda.events, now)
+        : agenda.events.map((event: BriefingEvent) => (event.allDay ? 'day' : day < today ? 'past' : 'later')),
     [agenda.events, day, today, now]
   )
   const near = dueLabel(day, today)
@@ -248,7 +422,13 @@ function DayDetail({ day, today, now, agenda, calendars, loading, onComplete }: 
         {agenda.events.length > 0 ? (
           <ul className="today-list today-agenda">
             {agenda.events.map((event, index) => (
-              <EventRow key={event.id} event={event} calendar={calendars.get(event.calendarId)} moment={moments[index]} time={eventTime(event, from, to)} />
+              <EventRow
+                key={event.id}
+                event={event}
+                calendar={calendars.get(event.calendarId)}
+                moment={moments[index]}
+                time={eventTime(event, from, to)}
+              />
             ))}
           </ul>
         ) : connected ? (
@@ -289,7 +469,10 @@ export function CalendarScreen(): JSX.Element {
   const [view, setView] = useState<View>(storedView)
   const weekStart = weekOf(selected)[0]
   const days = useMemo<CalendarDay[]>(
-    () => (view === 'week' ? weekOf(weekStart).map((date) => ({ date, day: Number(date.slice(8)), inMonth: true })) : calendarMatrix(cursor.year, cursor.month).flat()),
+    () =>
+      view === 'week'
+        ? weekOf(weekStart).map((date) => ({ date, day: Number(date.slice(8)), inMonth: true }))
+        : calendarMatrix(cursor.year, cursor.month).flat(),
     [view, weekStart, cursor]
   )
   const from = days[0].date
@@ -393,7 +576,20 @@ export function CalendarScreen(): JSX.Element {
       <div className="cal-body">
         <div className="cal-month">
           {view === 'week' ? (
-            <WeekGrid ref={grid} title={title} busy={busy} days={days} weekdays={weekdays} today={today} now={now} selected={selected} byDay={byDay} calendars={calendars} onPick={pick} onKeyDown={onKeyDown} />
+            <WeekGrid
+              ref={grid}
+              title={title}
+              busy={busy}
+              days={days}
+              weekdays={weekdays}
+              today={today}
+              now={now}
+              selected={selected}
+              byDay={byDay}
+              calendars={calendars}
+              onPick={pick}
+              onKeyDown={onKeyDown}
+            />
           ) : (
             <>
               <div className="cal-grid is-weekdays" aria-hidden="true">
@@ -405,7 +601,17 @@ export function CalendarScreen(): JSX.Element {
               </div>
               <div className="cal-grid" ref={grid} role="group" aria-label={title} aria-busy={busy} onKeyDown={onKeyDown}>
                 {days.map((day) => (
-                  <DayCell key={day.date} day={day.date} number={day.day} outside={!day.inMonth} today={today} selected={day.date === selected} agenda={byDay.get(day.date) ?? NOTHING} calendars={calendars} onPick={pick} />
+                  <DayCell
+                    key={day.date}
+                    day={day.date}
+                    number={day.day}
+                    outside={!day.inMonth}
+                    today={today}
+                    selected={day.date === selected}
+                    agenda={byDay.get(day.date) ?? NOTHING}
+                    calendars={calendars}
+                    onPick={pick}
+                  />
                 ))}
               </div>
             </>
@@ -429,7 +635,15 @@ export function CalendarScreen(): JSX.Element {
             </p>
           ))}
         </div>
-        <DayDetail day={selected} today={today} now={now} agenda={byDay.get(selected) ?? NOTHING} calendars={calendars} loading={busy} onComplete={complete} />
+        <DayDetail
+          day={selected}
+          today={today}
+          now={now}
+          agenda={byDay.get(selected) ?? NOTHING}
+          calendars={calendars}
+          loading={busy}
+          onComplete={complete}
+        />
       </div>
 
       <footer className="today-foot">

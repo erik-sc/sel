@@ -8,7 +8,13 @@ const OLD_NAME = /notebook|caderno|tinta|\bink\b/i
 
 function texts(copy: object): string[] {
   return Object.values(copy).flatMap((value: unknown) =>
-    typeof value === 'string' ? [value] : Array.isArray(value) ? (value as string[]) : typeof value === 'function' ? [(value as (n: number, m?: number) => string)(2, 4)] : []
+    typeof value === 'string'
+      ? [value]
+      : Array.isArray(value)
+        ? (value as string[])
+        : typeof value === 'function'
+          ? [(value as (n: number, m?: number) => string)(2, 4)]
+          : []
   )
 }
 
@@ -35,6 +41,7 @@ describe('the words of Meditations', () => {
       shownShortcuts({ mac: false, ai: true, query })
         .flatMap((group) => group.entries)
         .map((e) => `${e.label} ${e.keys.join(' / ')}`)
-    for (const query of ['meditations', 'meditações', 'notebook', 'ink', 'caderno']) expect(found(query), query).toContain('Meditations Ctrl+Alt+N')
+    for (const query of ['meditations', 'meditações', 'notebook', 'ink', 'caderno'])
+      expect(found(query), query).toContain('Meditations Ctrl+Alt+N')
   })
 })

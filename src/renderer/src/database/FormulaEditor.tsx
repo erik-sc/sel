@@ -11,11 +11,26 @@ import { TypeIcon } from './common'
 import { useCommitOnUnmount, useEscapePressed } from './hooks'
 import { useRelated } from './related'
 
-function PreviewLine({ preview, text, rowTitle, onShow }: { preview: L.FormulaPreview; text: string; rowTitle: string | null; onShow: (problem: L.FormulaProblem) => void }): JSX.Element {
+function PreviewLine({
+  preview,
+  text,
+  rowTitle,
+  onShow
+}: {
+  preview: L.FormulaPreview
+  text: string
+  rowTitle: string | null
+  onShow: (problem: L.FormulaProblem) => void
+}): JSX.Element {
   const { problem, outcome, type } = preview
   if (problem) {
     return (
-      <button type="button" className="db-formula-status is-error" onMouseDown={(event) => event.preventDefault()} onClick={() => onShow(problem)}>
+      <button
+        type="button"
+        className="db-formula-status is-error"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => onShow(problem)}
+      >
         <span className="db-formula-error-mark" aria-hidden="true">
           !
         </span>
@@ -52,7 +67,15 @@ function PreviewLine({ preview, text, rowTitle, onShow }: { preview: L.FormulaPr
   )
 }
 
-export function FormulaEditor({ databaseId, prop, onClose }: { databaseId: string; prop: PropertySchema; onClose: () => void }): JSX.Element {
+export function FormulaEditor({
+  databaseId,
+  prop,
+  onClose
+}: {
+  databaseId: string
+  prop: PropertySchema
+  onClose: () => void
+}): JSX.Element {
   const { schema } = actions.snapshot(databaseId)
   const { cells } = useRelated()
   const ctx = useMemo(() => cells ?? actions.storeCellContext(), [cells])
@@ -70,7 +93,10 @@ export function FormulaEditor({ databaseId, prop, onClose }: { databaseId: strin
 
   const row = actions.rowsOf(databaseId)[0]
   const preview = useMemo(() => L.previewFormula(text, prop.id, schema, row, ctx), [text, prop.id, schema, row, ctx])
-  const completions = useMemo(() => (dismissed ? null : L.formulaCompletions(text, caret, schema, prop.id)), [text, caret, schema, prop.id, dismissed])
+  const completions = useMemo(
+    () => (dismissed ? null : L.formulaCompletions(text, caret, schema, prop.id)),
+    [text, caret, schema, prop.id, dismissed]
+  )
   const properties = useMemo(() => L.orderedProperties(schema).filter((p) => p.id !== prop.id), [schema, prop.id])
 
   const save = (): void => {

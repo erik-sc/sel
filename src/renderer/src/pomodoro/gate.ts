@@ -78,10 +78,34 @@ const COMMANDS = [
     when: () => !timer(),
     run: () => void pomodoro('start')
   },
-  { id: 'pomodoro-pause', title: 'Pause the pomodoro', keywords: KEYWORDS, when: () => !!timer() && !timer()!.paused && !timer()!.ended, run: () => void pomodoro('pause') },
-  { id: 'pomodoro-resume', title: 'Resume the pomodoro', keywords: KEYWORDS, when: () => !!timer()?.paused, run: () => void pomodoro('resume') },
-  { id: 'pomodoro-skip', title: 'Skip to the next pomodoro phase', keywords: KEYWORDS, when: () => !!timer() && !timer()!.ended, run: () => void pomodoro('skip') },
-  { id: 'pomodoro-next', title: 'Start the next pomodoro phase', keywords: KEYWORDS, when: () => !!timer()?.ended, run: () => void pomodoro('next') },
+  {
+    id: 'pomodoro-pause',
+    title: 'Pause the pomodoro',
+    keywords: KEYWORDS,
+    when: () => !!timer() && !timer()!.paused && !timer()!.ended,
+    run: () => void pomodoro('pause')
+  },
+  {
+    id: 'pomodoro-resume',
+    title: 'Resume the pomodoro',
+    keywords: KEYWORDS,
+    when: () => !!timer()?.paused,
+    run: () => void pomodoro('resume')
+  },
+  {
+    id: 'pomodoro-skip',
+    title: 'Skip to the next pomodoro phase',
+    keywords: KEYWORDS,
+    when: () => !!timer() && !timer()!.ended,
+    run: () => void pomodoro('skip')
+  },
+  {
+    id: 'pomodoro-next',
+    title: 'Start the next pomodoro phase',
+    keywords: KEYWORDS,
+    when: () => !!timer()?.ended,
+    run: () => void pomodoro('next')
+  },
   { id: 'pomodoro-restart', title: 'Restart the pomodoro', keywords: KEYWORDS, when: () => !!timer(), run: () => void pomodoro('start') },
   { id: 'pomodoro-stop', title: 'Stop the pomodoro', keywords: KEYWORDS, when: () => !!timer(), run: () => void pomodoro('stop') }
 ]

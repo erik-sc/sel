@@ -186,7 +186,11 @@ export function backupWhen(at: number, now: number, locale: DataLocale): string 
   const yesterday = new Date(now)
   yesterday.setDate(yesterday.getDate() - 1)
   if (day === yesterday.toDateString()) return `${copy.yesterday}, ${time}`
-  const date = new Intl.DateTimeFormat(INTL_LOCALE[locale], { day: 'numeric', month: 'short', ...(new Date(at).getFullYear() !== new Date(now).getFullYear() ? { year: 'numeric' as const } : {}) }).format(at)
+  const date = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    day: 'numeric',
+    month: 'short',
+    ...(new Date(at).getFullYear() !== new Date(now).getFullYear() ? { year: 'numeric' as const } : {})
+  }).format(at)
   return `${date}, ${time}`
 }
 

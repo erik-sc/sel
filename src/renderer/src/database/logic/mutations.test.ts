@@ -65,12 +65,19 @@ describe('changePropertyType never corrupts', () => {
   })
 
   it('round-trips through text', () => {
-    const rows = [row('a', { num: 1.234, sel: 'done', tags: ['done', 'todo'], date: { start: '2024-03-10', end: '2024-03-12' }, chk: true })]
+    const rows = [
+      row('a', { num: 1.234, sel: 'done', tags: ['done', 'todo'], date: { start: '2024-03-10', end: '2024-03-12' }, chk: true })
+    ]
     const roundTrip = (id: string): unknown => {
       const from = schema[id]
       const toText = L.changePropertyType(schema, id, 'text', rows)
       const textRows = rows.map((r) => ({ ...r, props: { ...r.props, values: toText.rowValues[r.id] ?? r.props.values } }))
-      const back = L.changePropertyType({ ...toText.schema, [id]: { ...toText.schema[id], options: from.options } }, id, from.type, textRows)
+      const back = L.changePropertyType(
+        { ...toText.schema, [id]: { ...toText.schema[id], options: from.options } },
+        id,
+        from.type,
+        textRows
+      )
       return (back.rowValues.a ?? textRows[0].props.values!)[id]
     }
     // 1.234 is the hard case: in pt-BR "1.234" reads as one thousand two hundred and thirty-four.
@@ -154,7 +161,10 @@ describe('deleting cleans every reference', () => {
         type: 'board',
         groupBy: 'sel',
         visibleProperties: ['t', 'sel', 'num'],
-        filters: [{ propertyId: 'sel', operator: 'is_empty' }, { propertyId: 'num', operator: 'gt', value: 1 }],
+        filters: [
+          { propertyId: 'sel', operator: 'is_empty' },
+          { propertyId: 'num', operator: 'gt', value: 1 }
+        ],
         sorts: [{ propertyId: 'sel', direction: 'desc' }],
         propertyWidths: { sel: 100 }
       })
@@ -178,7 +188,15 @@ describe('option edits', () => {
 
 describe('filter semantics, empties included', () => {
   const rows = [
-    row('full', { txt: 'Hello', num: 5, sel: 'done', tags: ['done'], date: { start: '2024-03-10', end: '2024-03-12' }, chk: true, url: 'https://a.b' }),
+    row('full', {
+      txt: 'Hello',
+      num: 5,
+      sel: 'done',
+      tags: ['done'],
+      date: { start: '2024-03-10', end: '2024-03-12' },
+      chk: true,
+      url: 'https://a.b'
+    }),
     row('empty'),
     row('blank', { txt: '   ', num: 0, tags: [], chk: false })
   ]
@@ -204,11 +222,19 @@ describe('filter semantics, empties included', () => {
     ['date after the range', { propertyId: 'date', operator: 'gt', value: '2024-03-12' }, []],
     ['date before: a range starting earlier counts', { propertyId: 'date', operator: 'lt', value: '2024-03-11' }, ['full']],
     ['date is_empty', { propertyId: 'date', operator: 'is_empty' }, ['empty', 'blank']],
-    ['date with an invalid value filters nothing', { propertyId: 'date', operator: 'equals', value: '2024-02-30' }, ['full', 'empty', 'blank']],
+    [
+      'date with an invalid value filters nothing',
+      { propertyId: 'date', operator: 'equals', value: '2024-02-30' },
+      ['full', 'empty', 'blank']
+    ],
     ['checkbox unchecked includes never-set', { propertyId: 'chk', operator: 'unchecked' }, ['empty', 'blank']],
     ['checkbox checked', { propertyId: 'chk', operator: 'checked' }, ['full']],
     ['title contains', { propertyId: 't', operator: 'contains', value: 'EMP' }, ['empty']],
-    ['wrong-typed value filters nothing', { propertyId: 'num', operator: 'gt', value: { start: 'x' } as never }, ['full', 'empty', 'blank']],
+    [
+      'wrong-typed value filters nothing',
+      { propertyId: 'num', operator: 'gt', value: { start: 'x' } as never },
+      ['full', 'empty', 'blank']
+    ],
     ['unknown operator filters nothing', { propertyId: 'num', operator: 'between' as never, value: 1 }, ['full', 'empty', 'blank']]
   ])('%s', (_name, filter, expected) => {
     expect(match(filter)).toEqual(expected)

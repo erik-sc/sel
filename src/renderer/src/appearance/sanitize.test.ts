@@ -184,9 +184,7 @@ describe('state sanitisation', () => {
       customCss: '.a{color:red}',
       presetId: 'glass'
     })
-    expect(buildCss(data)).toBe(
-      ":root{--glass-blur:10px;--accent:#ff0000;}\n:root[data-theme='dark']{--accent:#00ff00;}\n.a{color:red}\n"
-    )
+    expect(buildCss(data)).toBe(":root{--glass-blur:10px;--accent:#ff0000;}\n:root[data-theme='dark']{--accent:#00ff00;}\n.a{color:red}\n")
     expect(buildCss(emptyAppearance())).toBe('')
     expect(effectiveValueIn(data, '--accent', 'dark')).toBe('#00ff00')
     expect(effectiveValueIn(data, '--glass-blur', 'dark')).toBe('10px')

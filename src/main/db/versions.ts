@@ -109,7 +109,14 @@ export function buildSnapshot(tree: Block[]): SnapshotContent | null {
   const linkedRoot = sourceIdOf(root) !== null
   const ownsRows = root.type === 'database' && !linkedRoot
   const blocks: SnapshotBlock[] = [
-    { id: root.id, type: root.type, parentId: null, content: linkedRoot ? [] : root.content, props: rootProps(root.props), createdAt: root.createdAt }
+    {
+      id: root.id,
+      type: root.type,
+      parentId: null,
+      content: linkedRoot ? [] : root.content,
+      props: rootProps(root.props),
+      createdAt: root.createdAt
+    }
   ]
   const refs: SnapshotRef[] = []
   const rows: SnapshotRow[] = []
@@ -128,14 +135,25 @@ export function buildSnapshot(tree: Block[]): SnapshotContent | null {
         if (typeof b.props.icon === 'string') row.icon = b.props.icon
         rows.push(row)
       } else {
-        const ref: SnapshotRef = { id: b.id, type: b.type as 'page' | 'database', title: plainText(b.props.title).slice(0, MAX_TITLE_CHARS) }
+        const ref: SnapshotRef = {
+          id: b.id,
+          type: b.type as 'page' | 'database',
+          title: plainText(b.props.title).slice(0, MAX_TITLE_CHARS)
+        }
         if (typeof b.props.icon === 'string') ref.icon = b.props.icon
         refs.push(ref)
       }
       continue
     }
     // A linked view holds nothing below it.
-    blocks.push({ id: b.id, type: b.type, parentId: b.parentId, content: b.type === 'database' ? [] : b.content, props: b.props, createdAt: b.createdAt })
+    blocks.push({
+      id: b.id,
+      type: b.type,
+      parentId: b.parentId,
+      content: b.type === 'database' ? [] : b.content,
+      props: b.props,
+      createdAt: b.createdAt
+    })
   }
   // Child lists only name what the snapshot holds (trashed or unreadable children are not part of the page).
   for (const b of blocks) {
@@ -240,7 +258,7 @@ export function parseSnapshot(raw: unknown, cleanProps: (props: Record<string, u
     })
   }
   const root = byId.get(rootId)
-  if (!root || !isPageLike(root.type) || list[0] !== undefined && (list[0] as { id?: unknown }).id !== rootId) return bad()
+  if (!root || !isPageLike(root.type) || (list[0] !== undefined && (list[0] as { id?: unknown }).id !== rootId)) return bad()
 
   const refs: SnapshotRef[] = []
   const refIds = new Set<string>()
@@ -653,7 +671,9 @@ export class VersionStore {
 
   private latest(pageId: string): (InfoRow & { hash: string }) | undefined {
     return this.host
-      .stmt(`SELECT ${INFO_COLS}, hash FROM page_versions WHERE page_id = ? AND hash <> '${DAMAGED_HASH}' ORDER BY created_at DESC, rowid DESC LIMIT 1`)
+      .stmt(
+        `SELECT ${INFO_COLS}, hash FROM page_versions WHERE page_id = ? AND hash <> '${DAMAGED_HASH}' ORDER BY created_at DESC, rowid DESC LIMIT 1`
+      )
       .get(pageId) as (InfoRow & { hash: string }) | undefined
   }
 
@@ -794,9 +814,7 @@ export class VersionStore {
 
   stats(pageId?: string): VersionStats {
     const probe = `SELECT kind, hash, typeof(data) AS dtype, length(data) AS bytes FROM page_versions`
-    const rows = (
-      pageId === undefined ? this.host.stmt(probe).all() : this.host.stmt(`${probe} WHERE page_id = ?`).all(pageId)
-    ) as Probe[]
+    const rows = (pageId === undefined ? this.host.stmt(probe).all() : this.host.stmt(`${probe} WHERE page_id = ?`).all(pageId)) as Probe[]
     let bytes = 0
     let damaged = 0
     for (const r of rows) {

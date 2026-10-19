@@ -220,8 +220,7 @@ export function coerceValue(
   if (from.type === to.type) return value
   // Linked row ids mean nothing as any other type, and nothing else names rows.
   if (from.type === 'relation' || to.type === 'relation') return null
-  const lookup = (name: string): SelectOption | undefined =>
-    index ? index.get(nameKey(name)) : optionByName(to, name)
+  const lookup = (name: string): SelectOption | undefined => (index ? index.get(nameKey(name)) : optionByName(to, name))
   switch (to.type) {
     case 'title':
     case 'text':
@@ -334,11 +333,7 @@ export function changePropertyType(
 }
 
 /** Removes a property (never the title) and every reference to it in the views. */
-export function deleteProperty(
-  schema: Schema,
-  views: DatabaseView[],
-  propertyId: string
-): { schema: Schema; views: DatabaseView[] } {
+export function deleteProperty(schema: Schema, views: DatabaseView[], propertyId: string): { schema: Schema; views: DatabaseView[] } {
   const prop = propOf(schema, propertyId)
   if (!prop || prop.type === 'title') return { schema, views }
   const next: Schema = {}
@@ -376,12 +371,7 @@ export function addOption(
 }
 
 /** Renames / recolours an option. A blank name, or one another option already has, is ignored. */
-export function updateOption(
-  schema: Schema,
-  propertyId: string,
-  optionId: string,
-  patch: { name?: string; color?: string }
-): Schema {
+export function updateOption(schema: Schema, propertyId: string, optionId: string, patch: { name?: string; color?: string }): Schema {
   const prop = propOf(schema, propertyId)
   const current = findOption(prop, optionId)
   if (!prop || !current) return schema

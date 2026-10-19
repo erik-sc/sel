@@ -139,7 +139,11 @@ describe('the Today screen reads it', () => {
     // Placed first and named like a due date: still not the one.
     const renamed = { deadline: { id: 'deadline', name: 'Deadline', type: 'date' as const }, ...schema }
     repo.update(TASKS_DATABASE_ID, { props: { schema: renamed } })
-    expect(detectSignal(repo.get(TASKS_DATABASE_ID)!.props)).toMatchObject({ checkbox: TASK_PROPS.done, date: TASK_PROPS.due, priority: { property: TASK_PROPS.priority } })
+    expect(detectSignal(repo.get(TASKS_DATABASE_ID)!.props)).toMatchObject({
+      checkbox: TASK_PROPS.done,
+      date: TASK_PROPS.due,
+      priority: { property: TASK_PROPS.priority }
+    })
   })
 
   it('with overdue and today rows, and without the done ones', () => {

@@ -41,7 +41,10 @@ describe('times of day', () => {
 
   it('normalises date values with times', () => {
     expect(L.normalizeDateValue({ start: '2026-10-15T09:00' })).toEqual({ start: '2026-10-15T09:00' })
-    expect(L.normalizeDateValue({ start: '2026-10-15T09:00', end: '2026-10-15T10:30' })).toEqual({ start: '2026-10-15T09:00', end: '2026-10-15T10:30' })
+    expect(L.normalizeDateValue({ start: '2026-10-15T09:00', end: '2026-10-15T10:30' })).toEqual({
+      start: '2026-10-15T09:00',
+      end: '2026-10-15T10:30'
+    })
     // An end that does not come after the start goes.
     expect(L.normalizeDateValue({ start: '2026-10-15T09:00', end: '2026-10-15T09:00' })).toEqual({ start: '2026-10-15T09:00' })
     expect(L.normalizeDateValue({ start: '2026-10-15T09:00', end: '2026-10-15T08:00' })).toEqual({ start: '2026-10-15T09:00' })
@@ -175,7 +178,8 @@ describe('date_is filter', () => {
   })
 
   it('gives a new row the first day of the span from today on', () => {
-    const defaults = (value: string): unknown => L.defaultsFromFilters(schema, [{ propertyId: 'd', operator: 'date_is', value }]).values['d']
+    const defaults = (value: string): unknown =>
+      L.defaultsFromFilters(schema, [{ propertyId: 'd', operator: 'date_is', value }]).values['d']
     expect(defaults('this_week')).toEqual({ start: '2026-10-15' })
     expect(defaults('tomorrow')).toEqual({ start: '2026-10-16' })
     expect(defaults('next_week')).toEqual({ start: '2026-10-18' })

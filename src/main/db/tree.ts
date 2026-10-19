@@ -45,8 +45,7 @@ export const subtreeSql = (columns: string): string => `
   SELECT ${columns} FROM tree CROSS JOIN blocks b ON b.rid = tree.rid`
 
 /** Rows for a JSON array of ids (one cached statement whatever the number of ids). */
-export const byIdsSql = (columns: string): string =>
-  `SELECT ${columns} FROM json_each(?) j CROSS JOIN blocks b ON b.id = j.value`
+export const byIdsSql = (columns: string): string => `SELECT ${columns} FROM json_each(?) j CROSS JOIN blocks b ON b.id = j.value`
 
 /** The given blocks and all their ancestors, each once, in one statement. */
 export const LINEAGE_SQL = `

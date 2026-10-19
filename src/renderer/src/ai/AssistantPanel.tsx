@@ -73,7 +73,12 @@ const SUGGESTIONS = ['Summarize this page', 'What are the action items?', 'What 
 const HERMAN_OPENERS = ['What is this page really about?', 'What am I avoiding here?', 'Make this shorter', 'What should I do first today?']
 const HERMAN_DAY_OPENERS = ['What should I do first today?', 'What can wait until tomorrow?', 'What am I avoiding today?']
 /** What one might put to the whole council: the work of putting a workspace in order. */
-const COUNCIL_OPENERS = ['Organize this space', 'Find what is duplicated, stale or misplaced', 'Turn these notes into a database', 'Plan the next week from what is here']
+const COUNCIL_OPENERS = [
+  'Organize this space',
+  'Find what is duplicated, stale or misplaced',
+  'Turn these notes into a database',
+  'Plan the next week from what is here'
+]
 const COUNCIL_DAY_OPENERS = ['Plan my day from what is here', 'Sort out what is overdue', 'Organize my workspace']
 const DAY_OPENERS = ['What should I do first today?', 'What is overdue?', 'What does the afternoon look like?']
 
@@ -97,7 +102,8 @@ function CouncilView({ seats, working }: { seats: readonly Seat[]; working: bool
     <div className="council" aria-label="Council">
       {seats.map((seat) => {
         const { name, role } = COUNCIL_PEOPLE[seat.member]
-        const state = seat.status === 'thinking' ? (working ? (seat.text ?? 'thinking…') : 'stopped') : seat.status === 'failed' ? 'no answer' : ''
+        const state =
+          seat.status === 'thinking' ? (working ? (seat.text ?? 'thinking…') : 'stopped') : seat.status === 'failed' ? 'no answer' : ''
         const said = seat.status === 'done' && seat.text ? splitActions(seat.text) : null
         const drafted = said?.actions.length ?? 0
         return (
@@ -109,7 +115,11 @@ function CouncilView({ seats, working }: { seats: readonly Seat[]; working: bool
               {drafted > 0 && <span className="council-drafted">{drafted === 1 ? '1 change drafted' : `${drafted} changes drafted`}</span>}
               {state && <span className="council-state">{state}</span>}
             </summary>
-            {said ? <MarkdownView markdown={said.text} /> : seat.status === 'failed' && seat.text ? <p className="council-note">{seat.text}</p> : null}
+            {said ? (
+              <MarkdownView markdown={said.text} />
+            ) : seat.status === 'failed' && seat.text ? (
+              <p className="council-note">{seat.text}</p>
+            ) : null}
           </details>
         )
       })}
@@ -141,7 +151,19 @@ function useSeated(on: boolean): CouncilMemberId[] {
 const PROPOSAL_OPEN_STEPS = 6
 
 /** What an answer proposes to build, and the button that builds it. */
-function Proposal({ actions, outcome, pageId, onApply, onDismiss }: { actions: readonly HermanAction[]; outcome: Outcome | undefined; pageId: string | null; onApply(): void; onDismiss(): void }): JSX.Element | null {
+function Proposal({
+  actions,
+  outcome,
+  pageId,
+  onApply,
+  onDismiss
+}: {
+  actions: readonly HermanAction[]
+  outcome: Outcome | undefined
+  pageId: string | null
+  onApply(): void
+  onDismiss(): void
+}): JSX.Element | null {
   if (outcome?.state === 'dismissed') return null
   if (outcome?.state === 'applied') {
     const { open } = outcome
@@ -225,7 +247,8 @@ export function AssistantPanel(): JSX.Element {
 
   // Closing the panel gives the keyboard back to where it was (the caret in the page, usually).
   useEffect(() => {
-    const previous = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null
+    const previous =
+      document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null
     const selection = window.getSelection()
     const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
     return () => {
@@ -270,14 +293,20 @@ export function AssistantPanel(): JSX.Element {
   const answer = (question: string, history: AiTurn[], selectionText: string | null, withCouncil: boolean): void => {
     const id = ++nextMessageId
     setChat(key, (list) => [...list, { id, role: 'assistant', text: '', run: IDLE }])
-    const patch = (change: (message: Message) => Message): void => setChat(key, (list) => list.map((message) => (message.id === id ? change(message) : message)))
+    const patch = (change: (message: Message) => Message): void =>
+      setChat(key, (list) => list.map((message) => (message.id === id ? change(message) : message)))
     const onCouncil = ({ member, status, text }: CouncilEvent): void =>
       patch((message) => {
         // Only the request this answer is waiting for speaks for its council.
         if (!message.run || !isBusy(message.run)) return message
         const seat: Seat = { member, status, ...(text ? { text } : {}) }
         const seats = message.council ?? []
-        return { ...message, council: seats.some((entry) => entry.member === member) ? seats.map((entry) => (entry.member === member ? seat : entry)) : [...seats, seat] }
+        return {
+          ...message,
+          council: seats.some((entry) => entry.member === member)
+            ? seats.map((entry) => (entry.member === member ? seat : entry))
+            : [...seats, seat]
+        }
       })
     const emit = (event: RunEvent): void => {
       setChat(key, (list) =>
@@ -305,7 +334,8 @@ export function AssistantPanel(): JSX.Element {
 
   /** The user pressed Apply: what the answer proposed is built, and the card says what was done. */
   const apply = (id: number, actions: readonly HermanAction[]): void => {
-    const set = (proposal: Outcome | undefined): void => setChat(key, (list) => list.map((message) => (message.id === id ? { ...message, proposal } : message)))
+    const set = (proposal: Outcome | undefined): void =>
+      setChat(key, (list) => list.map((message) => (message.id === id ? { ...message, proposal } : message)))
     set({ state: 'applying' })
     applyActions(actions, pageId).then(
       (plan) => set({ state: 'applied', done: plan.done, skipped: plan.skipped, open: plan.open }),
@@ -327,7 +357,10 @@ export function AssistantPanel(): JSX.Element {
         return
       }
       const history = historyOf(useChats.getState().chats[key] ?? NO_MESSAGES, Number.MAX_SAFE_INTEGER)
-      setChat(key, (list) => [...list, { id: ++nextMessageId, role: 'user', text: question, withSelection: !!selection, withCouncil: council }])
+      setChat(key, (list) => [
+        ...list,
+        { id: ++nextMessageId, role: 'user', text: question, withSelection: !!selection, withCouncil: council }
+      ])
       answer(question, history, selection, council)
     })
   }
@@ -366,8 +399,28 @@ export function AssistantPanel(): JSX.Element {
     }
   }
 
-  const openers = council ? (today ? COUNCIL_DAY_OPENERS : COUNCIL_OPENERS) : herman ? (today ? HERMAN_DAY_OPENERS : HERMAN_OPENERS) : today ? DAY_OPENERS : SUGGESTIONS
-  const emptyTitle = council ? 'The council is seated' : herman ? (today ? 'Ask about your day' : 'What is on your mind?') : today ? 'Ask about your day' : pageId ? 'Ask about this page' : 'Ask anything'
+  const openers = council
+    ? today
+      ? COUNCIL_DAY_OPENERS
+      : COUNCIL_OPENERS
+    : herman
+      ? today
+        ? HERMAN_DAY_OPENERS
+        : HERMAN_OPENERS
+      : today
+        ? DAY_OPENERS
+        : SUGGESTIONS
+  const emptyTitle = council
+    ? 'The council is seated'
+    : herman
+      ? today
+        ? 'Ask about your day'
+        : 'What is on your mind?'
+      : today
+        ? 'Ask about your day'
+        : pageId
+          ? 'Ask about this page'
+          : 'Ask anything'
   // Herman does not explain himself: with him on there is no help line, only the openers.
   const emptyHelp = herman
     ? null
@@ -485,7 +538,11 @@ export function AssistantPanel(): JSX.Element {
                     outcome={message.proposal}
                     pageId={pageId}
                     onApply={() => apply(message.id, parsed.actions)}
-                    onDismiss={() => setChat(key, (list) => list.map((entry) => (entry.id === message.id ? { ...entry, proposal: { state: 'dismissed' } } : entry)))}
+                    onDismiss={() =>
+                      setChat(key, (list) =>
+                        list.map((entry) => (entry.id === message.id ? { ...entry, proposal: { state: 'dismissed' } } : entry))
+                      )
+                    }
                   />
                 )}
                 {(working || run.status === 'cancelled') && (
@@ -504,10 +561,20 @@ export function AssistantPanel(): JSX.Element {
                   <div className="assistant-actions">
                     {hasText && (
                       <>
-                        <button type="button" disabled={!editor} title={editor ? undefined : 'Open a page to insert into'} onClick={() => insert(text, 'below')}>
+                        <button
+                          type="button"
+                          disabled={!editor}
+                          title={editor ? undefined : 'Open a page to insert into'}
+                          onClick={() => insert(text, 'below')}
+                        >
                           Insert below
                         </button>
-                        <button type="button" disabled={!editor || !selection} title={selection ? undefined : 'Select text in the page first'} onClick={() => insert(text, 'replace')}>
+                        <button
+                          type="button"
+                          disabled={!editor || !selection}
+                          title={selection ? undefined : 'Select text in the page first'}
+                          onClick={() => insert(text, 'replace')}
+                        >
                           Replace selection
                         </button>
                         <button type="button" onClick={() => copy(text)}>

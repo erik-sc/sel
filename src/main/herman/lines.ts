@@ -47,7 +47,10 @@ const s = (w: Words, one: string, many: string): string => (w.one ? one : many)
 
 const EN: Record<HermanNudgeKind, Line[]> = {
   overdue: [
-    line((w) => `${w.N} ${s(w, 'thing has', 'things have')} been waiting ${w.since}. ${s(w, 'Is it actually yours to do?', 'Which one is actually yours to do?')}`),
+    line(
+      (w) =>
+        `${w.N} ${s(w, 'thing has', 'things have')} been waiting ${w.since}. ${s(w, 'Is it actually yours to do?', 'Which one is actually yours to do?')}`
+    ),
     line((w) => `${w.N} overdue. ${s(w, 'Do it, or drop it.', 'Do one, or drop one.')}`),
     titled((w) => `“${w.title}” has waited ${w.since}. Do it, or drop it.`),
     line((w) => `Something has waited ${w.since}. The smallest step?`),
@@ -274,7 +277,17 @@ const NUMBERS: Record<HermanLocale, readonly string[]> = {
 }
 const TENS: Record<HermanLocale, Record<number, string>> = {
   en: { 15: 'fifteen', 20: 'twenty', 30: 'thirty', 40: 'forty', 50: 'fifty', 60: 'sixty', 70: 'seventy', 80: 'eighty', 90: 'ninety' },
-  'pt-BR': { 15: 'quinze', 20: 'vinte', 30: 'trinta', 40: 'quarenta', 50: 'cinquenta', 60: 'sessenta', 70: 'setenta', 80: 'oitenta', 90: 'noventa' }
+  'pt-BR': {
+    15: 'quinze',
+    20: 'vinte',
+    30: 'trinta',
+    40: 'quarenta',
+    50: 'cinquenta',
+    60: 'sessenta',
+    70: 'setenta',
+    80: 'oitenta',
+    90: 'noventa'
+  }
 }
 const WEEKDAYS: Record<HermanLocale, readonly string[]> = {
   en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],

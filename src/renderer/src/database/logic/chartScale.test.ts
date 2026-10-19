@@ -206,7 +206,7 @@ describe('label collisions', () => {
 })
 
 describe('arcs', () => {
-  it('slices start at 12 o\'clock, go clockwise and add up to a full turn', () => {
+  it("slices start at 12 o'clock, go clockwise and add up to a full turn", () => {
     const slices = L.pieSlices([1, 1, 2])
     expect(slices.map((s) => s.share)).toEqual([0.25, 0.25, 0.5])
     expect(slices[0].from).toBeCloseTo(-Math.PI / 2)

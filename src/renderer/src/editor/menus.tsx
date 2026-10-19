@@ -145,11 +145,19 @@ function aiMenu(ctrl: EditorController, ids: string[]): MenuItem {
       { id: 'ai-lengthen', label: 'Longer', onSelect: run('lengthen') },
       { id: 'ai-expand', label: 'Expand with detail', onSelect: run('expand') },
       { id: 'ai-simplify', label: 'Simplify', onSelect: run('simplify') },
-      { id: 'ai-tone', label: 'Change tone', submenu: AI_TONES.map((tone) => ({ id: `ai-tone-${tone}`, label: AI_TONE_LABELS[tone], onSelect: run('tone', { tone }) })) },
+      {
+        id: 'ai-tone',
+        label: 'Change tone',
+        submenu: AI_TONES.map((tone) => ({ id: `ai-tone-${tone}`, label: AI_TONE_LABELS[tone], onSelect: run('tone', { tone }) }))
+      },
       {
         id: 'ai-translate',
         label: 'Translate',
-        submenu: AI_LANGUAGES.map((language) => ({ id: `ai-lang-${language}`, label: AI_LANGUAGE_LABELS[language], onSelect: run('translate', { language }) }))
+        submenu: AI_LANGUAGES.map((language) => ({
+          id: `ai-lang-${language}`,
+          label: AI_LANGUAGE_LABELS[language],
+          onSelect: run('translate', { language })
+        }))
       },
       { separator: true },
       { id: 'ai-summarize', label: 'Summarize', onSelect: run('summarize') },
@@ -184,7 +192,9 @@ export function BlockMenu(): JSX.Element | null {
   })
   // A single database block can join the row of the one before it, or leave its row.
   const only = ids.length === 1 ? getBlock(ids[0]) : undefined
-  const siblings = only?.parentId ? (getBlock(only.parentId)?.content ?? []).map(getBlock).filter((b): b is Block => !!b && !b.trashedAt) : []
+  const siblings = only?.parentId
+    ? (getBlock(only.parentId)?.content ?? []).map(getBlock).filter((b): b is Block => !!b && !b.trashedAt)
+    : []
   const beside = only ? besideChoice(siblings, only.id) : null
 
   const items: MenuItem[] = [

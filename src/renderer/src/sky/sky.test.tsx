@@ -41,7 +41,11 @@ describe('the sky shows no number', () => {
       const named = { ...input, names: {} }
       for (const today of ['2026-10-15', '2026-08-12', '2026-03-03', '2027-01-01']) {
         const scene = skyScene(named, Number(today.slice(0, 4)), today)
-        for (const play of [null, { first: true }, { stars: ['2026-10-15'], named: ['2026-09'], grains: ['t-2026-10-15'], halos: ['p-2026-10-15'], event: true }]) {
+        for (const play of [
+          null,
+          { first: true },
+          { stars: ['2026-10-15'], named: ['2026-09'], grains: ['t-2026-10-15'], halos: ['p-2026-10-15'], event: true }
+        ]) {
           const html = renderToStaticMarkup(<SkyChart scene={scene} copy={COPY[locale]} locale={locale} play={play} />)
           expect(readable(html), `${locale} ${today}`).not.toMatch(/\d/)
         }
@@ -57,8 +61,13 @@ describe('the sky shows no number', () => {
       { kind: 'eclipse', total: true },
       { kind: 'eclipse', total: false },
       { kind: 'anniversary' },
-      ...(['quadrantids', 'lyrids', 'eta-aquariids', 'delta-aquariids', 'perseids', 'orionids', 'leonids', 'geminids'] as const).map((shower) => ({ kind: 'meteors' as const, shower })),
-      ...(['spring-equinox', 'summer-solstice', 'autumn-equinox', 'winter-solstice'] as const).map((mark) => ({ kind: 'season' as const, mark })),
+      ...(['quadrantids', 'lyrids', 'eta-aquariids', 'delta-aquariids', 'perseids', 'orionids', 'leonids', 'geminids'] as const).map(
+        (shower) => ({ kind: 'meteors' as const, shower })
+      ),
+      ...(['spring-equinox', 'summer-solstice', 'autumn-equinox', 'winter-solstice'] as const).map((mark) => ({
+        kind: 'season' as const,
+        mark
+      })),
       { kind: 'new-year' },
       { kind: 'comet', night: 2 },
       { kind: 'halo' },

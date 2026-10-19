@@ -233,7 +233,16 @@ describe('names are capped', () => {
     expect(L.duplicateView([view], 'v').view!.id).toMatch(uuid)
     expect(L.addProperty(schema, { id: '__proto__', type: 'text' }).property.id).toMatch(uuid)
     const derived = L.changePropertyType({ ...schema, x: { id: 'x', name: 'X', type: 'text' } }, 'x', 'select', [
-      { id: 'r', type: 'page', parentId: 'db', content: [], props: { values: { x: typed } }, createdAt: 0, updatedAt: 0, trashedAt: null } as Block
+      {
+        id: 'r',
+        type: 'page',
+        parentId: 'db',
+        content: [],
+        props: { values: { x: typed } },
+        createdAt: 0,
+        updatedAt: 0,
+        trashedAt: null
+      } as Block
     ])
     expect(derived.schema.x.options![0]).toMatchObject({ name: typed })
     expect(derived.schema.x.options![0].id).toMatch(uuid)

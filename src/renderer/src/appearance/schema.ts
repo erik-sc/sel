@@ -4,17 +4,7 @@
  * so every token stays editable in Settings → Appearance.
  */
 
-export type TokenKind =
-  | 'color'
-  | 'length'
-  | 'number'
-  | 'percent'
-  | 'font'
-  | 'shadow'
-  | 'duration'
-  | 'easing'
-  | 'image'
-  | 'text'
+export type TokenKind = 'color' | 'length' | 'number' | 'percent' | 'font' | 'shadow' | 'duration' | 'easing' | 'image' | 'text'
 
 export const GROUPS = [
   'Wallpaper',
@@ -55,15 +45,7 @@ export interface TokenDef {
 
 type Extra = Partial<Pick<TokenDef, 'min' | 'max' | 'step' | 'unit' | 'scaled' | 'description'>>
 
-function def(
-  group: TokenGroup,
-  kind: TokenKind,
-  name: string,
-  label: string,
-  light: string,
-  dark?: string,
-  extra: Extra = {}
-): TokenDef {
+function def(group: TokenGroup, kind: TokenKind, name: string, label: string, light: string, dark?: string, extra: Extra = {}): TokenDef {
   const token: TokenDef = { name, label, group, kind, themed: dark !== undefined, light, ...extra }
   if (dark !== undefined) token.dark = dark
   return token
@@ -72,16 +54,8 @@ function def(
 const color = (g: TokenGroup, name: string, label: string, light: string, dark?: string, description?: string) =>
   def(g, 'color', name, label, light, dark, description ? { description } : {})
 
-const px = (
-  g: TokenGroup,
-  name: string,
-  label: string,
-  value: number,
-  min: number,
-  max: number,
-  step = 1,
-  description?: string
-) => def(g, 'length', name, label, `${value}px`, undefined, { min, max, step, unit: 'px', description })
+const px = (g: TokenGroup, name: string, label: string, value: number, min: number, max: number, step = 1, description?: string) =>
+  def(g, 'length', name, label, `${value}px`, undefined, { min, max, step, unit: 'px', description })
 
 const size = (name: string, label: string, value: number, min: number, max: number) =>
   def('Type scale', 'length', name, label, `calc(${value}px * var(--font-scale))`, undefined, {
@@ -95,8 +69,7 @@ const size = (name: string, label: string, value: number, min: number, max: numb
 const weight = (name: string, label: string, value: number) =>
   def('Typography', 'number', name, label, String(value), undefined, { min: 100, max: 900, step: 100 })
 
-const shadow = (name: string, label: string, light: string, dark: string) =>
-  def('Shadows', 'shadow', name, label, light, dark)
+const shadow = (name: string, label: string, light: string, dark: string) => def('Shadows', 'shadow', name, label, light, dark)
 
 const tag = (id: string, label: string, light: string, lightBg: string, dark: string, darkBg: string) => [
   color('Tag colours', `--c-${id}`, `${label} text`, light, dark),
@@ -173,7 +146,14 @@ export const TOKENS: TokenDef[] = [
   color('Accents', '--danger', 'Danger', '#b0432f', '#dc7a68'),
   color('Accents', '--success', 'Success', '#55794c', '#92b586'),
   color('Accents', '--moon', 'Moon', 'rgba(196, 163, 58, 0.22)', 'rgba(232, 214, 160, 0.3)', 'The lit part of the moon in the Sky.'),
-  color('Accents', '--copper', 'Copper moon', 'rgba(168, 84, 44, 0.32)', 'rgba(214, 120, 74, 0.34)', 'The moon on the night of an eclipse, in the Sky.'),
+  color(
+    'Accents',
+    '--copper',
+    'Copper moon',
+    'rgba(168, 84, 44, 0.32)',
+    'rgba(214, 120, 74, 0.34)',
+    'The moon on the night of an eclipse, in the Sky.'
+  ),
   color('Accents', '--focus-ring', 'Focus ring', 'rgba(59, 79, 125, 0.7)', 'rgba(163, 177, 217, 0.7)'),
 
   // ---- typography ----
@@ -191,7 +171,13 @@ export const TOKENS: TokenDef[] = [
     'Title font',
     "'Iowan Old Style', 'Sitka Heading', 'Palatino Linotype', Palatino, Georgia, Cambria, serif"
   ),
-  def('Typography', 'font', '--font-serif', 'Serif font', "'Iowan Old Style', 'Sitka Text', 'Palatino Linotype', Palatino, Georgia, Cambria, serif"),
+  def(
+    'Typography',
+    'font',
+    '--font-serif',
+    'Serif font',
+    "'Iowan Old Style', 'Sitka Text', 'Palatino Linotype', Palatino, Georgia, Cambria, serif"
+  ),
   def('Typography', 'font', '--font-mono', 'Code font', "'SF Mono', ui-monospace, 'Cascadia Code', Consolas, monospace"),
   weight('--weight-regular', 'Regular weight', 400),
   weight('--weight-medium', 'Medium weight', 400),
@@ -290,12 +276,7 @@ export const TOKENS: TokenDef[] = [
   }),
 
   // ---- shadows ----
-  shadow(
-    '--shadow-panel',
-    'Panel shadow',
-    '0 0 0 0 rgba(70, 58, 36, 0)',
-    '0 0 0 0 rgba(0, 0, 0, 0)'
-  ),
+  shadow('--shadow-panel', 'Panel shadow', '0 0 0 0 rgba(70, 58, 36, 0)', '0 0 0 0 rgba(0, 0, 0, 0)'),
   shadow(
     '--shadow-card',
     'Card shadow',

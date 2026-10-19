@@ -33,7 +33,10 @@ export function setHermanMood(mood: HermanMood): void {
 }
 
 /** The mood an event of an AI request leaves him in; null leaves it as it is. */
-export function moodAfter(event: 'start' | 'started' | 'rejected' | 'delta' | 'done' | 'error' | 'cancel' | 'reset', cancelled = false): HermanMood | null {
+export function moodAfter(
+  event: 'start' | 'started' | 'rejected' | 'delta' | 'done' | 'error' | 'cancel' | 'reset',
+  cancelled = false
+): HermanMood | null {
   switch (event) {
     case 'start':
       return 'thinking'

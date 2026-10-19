@@ -15,7 +15,10 @@ function ImportTodoist(): JSX.Element {
       .then((result) => {
         if (!result.imported) return
         if (!result.tasks) toast('No tasks were found in that file. Is it a Todoist CSV export?')
-        else toast(`Imported ${result.tasks} task${result.tasks === 1 ? '' : 's'} into ${result.projects.map((name) => `#${name}`).join(', ')}.`)
+        else
+          toast(
+            `Imported ${result.tasks} task${result.tasks === 1 ? '' : 's'} into ${result.projects.map((name) => `#${name}`).join(', ')}.`
+          )
       })
       .catch((error: unknown) => notifyError('Could not import from Todoist.', error))
       .finally(() => setBusy(false))
@@ -56,7 +59,12 @@ function GlobalShortcut(): JSX.Element | null {
       })
       .catch((error: unknown) => {
         setKeys(state.accelerator)
-        notifyError(error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : 'Could not change the shortcut.', error)
+        notifyError(
+          error instanceof Error
+            ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+            : 'Could not change the shortcut.',
+          error
+        )
       })
   }
 
@@ -78,7 +86,11 @@ function GlobalShortcut(): JSX.Element | null {
         }}
       />
       <span className="tasks-shortcut-note">
-        {state.enabled ? (state.registered ? `Press ${formatAccelerator(state.accelerator, window.api.app.platform === 'darwin')} in any program.` : 'Those keys are taken.') : 'Off. Opens a small window to add a task.'}
+        {state.enabled
+          ? state.registered
+            ? `Press ${formatAccelerator(state.accelerator, window.api.app.platform === 'darwin')} in any program.`
+            : 'Those keys are taken.'
+          : 'Off. Opens a small window to add a task.'}
       </span>
     </div>
   )

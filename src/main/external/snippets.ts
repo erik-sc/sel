@@ -11,6 +11,10 @@ export function connectSnippets(execPath: string, script: string, discovery: str
   const args = [script, '--discovery', discovery]
   return {
     claudeCode: `claude mcp add --scope user --env ELECTRON_RUN_AS_NODE=1 ${TOOL_SERVER} -- ${quote(execPath)} ${quote(script)} --discovery ${quote(discovery)}`,
-    claudeDesktop: JSON.stringify({ mcpServers: { [TOOL_SERVER]: { command: execPath, args, env: { ELECTRON_RUN_AS_NODE: '1' } } } }, null, 2)
+    claudeDesktop: JSON.stringify(
+      { mcpServers: { [TOOL_SERVER]: { command: execPath, args, env: { ELECTRON_RUN_AS_NODE: '1' } } } },
+      null,
+      2
+    )
   }
 }

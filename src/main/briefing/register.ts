@@ -38,7 +38,13 @@ export interface BriefingAccess {
   occurrence(uid: string, start: number): Promise<BriefingEvent | null>
 }
 
-export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncompleted, onCalendarsChanged }: BriefingIpcContext): BriefingAccess & { handlers: Handlers<'briefing'> } {
+export function registerBriefingIpc({
+  repo,
+  ai,
+  onTaskCompleted,
+  onTaskUncompleted,
+  onCalendarsChanged
+}: BriefingIpcContext): BriefingAccess & { handlers: Handlers<'briefing'> } {
   let bridge: BriefingBridge | null = null
   const briefing = async (): Promise<BriefingBridge> => (bridge ??= new (await import('./index')).BriefingBridge(repo))
 
@@ -90,7 +96,10 @@ export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncomplet
       const b = await briefing()
       const { buildBriefingPrompt } = await import('../ai/prompts')
       // With Herman on, he is the one who answers ("Ask Herman about today"): the same request, in his voice.
-      return (await ai()).runPrompt((language, voice) => buildBriefingPrompt(b.service.promptData(), { defaultLanguage: language, voice }), event.sender)
+      return (await ai()).runPrompt(
+        (language, voice) => buildBriefingPrompt(b.service.promptData(), { defaultLanguage: language, voice }),
+        event.sender
+      )
     }
   }
 

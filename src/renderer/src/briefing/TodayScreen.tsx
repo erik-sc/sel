@@ -12,7 +12,18 @@ import { noteAiEvent, useHerman } from '@/herman/gate'
 import { refreshTree } from '@/store/tree'
 import { openPage } from '@/store/tabs'
 import { notifyError, toast } from '@/ui/toast'
-import { calendarNotes, clock, dayStart, eventMoments, eventTime, longDate, phraseSource, phraseText, taskGroups, updatedLabel } from './format'
+import {
+  calendarNotes,
+  clock,
+  dayStart,
+  eventMoments,
+  eventTime,
+  longDate,
+  phraseSource,
+  phraseText,
+  taskGroups,
+  updatedLabel
+} from './format'
 import { EventRow, Lines, TaskRow, openSettings, useCompleteTask, useLive, useNow } from './parts'
 import './today.css'
 
@@ -35,7 +46,9 @@ function Plans({ date }: { date: string }): JSX.Element | null {
         (view) => {
           if (!alive) return
           const entry = view.todayEntry
-          setPlans(entry && entry.day === date && !entry.plansDismissed && entry.plans.length ? { items: entry.plans, locale: view.locale } : null)
+          setPlans(
+            entry && entry.day === date && !entry.plansDismissed && entry.plans.length ? { items: entry.plans, locale: view.locale } : null
+          )
         },
         (error: unknown) => console.error('the plans for today failed to load', error)
       )
@@ -77,7 +90,15 @@ function Plans({ date }: { date: string }): JSX.Element | null {
 
 // ---- the phrase ---------------------------------------------------------------
 
-function Phrase({ phrase, hasPhrases, onChange }: { phrase: BriefingPhrase | null; hasPhrases: boolean; onChange: (phrase: BriefingPhrase | null) => void }): JSX.Element | null {
+function Phrase({
+  phrase,
+  hasPhrases,
+  onChange
+}: {
+  phrase: BriefingPhrase | null
+  hasPhrases: boolean
+  onChange: (phrase: BriefingPhrase | null) => void
+}): JSX.Element | null {
   const herman = useHerman((state) => state.on)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -231,7 +252,13 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
       ) : (
         <ul className="today-list today-agenda">
           {today.map((event, index) => (
-            <EventRow key={event.id} event={event} calendar={colors.get(event.calendarId)} moment={moments[index]} time={eventTime(event, from, to)} />
+            <EventRow
+              key={event.id}
+              event={event}
+              calendar={colors.get(event.calendarId)}
+              moment={moments[index]}
+              time={eventTime(event, from, to)}
+            />
           ))}
         </ul>
       )}
@@ -301,7 +328,8 @@ function BriefMe(): JSX.Element | null {
       // The briefing never asks the council.
       if (event.id !== current.current || event.type === 'council') return
       noteAiEvent(event.type, event.type === 'error' && event.code === 'cancelled')
-      if (event.type === 'delta') setState((previous) => (previous.phase === 'running' ? { ...previous, text: previous.text + event.text } : previous))
+      if (event.type === 'delta')
+        setState((previous) => (previous.phase === 'running' ? { ...previous, text: previous.text + event.text } : previous))
       else if (event.type === 'done') {
         current.current = null
         setState({ phase: 'done', id: event.id, text: event.text.trim() })

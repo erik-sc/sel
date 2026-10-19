@@ -41,7 +41,23 @@ const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
  * the seats of his council among them (what he remembers, `herman.memory`, is not); `updates.check`
  * (not `updates.lastCheck`); `mcp.enabled`; nothing else in those namespaces.
  */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', HOME_SETTING, ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS, ...NOTEBOOK_KEYS, ...ALARMS_KEYS, ...POMODORO_KEYS, SIDEBAR_SETTING, ...SKY_KEYS])
+const WRITABLE_SETTINGS: ReadonlySet<string> = new Set([
+  'theme',
+  'appearance',
+  HOME_SETTING,
+  ...HISTORY_KEYS,
+  ...AI_KEYS,
+  ...BRIEFING_KEYS,
+  ...MEETINGS_KEYS,
+  ...HERMAN_KEYS,
+  ...UPDATES_KEYS,
+  ...MCP_KEYS,
+  ...NOTEBOOK_KEYS,
+  ...ALARMS_KEYS,
+  ...POMODORO_KEYS,
+  SIDEBAR_SETTING,
+  ...SKY_KEYS
+])
 /** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
 const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
 

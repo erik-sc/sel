@@ -123,7 +123,9 @@ describe('ai ipc', () => {
   it('rejects malformed requests before anything runs', async () => {
     const win = sender(1)
     await expect(invoke('ai:run', win.event, { action: 'exec', pageId })).rejects.toThrow('Unknown AI action')
-    await expect(invoke('ai:run', win.event, { action: 'custom', pageId, instruction: 'x'.repeat(4001) })).rejects.toThrow('Invalid instruction')
+    await expect(invoke('ai:run', win.event, { action: 'custom', pageId, instruction: 'x'.repeat(4001) })).rejects.toThrow(
+      'Invalid instruction'
+    )
     await expect(invoke('ai:run', win.event, { action: 'summarize', pageId: 'not an id' })).rejects.toThrow('Invalid pageId')
     await expect(invoke('ai:run', win.event, { action: 'improve', pageId, blockIds: ['../x'] })).rejects.toThrow('Invalid blockIds')
     await expect(invoke('ai:run', win.event, { action: 'summarize', pageId, prompt: 'raw' })).rejects.toThrow('Invalid AI request')
@@ -155,13 +157,18 @@ describe('ai ipc', () => {
 
   it('sends failures as an error event with a code and no raw output', async () => {
     const win = sender(1)
-    const { id } = (await invoke('ai:run', win.event, { action: 'custom', pageId, instruction: 'go [[fake:error-login]]' })) as { id: string }
+    const { id } = (await invoke('ai:run', win.event, { action: 'custom', pageId, instruction: 'go [[fake:error-login]]' })) as {
+      id: string
+    }
     expect(await until(() => win.sent.length > 0)).toBe(true)
     expect(win.sent).toEqual([{ channel: 'ai:error', payload: { id, code: 'not-logged-in', message: expect.stringContaining('sign in') } }])
     // A page that is not one: the request is well-formed, the content is not there.
     const gone = (await invoke('ai:run', win.event, { action: 'summarize', pageId: blockId })) as { id: string }
     expect(await until(() => win.sent.length > 1)).toBe(true)
-    expect(win.sent[1]).toEqual({ channel: 'ai:error', payload: { id: gone.id, code: 'failed', message: expect.any(String), detail: 'The page no longer exists' } })
+    expect(win.sent[1]).toEqual({
+      channel: 'ai:error',
+      payload: { id: gone.id, code: 'failed', message: expect.any(String), detail: 'The page no longer exists' }
+    })
   })
 
   it('lets only the window that started a request cancel it, and cancels all of a closed window', async () => {

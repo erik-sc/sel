@@ -14,13 +14,35 @@ const HIGHLIGHT = 'sel-find'
 const HIGHLIGHT_CURRENT = 'sel-find-current'
 
 /** Text in these is not part of the page: the bar itself, Herman, anything marked to be skipped. */
-const SKIP =
-  '.find-bar, .herman-dock, [data-find-skip], [aria-hidden="true"], [hidden], script, style, template, select, option, datalist'
+const SKIP = '.find-bar, .herman-dock, [data-find-skip], [aria-hidden="true"], [hidden], script, style, template, select, option, datalist'
 
 /** Elements that only format text: a run of text goes on through them. */
 const INLINE = new Set([
-  'A', 'ABBR', 'B', 'BDI', 'BDO', 'CITE', 'CODE', 'DEL', 'DFN', 'EM', 'I', 'INS', 'KBD',
-  'MARK', 'Q', 'S', 'SAMP', 'SMALL', 'SPAN', 'STRONG', 'SUB', 'SUP', 'TIME', 'U', 'VAR'
+  'A',
+  'ABBR',
+  'B',
+  'BDI',
+  'BDO',
+  'CITE',
+  'CODE',
+  'DEL',
+  'DFN',
+  'EM',
+  'I',
+  'INS',
+  'KBD',
+  'MARK',
+  'Q',
+  'S',
+  'SAMP',
+  'SMALL',
+  'SPAN',
+  'STRONG',
+  'SUB',
+  'SUP',
+  'TIME',
+  'U',
+  'VAR'
 ])
 
 function searchRoot(): HTMLElement | null {
@@ -45,7 +67,8 @@ function collectRuns(root: HTMLElement): Text[][] {
     if (!parent) continue
     let shown = visible.get(parent)
     if (shown === undefined) {
-      shown = typeof parent.checkVisibility === 'function' ? parent.checkVisibility({ visibilityProperty: true, opacityProperty: true }) : true
+      shown =
+        typeof parent.checkVisibility === 'function' ? parent.checkVisibility({ visibilityProperty: true, opacityProperty: true }) : true
       visible.set(parent, shown)
     }
     if (!shown) continue

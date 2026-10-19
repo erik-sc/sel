@@ -5,7 +5,14 @@ import { ChangeFeed } from './changes'
 function feed(): { feed: ChangeFeed; sent: ChangeEvent[]; turns: (() => void)[] } {
   const sent: ChangeEvent[] = []
   const turns: (() => void)[] = []
-  return { feed: new ChangeFeed((c) => sent.push(c), (flush) => turns.push(flush)), sent, turns }
+  return {
+    feed: new ChangeFeed(
+      (c) => sent.push(c),
+      (flush) => turns.push(flush)
+    ),
+    sent,
+    turns
+  }
 }
 
 describe('ChangeFeed', () => {

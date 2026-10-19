@@ -1,17 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DragEvent, KeyboardEvent } from 'react'
 import { useBlock } from '@/store/blocks'
-import {
-  activateTab,
-  closeOtherTabs,
-  closeTab,
-  closeTabsToRight,
-  moveTab,
-  newTab,
-  tabPage,
-  useTabs,
-  type Tab
-} from '@/store/tabs'
+import { activateTab, closeOtherTabs, closeTab, closeTabsToRight, moveTab, newTab, tabPage, useTabs, type Tab } from '@/store/tabs'
 import { useUi } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
 import { Menu, type MenuItem } from '@/ui/Menu'
@@ -181,7 +171,12 @@ function TabList({ onClose }: { onClose: () => void }) {
   const tabs = useTabs((state) => state.tabs)
   const activeId = useTabs((state) => state.activeId)
   const rootRef = useRef<HTMLDivElement>(null)
-  const [cursor, setCursor] = useState(() => Math.max(0, tabs.findIndex((t) => t.id === activeId)))
+  const [cursor, setCursor] = useState(() =>
+    Math.max(
+      0,
+      tabs.findIndex((t) => t.id === activeId)
+    )
+  )
   const at = Math.min(cursor, tabs.length - 1)
 
   useEffect(() => {
@@ -232,14 +227,7 @@ function TabList({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div
-      ref={rootRef}
-      className="ui-menu tab-list"
-      role="listbox"
-      aria-label="Open tabs"
-      tabIndex={-1}
-      onKeyDown={onKeyDown}
-    >
+    <div ref={rootRef} className="ui-menu tab-list" role="listbox" aria-label="Open tabs" tabIndex={-1} onKeyDown={onKeyDown}>
       {tabs.map((tab, index) => (
         <TabListRow
           key={tab.id}

@@ -21,9 +21,7 @@ const RATE_LIMITED_RE = /rate[ _-]?limit|usage limit|limit reached|too many requ
 
 const MAX_DETAIL_CHARS = 160
 
-// eslint-disable-next-line no-control-regex
 const ANSI_RE = /\u001b\[[0-9;?]*[ -/]*[@-~]|\u001b\][^\u0007]*(?:\u0007|\u001b\\)/g
-// eslint-disable-next-line no-control-regex
 const CONTROL_RE = /[\u0000-\u0008\u000b-\u001f\u007f]/g
 /** Windows (`C:\…`, `\\server\…`) and POSIX absolute paths, and `~/…`. */
 const PATH_RE = /(?:[A-Za-z]:[\\/]|\\\\|~[\\/]|\/(?=[A-Za-z0-9._-]+[\\/]))[^\s"'<>|:*?]*(?::\d+)*/g
@@ -59,7 +57,12 @@ export function failure(code: AiErrorCode, detail?: string): Failure {
  * Classifies a run that did not produce an answer, from everything the program said: the text
  * of an error result, its stderr, and how it exited.
  */
-export function classifyFailure(input: { resultText?: string; stderr?: string; exitCode?: number | null; spawnErrorCode?: string }): Failure {
+export function classifyFailure(input: {
+  resultText?: string
+  stderr?: string
+  exitCode?: number | null
+  spawnErrorCode?: string
+}): Failure {
   if (input.spawnErrorCode === 'ENOENT' || input.spawnErrorCode === 'EACCES' || input.spawnErrorCode === 'EPERM') {
     return failure('not-installed')
   }

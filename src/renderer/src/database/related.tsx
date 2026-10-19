@@ -75,7 +75,6 @@ export function useRelatedCells(schema: L.Schema): L.CellContext | undefined {
         ? L.cellContext({ get: (id) => getBlock(id), isMissing: (id) => own(useBlockStore.getState().missing, id) === true })
         : undefined,
     // `watched` is what the context reads: a new one stands for new data.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [targets, formulas, watched]
   )
 }

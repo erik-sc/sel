@@ -112,7 +112,20 @@ describe('chance nights', () => {
       const e = eventOf(d, { hemisphere: 'south', firstStarDay: '2025-05-02' })
       if (e) kinds.add(e.kind)
     }
-    for (const k of ['eclipse', 'anniversary', 'meteors', 'season', 'new-year', 'comet', 'halo', 'fireflies', 'flock', 'shooting-star', 'satellite', 'cloud'] as const) {
+    for (const k of [
+      'eclipse',
+      'anniversary',
+      'meteors',
+      'season',
+      'new-year',
+      'comet',
+      'halo',
+      'fireflies',
+      'flock',
+      'shooting-star',
+      'satellite',
+      'cloud'
+    ] as const) {
       expect(kinds.has(k), k).toBe(true)
     }
   })

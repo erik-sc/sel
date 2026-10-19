@@ -139,7 +139,8 @@ const ACCENTS: Record<string, string> = {
 
 const LOGOS: Record<string, string> = {
   LaTeX: '<span class="latex-logo">L<span class="latex-logo-a">a</span>T<span class="latex-logo-e">e</span>X</span>',
-  LaTeXe: '<span class="latex-logo">L<span class="latex-logo-a">a</span>T<span class="latex-logo-e">e</span>X\u00a02<sub>\u03b5</sub></span>',
+  LaTeXe:
+    '<span class="latex-logo">L<span class="latex-logo-a">a</span>T<span class="latex-logo-e">e</span>X\u00a02<sub>\u03b5</sub></span>',
   TeX: '<span class="latex-logo">T<span class="latex-logo-e">e</span>X</span>'
 }
 
@@ -490,7 +491,13 @@ class Converter {
   }
 
   finishDiagnostics(): void {
-    if (this.overflow) this.diagnostics.push({ line: this.diagnostics[this.diagnostics.length - 1]?.line ?? 1, severity: 'warning', code: 'too-many', message: diagnosticMessage(this.uiLocale, 'too-many', [String(this.overflow)]) })
+    if (this.overflow)
+      this.diagnostics.push({
+        line: this.diagnostics[this.diagnostics.length - 1]?.line ?? 1,
+        severity: 'warning',
+        code: 'too-many',
+        message: diagnosticMessage(this.uiLocale, 'too-many', [String(this.overflow)])
+      })
     this.diagnostics.sort((a, b) => a.line - b.line || (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1))
   }
 
@@ -934,10 +941,7 @@ class Converter {
       case 'tableofcontents':
         return emit.block(`<nav class="latex-toc" data-line="${this.lineOf(at)}">\u0000TOC\u0000</nav>`)
       case 'emph':
-        return emit.inline(
-          this.parseArg('\\emph', { shape: this.style.shape === 'it' || this.style.shape === 'sl' ? 'up' : 'it' }),
-          at
-        )
+        return emit.inline(this.parseArg('\\emph', { shape: this.style.shape === 'it' || this.style.shape === 'sl' ? 'up' : 'it' }), at)
       case 'underline':
       case 'uline':
         return emit.inline(`<u>${this.parseArg(`\\${name}`)}</u>`, at)
@@ -964,7 +968,10 @@ class Converter {
         this.readOptionalRaw()
         const raw = this.readArgRaw(`\\${name}`)
         this.warn('citations', at)
-        return emit.inline(`<span class="latex-unsupported" title="${escapeHtml(diagnosticMessage(this.uiLocale, 'citations'))}">[${escapeHtml(raw.text)}]</span>`, at)
+        return emit.inline(
+          `<span class="latex-unsupported" title="${escapeHtml(diagnosticMessage(this.uiLocale, 'citations'))}">[${escapeHtml(raw.text)}]</span>`,
+          at
+        )
       }
       case 'url': {
         const raw = this.readArgRaw('\\url')
@@ -1032,7 +1039,10 @@ class Converter {
         this.readOptionalRaw()
         const raw = this.readArgRaw('\\includegraphics')
         this.warn('images', at)
-        return emit.inline(`<span class="latex-image" title="${escapeHtml(diagnosticMessage(this.uiLocale, 'images'))}">${escapeHtml(raw.text)}</span>`, at)
+        return emit.inline(
+          `<span class="latex-image" title="${escapeHtml(diagnosticMessage(this.uiLocale, 'images'))}">${escapeHtml(raw.text)}</span>`,
+          at
+        )
       }
       case 'selectlanguage': {
         const raw = this.readArgRaw('\\selectlanguage')
@@ -1187,7 +1197,10 @@ class Converter {
     const options = this.readOptionalRaw()
     const raw = this.readArgRaw('\\usepackage')
     if (this.inDocument) this.warn('package-in-body', at)
-    for (const name of raw.text.split(',').map((p) => p.replace(/%[^\n]*/g, '').trim()).filter(Boolean)) {
+    for (const name of raw.text
+      .split(',')
+      .map((p) => p.replace(/%[^\n]*/g, '').trim())
+      .filter(Boolean)) {
       if (name === 'babel' && options) {
         for (const option of options.text.split(',').map((o) => o.trim())) {
           const lang = BABEL_LANGUAGES[option]
@@ -1284,7 +1297,9 @@ class Converter {
     this.labelTarget = String(n)
     const html = this.parseArg('\\caption')
     const word = DOCUMENT_WORDS[this.lang][kind]
-    emit.block(`<div class="latex-caption" data-line="${this.lineOf(at)}"><span class="latex-caption-label">${word} ${n}:</span> ${html}</div>`)
+    emit.block(
+      `<div class="latex-caption" data-line="${this.lineOf(at)}"><span class="latex-caption-label">${word} ${n}:</span> ${html}</div>`
+    )
   }
 
   private verb(at: number, emit: Emit): void {
@@ -1312,7 +1327,14 @@ class Converter {
     })
   }
 
-  private renderFormula(tex: string, display: boolean, body: string, bodyStart: number, prefixLength: number, insertions: Insertion[]): string {
+  private renderFormula(
+    tex: string,
+    display: boolean,
+    body: string,
+    bodyStart: number,
+    prefixLength: number,
+    insertions: Insertion[]
+  ): string {
     const outcome = renderMath(this.engine, this.mathRefs(tex), display, this.katexMacros, this.cache, this.macrosKey)
     if (outcome.problem) {
       // An error at the end of the input (a brace never closed) is put on the formula's last character.
@@ -1677,7 +1699,9 @@ class Converter {
     this.envs.pop()
     const body = rows
       .map((row, r) => {
-        const classes = [row.top ? 'latex-rule-top' : '', r === rows.length - 1 && bottom ? 'latex-rule-bottom' : ''].filter(Boolean).join(' ')
+        const classes = [row.top ? 'latex-rule-top' : '', r === rows.length - 1 && bottom ? 'latex-rule-bottom' : '']
+          .filter(Boolean)
+          .join(' ')
         const cells = row.cells
           .map((cell) => {
             const c = [`latex-col-${cell.col?.align ?? 'l'}`]

@@ -1,7 +1,14 @@
 // How the Today screen words dates and times. Pure: everything takes the moment and the locale
 // it should speak for, so it can be tested without a clock. Dates and times go through `Intl`
 // in the system locale, which also decides between a 12 and a 24 hour clock.
-import { CALENDAR_ERROR_TEXT, type BriefingCalendar, type BriefingEvent, type BriefingPhrase, type BriefingTask, type BriefingTasks } from '../../../shared/briefing'
+import {
+  CALENDAR_ERROR_TEXT,
+  type BriefingCalendar,
+  type BriefingEvent,
+  type BriefingPhrase,
+  type BriefingTask,
+  type BriefingTasks
+} from '../../../shared/briefing'
 
 const DAY_MS = 86_400_000
 
@@ -71,13 +78,22 @@ export interface DayAgenda {
  * What falls on each of `days` (`YYYY-MM-DD`): the events that overlap it, in the order they
  * came in, and the tasks due on it. An event of several days is on each of them.
  */
-export function agendaByDay(days: readonly string[], events: readonly BriefingEvent[], tasks: readonly BriefingTask[]): Map<string, DayAgenda> {
+export function agendaByDay(
+  days: readonly string[],
+  events: readonly BriefingEvent[],
+  tasks: readonly BriefingTask[]
+): Map<string, DayAgenda> {
   const out = new Map<string, DayAgenda>()
   for (const day of days) {
     const from = dayStart(day)
     if (from === null) continue
     const to = nextDayStart(from)
-    out.set(day, { events: events.filter((event) => (event.end > event.start ? event.start < to && event.end > from : event.start >= from && event.start < to)), tasks: [] })
+    out.set(day, {
+      events: events.filter((event) =>
+        event.end > event.start ? event.start < to && event.end > from : event.start >= from && event.start < to
+      ),
+      tasks: []
+    })
   }
   for (const task of tasks) if (task.due) out.get(task.due)?.tasks.push(task)
   return out
@@ -107,7 +123,12 @@ export interface TimedEvent<T> {
  * share the width: each takes the first free lane, and a run of events that touch one another
  * is divided into as many lanes as the run needed.
  */
-export function dayTimeline<T extends Pick<BriefingEvent, 'start' | 'end' | 'allDay'>>(events: readonly T[], from: number, to: number, least = 30): TimedEvent<T>[] {
+export function dayTimeline<T extends Pick<BriefingEvent, 'start' | 'end' | 'allDay'>>(
+  events: readonly T[],
+  from: number,
+  to: number,
+  least = 30
+): TimedEvent<T>[] {
   const minute = (ms: number): number => {
     if (ms <= from) return 0
     if (ms >= to) return DAY_MINUTES
@@ -145,7 +166,7 @@ export function dayTimeline<T extends Pick<BriefingEvent, 'start' | 'end' | 'all
   return placed
 }
 
-export type EventMoment ='past' | 'now' | 'next' | 'later' | 'day'
+export type EventMoment = 'past' | 'now' | 'next' | 'later' | 'day'
 
 /**
  * Where each event stands at `now`: over, going on, the next one to start, or later. All-day
@@ -178,7 +199,10 @@ export function dueLabel(due: string, today: string, locale?: string): string {
   if (days === 1) return 'Tomorrow'
   if (days < 0 && days >= -6) return `${-days} days ago`
   const sameYear = due.slice(0, 4) === today.slice(0, 4)
-  return new Intl.DateTimeFormat(locale, sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' }).format(at)
+  return new Intl.DateTimeFormat(
+    locale,
+    sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' }
+  ).format(at)
 }
 
 /** "Updated 08:05", or with the day when it was not today. */
@@ -192,13 +216,18 @@ export function updatedLabel(at: number, now: number, locale?: string): string {
  * What to say about calendars that could not be read: one line per reason, naming the
  * calendars it applies to, and when what is on screen was last read.
  */
-export function calendarNotes(failing: readonly Pick<BriefingCalendar, 'label' | 'error' | 'updatedAt'>[], now: number, locale?: string): string[] {
+export function calendarNotes(
+  failing: readonly Pick<BriefingCalendar, 'label' | 'error' | 'updatedAt'>[],
+  now: number,
+  locale?: string
+): string[] {
   const groups = new Map<string, { labels: string[]; oldest: number | null }>()
   for (const calendar of failing) {
     const reason = calendar.error ?? 'failed'
     const group = groups.get(reason) ?? { labels: [], oldest: null }
     group.labels.push(calendar.label)
-    if (calendar.updatedAt !== undefined) group.oldest = group.oldest === null ? calendar.updatedAt : Math.min(group.oldest, calendar.updatedAt)
+    if (calendar.updatedAt !== undefined)
+      group.oldest = group.oldest === null ? calendar.updatedAt : Math.min(group.oldest, calendar.updatedAt)
     groups.set(reason, group)
   }
   return [...groups].map(([reason, group]) => {
@@ -209,12 +238,20 @@ export function calendarNotes(failing: readonly Pick<BriefingCalendar, 'label' |
 }
 
 /** "Marcus Aurelius" and "Meditations, Book IV, 3": who said it, and where. */
-export function phraseSource(phrase: Pick<BriefingPhrase, 'author' | 'work' | 'locator' | 'translator'>): { author: string; work: string; translator: string } {
+export function phraseSource(phrase: Pick<BriefingPhrase, 'author' | 'work' | 'locator' | 'translator'>): {
+  author: string
+  work: string
+  translator: string
+} {
   const work = phrase.work ?? ''
   const locator = phrase.locator ?? ''
   // A locator that already names the work ("Enchiridion, 5") stands alone.
   const where = !locator ? work : !work || locator.startsWith(work) ? locator : `${work}, ${locator}`
-  return { author: phrase.author, work: where, translator: phrase.translator && phrase.translator !== phrase.author ? `translated by ${phrase.translator}` : '' }
+  return {
+    author: phrase.author,
+    work: where,
+    translator: phrase.translator && phrase.translator !== phrase.author ? `translated by ${phrase.translator}` : ''
+  }
 }
 
 /** The phrase as plain text for the clipboard: the passage, then who and where. */
@@ -243,7 +280,11 @@ export function tickedKey(task: Pick<BriefingTask, 'id' | 'due'>): string {
  * `total - more` tasks, counted across the groups in order. `hidden` is what was left out.
  * `done` holds the `tickedKey` of the tasks ticked here.
  */
-export function taskGroups(tasks: BriefingTasks, expanded: boolean, done: ReadonlySet<string> = new Set()): { groups: TaskGroup[]; hidden: number } {
+export function taskGroups(
+  tasks: BriefingTasks,
+  expanded: boolean,
+  done: ReadonlySet<string> = new Set()
+): { groups: TaskGroup[]; hidden: number } {
   const all: TaskGroup[] = [
     { key: 'overdue', label: 'Overdue', tasks: tasks.overdue },
     { key: 'today', label: 'Today', tasks: tasks.today },

@@ -22,7 +22,9 @@ if (argv.includes('--version')) {
   process.exit(0)
 }
 if (argv.includes('-h') || argv.includes('--help')) {
-  process.stderr.write('\nusage: whisper-cli [options] file0 file1 ...\n\noptions:\n  -oj,       --output-json       [false  ] output result in a JSON file\n  -pp,       --print-progress    [false  ] print progress\n')
+  process.stderr.write(
+    '\nusage: whisper-cli [options] file0 file1 ...\n\noptions:\n  -oj,       --output-json       [false  ] output result in a JSON file\n  -pp,       --print-progress    [false  ] print progress\n'
+  )
   process.exit(0)
 }
 
@@ -61,12 +63,15 @@ async function main() {
   }
   if (has('error') || (has('fail-once') && !existsSync('fake-whisper-failed'))) {
     if (has('fail-once')) writeFileSync('fake-whisper-failed', '1')
-    process.stderr.write(`\u001b[31merror\u001b[0m: failed to process audio at C:\\Users\\secret\\AppData\\Roaming\\sel\\recordings\\x\\mic.wav\n`)
+    process.stderr.write(
+      `\u001b[31merror\u001b[0m: failed to process audio at C:\\Users\\secret\\AppData\\Roaming\\sel\\recordings\\x\\mic.wav\n`
+    )
     process.exit(3)
   }
   if (has('hang') || has('hang-tree')) {
     let pids = String(process.pid)
-    if (has('hang-tree')) pids += `,${spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }).pid}`
+    if (has('hang-tree'))
+      pids += `,${spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore', env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' } }).pid}`
     writeFileSync('fake-whisper-pids', pids)
     process.stderr.write('whisper_print_progress_callback: progress =   5%\n')
     setInterval(() => undefined, 1000)
@@ -90,7 +95,8 @@ async function main() {
     const rms = Math.sqrt(sum / Math.max(1, Math.ceil((to - from) / 16)))
     const t0 = Math.round((from / rate) * 1000)
     const t1 = Math.round((to / rate) * 1000)
-    const text = has('blank') || rms < 0.003 ? ' [BLANK_AUDIO]' : ` At ${stamp(t0).slice(3, 8)} ${speaker}${language === 'pt' ? ' em português' : ''}.`
+    const text =
+      has('blank') || rms < 0.003 ? ' [BLANK_AUDIO]' : ` At ${stamp(t0).slice(3, 8)} ${speaker}${language === 'pt' ? ' em português' : ''}.`
     transcription.push({ timestamps: { from: stamp(t0), to: stamp(t1) }, offsets: { from: t0, to: t1 }, text })
   }
 

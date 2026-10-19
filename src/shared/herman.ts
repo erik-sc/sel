@@ -143,7 +143,15 @@ export const HERMAN_NUDGE_CHANNEL = 'herman:nudge'
 // ---- settings -----------------------------------------------------------------
 
 /** Preferences: how he behaves. */
-export const HERMAN_PREFERENCE_KEYS = ['herman.enabled', 'herman.voice', 'herman.nudges', 'herman.frequency', 'herman.quietHours', 'herman.size', COUNCIL_KEY] as const
+export const HERMAN_PREFERENCE_KEYS = [
+  'herman.enabled',
+  'herman.voice',
+  'herman.nudges',
+  'herman.frequency',
+  'herman.quietHours',
+  'herman.size',
+  COUNCIL_KEY
+] as const
 /** Device-local state: where he sits in this window. */
 export const HERMAN_DEVICE_KEYS = ['herman.corner'] as const
 /**
@@ -153,7 +161,8 @@ export const HERMAN_DEVICE_KEYS = ['herman.corner'] as const
 export const HERMAN_KEYS = [...HERMAN_PREFERENCE_KEYS, ...HERMAN_DEVICE_KEYS] as const
 export type HermanKey = (typeof HERMAN_KEYS)[number]
 
-const oneOf = <T extends string>(list: readonly T[], value: unknown): T | undefined => (typeof value === 'string' && (list as readonly string[]).includes(value) ? (value as T) : undefined)
+const oneOf = <T extends string>(list: readonly T[], value: unknown): T | undefined =>
+  typeof value === 'string' && (list as readonly string[]).includes(value) ? (value as T) : undefined
 
 function minuteOfDay(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < 1440 ? value : undefined

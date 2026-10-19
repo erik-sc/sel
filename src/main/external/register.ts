@@ -114,4 +114,3 @@ export function registerExternalIpc({ repo, ready, changed }: { repo: Repository
     settingChanged: () => void follow()
   }
 }
-

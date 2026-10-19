@@ -14,16 +14,7 @@ import type { PomodoroApi } from './pomodoro'
 import type { SkyApi } from './sky'
 import type { TemplatesApi } from './templates/model'
 import type { DataApi } from './data'
-import type {
-  Block,
-  ChangeEvent,
-  CreateBlockInput,
-  DatabaseLocation,
-  Op,
-  SearchResult,
-  Theme,
-  UpdateBlockInput
-} from './types'
+import type { Block, ChangeEvent, CreateBlockInput, DatabaseLocation, Op, SearchResult, Theme, UpdateBlockInput } from './types'
 import type { UpdatesApi } from './updates'
 import type { RestoreMode, RestoreResult, VersionInfo, VersionSnapshot, VersionStats } from './versions'
 

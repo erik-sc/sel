@@ -16,7 +16,9 @@ export function DataSettingsRows() {
   const [status, setStatus] = useState<BackupStatus | null>(null)
   const [backing, setBacking] = useState<Busy>('idle')
   const [restore, setRestore] = useState<{ state: 'idle' | 'busy' | 'restarting' } | { state: 'error'; message: string }>({ state: 'idle' })
-  const [exported, setExported] = useState<{ state: 'idle' | 'busy' | 'failed' } | { state: 'done'; pages: number; images: number }>({ state: 'idle' })
+  const [exported, setExported] = useState<{ state: 'idle' | 'busy' | 'failed' } | { state: 'done'; pages: number; images: number }>({
+    state: 'idle'
+  })
 
   useEffect(() => {
     let live = true

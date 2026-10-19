@@ -73,7 +73,11 @@ export function gitCandidates(options: LocateGitOptions = {}): string[] {
   }
   for (const entry of (envValue(env, 'PATH', platform) ?? '').split(windows ? ';' : ':')) add(entry.trim().replace(/^"(.*)"$/, '$1'))
   if (windows) {
-    for (const root of [envValue(env, 'ProgramFiles', platform), envValue(env, 'ProgramW6432', platform), envValue(env, 'ProgramFiles(x86)', platform)]) {
+    for (const root of [
+      envValue(env, 'ProgramFiles', platform),
+      envValue(env, 'ProgramW6432', platform),
+      envValue(env, 'ProgramFiles(x86)', platform)
+    ]) {
       if (root) {
         add(join(root, 'Git', 'cmd'))
         add(join(root, 'Git', 'bin'))
@@ -288,7 +292,11 @@ export function killTree(child: ChildProcess, platform: NodeJS.Platform = proces
   if (platform === 'win32') {
     try {
       const root = envValue(env, 'SystemRoot', 'win32') ?? 'C:\\Windows'
-      const killer = spawn(join(root, 'System32', 'taskkill.exe'), ['/pid', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore', shell: false })
+      const killer = spawn(join(root, 'System32', 'taskkill.exe'), ['/pid', String(pid), '/T', '/F'], {
+        windowsHide: true,
+        stdio: 'ignore',
+        shell: false
+      })
       killer.on('error', () => child.kill())
       killer.unref()
     } catch {
@@ -414,7 +422,8 @@ export class Git {
       child.on('close', (code) => {
         finish(() => {
           if (this.cancelled) return reject(new SyncFailure('cancelled'))
-          if (timedOut) return reject(options.network ? new SyncFailure('offline') : new SyncFailure('failed', 'Git took too long and was stopped.'))
+          if (timedOut)
+            return reject(options.network ? new SyncFailure('offline') : new SyncFailure('failed', 'Git took too long and was stopped.'))
           if (overflow) return reject(new SyncFailure('failed', 'The repository is too large to read.'))
           const result: GitResult = { code: code ?? 1, stdout: Buffer.concat(chunks), stderr }
           if (result.code !== 0 && !options.allowFailure) return reject(classifyGitFailure(stderr, result.code))
@@ -442,12 +451,14 @@ function spawnFailure(err: unknown): SyncFailure {
 
 const AUTH_RE =
   /authentication failed|could not read username|could not read password|terminal prompts disabled|permission denied \(publickey|permission denied, please try again|host key verification failed|invalid username or (?:password|token)|logon failed|http basic: access denied|the requested url returned error: 40[13]|\b401\b|unauthorized|access denied|bad credentials|support for password authentication was removed|no anonymous write access|interactive(?:ty)? (?:is|was) disabled|cannot prompt because user interactivity has been disabled|credential/i
-const NOT_FOUND_RE = /repository not found|repository '.*' not found|does not appear to be a git repository|not found: did you run git update-server-info|the requested url returned error: 404|no such repository|project you were looking for could not be found/i
+const NOT_FOUND_RE =
+  /repository not found|repository '.*' not found|does not appear to be a git repository|not found: did you run git update-server-info|the requested url returned error: 404|no such repository|project you were looking for could not be found/i
 const OFFLINE_RE =
   /could not resolve host|could not resolve hostname|failed to connect|couldn'?t connect to server|connection timed out|connection refused|connection reset|network is unreachable|no route to host|operation timed out|timed out|ssl connect error|schannel|unable to access|early eof|the remote end hung up unexpectedly|rpc failed|temporary failure in name resolution|name or service not known|proxy/i
 const DISK_RE = /no space left on device|disk quota exceeded|not enough space|insufficient disk space|enospc/i
 const NON_FAST_FORWARD_RE = /\[rejected\]|non-fast-forward|fetch first|tip of your current branch is behind|stale info/i
-const REMOTE_REJECTED_RE = /\[remote rejected\]|protected branch|pre-receive hook declined|push declined|gh00\d|denied to|permission to .* denied|you are not allowed to push|read-only/i
+const REMOTE_REJECTED_RE =
+  /\[remote rejected\]|protected branch|pre-receive hook declined|push declined|gh00\d|denied to|permission to .* denied|you are not allowed to push|read-only/i
 const CORRUPT_RE =
   /not a git repository|index file corrupt|bad index file|bad object|object file .* is empty|loose object .* is corrupt|unable to read tree|bad tree object|packfile .* (?:is corrupt|cannot be accessed)|invalid sha1 pointer|did not send all necessary objects|unable to read sha1 file|fatal: bad revision|unable to resolve reference|reference broken|cannot lock ref|corrupt|unknown index entry format|bad signature|unable to create .*\.lock/i
 

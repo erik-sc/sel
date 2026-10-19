@@ -38,10 +38,16 @@ export class WrongKeyError extends Error {
 function derive(passphrase: string, salt: Buffer, cost: { N: number; r: number; p: number }): Promise<Keys> {
   return new Promise((resolve, reject) => {
     // NFKC: the same passphrase typed on another keyboard or system gives the same key.
-    scrypt(passphrase.normalize('NFKC'), salt, 64, { N: cost.N, r: cost.r, p: cost.p, maxmem: 256 * cost.N * cost.r + 1024 * 1024 }, (err, key) => {
-      if (err) reject(err)
-      else resolve({ enc: Buffer.from(key.subarray(0, 32)), name: Buffer.from(key.subarray(32, 64)) })
-    })
+    scrypt(
+      passphrase.normalize('NFKC'),
+      salt,
+      64,
+      { N: cost.N, r: cost.r, p: cost.p, maxmem: 256 * cost.N * cost.r + 1024 * 1024 },
+      (err, key) => {
+        if (err) reject(err)
+        else resolve({ enc: Buffer.from(key.subarray(0, 32)), name: Buffer.from(key.subarray(32, 64)) })
+      }
+    )
   })
 }
 
@@ -64,7 +70,10 @@ export function keysMatch(keys: Keys, params: EncryptionParams): boolean {
 }
 
 /** A new salt and the key for `passphrase`, with the public parameters to store in sel.json. */
-export async function createEncryption(passphrase: string, cost: { N: number; r: number; p: number } = DEFAULT_COST): Promise<{ params: EncryptionParams; keys: Keys }> {
+export async function createEncryption(
+  passphrase: string,
+  cost: { N: number; r: number; p: number } = DEFAULT_COST
+): Promise<{ params: EncryptionParams; keys: Keys }> {
   const salt = randomBytes(16)
   const keys = await derive(passphrase, salt, cost)
   return { params: { v: 1, kdf: 'scrypt', N: cost.N, r: cost.r, p: cost.p, salt: salt.toString('base64'), check: sealCheck(keys) }, keys }
@@ -102,7 +111,8 @@ export function seal(keys: Keys, name: string, bytes: Uint8Array, compress = fal
 /** Opens a sealed file. Throws `WrongKeyError` when the key is wrong or a single bit was changed. */
 export function open(keys: Keys, data: Uint8Array): { name: string; bytes: Buffer } {
   const buffer = Buffer.from(data.buffer, data.byteOffset, data.byteLength)
-  if (buffer.length < MAGIC.length + NONCE_BYTES + TAG_BYTES + 3 || !buffer.subarray(0, MAGIC.length).equals(MAGIC)) throw new WrongKeyError()
+  if (buffer.length < MAGIC.length + NONCE_BYTES + TAG_BYTES + 3 || !buffer.subarray(0, MAGIC.length).equals(MAGIC))
+    throw new WrongKeyError()
   const nonce = buffer.subarray(MAGIC.length, MAGIC.length + NONCE_BYTES)
   const tag = buffer.subarray(buffer.length - TAG_BYTES)
   const sealed = buffer.subarray(MAGIC.length + NONCE_BYTES, buffer.length - TAG_BYTES)

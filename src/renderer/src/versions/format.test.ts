@@ -5,7 +5,15 @@ import { countLabel, dayLabel, formatBytes, groupByDay, kindLabel, kindTone, sta
 // Local time on purpose: the timeline groups by the user's calendar day.
 const at = (y: number, m: number, d: number, h = 12, min = 0): number => new Date(y, m - 1, d, h, min).getTime()
 const now = at(2026, 10, 13, 15, 0)
-const version = (id: string, createdAt: number): VersionInfo => ({ id, pageId: 'p', createdAt, kind: 'auto', label: null, blockCount: 1, textSize: 1 })
+const version = (id: string, createdAt: number): VersionInfo => ({
+  id,
+  pageId: 'p',
+  createdAt,
+  kind: 'auto',
+  label: null,
+  blockCount: 1,
+  textSize: 1
+})
 
 describe('version timeline words', () => {
   it('formats times in 24 hours', () => {
@@ -28,7 +36,12 @@ describe('version timeline words', () => {
 
   it('groups versions by calendar day, keeping their order', () => {
     const groups = groupByDay(
-      [version('a', at(2026, 10, 13, 14)), version('b', at(2026, 10, 13, 9)), version('c', at(2026, 10, 12, 23)), version('d', at(2026, 9, 1))],
+      [
+        version('a', at(2026, 10, 13, 14)),
+        version('b', at(2026, 10, 13, 9)),
+        version('c', at(2026, 10, 12, 23)),
+        version('d', at(2026, 9, 1))
+      ],
       now
     )
     expect(groups.map((g) => [g.label, g.items.map((v) => v.id)])).toEqual([
@@ -40,7 +53,12 @@ describe('version timeline words', () => {
   })
 
   it('labels kinds, counts and sizes', () => {
-    expect([kindLabel('auto'), kindLabel('daily'), kindLabel('manual'), kindLabel('restore')]).toEqual(['Auto', 'Auto', 'Saved', 'Before restore'])
+    expect([kindLabel('auto'), kindLabel('daily'), kindLabel('manual'), kindLabel('restore')]).toEqual([
+      'Auto',
+      'Auto',
+      'Saved',
+      'Before restore'
+    ])
     expect([kindTone('auto'), kindTone('daily'), kindTone('manual'), kindTone('restore')]).toEqual(['auto', 'auto', 'saved', 'restore'])
     expect(countLabel(1, 'block')).toBe('1 block')
     expect(countLabel(0, 'row')).toBe('0 rows')

@@ -2,16 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { writeFile } from 'node:fs/promises'
 import { basename, extname } from 'node:path'
 import type { BrowserWindow } from 'electron'
-import type {
-  Block,
-  BlockProps,
-  BlockType,
-  DatabaseView,
-  Mark,
-  PropertySchema,
-  PropertyValue,
-  RichText
-} from '../shared/types'
+import type { Block, BlockProps, BlockType, DatabaseView, Mark, PropertySchema, PropertyValue, RichText } from '../shared/types'
 import { sourceIdOf } from '../shared/linked'
 import { plainText } from '../shared/richtext'
 import type { Repository, TreeInput } from './db/repository'
@@ -209,7 +200,10 @@ function calcToMarkdown(repo: Repository, db: Block, source: Block, title: strin
   for (const calc of view?.calcs ?? []) {
     const result = evaluateCalc(calc, rows, schema)
     // Like the figure on screen: two decimals for a plain number, a dash when there is none.
-    const value = !result.ok || result.value === null ? '—' : formatNumber(result.format === 'number' ? Math.round(result.value * 100) / 100 : result.value, result.format)
+    const value =
+      !result.ok || result.value === null
+        ? '—'
+        : formatNumber(result.format === 'number' ? Math.round(result.value * 100) / 100 : result.value, result.format)
     lines.push(`| ${cell(calc.name || 'Untitled')} | ${cell(value)} |`)
   }
   return lines
@@ -267,8 +261,7 @@ function blocksToLines(repo: Repository, blocks: Block[], depth: number): string
 
 function blockToLines(repo: Repository, b: Block, number: number, depth: number): string[] {
   // Guard against pathological nesting (and corrupt cyclic content).
-  const kids = (): string[] =>
-    depth < 64 && b.content.length ? blocksToLines(repo, repo.children(b.id), depth + 1) : []
+  const kids = (): string[] => (depth < 64 && b.content.length ? blocksToLines(repo, repo.children(b.id), depth + 1) : [])
   const below = (lines: string[]): string[] => {
     const k = kids()
     return k.length ? [...lines, '', ...k] : lines
@@ -287,8 +280,7 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
     case 'numbered_list':
     case 'to_do':
     case 'toggle': {
-      const marker =
-        b.type === 'numbered_list' ? `${number}. ` : b.type === 'to_do' ? `- [${p.checked ? 'x' : ' '}] ` : '- '
+      const marker = b.type === 'numbered_list' ? `${number}. ` : b.type === 'to_do' ? `- [${p.checked ? 'x' : ' '}] ` : '- '
       const text = textLines(p.title, false)
       const out = text.map((l, i) => (i === 0 ? marker + l : INDENT + l))
       for (const l of kids()) out.push(l ? INDENT + l : '')
@@ -340,7 +332,7 @@ export function pageToMarkdown(repo: Repository, id: string): { title: string; m
   const page = repo.get(id)
   if (!page) throw new Error(`Block not found: ${id}`)
   // A linked view without a title of its own goes by its source's.
-  const named = page.props.title?.length ? page : ((page.type === 'database' && sourceOf(repo, page)) || page)
+  const named = page.props.title?.length ? page : (page.type === 'database' && sourceOf(repo, page)) || page
   const title = plainText(named.props.title).trim() || 'Untitled'
   const lines = [`# ${inlineToMarkdown(named.props.title).replace(/\n/g, ' ') || 'Untitled'}`]
   const body = page.type === 'database' ? databaseToMarkdown(repo, page, false) : blocksToLines(repo, repo.children(id), 0)
@@ -607,7 +599,10 @@ function parseDisplayMath(lines: readonly string[], first: number, indent: numbe
   return null
 }
 
-export function parseMarkdown(source: string, { keepTitle = false }: { keepTitle?: boolean } = {}): { title: string | null; nodes: Node[] } {
+export function parseMarkdown(
+  source: string,
+  { keepTitle = false }: { keepTitle?: boolean } = {}
+): { title: string | null; nodes: Node[] } {
   scanBudget = INLINE_SCAN_BUDGET
   const lines = source.replace(/^﻿/, '').replace(/\r\n?/g, '\n').replace(/\t/g, INDENT).split('\n')
   const root: Node[] = []
@@ -811,11 +806,7 @@ export function safeFileName(title: string): string {
   return name && !/^(con|prn|aux|nul|com\d|lpt\d)$/i.test(name) ? name : 'Untitled'
 }
 
-export async function exportMarkdown(
-  repo: Repository,
-  win: BrowserWindow | null,
-  id: string
-): Promise<{ saved: boolean; path?: string }> {
+export async function exportMarkdown(repo: Repository, win: BrowserWindow | null, id: string): Promise<{ saved: boolean; path?: string }> {
   const { dialog } = await import('electron')
   const { title, markdown } = pageToMarkdown(repo, id)
   const options = {
@@ -829,11 +820,7 @@ export async function exportMarkdown(
   return { saved: true, path: result.filePath }
 }
 
-export async function importMarkdown(
-  repo: Repository,
-  win: BrowserWindow | null,
-  parentId: string | null
-): Promise<Block | null> {
+export async function importMarkdown(repo: Repository, win: BrowserWindow | null, parentId: string | null): Promise<Block | null> {
   const { dialog } = await import('electron')
   if (parentId !== null && !repo.get(parentId)) throw new Error(`Block not found: ${parentId}`)
   const options = {

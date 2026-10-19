@@ -12,8 +12,7 @@ import {
   stepIndex
 } from './findInPage'
 
-const slices = (text: string, query: string): string[] =>
-  findMatches(text, query).map((m) => text.slice(m.start, m.end))
+const slices = (text: string, query: string): string[] => findMatches(text, query).map((m) => text.slice(m.start, m.end))
 
 describe('fold', () => {
   it('lower-cases and strips accents, mapping each character back', () => {

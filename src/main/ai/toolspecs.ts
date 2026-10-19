@@ -35,13 +35,27 @@ const ID = { type: 'string', description: 'An id, as shown in square brackets af
 export const TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'search',
-    description: 'Full-text search over the titles and contents of the pages in the workspace. Returns matching pages with their ids, where they sit and a snippet.',
-    inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'Words to look for.' }, limit: { type: 'integer', minimum: 1, maximum: TOOL_CAPS.search } }, required: ['query'], additionalProperties: false }
+    description:
+      'Full-text search over the titles and contents of the pages in the workspace. Returns matching pages with their ids, where they sit and a snippet.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Words to look for.' },
+        limit: { type: 'integer', minimum: 1, maximum: TOOL_CAPS.search }
+      },
+      required: ['query'],
+      additionalProperties: false
+    }
   },
   {
     name: 'outline',
-    description: 'The tree of pages and databases: the whole workspace from the top, or what is inside one page. Each entry has its id, how many rows a database has, when it was last edited, and "empty" when a page has nothing in it.',
-    inputSchema: { type: 'object', properties: { root: ID, depth: { type: 'integer', minimum: 1, maximum: TOOL_CAPS.outlineDepth } }, additionalProperties: false }
+    description:
+      'The tree of pages and databases: the whole workspace from the top, or what is inside one page. Each entry has its id, how many rows a database has, when it was last edited, and "empty" when a page has nothing in it.',
+    inputSchema: {
+      type: 'object',
+      properties: { root: ID, depth: { type: 'integer', minimum: 1, maximum: TOOL_CAPS.outlineDepth } },
+      additionalProperties: false
+    }
   },
   {
     name: 'read_page',
@@ -61,7 +75,11 @@ export const TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'recent',
     description: 'The pages and databases edited most recently.',
-    inputSchema: { type: 'object', properties: { limit: { type: 'integer', minimum: 1, maximum: TOOL_CAPS.recent } }, additionalProperties: false }
+    inputSchema: {
+      type: 'object',
+      properties: { limit: { type: 'integer', minimum: 1, maximum: TOOL_CAPS.recent } },
+      additionalProperties: false
+    }
   },
   {
     name: 'audit',
@@ -78,7 +96,10 @@ const VALUES = {
   additionalProperties: true
 }
 
-const MARKDOWN = { type: 'string', description: 'Markdown: headings, paragraphs, lists, to-dos ("- [ ] "), quotes, code, tables and links.' }
+const MARKDOWN = {
+  type: 'string',
+  description: 'Markdown: headings, paragraphs, lists, to-dos ("- [ ] "), quotes, code, tables and links.'
+}
 
 /**
  * The tools that write, offered only to the apps the user connected in Settings (see
@@ -107,7 +128,12 @@ export const WRITE_TOOL_SPECS: readonly ToolSpec[] = [
   {
     name: 'add_database_row',
     description: 'Adds a row to a database, with its values by property name. Returns the id of the new row.',
-    inputSchema: { type: 'object', properties: { database: ID, values: VALUES }, required: ['database', 'values'], additionalProperties: false }
+    inputSchema: {
+      type: 'object',
+      properties: { database: ID, values: VALUES },
+      required: ['database', 'values'],
+      additionalProperties: false
+    }
   },
   {
     name: 'update_database_row',

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { POMODORO_HISTORY_KEY, POMODORO_SETTING, type PomodoroCompleted, type PomodoroEnded, type PomodoroSnapshot } from '../../shared/pomodoro'
+import {
+  POMODORO_HISTORY_KEY,
+  POMODORO_SETTING,
+  type PomodoroCompleted,
+  type PomodoroEnded,
+  type PomodoroSnapshot
+} from '../../shared/pomodoro'
 import { PomodoroService } from './service'
 
 const MIN = 60_000

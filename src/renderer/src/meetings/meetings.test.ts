@@ -17,7 +17,10 @@ function page(id: string, parentId: string | null, type: Block['type'] = 'page')
 describe('which pages are meetings', () => {
   it('tells a meeting and its transcript from everything else', async () => {
     // The gate imports the stores, which expect a window: only its pure part is exercised here.
-    ;(globalThis as { window?: unknown }).window ??= { api: { onChange: () => () => undefined, app: { getSetting: async () => null, setSetting: async () => undefined } }, matchMedia: undefined }
+    ;(globalThis as { window?: unknown }).window ??= {
+      api: { onChange: () => () => undefined, app: { getSetting: async () => null, setSetting: async () => undefined } },
+      matchMedia: undefined
+    }
     const { meetingRole } = await import('./gate')
     const meeting = page('m', 'db')
     expect(meetingRole(meeting, page('db', null, 'database'), 'db')).toEqual({ role: 'meeting', meetingId: 'm' })
@@ -133,16 +136,22 @@ describe('styles', () => {
     const body = text.replace(/\/\*[\s\S]*?\*\//g, '')
     expect(body).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
     expect(body).not.toMatch(/\b(?:rgb|rgba|hsl|hsla|oklch|color-mix)\(/)
-    for (const declaration of body.matchAll(/(font-size|font-weight|border-radius|box-shadow|transition|animation|font-family|background|color)\s*:\s*([^;]+);/g)) {
+    for (const declaration of body.matchAll(
+      /(font-size|font-weight|border-radius|box-shadow|transition|animation|font-family|background|color)\s*:\s*([^;]+);/g
+    )) {
       const [, property, value] = declaration
-      if (property === 'font-size') expect(value, declaration[0]).toMatch(/^(var\(--text-[\w-]+\)|inherit|calc\(1em \* var\(--code-scale\)\))$/)
+      if (property === 'font-size')
+        expect(value, declaration[0]).toMatch(/^(var\(--text-[\w-]+\)|inherit|calc\(1em \* var\(--code-scale\)\))$/)
       if (property === 'font-weight') expect(value, declaration[0]).toMatch(/^var\(--weight-[\w-]+\)$/)
       if (property === 'font-family') expect(value, declaration[0]).toMatch(/^var\(--font-[\w-]+\)$/)
       if (property === 'border-radius') expect(value, declaration[0]).toMatch(/^(var\(--radius-[\w-]+\)|inherit)$/)
       if (property === 'transition' || property === 'animation') expect(value, declaration[0]).toMatch(/var\(--duration(-fast)?\)/)
       if (property === 'transition' || property === 'animation') expect(value, declaration[0]).not.toMatch(/\d(ms|s)\b/)
       if (property === 'box-shadow') expect(value.replace(/var\(--[\w-]+\)/g, ''), declaration[0]).not.toMatch(/[a-z]{3,}\(/)
-      if (property === 'color' || property === 'background') expect(value, declaration[0]).toMatch(/^(var\(--[\w-]+\)|transparent|inherit|linear-gradient\(var\(--[\w-]+\) \d+%, transparent\))$/)
+      if (property === 'color' || property === 'background')
+        expect(value, declaration[0]).toMatch(
+          /^(var\(--[\w-]+\)|transparent|inherit|linear-gradient\(var\(--[\w-]+\) \d+%, transparent\))$/
+        )
     }
   })
 
@@ -156,7 +165,7 @@ describe('styles', () => {
 
   it('allows audio from the recordings route only', () => {
     const html = read('../../index.html')
-    expect(html).toContain("media-src sel-file:;")
+    expect(html).toContain('media-src sel-file:;')
     expect(html).toContain("script-src 'self';")
     expect(html).toContain("worker-src 'none'")
     expect(html).toContain("connect-src 'none'")

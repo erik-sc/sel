@@ -133,7 +133,11 @@ export interface AiError {
   detail?: string
 }
 
-export type AiEvent = ({ type: 'delta' } & AiDelta) | ({ type: 'done' } & AiDone) | ({ type: 'error' } & AiError) | ({ type: 'council' } & CouncilEvent)
+export type AiEvent =
+  | ({ type: 'delta' } & AiDelta)
+  | ({ type: 'done' } & AiDone)
+  | ({ type: 'error' } & AiError)
+  | ({ type: 'council' } & CouncilEvent)
 
 export const AI_CHANNELS = { delta: 'ai:delta', done: 'ai:done', error: 'ai:error', council: 'ai:council' } as const
 
@@ -185,7 +189,10 @@ export function cleanAiSetting(key: string, value: unknown): boolean | number | 
 export function parseTitleSuggestions(text: string): { emoji: string; title: string }[] {
   const out: { emoji: string; title: string }[] = []
   for (const raw of text.split('\n')) {
-    const line = raw.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/[*_`#"]/g, '').trim()
+    const line = raw
+      .replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '')
+      .replace(/[*_`#"]/g, '')
+      .trim()
     if (!line) continue
     const match = /^(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)\s*(.+)$/u.exec(line)
     const title = (match ? match[2] : line).trim().slice(0, 120)

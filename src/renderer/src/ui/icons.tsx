@@ -198,7 +198,9 @@ export const Text = make(<path d="M2.5 4h11M2.5 8h11M2.5 12h7" />)
 export const Hash = make(<path d="M6.2 2.5 5 13.5M11 2.5 9.8 13.5M2.8 6h10.8M2.4 10h10.8" />)
 export const Sigma = make(<path d="M12 4V3H4l4.6 5L4 13h8v-1" />)
 /** "fx": a formula. */
-export const Formula = make(<path d="M8.6 2.6c-1.6-.4-2.5.3-2.8 2L4.6 11.4c-.3 1.7-1.2 2.4-2.8 2M3.6 6.2h4.6M9.4 7.2l4 4.6M13.4 7.2l-4 4.6" />)
+export const Formula = make(
+  <path d="M8.6 2.6c-1.6-.4-2.5.3-2.8 2L4.6 11.4c-.3 1.7-1.2 2.4-2.8 2M3.6 6.2h4.6M9.4 7.2l4 4.6M13.4 7.2l-4 4.6" />
+)
 
 export const Tag = make(
   <>
@@ -237,13 +239,14 @@ export const Sky = make(<path d="M8 1.6Q8.8 7.2 14.4 8Q8.8 8.8 8 14.4Q7.2 8.8 1.
 export const Moon = make(<path d="M12.8 10.2A5.4 5.4 0 0 1 5.8 3.2a5.4 5.4 0 1 0 7 7z" />)
 
 /** A speech bubble: bug reports and suggestions. */
-export const Feedback = make(<path d="M3.2 3h9.6c.7 0 1.2.5 1.2 1.2v5.6c0 .7-.5 1.2-1.2 1.2H8.2L5 13.4V11H3.2C2.5 11 2 10.5 2 9.8V4.2C2 3.5 2.5 3 3.2 3zM8 5v2.6M8 9.2v.01" />)
+export const Feedback = make(
+  <path d="M3.2 3h9.6c.7 0 1.2.5 1.2 1.2v5.6c0 .7-.5 1.2-1.2 1.2H8.2L5 13.4V11H3.2C2.5 11 2 10.5 2 9.8V4.2C2 3.5 2.5 3 3.2 3zM8 5v2.6M8 9.2v.01" />
+)
 
 /** The mark of the AI features: a four-pointed star with a small one beside it. */
 export const Sparkle = make(<path d="M7 2.2l1.3 3.5 3.5 1.3-3.5 1.3L7 11.8 5.7 8.3 2.2 7l3.5-1.3zM12.3 10.6v3M10.8 12.1h3" />)
 
 export const Type = make(<path d="M3 4.4V3h10v1.4M8 3v10M6.2 13h3.6" />)
-
 
 /** Blocks side by side in one row. */
 export const Columns = make(

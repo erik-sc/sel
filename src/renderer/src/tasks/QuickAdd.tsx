@@ -82,7 +82,10 @@ export function QuickAdd(props: QuickAddProps): JSX.Element {
   const pool = fragment?.sigil === '#' ? projects : labels
   const matches = fragment ? suggest(pool, fragment.text) : []
   const canCreate = !!fragment && fragment.text.trim() !== '' && !findOption(pool, fragment.text)
-  const choices: { option?: SelectOption; create?: string }[] = [...matches.map((option) => ({ option })), ...(canCreate ? [{ create: fragment.text.trim() }] : [])]
+  const choices: { option?: SelectOption; create?: string }[] = [
+    ...matches.map((option) => ({ option })),
+    ...(canCreate ? [{ create: fragment.text.trim() }] : [])
+  ]
   const open = !!fragment && choices.length > 0
 
   const sync = (): void => {
@@ -112,7 +115,9 @@ export function QuickAdd(props: QuickAddProps): JSX.Element {
     if (choice.create) {
       const property = fragment.sigil === '#' ? TASK_PROPS.project : TASK_PROPS.labels
       const id = actions.addOption(TASKS_DATABASE_ID, property, name)
-      const made = id ? L.optionsOf(L.propOf(actions.snapshot(TASKS_DATABASE_ID).schema, property)).find((option) => option.id === id) : undefined
+      const made = id
+        ? L.optionsOf(L.propOf(actions.snapshot(TASKS_DATABASE_ID).schema, property)).find((option) => option.id === id)
+        : undefined
       name = made?.name ?? name
     }
     const next = `${value.slice(0, fragment.start)}${fragment.sigil}${name} ${value.slice(caret)}`
@@ -133,7 +138,10 @@ export function QuickAdd(props: QuickAddProps): JSX.Element {
     }
     const project = parsed.project ? optionId(TASK_PROPS.project, parsed.project) : null
     const labelIds = parsed.labels.map((name) => optionId(TASK_PROPS.labels, name)).filter((id): id is string => !!id)
-    const id = actions.createRow(TASKS_DATABASE_ID, { title: parsed.title, values: taskValues(parsed, { project, labels: labelIds }, listDefaults(list, today)) })
+    const id = actions.createRow(TASKS_DATABASE_ID, {
+      title: parsed.title,
+      values: taskValues(parsed, { project, labels: labelIds }, listDefaults(list, today))
+    })
     setValue('')
     setIgnored([])
     onAdded?.(id)

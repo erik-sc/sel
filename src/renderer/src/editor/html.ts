@@ -30,9 +30,33 @@ const MAX_VISITED = 100_000
 
 /** Never read: what they hold is not text the user meant to paste, or would need the network. */
 const SKIP: ReadonlySet<string> = new Set([
-  'SCRIPT', 'STYLE', 'TEMPLATE', 'HEAD', 'TITLE', 'META', 'LINK', 'BASE', 'NOSCRIPT', 'IFRAME', 'FRAME', 'OBJECT',
-  'EMBED', 'SVG', 'MATH', 'CANVAS', 'VIDEO', 'AUDIO', 'PICTURE', 'SOURCE', 'IMG', 'BUTTON', 'SELECT', 'TEXTAREA',
-  'OPTION', 'INPUT', 'DIALOG'
+  'SCRIPT',
+  'STYLE',
+  'TEMPLATE',
+  'HEAD',
+  'TITLE',
+  'META',
+  'LINK',
+  'BASE',
+  'NOSCRIPT',
+  'IFRAME',
+  'FRAME',
+  'OBJECT',
+  'EMBED',
+  'SVG',
+  'MATH',
+  'CANVAS',
+  'VIDEO',
+  'AUDIO',
+  'PICTURE',
+  'SOURCE',
+  'IMG',
+  'BUTTON',
+  'SELECT',
+  'TEXTAREA',
+  'OPTION',
+  'INPUT',
+  'DIALOG'
 ])
 
 /** Elements that stand for a block of their own. */
@@ -40,9 +64,36 @@ const STRUCTURE: ReadonlySet<string> = new Set(['H1', 'H2', 'H3', 'H4', 'H5', 'H
 
 /** Elements that only group blocks: their text runs become paragraphs. */
 const CONTAINERS: ReadonlySet<string> = new Set([
-  'HTML', 'BODY', 'P', 'DIV', 'SECTION', 'ARTICLE', 'MAIN', 'HEADER', 'FOOTER', 'ASIDE', 'NAV', 'FIGURE', 'FIGCAPTION',
-  'CENTER', 'FORM', 'FIELDSET', 'LEGEND', 'DETAILS', 'SUMMARY', 'DL', 'DT', 'DD', 'ADDRESS', 'CAPTION', 'THEAD', 'TBODY',
-  'TFOOT', 'TR', 'TD', 'TH'
+  'HTML',
+  'BODY',
+  'P',
+  'DIV',
+  'SECTION',
+  'ARTICLE',
+  'MAIN',
+  'HEADER',
+  'FOOTER',
+  'ASIDE',
+  'NAV',
+  'FIGURE',
+  'FIGCAPTION',
+  'CENTER',
+  'FORM',
+  'FIELDSET',
+  'LEGEND',
+  'DETAILS',
+  'SUMMARY',
+  'DL',
+  'DT',
+  'DD',
+  'ADDRESS',
+  'CAPTION',
+  'THEAD',
+  'TBODY',
+  'TFOOT',
+  'TR',
+  'TD',
+  'TH'
 ])
 
 const HEADINGS: Readonly<Record<string, BlockType>> = {
@@ -333,8 +384,7 @@ class Converter {
     }
     const title = tidy(run)
     if (!title.length && !children.length) return null
-    const node: ClipNode =
-      checked === null ? textNode(type, title, children) : { type: 'to_do', props: { title, checked }, children }
+    const node: ClipNode = checked === null ? textNode(type, title, children) : { type: 'to_do', props: { title, checked }, children }
     out.push(node)
     return node
   }

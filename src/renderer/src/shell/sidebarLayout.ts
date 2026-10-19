@@ -19,7 +19,10 @@ export const useSidebarLayout = create<SidebarLayoutState>(() => ({ layout: null
 const CHANNEL_NAME = 'sidebar'
 
 async function reload(): Promise<void> {
-  const [layout, language] = await Promise.all([window.api.app.getSetting<unknown>(SIDEBAR_SETTING), window.api.app.getSetting<unknown>('ai.language')])
+  const [layout, language] = await Promise.all([
+    window.api.app.getSetting<unknown>(SIDEBAR_SETTING),
+    window.api.app.getSetting<unknown>('ai.language')
+  ])
   useSidebarLayout.setState({ layout: cleanSidebar(layout) ?? null, locale: sidebarLocale(language, navigator.language) })
 }
 

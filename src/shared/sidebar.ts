@@ -185,7 +185,12 @@ export function isDefaultSidebar(layout: SidebarLayout | null): boolean {
  * stepping down past the last top item lands first in the footer, and back: the middle items
  * only change places with each other. Null when it cannot move that way.
  */
-export function stepItem(order: readonly SidebarItemId[], visible: readonly SidebarItemId[], id: SidebarItemId, delta: -1 | 1): SidebarItemId[] | null {
+export function stepItem(
+  order: readonly SidebarItemId[],
+  visible: readonly SidebarItemId[],
+  id: SidebarItemId,
+  delta: -1 | 1
+): SidebarItemId[] | null {
   const shown = order.filter((other) => visible.includes(other))
   const at = shown.indexOf(id)
   const neighbour = shown[at + delta]
@@ -209,7 +214,12 @@ export function stepItem(order: readonly SidebarItemId[], visible: readonly Side
  * The order after dropping `id` before `before` (or at the end of `zone` when `before` is
  * null). A middle item only lands in the middle and the others only outside it: null otherwise.
  */
-export function dropItem(order: readonly SidebarItemId[], id: SidebarItemId, zone: SidebarZone, before: SidebarItemId | null): SidebarItemId[] | null {
+export function dropItem(
+  order: readonly SidebarItemId[],
+  id: SidebarItemId,
+  zone: SidebarZone,
+  before: SidebarItemId | null
+): SidebarItemId[] | null {
   if (isMiddleItem(id) !== (zone === 'middle')) return null
   if (before === id) return [...order]
   if (before !== null && zoneOf(order, before) !== zone) return null

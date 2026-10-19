@@ -19,8 +19,7 @@ vi.mock('../store/blocks', async () => {
   type Map = Parameters<typeof applyOpsToMap>[0]
   return {
     newId: () => `new-${++store.seq}`,
-    getBlock: (id: string | null | undefined) =>
-      id && Object.hasOwn(store.blocks, id) ? (store.blocks[id] as Block) : undefined,
+    getBlock: (id: string | null | undefined) => (id && Object.hasOwn(store.blocks, id) ? (store.blocks[id] as Block) : undefined),
     // Like the real store: the optimistic write is applied synchronously.
     applyOps: (ops: Op[]) => {
       store.batches.push(ops)
@@ -167,9 +166,16 @@ describe('cell edits are built from the store at commit time', () => {
       const props = tasksDatabaseProps() as Record<string, unknown>
       const done = (props.schema as L.Schema)[TASK_PROPS.done]
       const daily = JSON.stringify({ rule: 'FREQ=DAILY', from: 'due', text: 'todo dia' })
-      seed([page('rep', 'Water', { [TASK_PROPS.due]: { start: '2026-10-15T08:00' }, [TASK_PROPS.recurrence]: daily }), page('once', 'Call')], props)
+      seed(
+        [page('rep', 'Water', { [TASK_PROPS.due]: { start: '2026-10-15T08:00' }, [TASK_PROPS.recurrence]: daily }), page('once', 'Call')],
+        props
+      )
       actions.toggleCheckbox('rep', done)
-      expect(valuesOf('rep')).toEqual({ [TASK_PROPS.due]: { start: '2026-10-16T08:00' }, [TASK_PROPS.recurrence]: daily, [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' } })
+      expect(valuesOf('rep')).toEqual({
+        [TASK_PROPS.due]: { start: '2026-10-16T08:00' },
+        [TASK_PROPS.recurrence]: daily,
+        [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' }
+      })
       actions.toggleCheckbox('once', done)
       expect(valuesOf('once')).toEqual({ [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' } })
       // Unticking reopens it: no longer done, no completion time.
@@ -360,10 +366,17 @@ describe('deleting a property', () => {
       },
       boardView
     ]
-    seed([page('r1', 'One', { sel: 'done', txt: 'keep' }), page('r2', 'Two', { txt: 'x' }), page('r3', 'Old', { sel: 'todo' }, { trashedAt: 9 })], {
-      schema,
-      views
-    })
+    seed(
+      [
+        page('r1', 'One', { sel: 'done', txt: 'keep' }),
+        page('r2', 'Two', { txt: 'x' }),
+        page('r3', 'Old', { sel: 'todo' }, { trashedAt: 9 })
+      ],
+      {
+        schema,
+        views
+      }
+    )
     actions.deleteProperty('db', 'sel')
     expect(store.batches).toHaveLength(1)
     expect(dbProps().schema!.sel).toBeUndefined()
@@ -430,7 +443,13 @@ describe('linked views', () => {
     } satisfies Block
   }
   const lvProps = (): Block['props'] => get('lv').props
-  const written = (): string[] => store.batches.flat().map((op) => (op as Op).op + ':' + ('id' in (op as Op) ? (op as { id: string }).id : (op as { input: { parentId: string } }).input.parentId))
+  const written = (): string[] =>
+    store.batches
+      .flat()
+      .map(
+        (op) =>
+          (op as Op).op + ':' + ('id' in (op as Op) ? (op as { id: string }).id : (op as { input: { parentId: string } }).input.parentId)
+      )
 
   it('resolves schema and rows through the source', () => {
     seedLinked()
@@ -724,7 +743,10 @@ describe('bulk edits', () => {
     expect(valuesOf('b')).toEqual({ sel: 'done', tags: ['b'], txt: 'theirs' })
     expect(valuesOf('c')).toEqual({ sel: 'todo' })
     actions.editCells(['a', 'b'], schema.tags, { kind: 'add', optionId: 'c' })
-    expect([valuesOf('a').tags, valuesOf('b').tags]).toEqual([['a', 'c'], ['b', 'c']])
+    expect([valuesOf('a').tags, valuesOf('b').tags]).toEqual([
+      ['a', 'c'],
+      ['b', 'c']
+    ])
   })
 
   it('writes nothing when no selected row changes', () => {

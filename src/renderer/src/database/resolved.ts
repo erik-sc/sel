@@ -46,7 +46,9 @@ export function useResolvedDatabase(databaseId: string, remember: boolean): L.Re
   // A source inside a trashed page is in the trash too: its ancestors must be known to tell.
   useEffect(() => {
     if (!sourceId) return
-    fetchBlocks(() => window.api.pages.ancestors(sourceId)).catch((error) => console.error('database: loading the source path failed', error))
+    fetchBlocks(() => window.api.pages.ancestors(sourceId)).catch((error) =>
+      console.error('database: loading the source path failed', error)
+    )
   }, [sourceId])
 
   const state = useBlockStore(

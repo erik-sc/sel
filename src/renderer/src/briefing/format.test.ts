@@ -2,7 +2,24 @@ process.env.TZ = 'America/Sao_Paulo'
 
 import { describe, expect, it } from 'vitest'
 import type { BriefingEvent, BriefingTask, BriefingTasks } from '../../../shared/briefing'
-import { agendaByDay, calendarNotes, clock, dayStart, dayTimeline, dueLabel, eventMoments, eventTime, longDate, phraseSource, phraseText, shortClock, taskGroups, tickedKey, untilMidnight, updatedLabel } from './format'
+import {
+  agendaByDay,
+  calendarNotes,
+  clock,
+  dayStart,
+  dayTimeline,
+  dueLabel,
+  eventMoments,
+  eventTime,
+  longDate,
+  phraseSource,
+  phraseText,
+  shortClock,
+  taskGroups,
+  tickedKey,
+  untilMidnight,
+  updatedLabel
+} from './format'
 
 const at = (hour: number, minute = 0, day = 13): number => new Date(2026, 9, day, hour, minute).getTime()
 const event = (start: number, end: number, allDay = false): { start: number; end: number; allDay: boolean } => ({ start, end, allDay })
@@ -107,27 +124,52 @@ describe('what is now and what is next', () => {
 
 describe('the source of a phrase', () => {
   it('names the author, the work and the place', () => {
-    expect(phraseSource({ author: 'Marcus Aurelius', work: 'Meditations', locator: 'Book IV, 3', translator: 'George Long' })).toEqual({ author: 'Marcus Aurelius', work: 'Meditations, Book IV, 3', translator: 'translated by George Long' })
-    expect(phraseSource({ author: 'Epictetus', work: 'Enchiridion', locator: 'Enchiridion, 5', translator: null }).work).toBe('Enchiridion, 5')
-    expect(phraseSource({ author: 'Rabindranath Tagore', work: 'Gitanjali', locator: 'Gitanjali, 48', translator: 'Rabindranath Tagore' })).toEqual({ author: 'Rabindranath Tagore', work: 'Gitanjali, 48', translator: '' })
+    expect(phraseSource({ author: 'Marcus Aurelius', work: 'Meditations', locator: 'Book IV, 3', translator: 'George Long' })).toEqual({
+      author: 'Marcus Aurelius',
+      work: 'Meditations, Book IV, 3',
+      translator: 'translated by George Long'
+    })
+    expect(phraseSource({ author: 'Epictetus', work: 'Enchiridion', locator: 'Enchiridion, 5', translator: null }).work).toBe(
+      'Enchiridion, 5'
+    )
+    expect(
+      phraseSource({ author: 'Rabindranath Tagore', work: 'Gitanjali', locator: 'Gitanjali, 48', translator: 'Rabindranath Tagore' })
+    ).toEqual({ author: 'Rabindranath Tagore', work: 'Gitanjali, 48', translator: '' })
     expect(phraseSource({ author: 'Me' })).toEqual({ author: 'Me', work: '', translator: '' })
     expect(phraseSource({ author: '', work: 'Siddhartha' })).toEqual({ author: '', work: 'Siddhartha', translator: '' })
   })
 
   it('copies as the passage and one line of source', () => {
-    expect(phraseText({ text: 'Look within.', author: 'Marcus Aurelius', work: 'Meditations', locator: 'Book VII, 59', translator: 'George Long' })).toBe('Look within.\n— Marcus Aurelius, Meditations, Book VII, 59')
+    expect(
+      phraseText({
+        text: 'Look within.',
+        author: 'Marcus Aurelius',
+        work: 'Meditations',
+        locator: 'Book VII, 59',
+        translator: 'George Long'
+      })
+    ).toBe('Look within.\n— Marcus Aurelius, Meditations, Book VII, 59')
     expect(phraseText({ text: 'Just this.', author: '' })).toBe('Just this.')
   })
 })
 
 describe('folding the task list', () => {
   const task = (id: string): BriefingTask => ({ id, kind: 'row', title: id, pageId: id, source: 'Tasks' })
-  const tasks: BriefingTasks = { overdue: [task('o1'), task('o2')], today: [task('t1'), task('t2'), task('t3')], noDate: [task('n1')], more: 2 }
-  const ids = (expanded: boolean, done: string[] = []): string[][] => taskGroups(tasks, expanded, new Set(done.map((id) => tickedKey(task(id))))).groups.map((group) => group.tasks.map((item) => item.id))
+  const tasks: BriefingTasks = {
+    overdue: [task('o1'), task('o2')],
+    today: [task('t1'), task('t2'), task('t3')],
+    noDate: [task('n1')],
+    more: 2
+  }
+  const ids = (expanded: boolean, done: string[] = []): string[][] =>
+    taskGroups(tasks, expanded, new Set(done.map((id) => tickedKey(task(id))))).groups.map((group) => group.tasks.map((item) => item.id))
 
   it('shows the first tasks across the groups and counts the rest', () => {
     const folded = taskGroups(tasks, false)
-    expect(folded.groups.map((group) => [group.key, group.label, group.tasks.length])).toEqual([['overdue', 'Overdue', 2], ['today', 'Today', 2]])
+    expect(folded.groups.map((group) => [group.key, group.label, group.tasks.length])).toEqual([
+      ['overdue', 'Overdue', 2],
+      ['today', 'Today', 2]
+    ])
     expect(folded.hidden).toBe(2)
     expect(taskGroups(tasks, true).hidden).toBe(0)
     expect(ids(true)).toEqual([['o1', 'o2'], ['t1', 't2', 't3'], ['n1']])
@@ -144,11 +186,16 @@ describe('folding the task list', () => {
     const done = new Set([tickedKey(daily)])
     expect(taskGroups({ overdue: [], today: [daily], more: 0 }, false, done).groups).toEqual([])
     const moved = { ...daily, due: '2026-10-16' }
-    expect(taskGroups({ overdue: [], today: [moved], more: 0 }, false, done).groups).toEqual([{ key: 'today', label: 'Today', tasks: [moved] }])
+    expect(taskGroups({ overdue: [], today: [moved], more: 0 }, false, done).groups).toEqual([
+      { key: 'today', label: 'Today', tasks: [moved] }
+    ])
   })
 
   it('handles a briefing without the optional group, and an empty one', () => {
-    expect(taskGroups({ overdue: [], today: [task('a')], more: 0 }, false)).toEqual({ groups: [{ key: 'today', label: 'Today', tasks: [task('a')] }], hidden: 0 })
+    expect(taskGroups({ overdue: [], today: [task('a')], more: 0 }, false)).toEqual({
+      groups: [{ key: 'today', label: 'Today', tasks: [task('a')] }],
+      hidden: 0
+    })
     expect(taskGroups({ overdue: [], today: [], more: 0 }, false)).toEqual({ groups: [], hidden: 0 })
     expect(taskGroups({ overdue: [], today: [task('a')], more: 99 }, false)).toEqual({ groups: [], hidden: 1 })
   })
@@ -164,11 +211,30 @@ describe('the days of the calendar', () => {
   })
 
   it('puts an event on every day it overlaps, and a task on the day it is due', () => {
-    const occurrence = (id: string, start: number, end: number, allDay = false): BriefingEvent => ({ id, calendarId: 'c', title: id, start, end, allDay, recurring: false })
-    const due = (id: string, day?: string): BriefingTask => ({ id, kind: 'row', title: id, pageId: id, source: 'Tasks', ...(day ? { due: day } : {}) })
+    const occurrence = (id: string, start: number, end: number, allDay = false): BriefingEvent => ({
+      id,
+      calendarId: 'c',
+      title: id,
+      start,
+      end,
+      allDay,
+      recurring: false
+    })
+    const due = (id: string, day?: string): BriefingTask => ({
+      id,
+      kind: 'row',
+      title: id,
+      pageId: id,
+      source: 'Tasks',
+      ...(day ? { due: day } : {})
+    })
     const byDay = agendaByDay(
       ['2026-10-13', '2026-10-14', '2026-10-15', 'not a day'],
-      [occurrence('conference', at(0), at(0, 0, 15), true), occurrence('overnight', at(23), at(1, 0, 14)), occurrence('moment', at(0, 0, 14), at(0, 0, 14))],
+      [
+        occurrence('conference', at(0), at(0, 0, 15), true),
+        occurrence('overnight', at(23), at(1, 0, 14)),
+        occurrence('moment', at(0, 0, 14), at(0, 0, 14))
+      ],
       [due('a', '2026-10-14'), due('b', '2026-10-20'), due('c')]
     )
     const ids = (day: string): string[][] => [byDay.get(day)!.events.map((item) => item.id), byDay.get(day)!.tasks.map((item) => item.id)]

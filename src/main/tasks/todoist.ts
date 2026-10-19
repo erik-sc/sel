@@ -150,5 +150,10 @@ export function readTodoistCsv(text: string, now: Date): { tasks: TodoistTask[];
 /** A project name from an export's file name: "Work [2203306141].csv" → "Work". */
 export function projectNameOf(fileName: string): string {
   const base = fileName.replace(/^.*[\\/]/u, '').replace(/\.csv$/iu, '')
-  return base.replace(/\s*\[\d+\]\s*$/u, '').trim().slice(0, 100) || 'Todoist'
+  return (
+    base
+      .replace(/\s*\[\d+\]\s*$/u, '')
+      .trim()
+      .slice(0, 100) || 'Todoist'
+  )
 }

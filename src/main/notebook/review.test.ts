@@ -9,11 +9,27 @@ const TO = new Date(2026, 9, 16).getTime() - 1
 const today = (hour: number): number => FROM + hour * 3_600_000
 const yesterday = FROM - 3_600_000
 
-function block(id: string, type: TaskBlock['type'], parentId: string | null, props: BlockProps, updatedAt: number, trashedAt: number | null = null): TaskBlock {
+function block(
+  id: string,
+  type: TaskBlock['type'],
+  parentId: string | null,
+  props: BlockProps,
+  updatedAt: number,
+  trashedAt: number | null = null
+): TaskBlock {
   return { id, type, parentId, props, updatedAt, trashedAt }
 }
 
-const checkboxDb = block('db-check', 'database', null, { title: [['Chores']], schema: { title: { id: 'title', name: 'Name', type: 'title' }, done: { id: 'done', name: 'Done', type: 'checkbox' } } }, yesterday)
+const checkboxDb = block(
+  'db-check',
+  'database',
+  null,
+  {
+    title: [['Chores']],
+    schema: { title: { id: 'title', name: 'Name', type: 'title' }, done: { id: 'done', name: 'Done', type: 'checkbox' } }
+  },
+  yesterday
+)
 const statusDb = block(
   'db-status',
   'database',
@@ -22,13 +38,29 @@ const statusDb = block(
     title: [['Work']],
     schema: {
       title: { id: 'title', name: 'Name', type: 'title' },
-      status: { id: 'status', name: 'Status', type: 'select', options: [{ id: 'todo', name: 'To do', color: 'gray' }, { id: 'ok', name: 'Done', color: 'green' }, { id: 'no', name: 'Cancelled', color: 'red' }] }
+      status: {
+        id: 'status',
+        name: 'Status',
+        type: 'select',
+        options: [
+          { id: 'todo', name: 'To do', color: 'gray' },
+          { id: 'ok', name: 'Done', color: 'green' },
+          { id: 'no', name: 'Cancelled', color: 'red' }
+        ]
+      }
     }
   },
   yesterday
 )
-const notesDb = block('db-notes', 'database', null, { title: [['Reading notes']], schema: { title: { id: 'title', name: 'Name', type: 'title' } } }, yesterday)
-const row = (id: string, db: TaskBlock, values: Record<string, unknown>, at: number, title = id): TaskBlock => block(id, 'page', db.id, { title: [[title]], values: values as BlockProps['values'] }, at)
+const notesDb = block(
+  'db-notes',
+  'database',
+  null,
+  { title: [['Reading notes']], schema: { title: { id: 'title', name: 'Name', type: 'title' } } },
+  yesterday
+)
+const row = (id: string, db: TaskBlock, values: Record<string, unknown>, at: number, title = id): TaskBlock =>
+  block(id, 'page', db.id, { title: [[title]], values: values as BlockProps['values'] }, at)
 
 describe('what happened today', () => {
   it('lists the tasks done today, by any signal, the most recent first', () => {
@@ -78,7 +110,12 @@ describe('what happened today', () => {
   })
 
   it('reads damaged blocks without failing', () => {
-    const blocks = [block('x', 'page', null, { title: 'not rich text' as never }, today(1)), { id: 7 } as never, null as never, block('y', 'to_do', 'nowhere', { title: [['orphan']], checked: true }, today(2))]
+    const blocks = [
+      block('x', 'page', null, { title: 'not rich text' as never }, today(1)),
+      { id: 7 } as never,
+      null as never,
+      block('y', 'to_do', 'nowhere', { title: [['orphan']], checked: true }, today(2))
+    ]
     expect(collectDay(blocks, { from: FROM, to: TO })).toEqual({ completed: [], edited: [{ id: 'x', title: 'Untitled', pageId: 'x' }] })
   })
 })

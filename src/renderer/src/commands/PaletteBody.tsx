@@ -79,9 +79,15 @@ export function PaletteBody() {
       <div className="quickfind-list" id={listId} ref={listRef} role="listbox" aria-label="Commands">
         {items.map((item, index) => (
           <Fragment key={item.command.id}>
-            {browsing && index === 0 && item.recent && <div className="quickfind-heading" role="presentation">Recent</div>}
+            {browsing && index === 0 && item.recent && (
+              <div className="quickfind-heading" role="presentation">
+                Recent
+              </div>
+            )}
             {browsing && index > 0 && !item.recent && items[index - 1].recent && (
-              <div className="quickfind-heading" role="presentation">All commands</div>
+              <div className="quickfind-heading" role="presentation">
+                All commands
+              </div>
             )}
             <div
               id={optionId(index)}
@@ -95,9 +101,7 @@ export function PaletteBody() {
               onClick={() => run(index)}
             >
               <span className="quickfind-title palette-title">{item.command.title}</span>
-              {item.command.shortcut && (
-                <kbd className="palette-shortcut">{formatAccelerator(item.command.shortcut, IS_MAC)}</kbd>
-              )}
+              {item.command.shortcut && <kbd className="palette-shortcut">{formatAccelerator(item.command.shortcut, IS_MAC)}</kbd>}
             </div>
           </Fragment>
         ))}

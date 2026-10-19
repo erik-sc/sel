@@ -30,7 +30,15 @@ function runOut(timer: PomodoroTimer, settings: PomodoroSettings): { timer: Pomo
 describe('the pomodoro timer', () => {
   it('starts with 25 minutes of focus by default', () => {
     const timer = startTimer(POMODORO_DEFAULTS, T0)
-    expect(timer).toEqual({ phase: 'focus', duration: 25 * MIN, endsAt: T0 + 25 * MIN, left: 25 * MIN, paused: false, ended: false, cycle: 0 })
+    expect(timer).toEqual({
+      phase: 'focus',
+      duration: 25 * MIN,
+      endsAt: T0 + 25 * MIN,
+      left: 25 * MIN,
+      paused: false,
+      ended: false,
+      cycle: 0
+    })
     expect(remaining(timer, T0 + 10 * MIN)).toBe(15 * MIN)
   })
 

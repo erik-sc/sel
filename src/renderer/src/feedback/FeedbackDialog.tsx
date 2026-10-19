@@ -82,10 +82,22 @@ function FeedbackBody(): JSX.Element {
       <header className="fb-head">
         <h2>Feedback</h2>
         <div className="fb-tabs" role="tablist" aria-label="Feedback">
-          <button type="button" role="tab" aria-selected={view === 'new'} className={view === 'new' ? 'is-selected' : undefined} onClick={() => setView('new')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'new'}
+            className={view === 'new' ? 'is-selected' : undefined}
+            onClick={() => setView('new')}
+          >
             New
           </button>
-          <button type="button" role="tab" aria-selected={view === 'sent'} className={view === 'sent' ? 'is-selected' : undefined} onClick={() => setView('sent')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'sent'}
+            className={view === 'sent' ? 'is-selected' : undefined}
+            onClick={() => setView('sent')}
+          >
             Sent{pending > 0 && <span className="fb-count">{pending}</span>}
           </button>
         </div>

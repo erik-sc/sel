@@ -147,7 +147,10 @@ describe('invertOps', () => {
     // Nothing to restore from the trash: the view comes back through a create, link and views intact.
     expect(restore).toEqual([])
     expect(inverse).toEqual([
-      { op: 'create', input: { id: 'lv', type: 'database', parentId: 'page', afterId: 'db', props: { sourceId: 'db', views, title: [['Mine']] } } }
+      {
+        op: 'create',
+        input: { id: 'lv', type: 'database', parentId: 'page', afterId: 'db', props: { sourceId: 'db', views, title: [['Mine']] } }
+      }
     ])
     const after = run(map, ops)
     expect(after.has('lv')).toBe(false)

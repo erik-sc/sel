@@ -83,10 +83,7 @@ export function PageHeader({ page }: { page: Block }): JSX.Element {
             </button>
           )}
           {!style && (
-            <button
-              type="button"
-              onClick={() => setCover(COVER_PRESETS[Math.floor(Math.random() * COVER_PRESETS.length)])}
-            >
+            <button type="button" onClick={() => setCover(COVER_PRESETS[Math.floor(Math.random() * COVER_PRESETS.length)])}>
               <ImageIcon size={14} /> Add cover
             </button>
           )}

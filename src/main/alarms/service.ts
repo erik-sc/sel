@@ -1,4 +1,11 @@
-import { ALARMS_FIRED_KEY, ALARMS_SNOOZED_KEY, readAlarmSettings, type AlarmSettings, type AnnouncedEvent, type Announcement } from '../../shared/alarms'
+import {
+  ALARMS_FIRED_KEY,
+  ALARMS_SNOOZED_KEY,
+  readAlarmSettings,
+  type AlarmSettings,
+  type AnnouncedEvent,
+  type Announcement
+} from '../../shared/alarms'
 import type { Briefing, BriefingEvent } from '../../shared/briefing'
 import type { Block } from '../../shared/types'
 import { composeBriefing, composeEvents, composeReminder, reminderTitle, type AlarmLocale } from './compose'
@@ -170,7 +177,10 @@ export class AlarmsService {
     const snoozed = this.snoozed()
     const due = dueAlarm(settings.times, fired, now)
     const ringing =
-      due !== null || dueReminders(reminders, fired, now).length > 0 || dueEventAlarms(events, fired, now).length > 0 || takeDueSnoozed(snoozed, now).due.length > 0
+      due !== null ||
+      dueReminders(reminders, fired, now).length > 0 ||
+      dueEventAlarms(events, fired, now).length > 0 ||
+      takeDueSnoozed(snoozed, now).due.length > 0
     if (ringing && this.deps.recording()) {
       wait = RECORDING_RETRY_MS
     } else {
@@ -198,7 +208,12 @@ export class AlarmsService {
       if (back.length || waiting.length !== snoozed.length) this.keepSnoozed(waiting)
       for (const entry of back) {
         if (entry.kind === 'reminder') this.giveReminders(settings, entry.reminders, entry.at)
-        else this.giveEvents(settings, entry.events.map((event) => ({ ...event, ask: asksToRecord(settings.askRecord, event.meeting) })), entry.at)
+        else
+          this.giveEvents(
+            settings,
+            entry.events.map((event) => ({ ...event, ask: asksToRecord(settings.askRecord, event.meeting) })),
+            entry.at
+          )
       }
     }
 

@@ -33,5 +33,10 @@ export function runUpdateAction(action: UpdateAction): void {
         : action === 'restart'
           ? api.restart()
           : api.dismiss()
-  call.catch((error: unknown) => notifyError(error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : 'Something went wrong.', error))
+  call.catch((error: unknown) =>
+    notifyError(
+      error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : 'Something went wrong.',
+      error
+    )
+  )
 }

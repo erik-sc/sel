@@ -38,7 +38,9 @@ describe('calendar addresses', () => {
     expect(validateCalendarUrl('https://calendar.google.com/calendar/ical/me%40example.com/private-abc123/basic.ics').href).toBe(
       'https://calendar.google.com/calendar/ical/me%40example.com/private-abc123/basic.ics'
     )
-    expect(validateCalendarUrl('  webcal://p01-caldav.icloud.com/published/2/abc  ').href).toBe('https://p01-caldav.icloud.com/published/2/abc')
+    expect(validateCalendarUrl('  webcal://p01-caldav.icloud.com/published/2/abc  ').href).toBe(
+      'https://p01-caldav.icloud.com/published/2/abc'
+    )
     expect(validateCalendarUrl('WEBCALS://Outlook.Office365.com/owa/calendar/x/reachcalendar.ics').hostname).toBe('outlook.office365.com')
     expect(validateCalendarUrl('https://example.com:443/a.ics#fragment').href).toBe('https://example.com/a.ics')
     expect(hostOf(validateCalendarUrl('https://calendar.google.com./x.ics'))).toBe('calendar.google.com')
@@ -95,8 +97,19 @@ describe('calendar addresses', () => {
     const seam = { allowLoopbackHttp: true }
     expect(validateCalendarUrl('http://127.0.0.1:8123/test.ics', seam).href).toBe('http://127.0.0.1:8123/test.ics')
     expect(reasonOf(() => validateCalendarUrl('http://127.0.0.1:8123/test.ics'))).toBe('blocked-address')
-    for (const other of ['http://localhost:8123/x', 'http://127.0.0.2:8123/x', 'http://127.0.0.1/x', 'http://10.0.0.1:8123/x', 'http://example.com:8123/x', 'http://[::1]:8123/x', 'http://user@127.0.0.1:8123/x']) {
-      expect(reasonOf(() => validateCalendarUrl(other, seam)), other).toBe('blocked-address')
+    for (const other of [
+      'http://localhost:8123/x',
+      'http://127.0.0.2:8123/x',
+      'http://127.0.0.1/x',
+      'http://10.0.0.1:8123/x',
+      'http://example.com:8123/x',
+      'http://[::1]:8123/x',
+      'http://user@127.0.0.1:8123/x'
+    ]) {
+      expect(
+        reasonOf(() => validateCalendarUrl(other, seam)),
+        other
+      ).toBe('blocked-address')
     }
   })
 
@@ -126,11 +139,52 @@ describe('public addresses', () => {
   })
 
   it.each([
-    '0.0.0.0', '127.0.0.1', '127.255.255.254', '10.0.0.1', '172.16.0.1', '172.31.255.255', '192.168.0.1', '169.254.169.254', '100.64.0.1', '192.0.0.1',
-    '192.0.2.1', '198.18.0.1', '198.51.100.7', '203.0.113.9', '224.0.0.1', '240.0.0.1', '255.255.255.255',
-    '::', '::1', '::ffff:127.0.0.1', '::ffff:10.0.0.1', '::ffff:7f00:1', '::ffff:c0a8:101', '::127.0.0.1', '64:ff9b::7f00:1', '64:ff9b::10.0.0.1', '2002:7f00:1::', '2002:c0a8:101::1',
-    '2001:db8::1', '2001::1', 'fc00::1', 'fd12:3456:789a::1', 'fe80::1', 'fe80::1%eth0', 'fec0::1', 'ff02::1', '100::1', '::ffff:0:127.0.0.1',
-    '', 'not an address', '1.2.3', '1.2.3.4.5', '256.1.1.1', '1:2:3', ':::', 'gggg::1'
+    '0.0.0.0',
+    '127.0.0.1',
+    '127.255.255.254',
+    '10.0.0.1',
+    '172.16.0.1',
+    '172.31.255.255',
+    '192.168.0.1',
+    '169.254.169.254',
+    '100.64.0.1',
+    '192.0.0.1',
+    '192.0.2.1',
+    '198.18.0.1',
+    '198.51.100.7',
+    '203.0.113.9',
+    '224.0.0.1',
+    '240.0.0.1',
+    '255.255.255.255',
+    '::',
+    '::1',
+    '::ffff:127.0.0.1',
+    '::ffff:10.0.0.1',
+    '::ffff:7f00:1',
+    '::ffff:c0a8:101',
+    '::127.0.0.1',
+    '64:ff9b::7f00:1',
+    '64:ff9b::10.0.0.1',
+    '2002:7f00:1::',
+    '2002:c0a8:101::1',
+    '2001:db8::1',
+    '2001::1',
+    'fc00::1',
+    'fd12:3456:789a::1',
+    'fe80::1',
+    'fe80::1%eth0',
+    'fec0::1',
+    'ff02::1',
+    '100::1',
+    '::ffff:0:127.0.0.1',
+    '',
+    'not an address',
+    '1.2.3',
+    '1.2.3.4.5',
+    '256.1.1.1',
+    '1:2:3',
+    ':::',
+    'gggg::1'
   ])('%s is not', (address) => {
     expect(isPublicAddress(address)).toBe(false)
   })
@@ -164,7 +218,12 @@ describe('fetching (a local stub behind the loopback seam)', () => {
     let seen: IncomingMessage['headers'] = {}
     const base = await serve((request, response) => {
       seen = request.headers
-      response.writeHead(200, { 'Content-Type': 'text/calendar', ETag: '"v1"', 'Last-Modified': 'Tue, 13 Oct 2026 08:00:00 GMT', 'Set-Cookie': 'sid=1' })
+      response.writeHead(200, {
+        'Content-Type': 'text/calendar',
+        ETag: '"v1"',
+        'Last-Modified': 'Tue, 13 Oct 2026 08:00:00 GMT',
+        'Set-Cookie': 'sid=1'
+      })
       response.end(ICS)
     })
     const result = await fetchCalendar(`${base}/basic.ics`, seam)
@@ -183,7 +242,9 @@ describe('fetching (a local stub behind the loopback seam)', () => {
       response.writeHead(304)
       response.end()
     })
-    expect(await fetchCalendar(`${base}/basic.ics`, { ...seam, etag: '"v1"', lastModified: 'Tue, 13 Oct 2026 08:00:00 GMT' })).toEqual({ status: 'not-modified' })
+    expect(await fetchCalendar(`${base}/basic.ics`, { ...seam, etag: '"v1"', lastModified: 'Tue, 13 Oct 2026 08:00:00 GMT' })).toEqual({
+      status: 'not-modified'
+    })
     expect(seen['if-none-match']).toBe('"v1"')
     expect(seen['if-modified-since']).toBe('Tue, 13 Oct 2026 08:00:00 GMT')
   })
@@ -369,7 +430,12 @@ describe('name resolution', () => {
     ['something that is not an address', ['calendar.example.com']]
   ])('blocks a name that resolves to %s, before any connection', async (_name, addresses) => {
     const connected: string[] = []
-    const error = await failure(fetchCalendar('https://calendar.example.com/private-SECRETTOKEN/basic.ics', { ...resolvesTo(...addresses), onConnect: (address) => connected.push(address) }))
+    const error = await failure(
+      fetchCalendar('https://calendar.example.com/private-SECRETTOKEN/basic.ics', {
+        ...resolvesTo(...addresses),
+        onConnect: (address) => connected.push(address)
+      })
+    )
     expect(error.reason).toBe('blocked-address')
     expect(connected).toEqual([])
     expect(error.message).not.toContain('SECRETTOKEN')
@@ -377,7 +443,9 @@ describe('name resolution', () => {
 
   it('reports a name that does not resolve as offline', async () => {
     const notFound = Object.assign(new Error('getaddrinfo ENOTFOUND calendar.example.com'), { code: 'ENOTFOUND' })
-    const error = await failure(fetchCalendar('https://calendar.example.com/private-SECRETTOKEN/basic.ics', { resolve: () => Promise.reject(notFound) }))
+    const error = await failure(
+      fetchCalendar('https://calendar.example.com/private-SECRETTOKEN/basic.ics', { resolve: () => Promise.reject(notFound) })
+    )
     expect(error.reason).toBe('offline')
     // The system error names the host; what leaves here does not.
     expect(error.message).toBe('calendar: offline')

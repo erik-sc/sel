@@ -77,7 +77,10 @@ export function parseRange(header: string | null, size: number): { start: number
   return { start, end }
 }
 
-export async function serveRecording(request: { method: string; url: string; headers?: { get(name: string): string | null } }, dir: string): Promise<Response> {
+export async function serveRecording(
+  request: { method: string; url: string; headers?: { get(name: string): string | null } },
+  dir: string
+): Promise<Response> {
   if (request.method !== 'GET') return status(405, { Allow: 'GET' })
   const target = resolveRecordingUrl(request.url, dir)
   if (!target) return status(404)

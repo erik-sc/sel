@@ -15,7 +15,20 @@ import {
 import * as arg from '../validate'
 import { compose, COUNSEL_DEFAULTS, type CounselEvent, type CounselInput, type CounselTask, type CounselThresholds } from './counsel'
 import { PHRASES } from './lines'
-import { decide, feedback, forDay, forget, FREQUENCIES, IDLE_MS, isQuiet, readMemory, record, RETRY_MS, type HermanMemory, type SchedulerConfig } from './scheduler'
+import {
+  decide,
+  feedback,
+  forDay,
+  forget,
+  FREQUENCIES,
+  IDLE_MS,
+  isQuiet,
+  readMemory,
+  record,
+  RETRY_MS,
+  type HermanMemory,
+  type SchedulerConfig
+} from './scheduler'
 
 /**
  * Herman as the app uses him: his settings, what he remembers, and the one question a window
@@ -264,7 +277,11 @@ export class HermanService {
     this.completions.pop()
   }
 
-  private async offer(moment: { idleMs: number; busy: boolean }, signals: HermanSignals | null, only?: HermanNudgeKind[]): Promise<HermanNudgeReply> {
+  private async offer(
+    moment: { idleMs: number; busy: boolean },
+    signals: HermanSignals | null,
+    only?: HermanNudgeKind[]
+  ): Promise<HermanNudgeReply> {
     const now = this.now()
     const config = this.config()
     const stored = this.memory()
@@ -299,11 +316,17 @@ export class HermanService {
       ...(only ? { only } : {})
     }
     if (signals?.editingMs !== undefined) input.editingMs = signals.editingMs * (fast?.editingScale ?? 1)
-    if (signals?.pageId && signals.untouchedDays !== undefined && this.deps.pageExists(signals.pageId)) input.reopened = { pageId: signals.pageId, days: signals.untouchedDays }
+    if (signals?.pageId && signals.untouchedDays !== undefined && this.deps.pageExists(signals.pageId))
+      input.reopened = { pageId: signals.pageId, days: signals.untouchedDays }
     const counsel = compose(input)
     if (!counsel) return { nudge: null, waitMs: fast ? fast.idleMs : RETRY_MS }
 
-    const nudge: HermanNudge = { id: randomUUID(), kind: counsel.kind, text: counsel.text, ...(counsel.action ? { action: counsel.action } : {}) }
+    const nudge: HermanNudge = {
+      id: randomUUID(),
+      kind: counsel.kind,
+      text: counsel.text,
+      ...(counsel.action ? { action: counsel.action } : {})
+    }
     this.remember(record(memory, { id: nudge.id, kind: counsel.kind, variant: counsel.variant }, now))
     return { nudge, waitMs: config.gapMs }
   }

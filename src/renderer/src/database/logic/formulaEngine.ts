@@ -228,7 +228,9 @@ function unitOf(value: FormulaValue): string {
 
 function checkUnitLiteral(node: FormulaNode | undefined): string | null {
   if (node?.kind !== 'text') return null
-  return Object.hasOwn(UNITS, node.value.trim().toLowerCase()) ? null : `Unknown unit "${node.value}": use "days", "weeks", "months" or "years"`
+  return Object.hasOwn(UNITS, node.value.trim().toLowerCase())
+    ? null
+    : `Unknown unit "${node.value}": use "days", "weeks", "months" or "years"`
 }
 
 function monthsBetween(a: string, b: string): number {
@@ -392,7 +394,8 @@ const FUNCTIONS = new Map<string, FunctionSpec>([
       max: 3,
       check: (args) => {
         if (args[0] !== 'checkbox') return `The condition of if() must be a checkbox (true or false), not ${nameOf(args[0])}`
-        if (args.length === 3 && args[1] !== args[2]) return `Both results of if() must have the same type (${nameOf(args[1])} and ${nameOf(args[2])})`
+        if (args.length === 3 && args[1] !== args[2])
+          return `Both results of if() must have the same type (${nameOf(args[1])} and ${nameOf(args[2])})`
         return args[1]
       },
       run: (arg, count, _env, types) => (arg(0) === true ? arg(1) : count > 2 ? arg(2) : emptyOf(types[1]))
@@ -409,8 +412,10 @@ const FUNCTIONS = new Map<string, FunctionSpec>([
         const result = args[1]
         for (let i = 0; i < args.length; i++) {
           const isCondition = i % 2 === 0 && i < args.length - 1
-          if (isCondition && args[i] !== 'checkbox') return `Argument ${i + 1} of ifs() is a condition: it must be a checkbox, not ${nameOf(args[i])}`
-          if (!isCondition && args[i] !== result) return `Every value of ifs() must have the same type (${nameOf(result)} and ${nameOf(args[i])})`
+          if (isCondition && args[i] !== 'checkbox')
+            return `Argument ${i + 1} of ifs() is a condition: it must be a checkbox, not ${nameOf(args[i])}`
+          if (!isCondition && args[i] !== result)
+            return `Every value of ifs() must have the same type (${nameOf(result)} and ${nameOf(args[i])})`
         }
         return result
       },
@@ -502,9 +507,39 @@ const FUNCTIONS = new Map<string, FunctionSpec>([
       }
     }
   ],
-  ['lower', { signature: 'lower(text)', help: 'The text in lower case', min: 1, max: 1, check: fixed(['text'], 'text', 'lower'), run: (arg) => capText(text(arg(0)).toLowerCase()) }],
-  ['upper', { signature: 'upper(text)', help: 'The text in upper case', min: 1, max: 1, check: fixed(['text'], 'text', 'upper'), run: (arg) => capText(text(arg(0)).toUpperCase()) }],
-  ['trim', { signature: 'trim(text)', help: 'The text without spaces at either end', min: 1, max: 1, check: fixed(['text'], 'text', 'trim'), run: (arg) => text(arg(0)).trim() }],
+  [
+    'lower',
+    {
+      signature: 'lower(text)',
+      help: 'The text in lower case',
+      min: 1,
+      max: 1,
+      check: fixed(['text'], 'text', 'lower'),
+      run: (arg) => capText(text(arg(0)).toLowerCase())
+    }
+  ],
+  [
+    'upper',
+    {
+      signature: 'upper(text)',
+      help: 'The text in upper case',
+      min: 1,
+      max: 1,
+      check: fixed(['text'], 'text', 'upper'),
+      run: (arg) => capText(text(arg(0)).toUpperCase())
+    }
+  ],
+  [
+    'trim',
+    {
+      signature: 'trim(text)',
+      help: 'The text without spaces at either end',
+      min: 1,
+      max: 1,
+      check: fixed(['text'], 'text', 'trim'),
+      run: (arg) => text(arg(0)).trim()
+    }
+  ],
   [
     'replace',
     {
@@ -566,7 +601,9 @@ const FUNCTIONS = new Map<string, FunctionSpec>([
       min: 1,
       max: 1,
       check: (args) =>
-        args[0] === 'text' || args[0] === 'checkbox' || args[0] === 'number' ? 'number' : `toNumber() takes text or a checkbox, not ${nameOf(args[0])}`,
+        args[0] === 'text' || args[0] === 'checkbox' || args[0] === 'number'
+          ? 'number'
+          : `toNumber() takes text or a checkbox, not ${nameOf(args[0])}`,
       run: (arg) => {
         const v = arg(0)
         if (typeof v === 'boolean') return v ? 1 : 0
@@ -586,8 +623,21 @@ const FUNCTIONS = new Map<string, FunctionSpec>([
       run: (arg) => formatText(arg(0))
     }
   ],
-  ['now', { signature: 'now()', help: 'Today (dates in sel are days)', min: 0, max: 0, check: () => 'date', run: (_arg, _count, env) => ({ start: env.today }) }],
-  ['today', { signature: 'today()', help: 'Today', min: 0, max: 0, check: () => 'date', run: (_arg, _count, env) => ({ start: env.today }) }],
+  [
+    'now',
+    {
+      signature: 'now()',
+      help: 'Today (dates in sel are days)',
+      min: 0,
+      max: 0,
+      check: () => 'date',
+      run: (_arg, _count, env) => ({ start: env.today })
+    }
+  ],
+  [
+    'today',
+    { signature: 'today()', help: 'Today', min: 0, max: 0, check: () => 'date', run: (_arg, _count, env) => ({ start: env.today }) }
+  ],
   ['dateAdd', dateShift('dateAdd', 1, 'The date moved later by an amount of days, weeks, months or years')],
   ['dateSubtract', dateShift('dateSubtract', -1, 'The date moved earlier by an amount of days, weeks, months or years')],
   [
@@ -662,7 +712,11 @@ export interface FunctionHelp {
 }
 
 /** The functions, for the editor's list. */
-export const FORMULA_FUNCTIONS: FunctionHelp[] = [...FUNCTIONS].map(([name, spec]) => ({ name, signature: spec.signature, help: spec.help }))
+export const FORMULA_FUNCTIONS: FunctionHelp[] = [...FUNCTIONS].map(([name, spec]) => ({
+  name,
+  signature: spec.signature,
+  help: spec.help
+}))
 
 /** The operators, for the editor's list. */
 export const FORMULA_OPERATORS: FunctionHelp[] = [
@@ -734,7 +788,8 @@ export function checkFormula(ast: FormulaNode | null, resolve: (ref: string) => 
           )
         }
         if (arithmetic(op)) {
-          if (left !== 'number' || right !== 'number') throw new CheckError(`${op} needs two numbers, not ${nameOf(left)} and ${nameOf(right)}`, node)
+          if (left !== 'number' || right !== 'number')
+            throw new CheckError(`${op} needs two numbers, not ${nameOf(left)} and ${nameOf(right)}`, node)
           return 'number'
         }
         if (left !== right) throw new CheckError(`Cannot compare ${nameOf(left)} with ${nameOf(right)}`, node)
@@ -749,7 +804,8 @@ export function checkFormula(ast: FormulaNode | null, resolve: (ref: string) => 
         if (node.name === 'now' || node.name === 'today') usesToday = true
         const count = node.args.length
         if (count < spec.min || count > spec.max) {
-          const range = spec.min === spec.max ? `${spec.min}` : spec.max === Infinity ? `at least ${spec.min}` : `${spec.min} to ${spec.max}`
+          const range =
+            spec.min === spec.max ? `${spec.min}` : spec.max === Infinity ? `at least ${spec.min}` : `${spec.min} to ${spec.max}`
           throw new CheckError(`${node.name}() takes ${range} argument${range === '1' ? '' : 's'}: ${spec.signature}`, node)
         }
         const args = node.args.map(visit)

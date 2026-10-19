@@ -85,7 +85,8 @@ export class CalendarStore {
         for (const item of parsed.removed as unknown[]) {
           if (removed.length >= CALENDAR_TOMBSTONES || !item || typeof item !== 'object') continue
           const entry = item as Partial<CalendarTombstone>
-          if (typeof entry.key === 'string' && /^[0-9a-f]{64}$/.test(entry.key)) removed.push({ key: entry.key, deletedAt: stamp(entry.deletedAt) })
+          if (typeof entry.key === 'string' && /^[0-9a-f]{64}$/.test(entry.key))
+            removed.push({ key: entry.key, deletedAt: stamp(entry.deletedAt) })
         }
       }
       if (parsed && parsed.version === FILE_VERSION && Array.isArray(parsed.calendars)) {
@@ -233,7 +234,13 @@ export class CalendarStore {
     if (!this.cipher.isAvailable()) return null
     const { calendars, removed } = this.load()
     return {
-      calendars: calendars.map((entry) => ({ url: entry.url, label: entry.label, color: entry.color, enabled: entry.enabled, updatedAt: entry.updatedAt })),
+      calendars: calendars.map((entry) => ({
+        url: entry.url,
+        label: entry.label,
+        color: entry.color,
+        enabled: entry.enabled,
+        updatedAt: entry.updatedAt
+      })),
       removed: removed.map((item) => ({ ...item }))
     }
   }

@@ -572,11 +572,7 @@ export class Repository {
     for (const [id, order] of this.orders) {
       if (!order.dirty) continue
       order.dirty = false
-      this.stmt('UPDATE blocks SET content = ?, updated_at = MAX(updated_at, ?) WHERE id = ?').run(
-        JSON.stringify(order.ids),
-        order.at,
-        id
-      )
+      this.stmt('UPDATE blocks SET content = ?, updated_at = MAX(updated_at, ?) WHERE id = ?').run(JSON.stringify(order.ids), order.at, id)
     }
   }
 
@@ -787,12 +783,7 @@ export class Repository {
     if (type === r.type) {
       this.stmt('UPDATE blocks SET props = ?, updated_at = ? WHERE rid = ?').run(serializeProps(props), this.now(), r.rid)
     } else {
-      this.stmt('UPDATE blocks SET type = ?, props = ?, updated_at = ? WHERE rid = ?').run(
-        type,
-        serializeProps(props),
-        this.now(),
-        r.rid
-      )
+      this.stmt('UPDATE blocks SET type = ?, props = ?, updated_at = ? WHERE rid = ?').run(type, serializeProps(props), this.now(), r.rid)
     }
     // The search index is only touched when the indexed text itself changed.
     const text = searchText(props)
@@ -955,7 +946,8 @@ export class Repository {
         if (!parent) throw new Error(`Block not found: ${parentId}`)
         this.assertHoldsChildren(parent)
         // A tree has new ids: it is never a day of the notebook.
-        if (this.isNotebookPage(parentId) || this.isNotebookPage(parent.parent_id)) throw new Error('Nothing can be added to Meditations but the line of a day')
+        if (this.isNotebookPage(parentId) || this.isNotebookPage(parent.parent_id))
+          throw new Error('Nothing can be added to Meditations but the line of a day')
       }
       this.dirty(parentId)
       const rootId = randomUUID()
@@ -1034,11 +1026,7 @@ export class Repository {
       const parentId = parentAlive ? b.parent_id : null
       if (parentId === null && !isPageLike(b.type)) throw new Error('Only pages and databases can be restored to the root')
       this.dirty(parentId)
-      this.stmt('UPDATE blocks SET trashed_at = NULL, parent_id = ?, updated_at = ? WHERE rid = ?').run(
-        parentId,
-        this.now(),
-        b.rid
-      )
+      this.stmt('UPDATE blocks SET trashed_at = NULL, parent_id = ?, updated_at = ? WHERE rid = ?').run(parentId, this.now(), b.rid)
       this.attach(parentId, id, undefined)
       this.mark(id)
     })
@@ -1156,8 +1144,7 @@ export class Repository {
     for (const r of this.stmt(subtreeSql(columns)).all(pageId, 1) as Outline[]) nodes.set(r.id, node(r))
     const root = nodes.get(pageId)
     if (!root) return []
-    const load = (ids: string[]): TreeNode[] =>
-      (this.stmt(byIdsSql(columns)).all(JSON.stringify(ids)) as Outline[]).map(node)
+    const load = (ids: string[]): TreeNode[] => (this.stmt(byIdsSql(columns)).all(JSON.stringify(ids)) as Outline[]).map(node)
     const pages = walk(root, nodes, load).filter((b) => b.id !== pageId && isPageLike(b.type))
     return this.getMany(pages.map((b) => b.id)).filter(notArchived)
   }
@@ -1222,9 +1209,7 @@ export class Repository {
   }
 
   listTrash(): Block[] {
-    const rows = this.stmt(
-      `SELECT ${COLS} FROM blocks WHERE trashed_at IS NOT NULL ORDER BY trashed_at DESC, rid DESC`
-    ).all() as Row[]
+    const rows = this.stmt(`SELECT ${COLS} FROM blocks WHERE trashed_at IS NOT NULL ORDER BY trashed_at DESC, rid DESC`).all() as Row[]
     return rows.map(toBlock)
   }
 
@@ -1381,7 +1366,8 @@ export class Repository {
       if (!root || !isPageLike(root.type)) throw new Error('The page of this version no longer exists')
       if (root.trashedAt !== null) throw new Error('This page is in the Trash. Restore it first.')
       // Going back would rewrite days that have ended; a copy would be an ordinary page.
-      if (mode === 'replace' && this.isNotebookPage(root.id)) throw new Error('Past days of Meditations never change: the page cannot go back to an earlier version')
+      if (mode === 'replace' && this.isNotebookPage(root.id))
+        throw new Error('Past days of Meditations never change: the page cannot go back to an earlier version')
       const was = version.blocks[0]
       if (was.type !== root.type || (sourceIdOf(was) === null) !== (sourceIdOf(root) === null)) {
         throw new Error('This version was saved when the page was a different kind of block')
@@ -1626,7 +1612,10 @@ export class Repository {
     delete props.archivedAt
     tree.props = props
     const copy = this.createTree(tree, root.parentId, root.id)
-    if (pages) notes.push(`${pages} ${pages === 1 ? 'sub-page was not copied and stays' : 'sub-pages were not copied and stay'} in the original page.`)
+    if (pages)
+      notes.push(
+        `${pages} ${pages === 1 ? 'sub-page was not copied and stays' : 'sub-pages were not copied and stay'} in the original page.`
+      )
     if (views) notes.push(`${views} linked ${views === 1 ? 'view was' : 'views were'} left out because the database no longer exists.`)
     return { pageId: copy.id, backupId: null, notes }
   }
@@ -1651,7 +1640,8 @@ export class Repository {
   /** The fingerprint each page had when it was last uploaded. */
   syncStates(): Map<string, string> {
     const out = new Map<string, string>()
-    for (const r of this.stmt('SELECT page_id, hash FROM sync_state').all() as { page_id: string; hash: string }[]) out.set(r.page_id, r.hash)
+    for (const r of this.stmt('SELECT page_id, hash FROM sync_state').all() as { page_id: string; hash: string }[])
+      out.set(r.page_id, r.hash)
     return out
   }
 
@@ -1724,7 +1714,16 @@ export class Repository {
         latest = Math.max(latest, updatedAt)
         const r = this.stmt('SELECT rid, props FROM blocks WHERE id = ?').get(b.id) as { rid: number; props: string } | undefined
         if (!r) {
-          this.insertRow({ id: b.id, type: b.type, parentId: b.parentId, content, props, createdAt: stamp(b.createdAt), updatedAt, trashedAt })
+          this.insertRow({
+            id: b.id,
+            type: b.type,
+            parentId: b.parentId,
+            content,
+            props,
+            createdAt: stamp(b.createdAt),
+            updatedAt,
+            trashedAt
+          })
           continue
         }
         this.stmt(
@@ -1775,10 +1774,7 @@ export class Repository {
     if (typeof text !== 'string') throw new Error('Setting value is not serializable')
     if (text.length > MAX_SETTING_CHARS) throw new Error('Setting value is too large')
     if (key.startsWith('history.')) this.versions.settingsChanged()
-    this.stmt('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(
-      key,
-      text
-    )
+    this.stmt('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, text)
   }
 
   isEmpty(): boolean {

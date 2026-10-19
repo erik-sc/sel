@@ -181,9 +181,15 @@ export function SelectionToolbar(): JSX.Element | null {
   }
 
   return createPortal(
-    <div ref={barRef} className="pe-toolbar" style={{ top, left }} role="toolbar" onMouseDown={(e) => {
-      if (!(e.target instanceof HTMLInputElement)) e.preventDefault()
-    }}>
+    <div
+      ref={barRef}
+      className="pe-toolbar"
+      style={{ top, left }}
+      role="toolbar"
+      onMouseDown={(e) => {
+        if (!(e.target instanceof HTMLInputElement)) e.preventDefault()
+      }}
+    >
       <div className="pe-tb-row">
         {ai && (
           <>
@@ -248,7 +254,13 @@ export function SelectionToolbar(): JSX.Element | null {
               A
             </button>
             {COLOR_NAMES.map((name) => (
-              <button key={name} type="button" title={name} className={`pe-swatch rt-fg-${name}`} onClick={() => ctrl.setMark(range, 'h', ['h', name])}>
+              <button
+                key={name}
+                type="button"
+                title={name}
+                className={`pe-swatch rt-fg-${name}`}
+                onClick={() => ctrl.setMark(range, 'h', ['h', name])}
+              >
                 A
               </button>
             ))}
@@ -306,7 +318,13 @@ export function SelectionToolbar(): JSX.Element | null {
         <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu">
           <div className="pe-tb-heading">Translate to</div>
           {AI_LANGUAGES.map((language) => (
-            <button key={language} type="button" role="menuitem" className="pe-tb-turn-item" onClick={() => runAi('translate', { language })}>
+            <button
+              key={language}
+              type="button"
+              role="menuitem"
+              className="pe-tb-turn-item"
+              onClick={() => runAi('translate', { language })}
+            >
               {AI_LANGUAGE_LABELS[language]}
             </button>
           ))}

@@ -8,8 +8,7 @@ let repo: Repository
 let t: number
 
 const ids = (blocks: Block[]): string[] => blocks.map((b) => b.id)
-const page = (title: string, parentId: string | null = null): Block =>
-  repo.create({ type: 'page', parentId, props: { title: [[title]] } })
+const page = (title: string, parentId: string | null = null): Block => repo.create({ type: 'page', parentId, props: { title: [[title]] } })
 const text = (title: string, parentId: string): Block => repo.create({ type: 'text', parentId, props: { title: [[title]] } })
 const archive = (id: string): Block => repo.update(id, { props: { archivedAt: ++t } })
 const unarchive = (id: string): Block => repo.update(id, { props: { archivedAt: null } })

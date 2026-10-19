@@ -30,7 +30,7 @@ export function personaRules(voice: PersonaVoice): string[] {
     'You see things the way the Stoics, the Buddhists and the Taoists did, but you do not preach, you do not name them and you do not quote them. Never invent a quotation and never quote an author from memory. The only text you may quote is in the PASSAGES section, when there is one.',
     'Never flatter: no praise for the question, the plan or the writing unless it is earned and specific. No mystical fog: a sentence that sounds deep and says nothing is cut.',
     'No emoji. No stage directions and no roleplay (nothing like *smiles* or *strokes his beard*).',
-    'Do not call yourself an AI model, and do not pretend to be human. If asked what you are: you are sel\'s assistant, speaking through the Claude on this computer.',
+    "Do not call yourself an AI model, and do not pretend to be human. If asked what you are: you are sel's assistant, speaking through the Claude on this computer.",
     'When you do not know, or the page does not say, say so plainly.',
     voice === 'brief'
       ? `Use as few words as possible: one or two sentences, under about ${PERSONA_WORDS.brief} words, unless the user asks for more.`
@@ -55,18 +55,48 @@ const TRADITIONS: ReadonlySet<string> = new Set(['stoic', 'buddhist', 'taoist'])
  * passage about that theme is likely to contain. Deliberately small and plain.
  */
 const THEMES: readonly { ask: readonly string[]; find: readonly string[] }[] = [
-  { ask: ['fear', 'afraid', 'scared', 'anxi', 'worr', 'medo', 'ansi', 'preocup', 'receio'], find: ['fear', 'afraid', 'anxious', 'anxiety', 'troubled'] },
+  {
+    ask: ['fear', 'afraid', 'scared', 'anxi', 'worr', 'medo', 'ansi', 'preocup', 'receio'],
+    find: ['fear', 'afraid', 'anxious', 'anxiety', 'troubled']
+  },
   { ask: ['anger', 'angry', 'rage', 'resent', 'raiva', 'irrita', 'odio'], find: ['anger', 'angry', 'wrath', 'hatred'] },
   { ask: ['death', 'dying', 'mortal', 'grief', 'morte', 'morrer', 'luto'], find: ['death', 'die', 'dies', 'mortal'] },
-  { ask: ['time', 'late', 'procrastin', 'delay', 'postpon', 'tempo', 'atras', 'adiar', 'adiando', 'pressa', 'hurry', 'busy', 'ocupad'], find: ['time', 'to-day', 'to-morrow', 'delay', 'haste', 'hurry', 'life is short'] },
-  { ask: ['work', 'task', 'job', 'effort', 'career', 'trabalh', 'tarefa', 'esforc', 'carreira'], find: ['work', 'labour', 'task', 'duty', 'toil'] },
-  { ask: ['change', 'uncertain', 'future', 'lose', 'losing', 'mudanc', 'mudar', 'incert', 'futuro', 'perder'], find: ['change', 'future', 'fortune', 'loss'] },
-  { ask: ['desire', 'craving', 'money', 'rich', 'ambiti', 'envy', 'dinheiro', 'desej', 'ambic', 'inveja'], find: ['desire', 'wealth', 'riches', 'poverty', 'greed', 'envy'] },
-  { ask: ['mind', 'thought', 'focus', 'attention', 'distract', 'mente', 'pensament', 'foco', 'atenc', 'distra'], find: ['mind', 'thought', 'thoughts', 'attention'] },
-  { ask: ['opinion', 'critic', 'praise', 'people think', 'approval', 'opinia', 'elogio', 'aprovac', 'outros'], find: ['opinion', 'praise', 'blame', 'reputation'] },
-  { ask: ['rest', 'tired', 'calm', 'peace', 'quiet', 'simple', 'descans', 'cansad', 'calma', 'paz', 'simples', 'silenc'], find: ['rest', 'quiet', 'calm', 'peace', 'tranquil', 'tranquillity', 'still', 'simple'] },
-  { ask: ['start', 'begin', 'decid', 'decision', 'choice', 'avoid', 'comec', 'decis', 'escolh', 'evit'], find: ['begin', 'act', 'action', 'deed', 'doing'] },
-  { ask: ['happy', 'happiness', 'joy', 'sad', 'unhappy', 'feliz', 'felicidad', 'alegr', 'triste'], find: ['happy', 'happiness', 'joy', 'sorrow', 'unhappy'] }
+  {
+    ask: ['time', 'late', 'procrastin', 'delay', 'postpon', 'tempo', 'atras', 'adiar', 'adiando', 'pressa', 'hurry', 'busy', 'ocupad'],
+    find: ['time', 'to-day', 'to-morrow', 'delay', 'haste', 'hurry', 'life is short']
+  },
+  {
+    ask: ['work', 'task', 'job', 'effort', 'career', 'trabalh', 'tarefa', 'esforc', 'carreira'],
+    find: ['work', 'labour', 'task', 'duty', 'toil']
+  },
+  {
+    ask: ['change', 'uncertain', 'future', 'lose', 'losing', 'mudanc', 'mudar', 'incert', 'futuro', 'perder'],
+    find: ['change', 'future', 'fortune', 'loss']
+  },
+  {
+    ask: ['desire', 'craving', 'money', 'rich', 'ambiti', 'envy', 'dinheiro', 'desej', 'ambic', 'inveja'],
+    find: ['desire', 'wealth', 'riches', 'poverty', 'greed', 'envy']
+  },
+  {
+    ask: ['mind', 'thought', 'focus', 'attention', 'distract', 'mente', 'pensament', 'foco', 'atenc', 'distra'],
+    find: ['mind', 'thought', 'thoughts', 'attention']
+  },
+  {
+    ask: ['opinion', 'critic', 'praise', 'people think', 'approval', 'opinia', 'elogio', 'aprovac', 'outros'],
+    find: ['opinion', 'praise', 'blame', 'reputation']
+  },
+  {
+    ask: ['rest', 'tired', 'calm', 'peace', 'quiet', 'simple', 'descans', 'cansad', 'calma', 'paz', 'simples', 'silenc'],
+    find: ['rest', 'quiet', 'calm', 'peace', 'tranquil', 'tranquillity', 'still', 'simple']
+  },
+  {
+    ask: ['start', 'begin', 'decid', 'decision', 'choice', 'avoid', 'comec', 'decis', 'escolh', 'evit'],
+    find: ['begin', 'act', 'action', 'deed', 'doing']
+  },
+  {
+    ask: ['happy', 'happiness', 'joy', 'sad', 'unhappy', 'feliz', 'felicidad', 'alegr', 'triste'],
+    find: ['happy', 'happiness', 'joy', 'sorrow', 'unhappy']
+  }
 ]
 
 const HINTS: readonly { ask: readonly string[]; tradition: string }[] = [

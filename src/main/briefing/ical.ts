@@ -132,24 +132,6 @@ export function unescapeText(value: string): string {
   return value.replace(/\\([\\;,nN])/g, (_all, ch: string) => (ch === 'n' || ch === 'N' ? '\n' : ch))
 }
 
-/** Splits a value on the commas that are not escaped. */
-function splitList(value: string): string[] {
-  if (!value.includes('\\')) return value.split(',')
-  const out: string[] = []
-  let current = ''
-  for (let i = 0; i < value.length; i++) {
-    const ch = value[i]
-    if (ch === '\\' && i + 1 < value.length) {
-      current += ch + value[++i]
-    } else if (ch === ',') {
-      out.push(current)
-      current = ''
-    } else current += ch
-  }
-  out.push(current)
-  return out
-}
-
 function entities(text: string): string {
   return text
     .replace(/&nbsp;/gi, ' ')
@@ -162,8 +144,10 @@ function entities(text: string): string {
 
 /** One line of plain text: control characters out, whitespace collapsed, capped. */
 function plainLine(value: string, max: number): string {
-  // eslint-disable-next-line no-control-regex
-  const text = unescapeText(value).replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ').replace(/\s+/g, ' ').trim()
+  const text = unescapeText(value)
+    .replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
 }
 
@@ -174,7 +158,6 @@ function plainLine(value: string, max: number): string {
 export function plainDescription(value: string, max: number = ICAL_LIMITS.description): string {
   const raw = unescapeText(value.length > 20_000 ? value.slice(0, 20_000) : value)
   const text = entities(raw.replace(/<br\s*\/?>|<\/p>|<\/div>|<\/li>/gi, '\n').replace(/<[^>]{0,2000}>/g, ''))
-    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u0009\u000b-\u001f\u007f\u2028\u2029]+/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .replace(/ ?\n ?/g, '\n')
@@ -487,13 +470,17 @@ export function parseDuration(value: string): number | null {
   if (!match || value.trim().length < 3) return null
   const [, sign, w, d, h, m, s] = match
   if (w === undefined && d === undefined && h === undefined && m === undefined && s === undefined) return null
-  const total = Number(w ?? 0) * 7 * DAY_MS + Number(d ?? 0) * DAY_MS + Number(h ?? 0) * 3_600_000 + Number(m ?? 0) * 60_000 + Number(s ?? 0) * 1000
+  const total =
+    Number(w ?? 0) * 7 * DAY_MS + Number(d ?? 0) * DAY_MS + Number(h ?? 0) * 3_600_000 + Number(m ?? 0) * 60_000 + Number(s ?? 0) * 1000
   if (!Number.isFinite(total)) return null
   return sign === '-' ? 0 : Math.min(total, 3660 * DAY_MS)
 }
 
 /** An RRULE value. Null when it is malformed; `unsupported` when it uses parts this reader does not expand. */
-export function parseRule(value: string, context: ZoneContext = { notes: new Set(), cache: new Map() }): { rule: IcalRule | null; unsupported: boolean } {
+export function parseRule(
+  value: string,
+  context: ZoneContext = { notes: new Set(), cache: new Map() }
+): { rule: IcalRule | null; unsupported: boolean } {
   const { rule, unsupported, until } = readRule(value)
   if (rule && until) {
     const time = parseTime(until, {}, context)
@@ -830,7 +817,11 @@ function isoDay(wall: number): string {
  * ones are expanded inside the window only, and an occurrence that has an override shows the
  * override instead.
  */
-export function expandCalendar(calendar: ParsedCalendar, window: { from: number; to: number }, options: ExpandOptions = {}): CalendarOccurrence[] {
+export function expandCalendar(
+  calendar: ParsedCalendar,
+  window: { from: number; to: number },
+  options: ExpandOptions = {}
+): CalendarOccurrence[] {
   const out: CalendarOccurrence[] = []
   const { from, to } = window
   if (!calendar || !Array.isArray(calendar.events) || !Number.isFinite(from) || !Number.isFinite(to) || to <= from) return out
@@ -965,6 +956,8 @@ export function expandCalendar(calendar: ParsedCalendar, window: { from: number;
     }
   }
 
-  out.sort((a, b) => (a.allDay !== b.allDay ? (a.allDay ? -1 : 1) : a.start - b.start || a.end - b.end || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0)))
+  out.sort((a, b) =>
+    a.allDay !== b.allDay ? (a.allDay ? -1 : 1) : a.start - b.start || a.end - b.end || (a.title < b.title ? -1 : a.title > b.title ? 1 : 0)
+  )
   return out
 }

@@ -14,7 +14,16 @@ import {
   selectTabAt,
   tabPage
 } from '@/store/tabs'
-import { setFocusMode, setHistoryPage, setQuickFindOpen, setSettingsOpen, toggleFocusMode, toggleSidebar, toggleTheme, useUi } from '@/store/ui'
+import {
+  setFocusMode,
+  setHistoryPage,
+  setQuickFindOpen,
+  setSettingsOpen,
+  toggleFocusMode,
+  toggleSidebar,
+  toggleTheme,
+  useUi
+} from '@/store/ui'
 import { createPage, reportError } from './actions'
 import { toggleAssistant, useAiGate } from '@/ai/gate'
 import { openCalendar, openToday } from '@/briefing/route'

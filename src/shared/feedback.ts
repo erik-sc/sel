@@ -115,8 +115,7 @@ export function cleanFeedbackInput(raw: unknown): FeedbackInput {
   }
   const cleanTitle = line(title).slice(0, FEEDBACK_LIMITS.title)
   if (!cleanTitle) throw new Error('The feedback needs a title')
-  const cleanScreen =
-    typeof screen === 'string' && screen.length <= FEEDBACK_LIMITS.screen && SCREEN_RE.test(screen) ? screen : 'none'
+  const cleanScreen = typeof screen === 'string' && screen.length <= FEEDBACK_LIMITS.screen && SCREEN_RE.test(screen) ? screen : 'none'
   return { kind, title: cleanTitle, description: description.trim(), screen: cleanScreen }
 }
 
@@ -175,7 +174,11 @@ export function newFeedbackId(now: Date, random: string): string {
   const two = (n: number): string => String(n).padStart(2, '0')
   const date = `${now.getUTCFullYear()}${two(now.getUTCMonth() + 1)}${two(now.getUTCDate())}`
   const time = `${two(now.getUTCHours())}${two(now.getUTCMinutes())}${two(now.getUTCSeconds())}`
-  return `fb-${date}-${time}-${random.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8).padEnd(4, '0')}`
+  return `fb-${date}-${time}-${random
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 8)
+    .padEnd(4, '0')}`
 }
 
 /** Newest first; ties (same second) by id. */

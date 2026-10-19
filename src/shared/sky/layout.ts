@@ -265,7 +265,14 @@ function fieldStars(year: number, dark: boolean): SkyFieldStar[] {
 /** The moon in the middle of the wheel, as it is on the night `day`. */
 export function skyMoon(day: string, hemisphere: Hemisphere): SkyMoon {
   const p = moonPhase(day)
-  return { x: WHEEL.cx, y: WHEEL.cy, r: MOON_R, phase: p, phaseIndex: phaseIndex(p), lit: moonLitPath(WHEEL.cx, WHEEL.cy, MOON_R, p, hemisphere) }
+  return {
+    x: WHEEL.cx,
+    y: WHEEL.cy,
+    r: MOON_R,
+    phase: p,
+    phaseIndex: phaseIndex(p),
+    lit: moonLitPath(WHEEL.cx, WHEEL.cy, MOON_R, p, hemisphere)
+  }
 }
 
 /** The sky of `year`, as seen on `today` ('YYYY-MM-DD'). */

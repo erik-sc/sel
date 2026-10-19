@@ -1,7 +1,16 @@
 // Settings → AI. Part of the settings window's chunk.
 import { useCallback, useEffect, useState } from 'react'
 import type { JSX } from 'react'
-import { AI_DEFAULTS, AI_LANGUAGES, AI_LANGUAGE_LABELS, AI_MODEL_RE, AI_TIMEOUT_LIMITS, isAiLanguage, type AiLanguage, type AiStatus } from '@shared/ai'
+import {
+  AI_DEFAULTS,
+  AI_LANGUAGES,
+  AI_LANGUAGE_LABELS,
+  AI_MODEL_RE,
+  AI_TIMEOUT_LIMITS,
+  isAiLanguage,
+  type AiLanguage,
+  type AiStatus
+} from '@shared/ai'
 import { Segmented } from '@/appearance/controls'
 import { Button } from '@/ui/Button'
 import { notifyError } from '@/ui/toast'
@@ -93,7 +102,8 @@ export function AiSection(): JSX.Element {
     }
     const next = Math.min(AI_TIMEOUT_LIMITS.max, Math.max(AI_TIMEOUT_LIMITS.min, parsed))
     setTimeoutText(String(next))
-    if (next !== values.timeoutSec) save('ai.timeoutSec', next).then(() => setValues((current) => ({ ...current, timeoutSec: next })), failed)
+    if (next !== values.timeoutSec)
+      save('ai.timeoutSec', next).then(() => setValues((current) => ({ ...current, timeoutSec: next })), failed)
   }
 
   const setLanguage = (language: AiLanguage | 'auto'): void => {
@@ -151,8 +161,8 @@ export function AiSection(): JSX.Element {
           </div>
         </div>
         <p className="ap-note">
-          sel uses the Claude Code app on this computer, signed in with your own Claude account. No key is stored in sel, and nothing is sent by sel
-          itself.
+          sel uses the Claude Code app on this computer, signed in with your own Claude account. No key is stored in sel, and nothing is
+          sent by sel itself.
         </p>
       </section>
 
@@ -185,7 +195,9 @@ export function AiSection(): JSX.Element {
             <div className="ap-row-text">
               <span className="ap-row-label">Model</span>
               <span className={modelInvalid ? 'ap-row-help is-error' : 'ap-row-help'}>
-                {modelInvalid ? 'Letters, digits, dots and dashes only.' : 'A model name or alias, such as opus or sonnet. Empty uses the default of Claude Code.'}
+                {modelInvalid
+                  ? 'Letters, digits, dots and dashes only.'
+                  : 'A model name or alias, such as opus or sonnet. Empty uses the default of Claude Code.'}
               </span>
             </div>
             <div className="ap-row-control">
@@ -215,7 +227,13 @@ export function AiSection(): JSX.Element {
               <span className="ap-row-help">For summaries, answers and new text. Rewrites keep the language of the text.</span>
             </div>
             <div className="ap-row-control">
-              <select className="ap-field ai-select" value={values.language} aria-label="Language" disabled={!enabled} onChange={(event) => setLanguage(event.target.value as AiLanguage | 'auto')}>
+              <select
+                className="ap-field ai-select"
+                value={values.language}
+                aria-label="Language"
+                disabled={!enabled}
+                onChange={(event) => setLanguage(event.target.value as AiLanguage | 'auto')}
+              >
                 <option value="auto">Same as the content</option>
                 {AI_LANGUAGES.map((language) => (
                   <option key={language} value={language}>
@@ -252,7 +270,8 @@ export function AiSection(): JSX.Element {
         </div>
         {enabled && status && !found && status.reason !== 'disabled' && (
           <p className="ap-note">
-            To install it, run <code className="ai-code">{INSTALL_COMMAND}</code> in a terminal, then run <code className="ai-code">claude</code> once to sign in.
+            To install it, run <code className="ai-code">{INSTALL_COMMAND}</code> in a terminal, then run{' '}
+            <code className="ai-code">claude</code> once to sign in.
           </p>
         )}
       </section>

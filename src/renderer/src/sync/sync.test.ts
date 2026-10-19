@@ -7,7 +7,14 @@ import { emptySyncStatus, type SyncActivity, type SyncStatus } from '../../../sh
 import { ago, conflictMessage, describeActivity, lastSynced, passphraseProblem, summarize, urlProblem, when } from './labels'
 
 function status(patch: Partial<SyncStatus> = {}): SyncStatus {
-  return { ...emptySyncStatus(), configured: true, state: 'idle', remoteUrl: 'https://github.com/me/notes.git', deviceName: 'Laptop', ...patch }
+  return {
+    ...emptySyncStatus(),
+    configured: true,
+    state: 'idle',
+    remoteUrl: 'https://github.com/me/notes.git',
+    deviceName: 'Laptop',
+    ...patch
+  }
 }
 
 function activity(patch: Partial<SyncActivity> = {}): SyncActivity {
@@ -38,10 +45,19 @@ describe('labels', () => {
     expect(summarize(status({ state: 'syncing' })).tone).toBe('busy')
     expect(summarize(status({ paused: true }))).toEqual({ label: 'Sync is paused', tone: 'calm' })
     expect(summarize(status({ state: 'offline', lastError: { code: 'offline', message: 'x' } })).tone).toBe('calm')
-    expect(summarize(status({ state: 'needs-auth', lastError: { code: 'auth-failed', message: 'x' } }))).toEqual({ label: 'Sync needs you to sign in to git', tone: 'attention' })
+    expect(summarize(status({ state: 'needs-auth', lastError: { code: 'auth-failed', message: 'x' } }))).toEqual({
+      label: 'Sync needs you to sign in to git',
+      tone: 'attention'
+    })
     expect(summarize(status({ state: 'error', lastError: { code: 'failed', message: 'x' } })).tone).toBe('attention')
     // Sentence case, no shouting.
-    for (const s of [status(), status({ paused: true }), status({ state: 'error' }), status({ state: 'offline' }), status({ state: 'needs-auth' })]) {
+    for (const s of [
+      status(),
+      status({ paused: true }),
+      status({ state: 'error' }),
+      status({ state: 'offline' }),
+      status({ state: 'needs-auth' })
+    ]) {
       expect(summarize(s).label).toMatch(/^[A-Z][^A-Z!]*$/)
     }
   })
@@ -54,9 +70,16 @@ describe('labels', () => {
     expect(describeActivity(activity({ error: 'offline' }))).toBe('Could not sync')
     expect(describeActivity(activity({ sent: 1, error: 'rejected' }))).toBe('Sent 1 page, then stopped with a problem')
     expect(describeActivity(activity())).toBe('Nothing to sync')
-    const two = activity({ conflicts: [{ pageId: 'p', title: 'Plan', blocks: 1 }, { pageId: 'q', title: 'Notes', blocks: 1 }] })
+    const two = activity({
+      conflicts: [
+        { pageId: 'p', title: 'Plan', blocks: 1 },
+        { pageId: 'q', title: 'Notes', blocks: 1 }
+      ]
+    })
     expect(conflictMessage(two)).toBe('2 blocks were changed on both devices; the other versions are in version history')
-    expect(conflictMessage(activity({ conflicts: [{ pageId: 'p', title: 'Plan', blocks: 1 }] }))).toBe('1 block was changed on both devices; the other version is in version history')
+    expect(conflictMessage(activity({ conflicts: [{ pageId: 'p', title: 'Plan', blocks: 1 }] }))).toBe(
+      '1 block was changed on both devices; the other version is in version history'
+    )
   })
 
   it('checks the address and the passphrase as they are typed', () => {

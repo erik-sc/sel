@@ -20,7 +20,14 @@ describe('blocks side by side', () => {
   })
 
   it('puts a database block beside the one before it when it asks to', () => {
-    const blocks = [block('t', 'text'), block('a', 'database'), block('b', 'database', true), block('c', 'database', true), block('u', 'text'), block('d', 'database')]
+    const blocks = [
+      block('t', 'text'),
+      block('a', 'database'),
+      block('b', 'database', true),
+      block('c', 'database', true),
+      block('u', 'text'),
+      block('d', 'database')
+    ]
     expect(ids(rowsOf(blocks))).toEqual([['t'], ['a', 'b', 'c'], ['u'], ['d']])
   })
 
@@ -41,7 +48,13 @@ describe('blocks side by side', () => {
 
 describe('the choice the block menu offers', () => {
   it('offers to join the row before, to leave a row, or nothing', () => {
-    const blocks = [block('t', 'text'), block('a', 'database'), block('b', 'database', true), block('c', 'database'), block('u', 'text', true)]
+    const blocks = [
+      block('t', 'text'),
+      block('a', 'database'),
+      block('b', 'database', true),
+      block('c', 'database'),
+      block('u', 'text', true)
+    ]
     expect(besideChoice(blocks, 'b')).toBe('below')
     expect(besideChoice(blocks, 'c')).toBe('beside')
     // The first database has nothing to sit beside; text never shares a row.

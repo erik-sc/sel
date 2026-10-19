@@ -28,7 +28,11 @@ export function sanitizeCalcs(raw: unknown): ViewCalc[] | null {
     const { id, name, formula, format } = item as Record<string, unknown>
     if (!isSafeKey(id) || seen.has(id) || typeof formula !== 'string') continue
     seen.add(id)
-    const calc: ViewCalc = { id, name: typeof name === 'string' ? name.slice(0, MAX_NAME_LENGTH) : '', formula: formula.slice(0, MAX_FORMULA_LENGTH) }
+    const calc: ViewCalc = {
+      id,
+      name: typeof name === 'string' ? name.slice(0, MAX_NAME_LENGTH) : '',
+      formula: formula.slice(0, MAX_FORMULA_LENGTH)
+    }
     if ((CALC_FORMATS as readonly unknown[]).includes(format)) calc.format = format as ViewCalc['format']
     out.push(calc)
   }

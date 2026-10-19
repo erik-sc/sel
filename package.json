@@ -11,6 +11,8 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
+    "lint": "biome check",
+    "format": "biome format --write",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "pack": "electron-vite build && electron-builder --dir",
     "dist": "electron-vite build && electron-builder --publish never"
@@ -20,6 +22,7 @@
     "electron-updater": "^6.8.10"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@electron/rebuild": "^4.2.1",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.6.5",

@@ -49,8 +49,17 @@ describe('reading a proposal out of an answer', () => {
     expect(cleanAction({ do: 'create-page', title: 'X', parent: '../etc' })).toBeNull()
     expect(cleanAction({ do: 'append', page: 'current', markdown: '' })).toBeNull()
     expect(cleanAction({ do: 'add-rows', database: 'current', rows: [] })).toBeNull()
-    expect(cleanAction({ do: 'create-page', title: 'A\nB\u0000', icon: 'not an emoji', ref: 'a', extra: 1 })).toEqual({ do: 'create-page', title: 'A B', ref: 'a' })
-    expect(cleanAction({ do: 'create-page', title: 'X', icon: '🧭', parent: '@a' })).toEqual({ do: 'create-page', title: 'X', icon: '🧭', parent: '@a' })
+    expect(cleanAction({ do: 'create-page', title: 'A\nB\u0000', icon: 'not an emoji', ref: 'a', extra: 1 })).toEqual({
+      do: 'create-page',
+      title: 'A B',
+      ref: 'a'
+    })
+    expect(cleanAction({ do: 'create-page', title: 'X', icon: '🧭', parent: '@a' })).toEqual({
+      do: 'create-page',
+      title: 'X',
+      icon: '🧭',
+      parent: '@a'
+    })
     const db = cleanAction({
       do: 'create-database',
       title: 'Tasks',
@@ -76,7 +85,14 @@ describe('carrying out a proposal', () => {
 
   it('creates a page with its content, under the page asked for or at the top', () => {
     const actions: HermanAction[] = [
-      { do: 'create-page', title: 'Trip', icon: '🧭', parent: 'current', markdown: '# Plan\n\n- [ ] Book flights\n- [ ] Pack', ref: 'trip' },
+      {
+        do: 'create-page',
+        title: 'Trip',
+        icon: '🧭',
+        parent: 'current',
+        markdown: '# Plan\n\n- [ ] Book flights\n- [ ] Pack',
+        ref: 'trip'
+      },
       { do: 'create-page', title: 'Packing', parent: '@trip' },
       { do: 'create-page', title: 'Loose' }
     ]
@@ -123,7 +139,15 @@ describe('carrying out a proposal', () => {
             { name: 'Urgent', type: 'checkbox' }
           ],
           rows: [
-            { Task: 'Write guide', Status: 'Doing', Due: '2026-10-20', Hours: '2,5', Tags: ['docs', 'launch'], Urgent: true, Unknown: 'dropped' },
+            {
+              Task: 'Write guide',
+              Status: 'Doing',
+              Due: '2026-10-20',
+              Hours: '2,5',
+              Tags: ['docs', 'launch'],
+              Urgent: true,
+              Unknown: 'dropped'
+            },
             { name: 'Book room', status: 'done', Due: 'next week', Hours: 'many', Urgent: 'no' },
             { Unknown: 'only' }
           ]
@@ -135,7 +159,14 @@ describe('carrying out a proposal', () => {
     const db = map['new-1']
     expect(db).toMatchObject({ type: 'database', parentId: null })
     const schema = Object.values(db.props.schema ?? {})
-    expect(schema.map((p) => `${p.name}:${p.type}`)).toEqual(['Task:title', 'Status:select', 'Due:date', 'Hours:number', 'Tags:multi_select', 'Urgent:checkbox'])
+    expect(schema.map((p) => `${p.name}:${p.type}`)).toEqual([
+      'Task:title',
+      'Status:select',
+      'Due:date',
+      'Hours:number',
+      'Tags:multi_select',
+      'Urgent:checkbox'
+    ])
     const status = schema[1]
     // An option a row names is added; one that exists is found whatever its case.
     expect(status.options?.map((o) => o.name)).toEqual(['To do', 'Done', 'Doing'])
@@ -167,7 +198,19 @@ describe('carrying out a proposal', () => {
     })
     const linked = block('view-1', 'database', { sourceId: 'db-1' }, { parentId: page.id })
     const map: BlockMap = { ...base, [db.id]: db, [linked.id]: linked }
-    const plan = planActions([{ do: 'add-rows', database: 'view-1', rows: [{ Name: 'Walden', Genre: 'essay' }, { Name: 'Dune', Genre: 'Novel' }] }], env(map))
+    const plan = planActions(
+      [
+        {
+          do: 'add-rows',
+          database: 'view-1',
+          rows: [
+            { Name: 'Walden', Genre: 'essay' },
+            { Name: 'Dune', Genre: 'Novel' }
+          ]
+        }
+      ],
+      env(map)
+    )
     const next = applyOpsToMap(map, plan.ops).map
     expect(next['db-1'].content).toHaveLength(2)
     expect(next['db-1'].props.schema?.['g'].options?.map((o) => o.name)).toEqual(['Essay', 'Novel'])
@@ -208,7 +251,11 @@ describe('carrying out a proposal', () => {
     expect(actionTargets(actions, page.id)).toEqual([page.id, 'db-9'])
     expect(actionTargets(actions, null)).toEqual(['db-9'])
     const look = { currentPageId: page.id, get: (id: string) => base[id] }
-    expect(actions.map((action) => describeAction(action, look))).toEqual(['Create the page “Trip” in “Projects”', 'Add to the page created above', 'Add 2 rows to a database'])
+    expect(actions.map((action) => describeAction(action, look))).toEqual([
+      'Create the page “Trip” in “Projects”',
+      'Add to the page created above',
+      'Add 2 rows to a database'
+    ])
   })
 })
 
@@ -234,7 +281,15 @@ describe('putting a workspace in order', () => {
   )
   const row1 = block('row-1', 'page', { title: [['Write']], values: { s: 'o1', n: 'draft' } }, { parentId: 'db-1' })
   const row2 = block('row-2', 'page', { title: [['Read']] }, { parentId: 'db-1' })
-  const base: BlockMap = { [home.id]: home, [note1.id]: note1, [note2.id]: note2, [child.id]: child, [db.id]: db, [row1.id]: row1, [row2.id]: row2 }
+  const base: BlockMap = {
+    [home.id]: home,
+    [note1.id]: note1,
+    [note2.id]: note2,
+    [child.id]: child,
+    [db.id]: db,
+    [row1.id]: row1,
+    [row2.id]: row2
+  }
 
   it('reads the organizing actions, strictly', () => {
     expect(cleanAction({ do: 'move', page: 'note-0001', parent: 'top' })).toEqual({ do: 'move', page: 'note-0001', parent: null })
@@ -242,16 +297,36 @@ describe('putting a workspace in order', () => {
     expect(cleanAction({ do: 'move', page: 'note-0001', parent: '@area' })).toEqual({ do: 'move', page: 'note-0001', parent: '@area' })
     expect(cleanAction({ do: 'move', page: 'note-0001', parent: '../x' })).toBeNull()
     expect(cleanAction({ do: 'move', page: 'note-0001', parent: 'note-0001' })).toBeNull()
-    expect(cleanAction({ do: 'update-page', page: 'note-0002', title: ' Ideas\n', icon: '💡', extra: 1 })).toEqual({ do: 'update-page', page: 'note-0002', title: 'Ideas', icon: '💡' })
+    expect(cleanAction({ do: 'update-page', page: 'note-0002', title: ' Ideas\n', icon: '💡', extra: 1 })).toEqual({
+      do: 'update-page',
+      page: 'note-0002',
+      title: 'Ideas',
+      icon: '💡'
+    })
     expect(cleanAction({ do: 'update-page', page: 'note-0002', icon: 'nope' })).toBeNull()
     expect(cleanAction({ do: 'trash', page: '@a' })).toBeNull()
     expect(cleanAction({ do: 'trash', page: 'note-0001' })).toEqual({ do: 'trash', page: 'note-0001' })
-    expect(cleanAction({ do: 'update-rows', database: 'db-00001', rows: [{ id: 'row-00001', Status: 'Done' }, { Status: 'no id' }, { id: '@x', Status: 'ref' }, { id: 'row-00002' }] })).toEqual({
+    expect(
+      cleanAction({
+        do: 'update-rows',
+        database: 'db-00001',
+        rows: [{ id: 'row-00001', Status: 'Done' }, { Status: 'no id' }, { id: '@x', Status: 'ref' }, { id: 'row-00002' }]
+      })
+    ).toEqual({
       do: 'update-rows',
       database: 'db-00001',
       rows: [{ id: 'row-00001', Status: 'Done' }]
     })
-    expect(cleanAction({ do: 'add-properties', database: 'db-00001', properties: [{ name: 'Due', type: 'date' }, { name: 'Again', type: 'title' }] })).toEqual({
+    expect(
+      cleanAction({
+        do: 'add-properties',
+        database: 'db-00001',
+        properties: [
+          { name: 'Due', type: 'date' },
+          { name: 'Again', type: 'title' }
+        ]
+      })
+    ).toEqual({
       do: 'add-properties',
       database: 'db-00001',
       properties: [{ name: 'Due', type: 'date' }]
@@ -313,8 +388,23 @@ describe('putting a workspace in order', () => {
   it('changes rows that exist, keeping their other values, and adds properties once', () => {
     const plan = planActions(
       [
-        { do: 'add-properties', database: 'db-1', properties: [{ name: 'Due', type: 'date' }, { name: 'status', type: 'select' }] },
-        { do: 'update-rows', database: 'db-1', rows: [{ id: 'row-1', Status: 'Done' }, { id: 'row-2', Name: 'Read twice', Notes: 'slowly' }, { id: 'note-1', Status: 'Done' }] }
+        {
+          do: 'add-properties',
+          database: 'db-1',
+          properties: [
+            { name: 'Due', type: 'date' },
+            { name: 'status', type: 'select' }
+          ]
+        },
+        {
+          do: 'update-rows',
+          database: 'db-1',
+          rows: [
+            { id: 'row-1', Status: 'Done' },
+            { id: 'row-2', Name: 'Read twice', Notes: 'slowly' },
+            { id: 'note-1', Status: 'Done' }
+          ]
+        }
       ],
       env(base)
     )
@@ -351,7 +441,12 @@ describe('putting a workspace in order', () => {
     const created = createdTitles([{ do: 'create-page', title: 'Archive', ref: 'a' }])
     expect(describeAction(actions[1], look, created)).toBe('Move “Untitled” into “Archive”')
     expect(describeAction({ do: 'add-rows', database: 'db-unknown', rows: [{ Name: 'x' }] }, look)).toBe('Add 1 row to a database')
-    expect(summarizeActions([{ do: 'create-page', title: 'A' }, { do: 'create-page', title: 'B' }])).toBe('2 pages created')
+    expect(
+      summarizeActions([
+        { do: 'create-page', title: 'A' },
+        { do: 'create-page', title: 'B' }
+      ])
+    ).toBe('2 pages created')
     expect(actionTargets(actions, null)).toEqual(['note-1', 'note-2', 'child-1', 'db-1', 'row-1'])
   })
 })

@@ -49,7 +49,8 @@ export function SetupSheet(): JSX.Element {
     if (next.available && !signIn) {
       closeAiSetup()
       toast(`Claude Code ${next.version ?? ''} is ready.`.replace('  ', ' '), { kind: 'success' })
-    } else if (next.available) setNote(`Claude Code ${next.version ?? ''} is installed. Sign in with the step above, then try again.`.replace('  ', ' '))
+    } else if (next.available)
+      setNote(`Claude Code ${next.version ?? ''} is installed. Sign in with the step above, then try again.`.replace('  ', ' '))
     else setNote(unavailableText(next))
   }
   const fail = (error: unknown): void => {
@@ -87,7 +88,9 @@ export function SetupSheet(): JSX.Element {
             <li>
               <span className="ai-step-title">Open a terminal and run Claude Code once</span>
               <Command text="claude" />
-              <span className="ai-step-help">It asks you to sign in with your Claude account. When it says you are signed in, you can close it.</span>
+              <span className="ai-step-help">
+                It asks you to sign in with your Claude account. When it says you are signed in, you can close it.
+              </span>
             </li>
             <li>
               <span className="ai-step-title">Come back and try again</span>

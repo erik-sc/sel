@@ -65,12 +65,44 @@ export function acceleratorOf(command: MenuCommand, mac: boolean): string | unde
   return shortcut && (mac ? (shortcut.mac ?? shortcut.accelerator) : shortcut.accelerator)
 }
 
-const MAC_MODIFIERS: Record<string, string> = { control: '⌃', ctrl: '⌃', alt: '⌥', option: '⌥', shift: '⇧', cmd: '⌘', command: '⌘', super: '⌘', meta: '⌘' }
+const MAC_MODIFIERS: Record<string, string> = {
+  control: '⌃',
+  ctrl: '⌃',
+  alt: '⌥',
+  option: '⌥',
+  shift: '⇧',
+  cmd: '⌘',
+  command: '⌘',
+  super: '⌘',
+  meta: '⌘'
+}
 // The order macOS lists modifiers in.
 const MAC_ORDER = ['⌃', '⌥', '⇧', '⌘']
-const OTHER_MODIFIERS: Record<string, string> = { control: 'Ctrl', ctrl: 'Ctrl', alt: 'Alt', option: 'Alt', shift: 'Shift', cmd: 'Win', command: 'Win', super: 'Win', meta: 'Win' }
+const OTHER_MODIFIERS: Record<string, string> = {
+  control: 'Ctrl',
+  ctrl: 'Ctrl',
+  alt: 'Alt',
+  option: 'Alt',
+  shift: 'Shift',
+  cmd: 'Win',
+  command: 'Win',
+  super: 'Win',
+  meta: 'Win'
+}
 const OTHER_ORDER = ['Ctrl', 'Alt', 'Shift', 'Win']
-const KEY_NAMES: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓', plus: '+', space: 'Space', escape: 'Esc', return: 'Enter', enter: 'Enter', pageup: 'Page Up', pagedown: 'Page Down' }
+const KEY_NAMES: Record<string, string> = {
+  left: '←',
+  right: '→',
+  up: '↑',
+  down: '↓',
+  plus: '+',
+  space: 'Space',
+  escape: 'Esc',
+  return: 'Enter',
+  enter: 'Enter',
+  pageup: 'Page Up',
+  pagedown: 'Page Down'
+}
 
 /**
  * An Electron accelerator as people read it: `CmdOrCtrl+Shift+L` is `Ctrl+Shift+L` on Windows

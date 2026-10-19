@@ -35,7 +35,10 @@ function titleOf(props: unknown): string {
   const title = isObject(props) ? props['title'] : undefined
   if (!Array.isArray(title)) return ''
   try {
-    return plainText(title as BlockProps['title']).replace(/\s+/g, ' ').trim().slice(0, 200)
+    return plainText(title as BlockProps['title'])
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 200)
   } catch {
     return ''
   }
@@ -113,7 +116,8 @@ export function collectDay(blocks: Iterable<TaskBlock>, bounds: DayBounds): DayC
     if (block.type === 'page') {
       const signal = signalOf(parentId)
       if (signal) {
-        if (isDoneRow(signal, block.props) && !isDead(parentId)) completed.push({ id: block.id, title: title || 'Untitled', pageId: block.id, at: block.updatedAt })
+        if (isDoneRow(signal, block.props) && !isDead(parentId))
+          completed.push({ id: block.id, title: title || 'Untitled', pageId: block.id, at: block.updatedAt })
       } else if (!isDead(parentId)) {
         edited.push({ id: block.id, title: title || 'Untitled', pageId: block.id, at: block.updatedAt })
       }
