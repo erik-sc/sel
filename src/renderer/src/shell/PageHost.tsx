@@ -22,17 +22,17 @@ import { isLinkedView } from './linked'
 import { PageIcon } from './PageIcon'
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
-  state: { error: Error | null } = { error: null }
+  override state: { error: Error | null } = { error: null }
 
   static getDerivedStateFromError(error: Error) {
     return { error }
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('page failed to render', error, info.componentStack)
   }
 
-  render() {
+  override render() {
     if (!this.state.error) return this.props.children
     return (
       <div className="page-state">
