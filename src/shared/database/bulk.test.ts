@@ -1,7 +1,7 @@
 // Bulk edits, the quick search over properties and placing restored rows back.
 import { describe, expect, it } from 'vitest'
-import type { Block, DatabaseView, PropertySchema, PropertyValue } from '../../../../shared/types'
-import * as L from '../logic'
+import type { Block, DatabaseView, PropertySchema, PropertyValue } from '../types'
+import * as L from '.'
 
 const status: PropertySchema = {
   id: 'st',

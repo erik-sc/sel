@@ -4,8 +4,8 @@
 process.env.TZ = 'America/Sao_Paulo'
 
 import { describe, expect, it } from 'vitest'
-import type { Block, ChartConfig, DatabaseView } from '../../../../shared/types'
-import * as L from '../views/chartLogic'
+import type { Block, ChartConfig, DatabaseView } from '@shared/types'
+import * as L from './chartLogic'
 
 const EN: L.FormatOptions = { locale: 'en-US', currency: 'USD' }
 

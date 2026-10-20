@@ -10,7 +10,7 @@ import { DEFAULT_CALLOUT_ICON, isTextType } from '@/editor/blockTypes'
 import { rowsOf } from '@/editor/layout'
 import { blockColorClass, classesForMarks, parseRichText, slice } from '@/editor/richtext-dom'
 import { isSafeImageUrl, sanitizeHref } from '@/editor/sanitize'
-import { formatValue, orderedProperties, sanitizeValue, VIEW_LABELS } from '@/database/logic/values'
+import { formatValue, orderedProperties, sanitizeValue, VIEW_LABELS } from '@shared/database/values'
 import {
   ArrowUpRight,
   Check,

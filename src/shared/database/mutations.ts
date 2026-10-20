@@ -10,8 +10,8 @@ import type {
   RollupConfig,
   SelectOption,
   ViewType
-} from '../../../../shared/types'
-import { sanitizeRelationConfig } from '../../../../shared/relation'
+} from '../types'
+import { sanitizeRelationConfig } from '../relation'
 import { isDateValue, normalizeDateValue, parseLooseDay } from './dates'
 import { DEFAULT_FORMULA, expressionOf, sanitizeFormulaConfig } from './formula'
 import { sanitizeViews } from './normalize'

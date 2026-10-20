@@ -1,7 +1,7 @@
 // Relation properties: the rules both processes need. A relation cell stores the ids of
 // the rows (pages) it links to; a two-way relation has a partner property in the target
 // database that holds the same links seen from the other side. The renderer reads and
-// edits them (database/logic/relation.ts); the main process keeps them right when a
+// edits them (database/relation.ts); the main process keeps them right when a
 // subtree is duplicated (db/repository.ts). Pure: no Electron, no React, no store.
 import type { BlockProps, PropertyValue, RelationConfig } from './types'
 

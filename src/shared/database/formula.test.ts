@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Block, DatabaseView, PropertySchema } from '../../../../shared/types'
+import type { Block, DatabaseView, PropertySchema } from '../types'
 import { cellText, filterTypeOf, readCell } from './cell'
 import {
   DEFAULT_FORMULA,

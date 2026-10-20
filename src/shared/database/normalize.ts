@@ -17,20 +17,10 @@
 //     whose every reference fits the schema; on a calculations view, a list of
 //     well-formed calculations.
 // Valid data comes back by reference (`changed: false`), so memoisation holds.
-import type {
-  Block,
-  BlockProps,
-  DatabaseView,
-  PropertySchema,
-  PropertyType,
-  SelectOption,
-  ViewFilter,
-  ViewSort,
-  ViewType
-} from '../../../../shared/types'
-import { sanitizeChartConfig } from '../../../../shared/chart'
+import type { Block, BlockProps, DatabaseView, PropertySchema, PropertyType, SelectOption, ViewFilter, ViewSort, ViewType } from '../types'
+import { sanitizeChartConfig } from '../chart'
 import { defaultCalcs, sanitizeCalcs } from './calcConfig'
-import { sanitizeRelationConfig } from '../../../../shared/relation'
+import { sanitizeRelationConfig } from '../relation'
 import { normalizeChartConfig } from './chartConfig'
 import { sanitizeFormulaConfig } from './formula'
 import { operatorNeedsValue, ruleOperatorsOf, ruleValueOf } from './query'

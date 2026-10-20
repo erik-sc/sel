@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Block, DatabaseView, PropertySchema, PropertyValue } from '../../../../shared/types'
+import type { Block, DatabaseView, PropertySchema, PropertyValue } from '../types'
 import { readCell, cellText, filterTypeOf } from './cell'
 import { addProperty, changePropertyType, setRelationLimit, setRelationTarget } from './mutations'
 import { normalizeDatabase } from './normalize'

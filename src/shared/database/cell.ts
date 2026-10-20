@@ -6,7 +6,7 @@
 // `cellText`, which take the `CellContext` such types need. A new type whose value
 // depends on other blocks is wired in here (and in `filterTypeOf` when it filters like
 // another type). A formula reads its database's schema through the context too.
-import type { Block, PropertySchema, PropertyType, PropertyValue } from '../../../../shared/types'
+import type { Block, PropertySchema, PropertyType, PropertyValue } from '../types'
 import { formatDate, type FormatOptions } from './dates'
 import { computeFormula, formulaCellValue, formulaText, formulaValueType } from './formula'
 import { linkedIds, linkedTitles, type CellContext } from './relation'

@@ -1,5 +1,5 @@
 // Editing one property of many rows at once (the table's selection bar).
-import type { PropertySchema, PropertyType, PropertyValue } from '../../../../shared/types'
+import type { PropertySchema, PropertyType, PropertyValue } from '../types'
 import { dayKey, isDateValue, shiftDateValue } from './dates'
 import { findOption } from './values'
 

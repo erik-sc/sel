@@ -1,13 +1,13 @@
 // Relation properties: which rows a relation cell shows, which rows it may link to, and the
 // writes that keep a two-way relation in step with its partner in the other database.
 // The stored rules (ids, configuration) are shared with the main process: shared/relation.ts.
-import type { Block, PropertySchema, RelationConfig } from '../../../../shared/types'
-import { MAX_RELATION_LINKS, partnerOf, relationIds } from '../../../../shared/relation'
-import { sourceIdOf } from '../../../../shared/linked'
+import type { Block, PropertySchema, RelationConfig } from '../types'
+import { MAX_RELATION_LINKS, partnerOf, relationIds } from '../relation'
+import { sourceIdOf } from '../linked'
 import { TYPE_LABELS, cleanName, getCellValue, makeId, propOf, setValue, titleOf, valuesOf, type Schema, type Values } from './values'
 import { uniqueName } from './views'
 
-export { MAX_RELATION_LINKS, partnerOf, relationIds, sanitizeRelationConfig } from '../../../../shared/relation'
+export { MAX_RELATION_LINKS, partnerOf, relationIds, sanitizeRelationConfig } from '../relation'
 
 /**
  * What a cell may read beyond its own row: other blocks, and the normalised schema of a

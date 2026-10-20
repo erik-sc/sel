@@ -8,16 +8,16 @@ import { plainText } from '../shared/richtext'
 import type { Repository, TreeInput } from './db/repository'
 import { readFileCapped } from './fsutil'
 // The chart engine is the renderer's own (pure, no DOM): an exported chart shows the numbers that are on screen.
-import { buildChartData, chartCaption, chartTable } from '../renderer/src/database/logic/chart'
-import { CHART_KIND_LABELS, chartConfigOf } from '../renderer/src/database/logic/chartConfig'
+import { buildChartData, chartCaption, chartTable } from '../shared/database/chart'
+import { CHART_KIND_LABELS, chartConfigOf } from '../shared/database/chartConfig'
 // So is the formula engine: an exported calculation is the figure on screen.
-import { evaluateCalc } from '../renderer/src/database/logic/calc'
-import { formatNumber } from '../renderer/src/database/logic/values'
-import { normalizeDatabase, sanitizeViews } from '../renderer/src/database/logic/normalize'
-import { queryRows } from '../renderer/src/database/logic/query'
-import { cellText as cellPlainText } from '../renderer/src/database/logic/cell'
-import type { CellContext } from '../renderer/src/database/logic/relation'
-import { cellContext } from '../renderer/src/database/logic/resolve'
+import { evaluateCalc } from '../shared/database/calc'
+import { formatNumber } from '../shared/database/values'
+import { normalizeDatabase, sanitizeViews } from '../shared/database/normalize'
+import { queryRows } from '../shared/database/query'
+import { cellText as cellPlainText } from '../shared/database/cell'
+import type { CellContext } from '../shared/database/relation'
+import { cellContext } from '../shared/database/resolve'
 
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024
 const TOO_LARGE = `The file is too large to import (max ${MAX_IMPORT_BYTES / 1024 / 1024} MB)`

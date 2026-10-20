@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Block, DatabaseView, PropertySchema, PropertyValue, ViewFilter } from '../../../../shared/types'
-import * as L from '../logic'
+import type { Block, DatabaseView, PropertySchema, PropertyValue, ViewFilter } from '../types'
+import * as L from '.'
 
 let seq = 0
 function row(id: string, values: Record<string, unknown> = {}, extra: Partial<Block> = {}): Block {

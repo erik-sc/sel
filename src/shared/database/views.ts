@@ -1,5 +1,5 @@
 // Pure helpers on views (visibility, order, widths, sorts) and list ordering.
-import type { DatabaseView, PropertySchema, PropertyType, ViewSort, ViewType } from '../../../../shared/types'
+import type { DatabaseView, PropertySchema, PropertyType, ViewSort, ViewType } from '../types'
 import { defaultCalcs } from './calcConfig'
 import { defaultChartConfig } from './chartConfig'
 import { VIEW_LABELS, cleanName, getTitleProperty, isSafeKey, makeId, orderedProperties, propOf, type Schema } from './values'

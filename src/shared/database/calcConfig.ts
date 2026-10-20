@@ -1,7 +1,7 @@
 // The calculations of a "Calculations" view, as they are stored: a name, a formula and how
 // the result is written. Only their shape is decided here; what a formula means is the
 // engine's business (logic/calc.ts, loaded with the view).
-import type { ViewCalc } from '@shared/types'
+import type { ViewCalc } from '../types'
 import { MAX_NAME_LENGTH, isSafeKey, orderedProperties, type Schema } from './values'
 
 export const CALC_FORMATS: readonly NonNullable<ViewCalc['format']>[] = ['number', 'currency', 'percent']

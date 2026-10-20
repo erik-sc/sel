@@ -1,7 +1,7 @@
 // Linked views: which database a block resolves to, and what it is rendered with.
 import { describe, expect, it } from 'vitest'
-import type { Block, BlockProps, BlockType, DatabaseView } from '../../../../shared/types'
-import * as L from '../logic'
+import type { Block, BlockProps, BlockType, DatabaseView } from '../types'
+import * as L from '.'
 
 function block(id: string, type: BlockType, parentId: string | null, props: unknown = {}, extra: Partial<Block> = {}): Block {
   return { id, type, parentId, content: [], props: props as BlockProps, createdAt: 1, updatedAt: 1, trashedAt: null, ...extra }

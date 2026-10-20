@@ -5,14 +5,14 @@
 // Everything that renders or edits a database goes through `resolveDatabase` and
 // `normalizeResolved`, so a view whose source is still loading, in the trash,
 // deleted or not a database at all degrades to a state instead of to wrong data.
-import type { Block, BlockProps, DatabaseView, ViewType } from '../../../../shared/types'
-import { sourceIdOf } from '../../../../shared/linked'
+import type { Block, BlockProps, DatabaseView, ViewType } from '../types'
+import { sourceIdOf } from '../linked'
 import { ensureDatabaseProps, normalizeDatabase, sanitizeViews, type NormalizedDatabase } from './normalize'
 import type { CellContext } from './relation'
 import { DEFAULT_VIEW_ID, iconOf, makeId, titleOf, type Schema } from './values'
 import { createDefaultView } from './views'
 
-export { isLinkedView, sourceIdOf } from '../../../../shared/linked'
+export { isLinkedView, sourceIdOf } from '../linked'
 
 export type DatabaseStatus = 'ok' | 'trashed' | 'missing' | 'loading'
 

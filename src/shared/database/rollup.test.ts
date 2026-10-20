@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { Block, DatabaseView, PropertySchema, RollupConfig, RollupFunction } from '../../../../shared/types'
+import type { Block, DatabaseView, PropertySchema, RollupConfig, RollupFunction } from '../types'
 import { cellText, filterTypeOf, readCell } from './cell'
 import { addProperty, changePropertyType, updateRollup } from './mutations'
 import { normalizeDatabase, sanitizeViews } from './normalize'

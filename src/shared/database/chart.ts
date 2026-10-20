@@ -7,15 +7,7 @@
 // Dates are civil days (`YYYY-MM-DD`) bucketed with the helpers of ./dates, so no
 // bucket ever depends on the machine's timezone or on a DST transition. Only the
 // computed "created" / "last edited" timestamps are mapped to the local day they fell on.
-import type {
-  Block,
-  ChartAggregate,
-  ChartConfig,
-  ChartDateBucket,
-  ChartKind,
-  PropertySchema,
-  PropertyValue
-} from '../../../../shared/types'
+import type { Block, ChartAggregate, ChartConfig, ChartDateBucket, ChartKind, PropertySchema, PropertyValue } from '../types'
 import { filterTypeOf, numberFormatOf, readCell } from './cell'
 import { CHART_KIND_LABELS, chartKindCanAccumulate, chartKindHasSeries, normalizeChartConfig } from './chartConfig'
 import { binEdge, binIndex, niceBins, type Bins } from './chartScale'

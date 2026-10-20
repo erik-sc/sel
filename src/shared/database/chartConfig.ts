@@ -1,8 +1,8 @@
 // Chart views: their configuration (what a chart view stores) and its repair against a
 // schema. Part of the normalisation layer, so it ships with the database itself; the
 // aggregation engine (./chart.ts) is only loaded with the chart view.
-import type { ChartAggregate, ChartConfig, ChartDateBucket, ChartKind, DatabaseView, PropertySchema } from '../../../../shared/types'
-import { DEFAULT_CHART_CONFIG, sanitizeChartConfig } from '../../../../shared/chart'
+import type { ChartAggregate, ChartConfig, ChartDateBucket, ChartKind, DatabaseView, PropertySchema } from '../types'
+import { DEFAULT_CHART_CONFIG, sanitizeChartConfig } from '../chart'
 import { filterTypeOf } from './cell'
 import { getTitleProperty, isDateLikeType, orderedProperties, propOf, type Schema } from './values'
 

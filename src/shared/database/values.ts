@@ -1,7 +1,7 @@
 // Reading, writing and formatting cell values. Everything that touches persisted
 // row data goes through here and tolerates missing / wrong-typed / dangling data.
-import type { Block, PropertySchema, PropertyType, PropertyValue, SelectOption, ViewType } from '../../../../shared/types'
-import { relationIds } from '../../../../shared/relation'
+import type { Block, PropertySchema, PropertyType, PropertyValue, SelectOption, ViewType } from '../types'
+import { relationIds } from '../relation'
 import { formatDate, formatDay, formatTimestamp, isDateValue, normalizeDateValue, type FormatOptions } from './dates'
 
 export type Schema = Record<string, PropertySchema>

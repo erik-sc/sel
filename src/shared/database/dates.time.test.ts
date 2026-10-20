@@ -3,9 +3,9 @@
 process.env.TZ = 'America/Sao_Paulo'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Block, PropertySchema, PropertyValue, ViewFilter } from '../../../../shared/types'
-import { RELATIVE_DATES } from '../../../../shared/types'
-import * as L from '../logic'
+import type { Block, PropertySchema, PropertyValue, ViewFilter } from '../types'
+import { RELATIVE_DATES } from '../types'
+import * as L from '.'
 
 function row(id: string, values: Record<string, PropertyValue> = {}): Block {
   return { id, type: 'page', parentId: 'db', content: [], props: { title: [[id]], values }, createdAt: 0, updatedAt: 0, trashedAt: null }

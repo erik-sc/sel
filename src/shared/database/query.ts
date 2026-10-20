@@ -10,9 +10,9 @@ import type {
   SelectOption,
   ViewFilter,
   ViewSort
-} from '../../../../shared/types'
-import { RELATIVE_DATES } from '../../../../shared/types'
-import { relationIds } from '../../../../shared/relation'
+} from '../types'
+import { RELATIVE_DATES } from '../types'
+import { relationIds } from '../relation'
 import { cellText, filterTypeOf, readCell } from './cell'
 import { MAX_RANGE_DAYS, addDays, dayKey, formatDay, inSpan, isDateValue, momentKey, relativeSpan, todayISO } from './dates'
 import type { CellContext } from './relation'

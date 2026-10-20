@@ -4,8 +4,8 @@
 process.env.TZ = 'America/Sao_Paulo'
 
 import { describe, expect, it } from 'vitest'
-import type { Block } from '../../../../shared/types'
-import * as L from '../logic'
+import type { Block } from '../types'
+import * as L from '.'
 
 function row(id: string, values: Record<string, unknown>, extra: Partial<Block> = {}): Block {
   return {

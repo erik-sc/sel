@@ -1,16 +1,7 @@
 // Rollup properties: a value computed from the rows one of the row's relations links to.
 // A rollup stores nothing; it is computed whenever it is read, so it follows the related
 // rows as they change (the views get a new `CellContext` when they do).
-import type {
-  Block,
-  PropertySchema,
-  PropertyType,
-  PropertyValue,
-  RollupConfig,
-  RollupFunction,
-  SelectOption,
-  ViewFilter
-} from '../../../../shared/types'
+import type { Block, PropertySchema, PropertyType, PropertyValue, RollupConfig, RollupFunction, SelectOption, ViewFilter } from '../types'
 import { dayKey, type DateValue } from './dates'
 import { applyFilters } from './query'
 import { linkedRows, relatedDatabaseState, type CellContext } from './relation'

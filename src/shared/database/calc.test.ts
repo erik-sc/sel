@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Block, DatabaseView, PropertySchema } from '../../../../shared/types'
+import type { Block, DatabaseView, PropertySchema } from '../types'
 import { calcSplitProperty, evaluateCalc, evaluateSplit, isCalcNumber } from './calc'
 import { cellContext } from './resolve'
 import { calcRef, defaultCalcs, MAX_CALCS, sanitizeCalcs } from './calcConfig'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import * as L from '../views/chartLogic'
+import * as L from './chartLogic'
 
 /** Seven pixels per character: widths are easy to reason about. */
 const measure: L.Measure = (text) => [...text].length * 7

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Block, DatabaseView, PropertySchema } from '../../../../shared/types'
-import * as L from '../logic'
+import type { Block, DatabaseView, PropertySchema } from '../types'
+import * as L from '.'
 
 describe('safeExternalUrl (what a url cell may open)', () => {
   it.each([

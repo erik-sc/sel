@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Block, DatabaseView, PropertySchema } from '../../../../shared/types'
-import * as L from '../logic'
+import type { Block, DatabaseView, PropertySchema } from '../types'
+import * as L from '.'
 
 /** Persisted JSON as it could come back from disk: parsed, never type-checked. */
 function parsed<T>(json: string): T {

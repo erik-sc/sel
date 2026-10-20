@@ -13,7 +13,7 @@
 //
 // A view split by a select property computes every figure once per option (the rows that
 // have it) and once over all its rows, the total: a small table of groups by figures.
-import type { Block, DatabaseView, PropertySchema, SelectOption, ViewCalc } from '@shared/types'
+import type { Block, DatabaseView, PropertySchema, SelectOption, ViewCalc } from '../types'
 import { filterTypeOf, numberFormatOf, readCell } from './cell'
 import { groupRows } from './query'
 import type { CellContext } from './relation'

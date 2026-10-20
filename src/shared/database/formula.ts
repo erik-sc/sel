@@ -11,7 +11,7 @@
 // cleanly, and two properties that share a name stay apart. A reference that is not an id
 // is read as a name, so a formula typed before its property existed starts working once
 // it does.
-import type { Block, FormulaConfig, PropertySchema, PropertyType } from '../../../../shared/types'
+import type { Block, FormulaConfig, PropertySchema, PropertyType } from '../types'
 import { dayKey, formatDate, normalizeDateValue, todayISO, type FormatOptions } from './dates'
 import {
   FORMULA_LIMITS,
