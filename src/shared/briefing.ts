@@ -5,6 +5,10 @@
  * process, and is in none of these shapes.
  */
 
+import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
+
 export const TRADITIONS = ['stoic', 'buddhist', 'taoist', 'hindu', 'western', 'poetry', 'mystic'] as const
 export type Tradition = (typeof TRADITIONS)[number]
 
@@ -320,3 +324,49 @@ export function localDay(now: Date | number = new Date()): string {
   const pad = (n: number, width = 2): string => String(n).padStart(width, '0')
   return `${pad(d.getFullYear(), 4)}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
+
+/**
+ * The briefing settings steer what the main process reads and shows, so each is typed. The
+ * databases Today takes its tasks from sync, with the calendars.
+ */
+export const BRIEFING_SETTINGS: SettingsSpec = {
+  keys: BRIEFING_KEYS,
+  clean: cleanBriefingSetting,
+  syncedAt: { 'briefing.databases': 'sync.briefingAt' }
+}
+
+/** The invoke channels of `api.briefing` (see `INVOKE` in ./api.ts): every method of BriefingApi that returns a promise, and no other. */
+export const BRIEFING_INVOKE = {
+  'briefing:get': true,
+  'briefing:agenda': true,
+  'briefing:anotherPhrase': true,
+  'briefing:calendars.list': true,
+  'briefing:calendars.add': true,
+  'briefing:calendars.update': true,
+  'briefing:calendars.remove': true,
+  'briefing:calendars.test': true,
+  'briefing:completeTask': true,
+  'briefing:undoCompleteTask': true,
+  'briefing:ensurePhrasesDatabase': true,
+  'briefing:addPhrase': true,
+  'briefing:databases': true,
+  'briefing:brief': true
+} as const satisfies Record<InvokeChannels<{ briefing: BriefingApi }>, true>
+
+/** The ways to Today and the calendar (see ./commands.ts). */
+export const BRIEFING_COMMANDS = [
+  {
+    id: 'open-today',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Today', order: 210 },
+    palette: { title: 'Today', keywords: ['briefing', 'agenda', 'tasks'], order: 60 },
+    catalog: { group: 'navigation', label: 'Today', keywords: ['briefing', 'agenda'], order: 120 }
+  },
+  {
+    id: 'open-calendar',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+C', key: 'c', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Calendar', order: 220 },
+    palette: { title: 'Calendar', keywords: ['events', 'schedule', 'agenda'], order: 70 },
+    catalog: { group: 'navigation', label: 'Calendar', keywords: ['events'], order: 130 }
+  }
+] as const satisfies readonly CommandSpec[]

@@ -1,8 +1,8 @@
 import { sourceIdOf } from '../../shared/linked'
 import type { Block, PropertySchema, PropertyValue, RichText } from '../../shared/types'
 import type { Repository } from '../db/repository'
-import { normalizeDatabase } from '../../renderer/src/database/logic/normalize'
-import { findOption, sanitizeValue } from '../../renderer/src/database/logic/values'
+import { normalizeDatabase } from '../../shared/database/normalize'
+import { findOption, sanitizeValue } from '../../shared/database/values'
 import { label, live, pathOf, titleOf, ToolError } from './tools'
 
 /**

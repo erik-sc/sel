@@ -4,6 +4,7 @@ import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import type { HermanDay } from './service'
 import type { HermanBridge } from './index'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `herman:*` channels. This file is all of Herman that loads at start-up; his lines, the
@@ -53,3 +54,20 @@ export function registerHermanIpc({ repo, day, recording }: HermanIpcContext): H
     }
   }
 }
+
+/**
+ * Herman: his settings, and what he says unasked, composed in this process from the day's tasks and
+ * agenda as stored: no model is called for it, and nothing is fetched.
+ */
+export const hermanFeature = defineFeature({
+  namespace: 'herman',
+  register: (ctx): HermanHooks & Registered<'herman'> =>
+    registerHermanIpc({
+      repo: ctx.repo,
+      day: async () => {
+        const { tasks, events } = await ctx.feature('briefing').stored()
+        return { tasks: { overdue: tasks.overdue, today: tasks.today }, events: events.today }
+      },
+      recording: () => ctx.recording()
+    })
+})

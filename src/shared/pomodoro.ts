@@ -7,6 +7,10 @@
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
 
+import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
+
 export type PomodoroPhase = 'focus' | 'short' | 'long'
 
 export interface PomodoroSettings {
@@ -226,3 +230,30 @@ export function formatClock(ms: number): string {
   const rest = `${two(Math.floor((total % 3600) / 60))}:${two(total % 60)}`
   return total >= 3600 ? `${Math.floor(total / 3600)}:${rest}` : rest
 }
+
+/** The pomodoro's lengths (whole minutes in a range) and whether starting one enters focus mode. */
+export const POMODORO_SETTINGS: SettingsSpec = { keys: POMODORO_KEYS, clean: cleanPomodoroSetting }
+
+/** The invoke channels of `api.pomodoro` (see `INVOKE` in ./api.ts): every method of PomodoroApi that returns a promise, and no other. */
+export const POMODORO_INVOKE = {
+  'pomodoro:state': true,
+  'pomodoro:start': true,
+  'pomodoro:pause': true,
+  'pomodoro:resume': true,
+  'pomodoro:skip': true,
+  'pomodoro:next': true,
+  'pomodoro:stop': true
+} as const satisfies Record<InvokeChannels<{ pomodoro: PomodoroApi }>, true>
+
+/**
+ * Starting a pomodoro, or with one on showing its controls (see ./commands.ts). Its palette
+ * entries are the pomodoro's own (renderer/src/pomodoro/gate.ts): they follow the timer.
+ */
+export const POMODORO_COMMANDS = [
+  {
+    id: 'start-pomodoro',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+P', key: 'p', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Start a Pomodoro', order: 280 },
+    catalog: { group: 'navigation', label: 'Start a pomodoro, or show its controls', keywords: ['timer', 'focus', 'break'], order: 210 }
+  }
+] as const satisfies readonly CommandSpec[]

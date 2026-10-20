@@ -8,6 +8,9 @@
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
 
+import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
+
 /** Where releases are published, and where a version's notes are read. */
 export const RELEASES_URL = 'https://github.com/erik-sc/sel/releases'
 
@@ -97,3 +100,15 @@ export function emptyUpdateStatus(current: string, supported: boolean): UpdateSt
     dismissed: false
   }
 }
+
+/** Whether sel looks for updates by itself decides whether it goes on the network: a boolean. */
+export const UPDATES_SETTINGS: SettingsSpec = { keys: UPDATES_KEYS, clean: cleanUpdatesSetting }
+
+/** The invoke channels of `api.updates` (see `INVOKE` in ./api.ts): every method of UpdatesApi that returns a promise, and no other. */
+export const UPDATES_INVOKE = {
+  'updates:status': true,
+  'updates:check': true,
+  'updates:download': true,
+  'updates:restart': true,
+  'updates:dismiss': true
+} as const satisfies Record<InvokeChannels<{ updates: UpdatesApi }>, true>

@@ -178,7 +178,7 @@ export interface RollupConfig {
 
 /**
  * A formula computes a value for each row from the row's other properties (see
- * renderer/src/database/logic/formula.ts). `expression` names properties by id, as
+ * shared/database/formula.ts). `expression` names properties by id, as
  * `prop("<id>")`; the editor shows (and takes) their names instead, so a rename never
  * has to rewrite a formula. Results are never stored.
  */
@@ -236,7 +236,7 @@ export interface ChartConfig {
   height?: number
 }
 
-/** One figure of a `calc` view: a name and a formula over the view's rows (see database/logic/calc.ts). */
+/** One figure of a `calc` view: a name and a formula over the view's rows (see shared/database/calc.ts). */
 export interface ViewCalc {
   id: string
   name: string

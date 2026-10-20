@@ -2,11 +2,8 @@
 // shows (kept here so it survives switching tabs). The screen itself is a chunk of its own
 // (see Host.tsx).
 import { create } from 'zustand'
-import { openScreen, TASKS_ROUTE } from '@/store/tabs'
-
-export { TASKS_ROUTE }
-
-export const TASKS_TITLE = 'Tasks'
+import { TASKS_ROUTE } from '@/routes'
+import { openScreen } from '@/store/tabs'
 
 /** What the screen lists: a fixed list, a project or label (by option id), or one of the database's views. */
 export type TaskListKey =

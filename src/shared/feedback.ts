@@ -7,6 +7,9 @@
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
 
+import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
+
 export type FeedbackKind = 'bug' | 'suggestion'
 
 /**
@@ -185,3 +188,20 @@ export function newFeedbackId(now: Date, random: string): string {
 export function sortFeedback(items: FeedbackItem[]): FeedbackItem[] {
   return [...items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id.localeCompare(a.id))
 }
+
+/** The invoke channels of `api.feedback` (see `INVOKE` in ./api.ts): every method of FeedbackApi that returns a promise, and no other. */
+export const FEEDBACK_INVOKE = {
+  'feedback:list': true,
+  'feedback:create': true,
+  'feedback:withdraw': true,
+  'feedback:openFolder': true
+} as const satisfies Record<InvokeChannels<{ feedback: FeedbackApi }>, true>
+
+/** Reporting a bug or suggesting a feature (see ./commands.ts). */
+export const FEEDBACK_COMMANDS = [
+  {
+    id: 'send-feedback',
+    menu: { submenu: 'help', label: 'Report a Bug or Suggest a Feature…', order: 110 },
+    palette: { title: 'Report a bug or suggest a feature…', keywords: ['feedback', 'issue', 'help'], order: 910 }
+  }
+] as const satisfies readonly CommandSpec[]

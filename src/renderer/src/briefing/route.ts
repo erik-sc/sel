@@ -1,16 +1,9 @@
-// The small part of the briefing that is always loaded: the routes of its two screens (Today
-// and the calendar), the ways to reach them and the rule for opening Today at start-up. The
-// screens themselves are chunks of their own (see Host.tsx).
+// The small part of the briefing that is always loaded: the ways to reach its two screens (Today
+// and the calendar) and the rule for opening Today at start-up. The screens themselves are
+// chunks of their own (see screens.ts and Host.tsx).
 import { localDay, type OpenOnLaunch } from '@shared/briefing'
-import { notebookRouteTitle } from '@/notebook/route'
-import { skyRouteTitle } from '@/sky/route'
-import { CALENDAR_ROUTE, openScreen, TODAY_ROUTE, useTabs } from '@/store/tabs'
-import { TASKS_ROUTE, TASKS_TITLE } from '@/tasks/gate'
-
-export { CALENDAR_ROUTE, TODAY_ROUTE }
-
-export const TODAY_TITLE = 'Today'
-export const CALENDAR_TITLE = 'Calendar'
+import { CALENDAR_ROUTE, TODAY_ROUTE } from '@/routes'
+import { openScreen, useTabs } from '@/store/tabs'
 
 /** True when a tab shows the Today screen rather than a stored page. */
 export function isTodayRoute(pageId: string | null | undefined): boolean {
@@ -19,17 +12,6 @@ export function isTodayRoute(pageId: string | null | undefined): boolean {
 
 export function isCalendarRoute(pageId: string | null | undefined): boolean {
   return pageId === CALENDAR_ROUTE
-}
-
-/** The name of the built-in screen a tab shows, or null when it shows a stored page (or nothing). */
-export function routeTitle(pageId: string | null | undefined): string | null {
-  return pageId === TODAY_ROUTE
-    ? TODAY_TITLE
-    : pageId === CALENDAR_ROUTE
-      ? CALENDAR_TITLE
-      : pageId === TASKS_ROUTE
-        ? TASKS_TITLE
-        : (notebookRouteTitle(pageId) ?? skyRouteTitle(pageId))
 }
 
 export function openToday(): void {

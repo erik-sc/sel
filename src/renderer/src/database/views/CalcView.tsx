@@ -20,7 +20,7 @@ import {
   isCalcNumber,
   type CalcFunction,
   type CalcResult
-} from '../logic/calc'
+} from '@shared/database/calc'
 import './calc.css'
 
 const FORMAT_LABELS: Record<NonNullable<ViewCalc['format']> | 'auto', string> = {

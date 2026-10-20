@@ -17,7 +17,7 @@ import {
   weekdayLabels,
   type CalendarDay,
   type MonthCursor
-} from '@/database/logic/dates'
+} from '@shared/database/dates'
 import { ChevronLeft, ChevronRight } from '@/ui/icons'
 import {
   agendaByDay,

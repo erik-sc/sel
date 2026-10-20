@@ -1,66 +1,12 @@
 // The settings window itself. Loaded on demand through SettingsModal.tsx.
-import { Suspense, lazy, useEffect, useState } from 'react'
-import type { Theme } from '@shared/types'
-import { AppearancePanel } from '@/appearance/AppearancePanel'
+import { Suspense, useEffect, useState } from 'react'
 import '@/appearance/appearance.css'
-import { Segmented } from '@/appearance/controls'
-import { setSettingsOpen, setTheme, setWordCount, useUi, type SettingsSection } from '@/store/ui'
-import { Button, IconButton } from '@/ui/Button'
-import { Modal } from '@/ui/Modal'
-import { Close } from '@/ui/icons'
-import { HistorySection } from '@/versions/HistorySettings'
-import { AiSection } from '@/ai/AiSettings'
 import { takeSettingsSection } from '@/briefing/route'
-import { TodaySection } from '@/briefing/TodaySettings'
-import { UpdatesGroup } from '@/updates/UpdatesSettings'
-import { HomeSettingsRows } from '@/home/HomeSettings'
-import { DataSettingsRows } from '@/backup/DataSettings'
-import { importMarkdown } from './actions'
-
-const THEMES: { value: Theme; label: string }[] = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' }
-]
-
-const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
-  { value: 'on', label: 'On' },
-  { value: 'off', label: 'Off' }
-]
-
-type Section = SettingsSection
-
-const SECTIONS: { value: Section; label: string }[] = [
-  { value: 'general', label: 'General' },
-  { value: 'appearance', label: 'Appearance' },
-  { value: 'sidebar', label: 'Sidebar' },
-  { value: 'history', label: 'History' },
-  { value: 'ai', label: 'AI' },
-  { value: 'herman', label: 'Herman' },
-  { value: 'notifications', label: 'Notifications' },
-  { value: 'sync', label: 'Sync' },
-  { value: 'today', label: 'Today' },
-  { value: 'meetings', label: 'Meetings' },
-  { value: 'pomodoro', label: 'Pomodoro' },
-  { value: 'mcp', label: 'MCP' }
-]
-
-// Sync settings are a chunk of their own: most people open Settings for something else.
-const SyncSection = lazy(() => import('@/sync/SyncSettings').then((module) => ({ default: module.SyncSection })))
-// Herman's settings bring his figure and his stylesheet with them.
-const HermanSection = lazy(() => import('@/herman/HermanSettings').then((module) => ({ default: module.HermanSection })))
-// And so are the notifications (reminders, events, the tray).
-const NotificationsSection = lazy(() =>
-  import('@/alarms/NotificationSettings').then((module) => ({ default: module.NotificationsSection }))
-)
-// And so are the meetings settings.
-const MeetingsSection = lazy(() => import('@/meetings/MeetingsSettings').then((module) => ({ default: module.MeetingsSection })))
-// And so are the pomodoro's.
-const PomodoroSection = lazy(() => import('@/pomodoro/PomodoroSettings').then((module) => ({ default: module.PomodoroSection })))
-// And so is the sidebar's layout.
-const SidebarSection = lazy(() => import('./SidebarSettings').then((module) => ({ default: module.SidebarSection })))
-// And so are the settings for connecting other apps.
-const McpSection = lazy(() => import('@/external/McpSettings').then((module) => ({ default: module.McpSection })))
+import { setSettingsOpen, useUi } from '@/store/ui'
+import { IconButton } from '@/ui/Button'
+import { Close } from '@/ui/icons'
+import { Modal } from '@/ui/Modal'
+import { SETTINGS_SECTIONS, type SettingsSection } from './settingsSections'
 
 export function SettingsDialog() {
   const open = useUi((state) => state.settingsOpen)
@@ -73,8 +19,8 @@ export function SettingsDialog() {
 
 function SettingsBody() {
   const requested = useUi((state) => state.settingsSection)
-  const [section, setSection] = useState<Section>(() => requested ?? takeSettingsSection() ?? 'general')
-  const title = SECTIONS.find((entry) => entry.value === section)?.label
+  const [section, setSection] = useState<SettingsSection>(() => requested ?? takeSettingsSection() ?? 'general')
+  const shown = SETTINGS_SECTIONS.find((entry) => entry.id === section) ?? SETTINGS_SECTIONS[0]
 
   // Something outside asked for a section (the sync indicator): show it, once.
   useEffect(() => {
@@ -87,13 +33,13 @@ function SettingsBody() {
     <>
       <nav className="settings2-nav" aria-label="Settings sections">
         <h2 className="settings2-nav-title">Settings</h2>
-        {SECTIONS.map((entry) => (
+        {SETTINGS_SECTIONS.map((entry) => (
           <button
             type="button"
-            key={entry.value}
-            className={entry.value === section ? 'settings2-nav-item is-selected' : 'settings2-nav-item'}
-            aria-current={entry.value === section ? 'page' : undefined}
-            onClick={() => setSection(entry.value)}
+            key={entry.id}
+            className={entry.id === section ? 'settings2-nav-item is-selected' : 'settings2-nav-item'}
+            aria-current={entry.id === section ? 'page' : undefined}
+            onClick={() => setSection(entry.id)}
           >
             {entry.label}
           </button>
@@ -101,157 +47,18 @@ function SettingsBody() {
       </nav>
       <div className="settings2-main">
         <header className="settings2-header">
-          <h2>{title}</h2>
+          <h2>{shown.label}</h2>
           <IconButton label="Close" tooltip={false} onClick={() => setSettingsOpen(false)}>
             <Close />
           </IconButton>
         </header>
         <div className="settings2-content">
-          {section === 'general' ? (
-            <GeneralSection />
-          ) : section === 'history' ? (
-            <HistorySection />
-          ) : section === 'ai' ? (
-            <AiSection />
-          ) : section === 'herman' ? (
-            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
-              <HermanSection />
-            </Suspense>
-          ) : section === 'notifications' ? (
-            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
-              <NotificationsSection />
-            </Suspense>
-          ) : section === 'sync' ? (
-            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
-              <SyncSection />
-            </Suspense>
-          ) : section === 'meetings' ? (
-            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
-              <MeetingsSection />
-            </Suspense>
-          ) : section === 'mcp' ? (
-            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
-              <McpSection />
-            </Suspense>
-          ) : section === 'pomodoro' ? (
-            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
-              <PomodoroSection />
-            </Suspense>
-          ) : section === 'sidebar' ? (
-            <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
-              <SidebarSection />
-            </Suspense>
-          ) : section === 'today' ? (
-            <TodaySection />
-          ) : (
-            <AppearancePanel />
-          )}
+          {/* Each section is fetched the first time it is shown (./settingsSections.ts). */}
+          <Suspense fallback={<div className="settings2-scroll" aria-busy="true" />}>
+            <shown.Section />
+          </Suspense>
         </div>
       </div>
     </>
-  )
-}
-
-function GeneralSection() {
-  const theme = useUi((state) => state.theme)
-  const wordCount = useUi((state) => state.wordCount)
-  const [importState, setImportState] = useState<'idle' | 'busy' | 'failed'>('idle')
-
-  const runImport = (): void => {
-    setImportState('busy')
-    importMarkdown(null)
-      .then((page) => {
-        setImportState('idle')
-        if (page) setSettingsOpen(false)
-      })
-      .catch((error) => {
-        console.error('import failed', error)
-        setImportState('failed')
-      })
-  }
-
-  return (
-    <div className="settings2-scroll">
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Theme</h3>
-        </div>
-        <div className="ap-list">
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Theme</span>
-              <span className="ap-row-help">System follows your operating system setting.</span>
-            </div>
-            <div className="ap-row-control">
-              <Segmented label="Theme" value={theme} options={THEMES} onChange={(value) => setTheme(value)} />
-            </div>
-          </div>
-        </div>
-        <p className="ap-note">Colours, glass, fonts and spacing are under Appearance.</p>
-      </section>
-
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Pages</h3>
-        </div>
-        <div className="ap-list">
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Word count</span>
-              <span className="ap-row-help">Words and reading time of the page, in the top bar.</span>
-            </div>
-            <div className="ap-row-control">
-              <Segmented
-                label="Word count"
-                value={wordCount ? 'on' : 'off'}
-                options={ON_OFF}
-                onChange={(value) => setWordCount(value === 'on')}
-              />
-            </div>
-          </div>
-          <HomeSettingsRows />
-        </div>
-      </section>
-
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Data</h3>
-        </div>
-        <div className="ap-list">
-          <DataSettingsRows />
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Import Markdown</span>
-              <span className={importState === 'failed' ? 'ap-row-help is-error' : 'ap-row-help'}>
-                {importState === 'failed' ? 'The file could not be imported.' : 'Create a new page from a .md file.'}
-              </span>
-            </div>
-            <div className="ap-row-control">
-              <Button disabled={importState === 'busy'} onClick={runImport}>
-                {importState === 'busy' ? 'Importing…' : 'Choose file…'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <UpdatesGroup />
-
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">About</h3>
-        </div>
-        <div className="ap-list">
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">sel</span>
-              <span className="ap-row-help">
-                A local-first workspace for notes and databases. Everything you write is stored on this device.
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </div>
   )
 }

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { NOTEBOOK_ID } from '@shared/notebook'
 import { SKY_ID } from '@shared/sky'
+import { NOTEBOOK_ROUTE, SKY_ROUTE, TODAY_ROUTE } from '../routes'
 import {
   closeOtherTabs,
   closeTab,
@@ -11,15 +12,12 @@ import {
   mergeEarlyTabs,
   moveTab,
   newTab,
-  NOTEBOOK_ROUTE,
   openPage,
   openScreen,
   reopenTab,
   sanitizeTabs,
-  SKY_ROUTE,
   tabKey,
   tabPage,
-  TODAY_ROUTE,
   useTabs
 } from './tabs'
 

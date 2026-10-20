@@ -1,10 +1,10 @@
 // Every keyboard shortcut the app has, as the shortcuts screen (Ctrl+/) lists them. Pure: data and
 // a filter, free of React, the DOM and the store.
 //
-// App shortcuts name their menu command and take the keys from APP_SHORTCUTS, so the menu, the
-// palette and this list cannot disagree. The keys pages, tables and Herman handle themselves are
+// App shortcuts are their commands' lines (`catalog` in src/shared/commands.ts) and take the keys
+// from APP_SHORTCUTS, so the menu, the palette and this list cannot disagree. The keys pages, tables and Herman handle themselves are
 // written here; catalog.test.ts checks the editor's against editor/keyboard.ts and editor/markdown.ts.
-import type { MenuCommand } from '../../../shared/api'
+import { COMMANDS, type CommandSpec, type MenuCommand } from '../../../shared/commands'
 import { acceleratorOf, formatAccelerator } from '../../../shared/shortcuts'
 import { fold, foldQuery } from '../shell/findInPage'
 
@@ -25,6 +25,8 @@ export interface ShortcutEntry {
   ai?: boolean
   /** Not on macOS (main delivers it only on Windows and Linux). */
   notMac?: boolean
+  /** Its place in a group that also lists commands (their `catalog.order`); ten apart. */
+  order?: number
 }
 
 export interface ShortcutGroup {
@@ -33,77 +35,39 @@ export interface ShortcutGroup {
   entries: readonly ShortcutEntry[]
 }
 
-export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
+/**
+ * The lines written here: keys that pages, tables and Herman handle themselves. In a group that
+ * also lists commands (their `catalog` in src/shared/commands.ts), each has an `order` to sit among them.
+ */
+const OWN_GROUPS: readonly ShortcutGroup[] = [
   {
     id: 'general',
     title: 'General',
     entries: [
-      { id: 'command-palette', label: 'Run a command', command: 'command-palette', keywords: ['palette'] },
-      { id: 'keyboard-shortcuts', label: 'Keyboard shortcuts', command: 'keyboard-shortcuts', keywords: ['keys', 'help'] },
-      { id: 'quick-find', label: 'Find a page', command: 'quick-find', keywords: ['search'] },
-      { id: 'find-in-page', label: 'Find in this page', command: 'find-in-page', keywords: ['search', 'word'] },
-      { id: 'find-next', label: 'Next match, in the find bar', keys: ['Enter', 'F3'], keywords: ['search'] },
-      { id: 'find-previous', label: 'Previous match, in the find bar', keys: ['Shift+Enter', 'Shift+F3'], keywords: ['search'] },
-      { id: 'open-settings', label: 'Settings', command: 'open-settings', keywords: ['preferences'] },
-      { id: 'toggle-theme', label: 'Light or dark theme', command: 'toggle-theme', keywords: ['dark mode'] },
-      { id: 'toggle-sidebar', label: 'Show or hide the sidebar', command: 'toggle-sidebar' },
-      {
-        id: 'toggle-focus-mode',
-        label: 'Focus mode: only the page',
-        command: 'toggle-focus-mode',
-        keywords: ['zen', 'distraction', 'writing', 'hide']
-      },
-      { id: 'focus-leave', label: 'Leave focus mode, when nothing else takes the key', keys: ['Escape'], keywords: ['zen'] },
-      { id: 'new-window', label: 'New window', command: 'new-window' }
+      { id: 'find-next', order: 50, label: 'Next match, in the find bar', keys: ['Enter', 'F3'], keywords: ['search'] },
+      { id: 'find-previous', order: 60, label: 'Previous match, in the find bar', keys: ['Shift+Enter', 'Shift+F3'], keywords: ['search'] },
+      { id: 'focus-leave', order: 110, label: 'Leave focus mode, when nothing else takes the key', keys: ['Escape'], keywords: ['zen'] }
     ]
   },
   {
     id: 'navigation',
     title: 'Navigation',
     entries: [
-      { id: 'go-back', label: 'Back', command: 'go-back', keywords: ['history'] },
-      { id: 'go-forward', label: 'Forward', command: 'go-forward', keywords: ['history'] },
-      { id: 'new-tab', label: 'New tab', command: 'new-tab' },
-      { id: 'close-tab', label: 'Close the tab', command: 'close-tab' },
-      { id: 'reopen-tab', label: 'Reopen a closed tab', command: 'reopen-tab', keywords: ['restore'] },
-      { id: 'next-tab', label: 'Next tab', command: 'next-tab' },
-      { id: 'prev-tab', label: 'Previous tab', command: 'prev-tab' },
-      { id: 'tab-position', label: 'Go to tab 1 to 8', keys: ['CmdOrCtrl+1…8'], notMac: true },
-      { id: 'tab-last', label: 'Go to the last tab', keys: ['CmdOrCtrl+9'], notMac: true },
-      { id: 'open-in-tab', label: 'Open a page in a new tab, from the sidebar', keys: ['CmdOrCtrl+Click', 'CmdOrCtrl+Enter'] },
-      { id: 'go-home', label: 'Home', command: 'go-home', keywords: ['start', 'início'] },
-      { id: 'open-today', label: 'Today', command: 'open-today', keywords: ['briefing', 'agenda'] },
-      { id: 'open-calendar', label: 'Calendar', command: 'open-calendar', keywords: ['events'] },
-      { id: 'open-tasks', label: 'Tasks', command: 'open-tasks', keywords: ['todo'] },
-      { id: 'add-task', label: 'Add a task', command: 'add-task', keywords: ['quick add', 'todo'] },
-      { id: 'add-task-here', label: 'Add a task, on the Tasks screen', keys: ['Q'], keywords: ['quick add'] },
-      {
-        id: 'open-notebook',
-        label: 'Meditations',
-        command: 'open-notebook',
-        keywords: ['meditações', 'journal', 'diary', 'notebook', 'ink', 'caderno']
-      },
-      { id: 'open-sky', label: 'Sky', command: 'open-sky', keywords: ['céu', 'stars', 'estrelas', 'constellations', 'garden', 'jardim'] },
-      { id: 'calendar-day', label: 'A day earlier or later, in the calendar', keys: ['Left', 'Right'] },
-      { id: 'calendar-week', label: 'A week earlier or later, in the calendar', keys: ['Up', 'Down'] },
-      {
-        id: 'start-pomodoro',
-        label: 'Start a pomodoro, or show its controls',
-        command: 'start-pomodoro',
-        keywords: ['timer', 'focus', 'break']
-      }
+      { id: 'tab-position', order: 80, label: 'Go to tab 1 to 8', keys: ['CmdOrCtrl+1…8'], notMac: true },
+      { id: 'tab-last', order: 90, label: 'Go to the last tab', keys: ['CmdOrCtrl+9'], notMac: true },
+      { id: 'open-in-tab', order: 100, label: 'Open a page in a new tab, from the sidebar', keys: ['CmdOrCtrl+Click', 'CmdOrCtrl+Enter'] },
+      { id: 'add-task-here', order: 160, label: 'Add a task, on the Tasks screen', keys: ['Q'], keywords: ['quick add'] },
+      { id: 'calendar-day', order: 190, label: 'A day earlier or later, in the calendar', keys: ['Left', 'Right'] },
+      { id: 'calendar-week', order: 200, label: 'A week earlier or later, in the calendar', keys: ['Up', 'Down'] }
     ]
   },
   {
     id: 'pages',
     title: 'Pages',
     entries: [
-      { id: 'new-page', label: 'New page', command: 'new-page', keywords: ['create'] },
-      { id: 'undo', label: 'Undo', keys: ['CmdOrCtrl+Z'] },
-      { id: 'redo', label: 'Redo', keys: ['CmdOrCtrl+Shift+Z', 'CmdOrCtrl+Y'] },
-      { id: 'version-history', label: 'Version history of this page', command: 'version-history', keywords: ['restore', 'versions'] },
-      { id: 'rename-page', label: 'Rename a page, in the sidebar', keys: ['F2'] },
-      { id: 'new-meeting', label: 'New meeting', command: 'new-meeting', keywords: ['record', 'transcribe'] }
+      { id: 'undo', order: 20, label: 'Undo', keys: ['CmdOrCtrl+Z'] },
+      { id: 'redo', order: 30, label: 'Redo', keys: ['CmdOrCtrl+Shift+Z', 'CmdOrCtrl+Y'] },
+      { id: 'rename-page', order: 50, label: 'Rename a page, in the sidebar', keys: ['F2'] }
     ]
   },
   {
@@ -183,12 +147,12 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     id: 'herman',
     title: 'Herman',
     entries: [
-      { id: 'toggle-assistant', label: 'Talk to Herman, the assistant', command: 'toggle-assistant', ai: true, keywords: ['ai', 'ask'] },
-      { id: 'herman-send', label: 'Send the message', keys: ['Enter'], ai: true },
-      { id: 'herman-line', label: 'New line in the message', keys: ['Shift+Enter'], ai: true },
-      { id: 'herman-stop', label: 'Stop the answer, or close the conversation', keys: ['Escape'], ai: true },
+      { id: 'herman-send', order: 20, label: 'Send the message', keys: ['Enter'], ai: true },
+      { id: 'herman-line', order: 30, label: 'New line in the message', keys: ['Shift+Enter'], ai: true },
+      { id: 'herman-stop', order: 40, label: 'Stop the answer, or close the conversation', keys: ['Escape'], ai: true },
       {
         id: 'herman-corner',
+        order: 50,
         label: 'Move Herman to another corner, when he has the focus',
         keys: ['Up', 'Down', 'Left', 'Right'],
         ai: true
@@ -196,6 +160,21 @@ export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = [
     ]
   }
 ]
+
+/** `groups` with the commands' lines put in, each where its `order` says. */
+export function withCommands(groups: readonly ShortcutGroup[], commands: readonly CommandSpec[]): ShortcutGroup[] {
+  return groups.map((group) => {
+    const own = commands.flatMap((spec): ShortcutEntry[] => {
+      if (spec.catalog?.group !== group.id) return []
+      const { label, keywords, order, ai } = spec.catalog
+      return [{ id: spec.id, label, command: spec.id as MenuCommand, keywords, order, ...(ai ? { ai } : {}) }]
+    })
+    if (!own.length) return group
+    return { ...group, entries: [...group.entries, ...own].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) }
+  })
+}
+
+export const SHORTCUT_GROUPS: readonly ShortcutGroup[] = withCommands(OWN_GROUPS, COMMANDS)
 
 export interface ShownEntry {
   id: string

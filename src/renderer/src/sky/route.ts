@@ -1,12 +1,9 @@
-// The small part of the Sky that is always loaded: its route, the way to reach it, its name on a
-// tab, and whether it is on (`sky.enabled`). The screen itself is a chunk of its own (Host.tsx).
+// The small part of the Sky that is always loaded: the way to reach it and whether it is on
+// (`sky.enabled`). The screen itself is a chunk of its own (screens.ts, Host.tsx).
 import { create } from 'zustand'
 import { SKY_ENABLED_KEY, skyEnabled } from '@shared/sky'
-import { openScreen, SKY_ROUTE, tabKey } from '@/store/tabs'
-
-export { SKY_ROUTE }
-
-export const SKY_TITLE = 'Sky'
+import { SKY_ROUTE } from '@/routes'
+import { openScreen, tabKey } from '@/store/tabs'
 
 /**
  * True when a tab shows the Sky: its route, or the Sky's own page, which a search result or a link
@@ -15,10 +12,6 @@ export const SKY_TITLE = 'Sky'
  */
 export function isSkyRoute(pageId: string | null | undefined): boolean {
   return !!pageId && tabKey(pageId) === SKY_ROUTE
-}
-
-export function skyRouteTitle(pageId: string | null | undefined): string | null {
-  return isSkyRoute(pageId) ? SKY_TITLE : null
 }
 
 /** Whether the Sky is on, as this window last read it. Off hides its button and command and quiets its shortcut. */

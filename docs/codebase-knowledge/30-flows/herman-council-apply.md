@@ -1,11 +1,11 @@
 # Flow: ask Herman with Council on, get a proposal, press Apply
 
-Trigger: Ctrl+J, an `APP_SHORTCUTS` entry (src/shared/shortcuts.ts:45) matched in `before-input-event` (src/main/menu.ts:139, match at src/main/menu.ts:148-158). On macOS `attachShortcuts` returns early (src/main/menu.ts:138) and the menu accelerator is the path (src/main/menu.ts:99). The command palette (Ctrl+K) runs the same command (src/renderer/src/commands/builtin.ts).
+Trigger: Ctrl+J, the shortcut of the `toggle-assistant` command (`AI_COMMANDS` in src/shared/ai.ts, collected into `APP_SHORTCUTS` by src/shared/shortcuts.ts) matched in `before-input-event` (src/main/menu.ts:139, match at src/main/menu.ts:148-158). On macOS `attachShortcuts` returns early (src/main/menu.ts:138) and the menu accelerator is the path (src/main/menu.ts:99). The command palette (Ctrl+K) runs the same command (src/renderer/src/commands/builtin.ts).
 
 ## Open the panel
 
 1. `attachShortcuts` is attached to each window — src/main/index.ts:128; defined at src/main/menu.ts:137; it calls `sendCommand`, which sends `IPC.command` to the window — src/main/menu.ts:10-15
-2. The renderer subscribes with `window.api.onCommand` — src/renderer/src/shell/useShellCommands.ts:19; `runMenuCommand`'s `toggle-assistant` case calls `toggleAssistant` — src/renderer/src/shell/menuCommands.ts:79-80; defined at src/renderer/src/ai/gate.ts:62
+2. The renderer subscribes with `window.api.onCommand` — src/renderer/src/shell/useShellCommands.ts:19; `runMenuCommand` runs the `toggle-assistant` handler of the AI feature (src/renderer/src/ai/feature.ts), which calls `showOrHideAssistant` (src/renderer/src/shell/panels.ts) and so `toggleAssistant` — src/renderer/src/ai/gate.ts:62
 3. `AssistantDock` lazy-loads `AssistantPanel` when the gate is enabled and open — src/renderer/src/ai/Host.tsx:8-19; mounted in the shell at src/renderer/src/shell/Shell.tsx:59. There is no separate Herman chat UI; the panel switches on Herman being on — src/renderer/src/ai/AssistantPanel.tsx:159
 
 ## Ask

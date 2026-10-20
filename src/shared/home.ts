@@ -6,6 +6,9 @@
  * Shared by the main process, which validates and syncs it, and the renderer. Pure.
  */
 
+import type { SettingsSpec } from './settings'
+import type { CommandSpec } from './commands'
+
 export const HOME_SETTING = 'home'
 export const STARTUP_SETTING = 'shell.startup'
 
@@ -56,3 +59,25 @@ export function homeTarget(home: Home): string | null {
 export function sameHome(a: Home, b: Home): boolean {
   return homeTarget(a) === homeTarget(b) && (a?.kind ?? null) === (b?.kind ?? null)
 }
+
+/**
+ * The home syncs to every device, so it is exactly a page id or one of the screens. What start-up
+ * does on this device is one of the modes.
+ */
+export const HOME_SETTINGS: SettingsSpec = {
+  keys: [HOME_SETTING, STARTUP_SETTING],
+  clean: (key, value) =>
+    key === HOME_SETTING ? cleanHome(value) : (STARTUP_MODES as readonly unknown[]).includes(value) ? value : undefined,
+  syncedAt: { [HOME_SETTING]: 'sync.homeAt' }
+}
+
+/** The Home button's command (see ./commands.ts). */
+export const HOME_COMMANDS = [
+  {
+    id: 'go-home',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+H', key: 'h', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Home', order: 200 },
+    palette: { title: 'Home', keywords: ['start', 'home page', 'início', 'página inicial'], order: 50 },
+    catalog: { group: 'navigation', label: 'Home', keywords: ['start', 'início'], order: 110 }
+  }
+] as const satisfies readonly CommandSpec[]

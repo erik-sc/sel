@@ -4,7 +4,7 @@
 import type { BlockProps, BlockType, DatabaseView, Op, PropertyValue, RichText, ViewFilter, ViewSort } from '@shared/types'
 import { sourceIdOf } from '../../../shared/linked'
 import { sanitizeChartConfig } from '../../../shared/chart'
-import { sanitizeCalcs } from '../database/logic/calcConfig'
+import { sanitizeCalcs } from '@shared/database/calcConfig'
 import type { GetBlock } from './ops'
 import { ALL_TYPES, isTextType } from './blockTypes'
 import { isColorValue, parseRichText, textOf } from './richtext-dom'

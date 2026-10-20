@@ -5,6 +5,8 @@
  * token; git signs in with whatever the user set up on this computer.
  */
 
+import type { InvokeChannels } from './ipc'
+
 export type SyncState = 'idle' | 'syncing' | 'offline' | 'error' | 'needs-setup' | 'needs-auth'
 
 export type SyncErrorCode =
@@ -266,3 +268,39 @@ export function emptySyncStatus(): SyncStatus {
     activity: []
   }
 }
+
+export interface SyncApi {
+  status(): Promise<SyncStatus>
+  /**
+   * Connects this device and runs the first sync. When a decision is needed (`needs-choice`,
+   * `not-sel-repo`, `passphrase-required`…) `lastError` names it and nothing was set up.
+   */
+  setup(input: SyncSetup): Promise<SyncStatus>
+  now(): Promise<SyncStatus>
+  pause(paused: boolean): Promise<SyncStatus>
+  /** Stops syncing on this device and removes its local clone. Nothing on the remote is ever deleted. */
+  disconnect(options: { keepRemote: true }): Promise<SyncStatus>
+  /**
+   * Opens a file dialog to choose the git program and stores the choice (`sync.gitPath`), the
+   * only way that setting gets a value. Null when cancelled.
+   */
+  pickGit(): Promise<SyncStatus | null>
+  /** Enters the passphrase of a repository another device encrypted. */
+  unlock(passphrase: string): Promise<SyncStatus>
+  /** Turns encryption on or changes the passphrase (a string), or turns it off (null): everything is uploaded again. */
+  setEncryption(passphrase: string | null): Promise<SyncStatus>
+  /** `sync:status`, sent to every window whenever the state changes. Returns an unsubscribe function. */
+  onStatus(listener: (status: SyncStatus) => void): () => void
+}
+
+/** The invoke channels of `api.sync` (see `INVOKE` in ./api.ts): every method of SyncApi that returns a promise, and no other. */
+export const SYNC_INVOKE = {
+  'sync:status': true,
+  'sync:setup': true,
+  'sync:now': true,
+  'sync:pause': true,
+  'sync:disconnect': true,
+  'sync:pickGit': true,
+  'sync:unlock': true,
+  'sync:setEncryption': true
+} as const satisfies Record<InvokeChannels<{ sync: SyncApi }>, true>
