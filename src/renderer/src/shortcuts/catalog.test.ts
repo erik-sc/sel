@@ -33,6 +33,15 @@ describe('the shortcut list', () => {
     expect([...listed].sort()).toEqual([...new Set(APP_SHORTCUTS.map((s) => s.command))].sort())
   })
 
+  it('places each line of a group that lists commands, once', () => {
+    for (const g of SHORTCUT_GROUPS) {
+      if (!g.entries.some((e) => e.command)) continue
+      for (const e of g.entries) expect(e.order, `${g.id}: ${e.id}`).toBeTypeOf('number')
+      const orders = g.entries.map((e) => e.order)
+      expect(new Set(orders).size, g.id).toBe(orders.length)
+    }
+  })
+
   it('gives every entry keys or text to type', () => {
     for (const mac of [false, true]) {
       for (const g of shownShortcuts({ mac, ai: true })) {

@@ -5,6 +5,7 @@ import { BRIEFING_INVOKE, type BriefingApi } from './briefing'
 import { FEEDBACK_INVOKE, type FeedbackApi } from './feedback'
 import { TASKS_INVOKE, type TasksApi } from './tasks/api'
 import { HERMAN_INVOKE, type HermanApi } from './herman'
+import type { MenuCommand } from './commands'
 import type { InvokeChannels } from './ipc'
 import { MCP_INVOKE, type McpApi } from './mcp'
 import { MEETINGS_INVOKE, type MeetingsApi } from './meetings'
@@ -238,44 +239,8 @@ export interface Api {
   onCommand(listener: (command: MenuCommand, arg?: unknown) => void): () => void
 }
 
-export type MenuCommand =
-  | 'new-page'
-  /** Opens the template gallery. */
-  | 'new-from-template'
-  | 'new-tab'
-  | 'close-tab'
-  | 'next-tab'
-  | 'prev-tab'
-  | 'quick-find'
-  | 'find-in-page'
-  | 'toggle-sidebar'
-  | 'toggle-theme'
-  | 'toggle-focus-mode'
-  | 'go-back'
-  | 'go-forward'
-  | 'open-settings'
-  | 'open-page'
-  /** arg: 1-based tab position; 9 means the last tab */
-  | 'select-tab'
-  | 'reopen-tab'
-  | 'new-window'
-  | 'version-history'
-  | 'toggle-assistant'
-  | 'go-home'
-  | 'open-today'
-  | 'open-calendar'
-  | 'open-tasks'
-  /** Opens Tasks with the quick-add input focused. */
-  | 'add-task'
-  | 'open-notebook'
-  | 'close-day'
-  | 'new-meeting'
-  | 'send-feedback'
-  | 'command-palette'
-  | 'keyboard-shortcuts'
-  /** Starts a pomodoro; with one on, shows its controls. */
-  | 'start-pomodoro'
-  | 'open-sky'
+/** What main sends a window from the menu and its shortcuts, declared with the commands (./commands.ts). */
+export type { MenuCommand } from './commands'
 
 /** Event and fire-and-forget channel names. Invoke channels are declared in `INVOKE` below. */
 export const IPC = {

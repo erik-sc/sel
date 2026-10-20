@@ -13,7 +13,7 @@ import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { useAiGate } from '@/ai/gate'
 import { WindowControls } from './WindowControls'
-import { showOrHideSidebar } from './menuCommands'
+import { showOrHideSidebar } from './panels'
 
 const DRAG_TYPE = 'application/x-sel-tab'
 

@@ -21,6 +21,7 @@ import { localDay } from './briefing'
 import type { BlockProps, RichText } from './types'
 import type { SettingsSpec } from './settings'
 import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
 
 /** The notebook page. Never changes: every device must make the same block. */
 export const NOTEBOOK_ID = 'sel-notebook'
@@ -294,3 +295,45 @@ export const NOTEBOOK_INVOKE = {
   'notebook:dismissPlans': true,
   'notebook:review': true
 } as const satisfies Record<InvokeChannels<{ notebook: NotebookApi }>, true>
+
+/** The ways to Meditations and to the closing of the day (see ./commands.ts). */
+export const NOTEBOOK_COMMANDS = [
+  {
+    id: 'open-notebook',
+    // N for notebook. Ctrl+N is a new page, Ctrl+Shift+N a new window.
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+N', key: 'n', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Meditations', order: 250 },
+    palette: {
+      title: 'Meditations',
+      keywords: [
+        'meditações',
+        'journal',
+        'diary',
+        'line a day',
+        'on this day',
+        'notebook',
+        'ink',
+        'ink notebook',
+        'caderno',
+        'caderno de tinta',
+        'diário'
+      ],
+      order: 100
+    },
+    catalog: {
+      group: 'navigation',
+      label: 'Meditations',
+      keywords: ['meditações', 'journal', 'diary', 'notebook', 'ink', 'caderno'],
+      order: 170
+    }
+  },
+  {
+    id: 'close-day',
+    menu: { submenu: 'view', label: 'Close the Day', order: 270 },
+    palette: {
+      title: 'Close the day',
+      keywords: ['evening', 'end', 'review', 'tomorrow', 'shutdown', 'fechar o dia', 'até amanhã'],
+      order: 120
+    }
+  }
+] as const satisfies readonly CommandSpec[]

@@ -5,6 +5,7 @@
  */
 
 import type { InvokeChannels } from '../ipc'
+import type { CommandSpec } from '../commands'
 
 export interface TodoistImportResult {
   /** False when the dialog was closed without choosing a file. */
@@ -88,3 +89,22 @@ export const TASKS_INVOKE = {
   'tasks:globalShortcut': true,
   'tasks:setGlobalShortcut': true
 } as const satisfies Record<InvokeChannels<{ tasks: TasksApi }>, true>
+
+/** The ways to the Tasks screen and its quick add (see ../commands.ts). */
+export const TASKS_COMMANDS = [
+  {
+    id: 'open-tasks',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+K', key: 'k', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Tasks', order: 230 },
+    palette: { title: 'Tasks', keywords: ['todo', 'to-do', 'inbox', 'todoist'], order: 80 },
+    catalog: { group: 'navigation', label: 'Tasks', keywords: ['todo'], order: 140 }
+  },
+  {
+    /** Opens Tasks with the quick-add input focused. */
+    id: 'add-task',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+A', key: 'a', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Add a Task…', order: 240 },
+    palette: { title: 'Add a task…', keywords: ['new task', 'quick add', 'todo'], order: 90 },
+    catalog: { group: 'navigation', label: 'Add a task', keywords: ['quick add', 'todo'], order: 150 }
+  }
+] as const satisfies readonly CommandSpec[]

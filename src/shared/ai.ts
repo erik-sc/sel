@@ -1,6 +1,7 @@
 import type { AgentKind, AiAgentInfo, CouncilEvent } from './council'
 import type { SettingsSpec } from './settings'
 import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
 
 /**
  * AI workflows: the shapes shared by the main process (which finds and drives the Claude Code
@@ -254,3 +255,14 @@ export const AI_INVOKE = {
   'ai:agents.connect': true,
   'ai:agents.remove': true
 } as const satisfies Record<InvokeChannels<{ ai: AiApi }>, true>
+
+/** Herman's panel, the assistant (see ./commands.ts). The palette lists it while AI is on. */
+export const AI_COMMANDS = [
+  {
+    id: 'toggle-assistant',
+    shortcut: { accelerator: 'CmdOrCtrl+J', key: 'j', ctrl: true },
+    menu: { submenu: 'view', label: 'Toggle Assistant', order: 310 },
+    palette: { title: 'Herman, the assistant', keywords: ['ai', 'ask', 'chat', 'claude'], order: 140 },
+    catalog: { group: 'herman', label: 'Talk to Herman, the assistant', keywords: ['ai', 'ask'], order: 10, ai: true }
+  }
+] as const satisfies readonly CommandSpec[]

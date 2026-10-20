@@ -14,7 +14,7 @@ import { logError, reportError, toggleFavorite } from './actions'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { topBarPageMenu } from './pageMenu'
-import { showOrHideAssistant } from './menuCommands'
+import { showOrHideAssistant } from './panels'
 import { WordCount } from './WordCount'
 
 function Crumb({ id, current }: { id: string; current?: boolean }) {

@@ -7,6 +7,7 @@
 
 import type { SettingsSpec } from './settings'
 import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
 
 export const TRADITIONS = ['stoic', 'buddhist', 'taoist', 'hindu', 'western', 'poetry', 'mystic'] as const
 export type Tradition = (typeof TRADITIONS)[number]
@@ -351,3 +352,21 @@ export const BRIEFING_INVOKE = {
   'briefing:databases': true,
   'briefing:brief': true
 } as const satisfies Record<InvokeChannels<{ briefing: BriefingApi }>, true>
+
+/** The ways to Today and the calendar (see ./commands.ts). */
+export const BRIEFING_COMMANDS = [
+  {
+    id: 'open-today',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Today', order: 210 },
+    palette: { title: 'Today', keywords: ['briefing', 'agenda', 'tasks'], order: 60 },
+    catalog: { group: 'navigation', label: 'Today', keywords: ['briefing', 'agenda'], order: 120 }
+  },
+  {
+    id: 'open-calendar',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+C', key: 'c', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Calendar', order: 220 },
+    palette: { title: 'Calendar', keywords: ['events', 'schedule', 'agenda'], order: 70 },
+    catalog: { group: 'navigation', label: 'Calendar', keywords: ['events'], order: 130 }
+  }
+] as const satisfies readonly CommandSpec[]

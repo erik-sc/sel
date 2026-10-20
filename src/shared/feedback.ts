@@ -8,6 +8,7 @@
  */
 
 import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
 
 export type FeedbackKind = 'bug' | 'suggestion'
 
@@ -195,3 +196,12 @@ export const FEEDBACK_INVOKE = {
   'feedback:withdraw': true,
   'feedback:openFolder': true
 } as const satisfies Record<InvokeChannels<{ feedback: FeedbackApi }>, true>
+
+/** Reporting a bug or suggesting a feature (see ./commands.ts). */
+export const FEEDBACK_COMMANDS = [
+  {
+    id: 'send-feedback',
+    menu: { submenu: 'help', label: 'Report a Bug or Suggest a Feature…', order: 110 },
+    palette: { title: 'Report a bug or suggest a feature…', keywords: ['feedback', 'issue', 'help'], order: 910 }
+  }
+] as const satisfies readonly CommandSpec[]

@@ -8,6 +8,7 @@
 // they only have to be unique inside their own database. Pure: no Electron, no React.
 import type { Block, BlockProps, BlockType, DatabaseView, PropertySchema, RichText } from '../types'
 import type { InvokeChannels } from '../ipc'
+import type { CommandSpec } from '../commands'
 
 export const TEMPLATE_LOCALES = ['pt-BR', 'en'] as const
 export type TemplateLocale = (typeof TEMPLATE_LOCALES)[number]
@@ -151,3 +152,40 @@ export interface TemplatesApi {
 export const TEMPLATES_INVOKE = {
   'templates:create': true
 } as const satisfies Record<InvokeChannels<{ templates: TemplatesApi }>, true>
+
+/** Words to find the gallery by in the command palette, in both languages. */
+export const TEMPLATE_KEYWORDS = [
+  'template',
+  'templates',
+  'modelo',
+  'modelos',
+  'new page from template',
+  'nova página a partir de template',
+  'finances',
+  'finanças',
+  'budget',
+  'orçamento',
+  'household',
+  'casa',
+  'trip',
+  'viagem',
+  'project',
+  'projeto',
+  'library',
+  'biblioteca',
+  'studies',
+  'estudos',
+  'kitchen',
+  'cozinha',
+  'recipes',
+  'receitas'
+]
+
+/** The gallery's command (see ../commands.ts). */
+export const TEMPLATES_COMMANDS = [
+  {
+    id: 'new-from-template',
+    menu: { submenu: 'file', label: 'New Page from Template…', order: 110 },
+    palette: { title: 'Templates', keywords: TEMPLATE_KEYWORDS, order: 20 }
+  }
+] as const satisfies readonly CommandSpec[]

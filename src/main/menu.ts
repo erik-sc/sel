@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
-import { IPC, type MenuCommand } from '../shared/api'
+import { IPC } from '../shared/api'
+import { COMMANDS, type CommandSpec, type MenuCommand, type MenuPlace, type MenuSubmenu } from '../shared/commands'
 import { APP_SHORTCUTS } from '../shared/shortcuts'
 
 const isMac = process.platform === 'darwin'
@@ -14,16 +15,42 @@ export function sendCommand(command: MenuCommand, arg?: unknown, target?: Browse
   else win.webContents.send(IPC.command, command, arg)
 }
 
-function item(label: string, command: MenuCommand, index = 0): MenuItemConstructorOptions {
-  const shortcuts = SHORTCUTS.filter((s) => s.command === command)
-  const shortcut = shortcuts[index]
+function item(label: string, command: MenuCommand): MenuItemConstructorOptions {
   return {
     label,
-    accelerator: shortcut?.accelerator,
+    accelerator: SHORTCUTS.find((s) => s.command === command)?.accelerator,
     // Elsewhere the accelerator is display-only; attachShortcuts() does the work.
     registerAccelerator: isMac,
     click: (_item, win) => sendCommand(command, undefined, win instanceof BrowserWindow ? win : null)
   }
+}
+
+/** An item of a menu at its place: the hundreds of `order` are groups, with a separator between two. */
+interface Placed {
+  order: number
+  item: MenuItemConstructorOptions
+}
+
+/** Where a command sits in the menu bar on this platform, if anywhere. */
+function placeOf(spec: CommandSpec): MenuPlace | null {
+  if (!spec.menu) return null
+  return isMac && spec.menu.mac ? spec.menu.mac : spec.menu
+}
+
+/** A menu: its own items (roles) and the commands that name it, in order, separated by group. */
+function submenu(id: MenuSubmenu, own: readonly Placed[]): MenuItemConstructorOptions[] {
+  const placed: Placed[] = [...own]
+  for (const spec of COMMANDS as readonly CommandSpec[]) {
+    const place = placeOf(spec)
+    if (place?.submenu === id && spec.menu) placed.push({ order: place.order, item: item(spec.menu.label, spec.id as MenuCommand) })
+  }
+  placed.sort((a, b) => a.order - b.order)
+  const out: MenuItemConstructorOptions[] = []
+  placed.forEach((entry, index) => {
+    if (index > 0 && Math.floor(entry.order / 100) !== Math.floor(placed[index - 1].order / 100)) out.push({ type: 'separator' })
+    out.push(entry.item)
+  })
+  return out
 }
 
 export function buildMenu(): void {
@@ -31,111 +58,56 @@ export function buildMenu(): void {
   if (isMac) {
     template.push({
       label: app.name,
-      submenu: [
-        { role: 'about' },
-        { type: 'separator' },
-        item('Settings…', 'open-settings'),
-        { type: 'separator' },
-        { role: 'services' },
-        { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
-        { type: 'separator' },
-        { role: 'quit' }
-      ]
+      submenu: submenu('app', [
+        { order: 100, item: { role: 'about' } },
+        { order: 300, item: { role: 'services' } },
+        { order: 400, item: { role: 'hide' } },
+        { order: 410, item: { role: 'hideOthers' } },
+        { order: 420, item: { role: 'unhide' } },
+        { order: 500, item: { role: 'quit' } }
+      ])
     })
   }
   template.push(
     {
       label: 'File',
-      submenu: [
-        item('New Page', 'new-page'),
-        item('New Page from Template…', 'new-from-template'),
-        item('New Tab', 'new-tab'),
-        item('New Meeting', 'new-meeting'),
-        { type: 'separator' },
-        item('Quick Find…', 'quick-find'),
-        item('Version History…', 'version-history'),
-        // Second binding for the same command; hidden so the menu lists it once.
-        { ...item('Quick Find…', 'quick-find', 1), visible: false, acceleratorWorksWhenHidden: true },
-        { type: 'separator' },
-        item('Close Tab', 'close-tab'),
-        ...(isMac
-          ? [{ role: 'close', accelerator: 'Cmd+Shift+W' } as MenuItemConstructorOptions]
-          : [
-              { type: 'separator' } as MenuItemConstructorOptions,
-              item('Settings…', 'open-settings'),
-              { type: 'separator' } as MenuItemConstructorOptions,
-              { role: 'quit' } as MenuItemConstructorOptions
-            ])
-      ]
+      submenu: submenu(
+        'file',
+        isMac ? [{ order: 310, item: { role: 'close', accelerator: 'Cmd+Shift+W' } }] : [{ order: 500, item: { role: 'quit' } }]
+      )
     },
     {
       label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        { role: 'pasteAndMatchStyle' },
-        { role: 'delete' },
-        { type: 'separator' },
-        { role: 'selectAll' },
-        { type: 'separator' },
-        item('Find in Page…', 'find-in-page')
-      ]
+      submenu: submenu('edit', [
+        { order: 100, item: { role: 'undo' } },
+        { order: 110, item: { role: 'redo' } },
+        { order: 200, item: { role: 'cut' } },
+        { order: 210, item: { role: 'copy' } },
+        { order: 220, item: { role: 'paste' } },
+        { order: 230, item: { role: 'pasteAndMatchStyle' } },
+        { order: 240, item: { role: 'delete' } },
+        { order: 300, item: { role: 'selectAll' } }
+      ])
     },
     {
       label: 'View',
-      submenu: [
-        item('Command Palette…', 'command-palette'),
-        { type: 'separator' },
-        item('Home', 'go-home'),
-        item('Today', 'open-today'),
-        item('Calendar', 'open-calendar'),
-        item('Tasks', 'open-tasks'),
-        item('Add a Task…', 'add-task'),
-        item('Meditations', 'open-notebook'),
-        item('Sky', 'open-sky'),
-        item('Close the Day', 'close-day'),
-        item('Start a Pomodoro', 'start-pomodoro'),
-        { type: 'separator' },
-        item('Toggle Sidebar', 'toggle-sidebar'),
-        item('Toggle Assistant', 'toggle-assistant'),
-        item('Toggle Light/Dark Theme', 'toggle-theme'),
-        item('Toggle Focus Mode', 'toggle-focus-mode'),
-        { type: 'separator' },
-        item('Back', 'go-back'),
-        item('Forward', 'go-forward'),
-        { type: 'separator' },
-        item('Next Tab', 'next-tab'),
-        item('Previous Tab', 'prev-tab'),
-        { type: 'separator' },
-        { role: 'reload' },
-        { role: 'forceReload' },
+      submenu: submenu('view', [
+        { order: 600, item: { role: 'reload' } },
+        { order: 610, item: { role: 'forceReload' } },
         // Developer tools (and their Ctrl+Shift+I accelerator) exist only in unpackaged builds.
-        ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' } as MenuItemConstructorOptions]),
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' }
-      ]
+        ...(app.isPackaged ? [] : [{ order: 620, item: { role: 'toggleDevTools' } } as Placed]),
+        { order: 700, item: { role: 'resetZoom' } },
+        { order: 710, item: { role: 'zoomIn' } },
+        { order: 720, item: { role: 'zoomOut' } },
+        { order: 800, item: { role: 'togglefullscreen' } }
+      ])
     },
     {
       label: 'Window',
       role: 'window',
       submenu: isMac ? [{ role: 'minimize' }, { role: 'zoom' }, { type: 'separator' }, { role: 'front' }] : [{ role: 'minimize' }]
     },
-    {
-      label: 'Help',
-      role: 'help',
-      submenu: [item('Keyboard Shortcuts', 'keyboard-shortcuts'), item('Report a Bug or Suggest a Feature…', 'send-feedback')]
-    }
+    { label: 'Help', role: 'help', submenu: submenu('help', []) }
   )
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
@@ -159,7 +131,7 @@ export function attachShortcuts(win: BrowserWindow): void {
     if (!match) return
     event.preventDefault()
     // Holding the keys down must not open a tab per repeat.
-    if (!input.isAutoRepeat || match.command === 'next-tab' || match.command === 'prev-tab') {
+    if (!input.isAutoRepeat || match.repeat) {
       sendCommand(match.command, undefined, win)
     }
   })

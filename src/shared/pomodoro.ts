@@ -9,6 +9,7 @@
 
 import type { SettingsSpec } from './settings'
 import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
 
 export type PomodoroPhase = 'focus' | 'short' | 'long'
 
@@ -243,3 +244,16 @@ export const POMODORO_INVOKE = {
   'pomodoro:next': true,
   'pomodoro:stop': true
 } as const satisfies Record<InvokeChannels<{ pomodoro: PomodoroApi }>, true>
+
+/**
+ * Starting a pomodoro, or with one on showing its controls (see ./commands.ts). Its palette
+ * entries are the pomodoro's own (renderer/src/pomodoro/gate.ts): they follow the timer.
+ */
+export const POMODORO_COMMANDS = [
+  {
+    id: 'start-pomodoro',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+P', key: 'p', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Start a Pomodoro', order: 280 },
+    catalog: { group: 'navigation', label: 'Start a pomodoro, or show its controls', keywords: ['timer', 'focus', 'break'], order: 210 }
+  }
+] as const satisfies readonly CommandSpec[]

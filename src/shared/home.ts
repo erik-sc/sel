@@ -7,6 +7,7 @@
  */
 
 import type { SettingsSpec } from './settings'
+import type { CommandSpec } from './commands'
 
 export const HOME_SETTING = 'home'
 export const STARTUP_SETTING = 'shell.startup'
@@ -69,3 +70,14 @@ export const HOME_SETTINGS: SettingsSpec = {
     key === HOME_SETTING ? cleanHome(value) : (STARTUP_MODES as readonly unknown[]).includes(value) ? value : undefined,
   syncedAt: { [HOME_SETTING]: 'sync.homeAt' }
 }
+
+/** The Home button's command (see ./commands.ts). */
+export const HOME_COMMANDS = [
+  {
+    id: 'go-home',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+H', key: 'h', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Home', order: 200 },
+    palette: { title: 'Home', keywords: ['start', 'home page', 'início', 'página inicial'], order: 50 },
+    catalog: { group: 'navigation', label: 'Home', keywords: ['start', 'início'], order: 110 }
+  }
+] as const satisfies readonly CommandSpec[]

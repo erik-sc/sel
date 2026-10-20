@@ -95,31 +95,3 @@ export const TEMPLATES_COPY: Record<TemplateLocale, TemplatesCopy> = {
     command: 'Templates'
   }
 }
-
-/** Words to find the gallery by in the command palette, in both languages. */
-export const TEMPLATE_KEYWORDS = [
-  'template',
-  'templates',
-  'modelo',
-  'modelos',
-  'new page from template',
-  'nova página a partir de template',
-  'finances',
-  'finanças',
-  'budget',
-  'orçamento',
-  'household',
-  'casa',
-  'trip',
-  'viagem',
-  'project',
-  'projeto',
-  'library',
-  'biblioteca',
-  'studies',
-  'estudos',
-  'kitchen',
-  'cozinha',
-  'recipes',
-  'receitas'
-]

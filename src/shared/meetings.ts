@@ -9,6 +9,7 @@
 
 import type { SettingsSpec } from './settings'
 import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
 
 /** What is written to disk while recording: mono, 16 kHz, 16-bit little-endian PCM. */
 export const PCM = { sampleRate: 16_000, bytesPerSample: 2 } as const
@@ -379,3 +380,14 @@ export const MEETINGS_INVOKE = {
   'meetings:storage': true,
   'meetings:openFolder': true
 } as const satisfies Record<InvokeChannels<{ meetings: MeetingsApi }>, true>
+
+/** A new meeting page, ready to record (see ./commands.ts). */
+export const MEETINGS_COMMANDS = [
+  {
+    id: 'new-meeting',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+M', key: 'm', ctrl: true, alt: true },
+    menu: { submenu: 'file', label: 'New Meeting', order: 130 },
+    palette: { title: 'New meeting', keywords: ['record', 'transcribe', 'call'], order: 130 },
+    catalog: { group: 'pages', label: 'New meeting', keywords: ['record', 'transcribe'], order: 60 }
+  }
+] as const satisfies readonly CommandSpec[]
