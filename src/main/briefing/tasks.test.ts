@@ -193,10 +193,32 @@ describe('selecting tasks', () => {
       pageId: 'now',
       source: 'Tasks',
       due: '2026-10-13',
+      dateProperty: 'due',
       priority: { name: 'High', color: 'red' }
     })
     expect(selected.today[2].due).toBe('2026-10-13')
     expect(selected.today[1].due).toBe('2026-11-01')
+  })
+
+  it('keeps the hour a task is due at, and the property its date is in', () => {
+    const selected = selectTasks(
+      [
+        database('db'),
+        row('timed', 'db', 'Call', { due: { start: '2026-10-13T15:30' } }),
+        row('plain', 'db', 'Shop', { due: { start: '2026-10-13' } }),
+        row('zoned', 'db', 'Zoned', { due: { start: '2026-10-13T09:00:00Z' } }),
+        row('range', 'db', 'Trip', { due: { start: '2026-10-12T08:00', end: '2026-10-14T18:00' } }),
+        row('bad', 'db', 'Bad hour', { due: { start: '2026-10-13T25:00' } })
+      ],
+      { today: TODAY, range: { from: '2026-10-01', to: '2026-10-31' } }
+    )
+    const byTitle = new Map(selected.dated?.map((task) => [task.title, task]))
+    expect(byTitle.get('Call')).toMatchObject({ due: '2026-10-13', time: '15:30', dateProperty: 'due' })
+    expect(byTitle.get('Shop')?.time).toBeUndefined()
+    // A time with a zone is not a wall-clock time: the day alone, as everywhere else.
+    expect(byTitle.get('Zoned')?.time).toBeUndefined()
+    expect(byTitle.get('Trip')).toMatchObject({ due: '2026-10-14', time: '18:00' })
+    expect(byTitle.get('Bad hour')?.time).toBeUndefined()
   })
 
   it('does not depend on the order blocks arrive in', () => {

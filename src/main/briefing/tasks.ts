@@ -234,6 +234,13 @@ function dayOf(value: unknown): string | null {
   return match[0]
 }
 
+/** The wall-clock `HH:mm` a stored date carries (`YYYY-MM-DDTHH:mm`), or null. */
+function timeOf(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const match = /^\d{4}-\d{2}-\d{2}[T ](\d{2}):(\d{2})(?::\d{2}(?:\.\d{1,9})?)?$/.exec(value)
+  return match && Number(match[1]) <= 23 && Number(match[2]) <= 59 ? `${match[1]}:${match[2]}` : null
+}
+
 function valuesOf(props: BlockProps | undefined | null): Record<string, PropertyValue> {
   const values: unknown = props?.values
   return isObject(values) ? (values as Record<string, PropertyValue>) : {}
@@ -378,16 +385,30 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
     }
     let start: string | null = null
     let end: string | null = null
+    let startTime: string | null = null
+    let endTime: string | null = null
     if (signal.date) {
       const value = own(values, signal.date)
       if (isObject(value)) {
         start = dayOf(value['start'])
         end = dayOf(value['end'])
-      } else start = dayOf(value)
+        startTime = timeOf(value['start'])
+        endTime = timeOf(value['end'])
+      } else {
+        start = dayOf(value)
+        startTime = timeOf(value)
+      }
+      task.dateProperty = signal.date
     }
     const status = signal.status ? own(values, signal.status.property) : undefined
     const active = typeof status === 'string' && !!signal.status?.active.has(status)
-    if (start) task.due = end && end > start ? end : start
+    if (start) {
+      const ranged = !!end && end > start
+      task.due = ranged ? (end as string) : start
+      // The hour it is due at, when it has one: the calendar's week puts it there.
+      const time = ranged ? endTime : startTime
+      if (time) task.time = time
+    }
     const item: Ranked = { task, rank, seen: order }
     if (range && task.due && task.due >= range.from && task.due <= range.to && dated.length < cap) dated.push(item)
     if (start && (end && end >= start ? end : start) < today) {

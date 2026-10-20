@@ -50,10 +50,13 @@ export interface QuickAddProps {
   onAdded?: (id: string) => void
   /** Escape on an empty input. */
   onCancel?: () => void
+  /** Values a new task gets unless the line says otherwise (the calendar's day). */
+  defaults?: L.Values
+  placeholder?: string
 }
 
 export function QuickAdd(props: QuickAddProps): JSX.Element {
-  const { list, today, projects, labels, autoFocus, onAdded, onCancel } = props
+  const { list, today, projects, labels, autoFocus, onAdded, onCancel, defaults, placeholder } = props
   const [value, setValue] = useState('')
   const [ignored, setIgnored] = useState<IgnoredSpan[]>([])
   const [caret, setCaret] = useState(0)
@@ -140,7 +143,7 @@ export function QuickAdd(props: QuickAddProps): JSX.Element {
     const labelIds = parsed.labels.map((name) => optionId(TASK_PROPS.labels, name)).filter((id): id is string => !!id)
     const id = actions.createRow(TASKS_DATABASE_ID, {
       title: parsed.title,
-      values: taskValues(parsed, { project, labels: labelIds }, listDefaults(list, today))
+      values: taskValues(parsed, { project, labels: labelIds }, { ...listDefaults(list, today), ...defaults })
     })
     setValue('')
     setIgnored([])
@@ -228,7 +231,7 @@ export function QuickAdd(props: QuickAddProps): JSX.Element {
             ref={input}
             className="qa-input"
             value={value}
-            placeholder="Add a task: Pay rent tomorrow 9am p1 #Home"
+            placeholder={placeholder ?? 'Add a task: Pay rent tomorrow 9am p1 #Home'}
             aria-label="Add a task"
             role="combobox"
             aria-expanded={open}
