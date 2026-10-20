@@ -1,20 +1,16 @@
-import { Suspense, useEffect } from 'react'
-import type { CSSProperties } from 'react'
+import { Fragment, Suspense, useEffect } from 'react'
+import type { ComponentType, CSSProperties } from 'react'
+import type { Overlay } from '@/feature'
+import { FEATURES } from '@/features'
 import { tabPage, useActiveTab, useTabs } from '@/store/tabs'
 import { setFocusMode, useUi } from '@/store/ui'
 import { Toaster } from '@/ui/Toaster'
 import { VersionHistory } from '@/versions/VersionHistory'
-import { AiSetup, AssistantDock } from '@/ai/Host'
 import { useAiGate } from '@/ai/gate'
-import { HermanHost } from '@/herman/Host'
-import { PomodoroHost } from '@/pomodoro/Host'
-import { FeedbackHost } from '@/feedback/Host'
-import { MeetingSetup, RecordingIndicator } from '@/meetings/slot'
+import { RecordingIndicator } from '@/meetings/slot'
 import { screenOf } from '@/screens'
-import { UpdateNotice } from '@/updates/Notice'
 import { CommandPalette } from '@/commands/Palette'
 import { ShortcutsHost } from '@/shortcuts/Host'
-import { TemplatesHost } from '@/templates/Host'
 import { PageSkeleton } from '@/ui/Skeleton'
 import { EmptyState, PageHost } from './PageHost'
 import { FindBar } from './FindBar'
@@ -25,6 +21,39 @@ import { Sidebar } from './Sidebar'
 import { TabBar } from './TabBar'
 import { TopBar } from './TopBar'
 import { useShellCommands } from './useShellCommands'
+
+/** The shell's own overlays and the features', in their slot's order (see `Overlay` in ../feature.ts). */
+function overlays(slot: Overlay['slot'], own: readonly { order: number; Overlay: ComponentType }[]) {
+  const features = FEATURES.flatMap((feature) => feature.overlays ?? [])
+  return [
+    ...own.map((entry) => ({ ...entry, lazy: false })),
+    ...features.filter((entry) => entry.slot === slot).map((entry) => ({ ...entry, lazy: true }))
+  ].sort((a, b) => a.order - b.order)
+}
+
+const CONTENT_OVERLAYS = overlays('content', [{ order: 30, Overlay: FindBar }])
+const WINDOW_OVERLAYS = overlays('window', [
+  { order: 20, Overlay: QuickFind },
+  { order: 30, Overlay: CommandPalette },
+  { order: 40, Overlay: ShortcutsHost },
+  { order: 50, Overlay: SettingsModal },
+  { order: 60, Overlay: VersionHistory },
+  { order: 110, Overlay: Toaster }
+])
+
+function Overlays({ list }: { list: typeof CONTENT_OVERLAYS }) {
+  return list.map(({ order, Overlay, lazy }) =>
+    lazy ? (
+      <Suspense key={order} fallback={null}>
+        <Overlay />
+      </Suspense>
+    ) : (
+      <Fragment key={order}>
+        <Overlay />
+      </Fragment>
+    )
+  )
+}
 
 export function Shell() {
   useShellCommands()
@@ -81,24 +110,11 @@ export function Shell() {
             ) : (
               <EmptyState />
             )}
-            <HermanHost />
-            <PomodoroHost />
-            <FindBar />
-            <UpdateNotice />
+            <Overlays list={CONTENT_OVERLAYS} />
           </main>
         </div>
       </div>
-      <AssistantDock />
-      <QuickFind />
-      <CommandPalette />
-      <ShortcutsHost />
-      <SettingsModal />
-      <VersionHistory />
-      <AiSetup />
-      <MeetingSetup />
-      <FeedbackHost />
-      <TemplatesHost />
-      <Toaster />
+      <Overlays list={WINDOW_OVERLAYS} />
     </div>
   )
 }
