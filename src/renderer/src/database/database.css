@@ -2016,6 +2016,64 @@ button.db-formula-item:hover {
   font-size: var(--text-ui);
 }
 
+/* A date in words, and what it reads as. */
+.db-datepicker-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.db-datepicker-text {
+  width: 100%;
+}
+
+.db-datepicker-preview {
+  padding: 0 4px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.db-datepicker-preview.is-unknown {
+  color: var(--text-tertiary);
+}
+
+/* Quick choices: today, tomorrow…; reminders before the due date. */
+.db-datepicker-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.db-quick-choice {
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-3);
+  color: var(--text);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.db-quick-choice:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.db-quick-choice[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.db-quick-choice:disabled {
+  color: var(--text-tertiary);
+  cursor: default;
+}
+
 .db-datepicker-value {
   display: flex;
   align-items: center;
@@ -2152,6 +2210,120 @@ button.db-formula-item:hover {
   margin-top: 10px;
   padding-top: 10px;
   border-top: var(--hairline) solid var(--border);
+}
+
+/* ---- repeat picker ---- */
+.db-repeat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 300px;
+  padding: 12px;
+  font-size: var(--text-ui);
+}
+
+.db-repeat .db-datepicker-field {
+  margin-bottom: 0;
+}
+
+.db-repeat-choices {
+  display: flex;
+  flex-direction: column;
+}
+
+.db-repeat-choice {
+  padding: 5px 8px;
+  border-radius: var(--radius-s);
+  font-size: var(--text-md);
+  text-align: left;
+  transition: background-color var(--duration-fast) var(--ease);
+}
+
+.db-repeat-choice:hover {
+  background: var(--bg-hover);
+}
+
+.db-repeat-choice[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.db-repeat-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-s);
+  background: var(--fill-1);
+}
+
+.db-repeat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.db-repeat-row.is-top {
+  align-items: flex-start;
+}
+
+.db-repeat-label {
+  min-width: 64px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.db-repeat-number {
+  width: 56px;
+  font-variant-numeric: tabular-nums;
+}
+
+.db-repeat-select {
+  width: auto;
+}
+
+.db-repeat-date {
+  width: 140px;
+}
+
+.db-repeat-days,
+.db-repeat-segments {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.db-repeat-day,
+.db-repeat-segment {
+  height: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-s);
+  background: var(--fill-3);
+  font-size: var(--text-xs);
+}
+
+.db-repeat-day {
+  text-transform: capitalize;
+}
+
+.db-repeat-day[aria-pressed='true'],
+.db-repeat-segment[aria-checked='true'] {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.db-repeat-ends {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.db-repeat-words {
+  margin: 0;
+  padding-top: 8px;
+  border-top: var(--hairline) solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .db-check-row {

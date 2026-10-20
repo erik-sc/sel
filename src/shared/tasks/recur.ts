@@ -68,7 +68,8 @@ function untilDay(until: string | undefined): number | null {
  *    tomorrow, not to the day after the missed one);
  *  - from 'completion': the series starts on the day it was completed; the next one after it.
  *
- * COUNT is not honoured: a task's series restarts at every completion, so it has nothing to count from.
+ * COUNT is not read here: a task's series restarts at every completion, so completing it counts
+ * down the COUNT it stores instead (`completeTaskValues`).
  */
 export function nextOccurrence(rule: string, from: 'due' | 'completion', due: string | null, completedAt: string): string | null {
   const { rule: parsed, until } = readRule(rule)
@@ -118,10 +119,16 @@ export function completeTaskValues(values: Readonly<Record<string, PropertyValue
 
   const recurrence = readRecurrence(own(TASK_PROPS.recurrence))
   const due = startOf(own(TASK_PROPS.due))
-  const next = recurrence ? nextOccurrence(recurrence.rule, recurrence.from, due, completedAt) : null
-  if (next) {
+  // "N times": the occurrences left, this one included. The last one is done like any task.
+  const left = recurrence ? readRule(recurrence.rule).rule?.count : undefined
+  const next = recurrence && (left === undefined || left > 1) ? nextOccurrence(recurrence.rule, recurrence.from, due, completedAt) : null
+  if (recurrence && next) {
     previous[TASK_PROPS.due] = own(TASK_PROPS.due)
     current[TASK_PROPS.due] = { start: next }
+    if (left !== undefined) {
+      previous[TASK_PROPS.recurrence] = own(TASK_PROPS.recurrence)
+      current[TASK_PROPS.recurrence] = JSON.stringify({ ...recurrence, rule: recurrence.rule.replace(/COUNT=\d+/i, `COUNT=${left - 1}`) })
+    }
     const remind = startOf(own(TASK_PROPS.remind))
     const from = due ? split(due) : null
     const to = split(next)

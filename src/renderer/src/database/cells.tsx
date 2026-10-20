@@ -2,11 +2,19 @@
 import { Suspense, memo, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import type { Block, PropertySchema, PropertyValue } from '@shared/types'
+import { ruleText } from '@shared/rrule'
+import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
+import type { TaskRecurrence } from '@shared/tasks/parse'
+import { readRecurrence } from '@shared/tasks/recur'
+import { firstOccurrence } from '@shared/tasks/repeat'
+import { useHome } from '@/home/store'
+import { getBlock } from '@/store/blocks'
 import { Check } from '@/ui/icons'
 import * as L from './logic'
 import * as actions from './actions'
 import { Floating, OptionTag } from './common'
-import { DatePicker, PartFallback } from './lazyParts'
+import { DATE_COPY } from './dateCopy'
+import { DatePicker, PartFallback, RecurrencePicker } from './lazyParts'
 import { SelectEditor } from './SelectEditor'
 import { RelationEditor, RelationValue } from './RelationEditor'
 import { useRelated } from './related'
@@ -126,9 +134,46 @@ function UrlValue({ url }: { url: string }): JSX.Element {
   )
 }
 
+/** A field of the built-in Tasks database that has an editor of its own (its repeat, its reminder). */
+function taskField(row: Block, prop: PropertySchema): 'recurrence' | 'remind' | null {
+  if (row.parentId !== TASKS_DATABASE_ID) return null
+  return prop.id === TASK_PROPS.recurrence ? 'recurrence' : prop.id === TASK_PROPS.remind ? 'remind' : null
+}
+
+/** The start of a date cell's value, as stored. */
+function dateStart(value: PropertyValue | undefined): string | null {
+  return L.isDateValue(value) ? value.start : typeof value === 'string' && value ? value : null
+}
+
+/** A task's repeat in words ("every Monday"), not the rule it is stored as. */
+function RecurrenceValue({ value }: { value: PropertyValue }): JSX.Element | null {
+  const locale = useHome((state) => state.locale)
+  const recurrence = readRecurrence(value)
+  if (!recurrence) return typeof value === 'string' && value ? <span className="db-text">{value}</span> : null
+  const words = ruleText(recurrence.rule, locale)
+  return (
+    <span className="db-text">↻ {recurrence.from === 'completion' ? `${words} (${DATE_COPY[locale].fromCompletionNote})` : words}</span>
+  )
+}
+
+/**
+ * Writes a task's repeat. A task that starts repeating without a due date gets the first day of
+ * the repeat, as the quick add gives it ("toda segunda" is due next Monday).
+ */
+function setRecurrence(databaseId: string, row: Block, prop: PropertySchema, next: TaskRecurrence | null): void {
+  actions.setCell(row.id, prop, next ? JSON.stringify(next) : null)
+  if (!next) return
+  const latest = getBlock(row.id) ?? row
+  const dueProp = L.propOf(actions.snapshot(databaseId).schema, TASK_PROPS.due)
+  if (!dueProp || dateStart(L.getCellValue(latest, dueProp))) return
+  const first = firstOccurrence(next.rule, L.todayISO())
+  if (first) actions.setCell(row.id, dueProp, { start: first })
+}
+
 /** Read-only rendering of a cell. Returns null when there is nothing to show. */
 export function CellDisplay({ row, prop }: { row: Block; prop: PropertySchema }): JSX.Element | null {
   const value = L.getCellValue(row, prop)
+  if (taskField(row, prop) === 'recurrence') return <RecurrenceValue value={value} />
   switch (prop.type) {
     case 'title': {
       const text = typeof value === 'string' ? value : ''
@@ -387,7 +432,9 @@ export function PropertyCell({
     )
   }
 
-  if (editing && isTextLike(prop.type)) {
+  const field = taskField(row, prop)
+
+  if (editing && isTextLike(prop.type) && field !== 'recurrence') {
     return (
       <div className="db-cell-value is-editing">
         <TextEditor row={row} prop={prop} initialText={initialText} discardOnCancel={discardOnCancel} onStop={onStopEdit} />
@@ -395,7 +442,7 @@ export function PropertyCell({
     )
   }
 
-  const popoverType = L.isSelectType(prop.type) || prop.type === 'date' || prop.type === 'relation'
+  const popoverType = L.isSelectType(prop.type) || prop.type === 'date' || prop.type === 'relation' || field === 'recurrence'
 
   return (
     <div
@@ -417,9 +464,21 @@ export function PropertyCell({
       )}
       {popoverType && (
         <Floating open={editing && !!el} anchor={el} onClose={() => onStopEdit()} className="db-popover">
-          {prop.type === 'date' ? (
+          {field === 'recurrence' ? (
             <Suspense fallback={<PartFallback kind="popover" />}>
-              <DatePicker value={L.isDateValue(value) ? value : null} onChange={(next) => actions.setCell(row.id, prop, next)} />
+              <RecurrencePicker
+                value={readRecurrence(value)}
+                due={dateStart(row.props.values?.[TASK_PROPS.due])}
+                onChange={(next) => setRecurrence(databaseId, row, prop, next)}
+              />
+            </Suspense>
+          ) : prop.type === 'date' ? (
+            <Suspense fallback={<PartFallback kind="popover" />}>
+              <DatePicker
+                value={L.isDateValue(value) ? value : null}
+                onChange={(next) => actions.setCell(row.id, prop, next)}
+                reminderFor={field === 'remind' ? dateStart(row.props.values?.[TASK_PROPS.due]) : undefined}
+              />
             </Suspense>
           ) : prop.type === 'relation' ? (
             <RelationEditor row={row} prop={prop} onClose={() => onStopEdit()} />

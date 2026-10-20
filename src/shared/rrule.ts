@@ -261,3 +261,147 @@ export function ruleDays(
   }
   return out
 }
+
+// ---- in words -----------------------------------------------------------------------------
+
+export type RuleLocale = 'en' | 'pt-BR'
+
+const WEEKDAY_NAMES: Record<RuleLocale, readonly string[]> = {
+  en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  'pt-BR': ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
+}
+
+export const MONTH_NAMES: Record<RuleLocale, readonly string[]> = {
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  'pt-BR': ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+}
+
+/** The name of a weekday (0 = Sunday) as the words of a rule say it. */
+export function weekdayName(weekday: number, locale: RuleLocale): string {
+  return WEEKDAY_NAMES[locale][mod(weekday, 7)]
+}
+
+/** Monday first, as weeks are read. */
+const byWeekOrder = (a: number, b: number): number => mod(a - 1, 7) - mod(b - 1, 7)
+
+function list(items: readonly string[], locale: RuleLocale): string {
+  if (items.length <= 1) return items.join('')
+  return `${items.slice(0, -1).join(', ')} ${locale === 'en' ? 'and' : 'e'} ${items[items.length - 1]}`
+}
+
+/** 1st, 2nd, 3rd, 4th, 11th, 21st. */
+export function ordinalEn(n: number): string {
+  const tens = n % 100
+  if (tens >= 11 && tens <= 13) return `${n}th`
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
+}
+
+const ORDINALS: Record<RuleLocale, Record<number, string>> = {
+  en: { 1: 'first', 2: 'second', 3: 'third', 4: 'fourth', 5: 'fifth', [-1]: 'last', [-2]: 'second to last' },
+  'pt-BR': { 1: 'primeira', 2: 'segunda', 3: 'terceira', 4: 'quarta', 5: 'quinta', [-1]: 'última', [-2]: 'penúltima' }
+}
+
+/** Saturdays and Sundays are masculine in Portuguese, the other weekdays feminine. */
+const feminine = (weekday: number): boolean => weekday >= 1 && weekday <= 5
+
+/** "every 3 weeks", "a cada 3 semanas"; one alone is "every week", "toda semana". */
+function period(freq: RecurrenceRule['freq'], interval: number, locale: RuleLocale): string {
+  const en = { DAILY: ['day', 'days'], WEEKLY: ['week', 'weeks'], MONTHLY: ['month', 'months'], YEARLY: ['year', 'years'] }[freq]
+  const pt = { DAILY: ['dia', 'dias'], WEEKLY: ['semana', 'semanas'], MONTHLY: ['mês', 'meses'], YEARLY: ['ano', 'anos'] }[freq]
+  if (locale === 'en') return interval === 1 ? `every ${en[0]}` : `every ${interval} ${en[1]}`
+  return interval === 1 ? `${freq === 'WEEKLY' ? 'toda' : 'todo'} ${pt[0]}` : `a cada ${interval} ${pt[1]}`
+}
+
+function monthDayText(days: readonly number[], locale: RuleLocale): string {
+  if (locale === 'en')
+    return `on ${list(
+      days.map((n) => (n === -1 ? 'the last day' : `the ${ordinalEn(n)}`)),
+      locale
+    )}`
+  if (days.length === 1) return days[0] === -1 ? 'no último dia' : `no dia ${days[0]}`
+  return `nos dias ${list(
+    days.map((n) => (n === -1 ? 'último' : String(n))),
+    locale
+  )}`
+}
+
+function untilText(until: string, locale: RuleLocale): string | null {
+  const m = /^(\d{4})(\d{2})(\d{2})/.exec(until)
+  if (!m) return null
+  const [year, month, date] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  if (month < 1 || month > 12) return null
+  const name = MONTH_NAMES[locale][month - 1]
+  return locale === 'en' ? `until ${name} ${date}, ${year}` : `até ${date} de ${name} de ${year}`
+}
+
+/** The words of a rule without its end (COUNT, UNTIL); null when it has none. */
+function ruleWords(rule: RecurrenceRule, locale: RuleLocale): string | null {
+  const pt = locale !== 'en'
+  const { freq, interval } = rule
+  const plain = rule.byDay.filter((entry) => entry.ordinal === 0).map((entry) => entry.weekday)
+  const ordinals = rule.byDay.filter((entry) => entry.ordinal !== 0)
+  const weekdays = [...new Set(plain)].sort(byWeekOrder)
+  const names = WEEKDAY_NAMES[locale]
+  if (rule.bySetPos.length) return null
+
+  if (freq === 'DAILY') {
+    return !rule.byMonthDay.length && !rule.byMonth.length && !rule.byDay.length ? period('DAILY', interval, locale) : null
+  }
+  if (freq === 'WEEKLY') {
+    if (rule.byMonthDay.length || rule.byMonth.length || ordinals.length) return null
+    if (!weekdays.length) return period('WEEKLY', interval, locale)
+    const days = list(
+      weekdays.map((day) => names[day]),
+      locale
+    )
+    const workdays = weekdays.length === 5 && [1, 2, 3, 4, 5].every((day) => weekdays.includes(day))
+    if (interval === 1 && workdays) return pt ? 'dias úteis' : 'every weekday'
+    if (interval === 1) return pt ? `${feminine(weekdays[0]) ? 'toda' : 'todo'} ${days}` : `every ${days}`
+    return pt
+      ? `${period('WEEKLY', interval, locale)} ${feminine(weekdays[0]) ? 'na' : 'no'} ${days}`
+      : `${period('WEEKLY', interval, locale)} on ${days}`
+  }
+  if (freq === 'MONTHLY') {
+    if (rule.byMonth.length) return null
+    if (ordinals.length === 1 && !plain.length && !rule.byMonthDay.length) {
+      const { ordinal, weekday } = ordinals[0]
+      const word = ORDINALS[locale][ordinal]
+      if (!word) return null
+      if (!pt) return `${period('MONTHLY', interval, locale)} on the ${word} ${names[weekday]}`
+      const female = feminine(weekday)
+      return `${period('MONTHLY', interval, locale)} ${female ? 'na' : 'no'} ${female ? word : word.replace(/a$/, 'o')} ${names[weekday]}`
+    }
+    if (rule.byDay.length) return null
+    return rule.byMonthDay.length
+      ? `${period('MONTHLY', interval, locale)} ${monthDayText(rule.byMonthDay, locale)}`
+      : period('MONTHLY', interval, locale)
+  }
+  // YEARLY
+  if (rule.byDay.length) return null
+  if (!rule.byMonth.length && !rule.byMonthDay.length) return period('YEARLY', interval, locale)
+  if (rule.byMonth.length === 1 && rule.byMonthDay.length === 1 && rule.byMonthDay[0] > 0) {
+    const month = MONTH_NAMES[locale][rule.byMonth[0] - 1]
+    const date = rule.byMonthDay[0]
+    return pt ? `${period('YEARLY', interval, locale)} em ${date} de ${month}` : `${period('YEARLY', interval, locale)} on ${month} ${date}`
+  }
+  return null
+}
+
+/**
+ * A rule in words, in English or Brazilian Portuguese: "every Monday and Wednesday",
+ * "a cada 2 semanas na segunda", "todo mês no dia 5", "every year on October 20, 3 times".
+ * The words are the quick add's (shared/tasks/parse.ts): typed back there, the rules the
+ * recurrence picker makes read as themselves. A rule it cannot say comes back as written.
+ */
+export function ruleText(value: string, locale: RuleLocale): string {
+  const { rule, until } = readRule(value.replace(/^RRULE:/i, ''))
+  const text = rule ? ruleWords(rule, locale) : null
+  if (!rule || text === null) return value
+  const pt = locale !== 'en'
+  const ends: string[] = []
+  if (rule.count !== undefined)
+    ends.push(`${rule.count} ${pt ? (rule.count === 1 ? 'vez' : 'vezes') : rule.count === 1 ? 'time' : 'times'}`)
+  const last = until ? untilText(until, locale) : null
+  if (last) ends.push(last)
+  return ends.length ? `${text}, ${ends.join(', ')}` : text
+}

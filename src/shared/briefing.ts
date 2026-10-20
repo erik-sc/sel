@@ -148,6 +148,10 @@ export interface BriefingTask {
   source: string
   /** `YYYY-MM-DD`. */
   due?: string
+  /** The wall-clock time it is due at, `HH:mm`, when its date has one. */
+  time?: string
+  /** A row's date property (the one `due` is read from): what rescheduling it writes. */
+  dateProperty?: string
   priority?: { name: string; color: string }
 }
 

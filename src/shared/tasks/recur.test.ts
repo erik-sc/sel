@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { PropertyValue } from '../types'
 import { TASK_PROPS } from './index'
 import { parseTask } from './parse'
 import { completeTaskOps, completeTaskValues, nextOccurrence, readRecurrence } from './recur'
@@ -130,5 +131,26 @@ describe('completing a task', () => {
     const parsed = parseTask('Cortar cabelo todo! mês', { now: new Date(2026, 8, 1, 9, 0) })
     const values = { [TASK_PROPS.due]: { start: parsed.due as string }, [TASK_PROPS.recurrence]: JSON.stringify(parsed.recurrence) }
     expect(completeTaskValues(values, NOW)?.next).toBe('2026-11-15')
+  })
+})
+
+describe('a repeat that ends after N times', () => {
+  const values = (rule: string): Record<string, PropertyValue> => ({
+    [TASK_PROPS.due]: { start: '2026-10-15' },
+    [TASK_PROPS.recurrence]: JSON.stringify({ rule, from: 'due', text: '' })
+  })
+  const now = new Date(2026, 9, 15, 10, 0)
+
+  it('counts down at every completion', () => {
+    const result = completeTaskValues(values('FREQ=DAILY;COUNT=3'), now)
+    expect(result?.next).toBe('2026-10-16')
+    expect(JSON.parse(result?.values[TASK_PROPS.recurrence] as string).rule).toBe('FREQ=DAILY;COUNT=2')
+    expect(result?.previous[TASK_PROPS.recurrence]).toBe(values('FREQ=DAILY;COUNT=3')[TASK_PROPS.recurrence])
+  })
+
+  it('is done on the last one', () => {
+    const result = completeTaskValues(values('FREQ=DAILY;COUNT=1'), now)
+    expect(result?.next).toBeUndefined()
+    expect(result?.values[TASK_PROPS.done]).toBe(true)
   })
 })

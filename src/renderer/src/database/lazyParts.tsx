@@ -1,5 +1,5 @@
 // Parts of the database feature that most sessions never open: the non-default views, the
-// filter / sort / properties panels, the linked-view pickers, the date picker and the formula editor. Each loads on demand and is
+// filter / sort / properties panels, the linked-view pickers, the date and repeat pickers and the formula editor. Each loads on demand and is
 // preloaded when the pointer or the focus reaches its trigger.
 import { lazy } from 'react'
 import type { JSX } from 'react'
@@ -8,6 +8,7 @@ import { SkeletonLines } from '@/ui/Skeleton'
 
 const loadPanels = (): Promise<typeof import('./panels')> => import('./panels')
 const loadDatePicker = (): Promise<typeof import('./DatePicker')> => import('./DatePicker')
+const loadRecurrencePicker = (): Promise<typeof import('./RecurrencePicker')> => import('./RecurrencePicker')
 const loadFormulaEditor = (): Promise<typeof import('./FormulaEditor')> => import('./FormulaEditor')
 const loadLinkedPanels = (): Promise<typeof import('./linkedPanels')> => import('./linkedPanels')
 const loadBoard = (): Promise<typeof import('./views/BoardView')> => import('./views/BoardView')
@@ -24,6 +25,7 @@ export const LocationsPanel = lazy(() => loadLinkedPanels().then((module) => ({ 
 export const PagePicker = lazy(() => loadLinkedPanels().then((module) => ({ default: module.PagePicker })))
 export const RelationTargetPicker = lazy(() => loadLinkedPanels().then((module) => ({ default: module.RelationTargetPicker })))
 export const DatePicker = lazy(() => loadDatePicker().then((module) => ({ default: module.DatePicker })))
+export const RecurrencePicker = lazy(() => loadRecurrencePicker().then((module) => ({ default: module.RecurrencePicker })))
 export const FormulaEditor = lazy(() => loadFormulaEditor().then((module) => ({ default: module.FormulaEditor })))
 export const BoardView = lazy(() => loadBoard().then((module) => ({ default: module.BoardView })))
 export const GalleryView = lazy(() => loadGallery().then((module) => ({ default: module.GalleryView })))

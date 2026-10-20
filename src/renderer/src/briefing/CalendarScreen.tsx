@@ -3,9 +3,20 @@
 // through Host.tsx. A day in the grid is something to pick; what can be done about an event or a task (take notes, open
 // it, mark it done) is done from the day's own list. Everything shown comes from
 // `briefing.agenda()`; as on the Today screen, a calendar's address is never here.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, JSX, KeyboardEvent, Ref } from 'react'
+//
+// Tasks can be moved: dragged to another day of the month, or to another hour (or to the top of
+// a day, without one) of the week; Ctrl+Z puts them back. A click on an empty day, or on an empty
+// hour of the week, adds a task due then.
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, DragEvent, JSX, KeyboardEvent, MouseEvent, Ref } from 'react'
 import { localDay, type BriefingCalendar, type BriefingEvent, type BriefingTask } from '@shared/briefing'
+import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
+import * as L from '@/database/logic'
+import { useResolvedDatabase } from '@/database/resolved'
+import { useHome } from '@/home/store'
+import { QuickAdd } from '@/tasks/QuickAdd'
+import { notifyError, toast } from '@/ui/toast'
+import { Popover } from '@/ui/Popover'
 import {
   addDays,
   calendarMatrix,
@@ -37,6 +48,8 @@ import {
   type EventMoment
 } from './format'
 import { EventRow, TaskRow, openSettings, useCompleteTask, useLive, useNow } from './parts'
+import { canMove, moveTask, slotTime, undoMove, type Move } from './reschedule'
+import '@/tasks/tasks.css'
 import './today.css'
 import './calendar.css'
 
@@ -82,6 +95,120 @@ function sameMonth(a: MonthCursor, b: MonthCursor): boolean {
 
 type Calendars = ReadonlyMap<string, BriefingCalendar>
 
+/** The words this screen gained with moving and adding tasks, in the language of the home. */
+const CAL_COPY = {
+  en: {
+    moved: (when: string) => `Moved to ${when}.`,
+    undo: 'Undo',
+    undone: 'Put back.',
+    moveFailed: 'Could not move the task.',
+    undoFailed: 'Could not put the task back.',
+    newTask: (when: string) => `New task, ${when}`,
+    placeholder: 'A task: Call the bank p1 #Home',
+    dragHint: 'drag to another day or hour to move it'
+  },
+  'pt-BR': {
+    moved: (when: string) => `Movida para ${when}.`,
+    undo: 'Desfazer',
+    undone: 'Voltou para onde estava.',
+    moveFailed: 'Não foi possível mover a tarefa.',
+    undoFailed: 'Não foi possível desfazer.',
+    newTask: (when: string) => `Nova tarefa, ${when}`,
+    placeholder: 'Uma tarefa: Ligar pro banco p1 #Casa',
+    dragHint: 'arraste para outro dia ou horário para mover'
+  }
+}
+
+/** Where a task is dropped: a day, at a time (`HH:mm`), without one (null) or at the one it had (undefined). */
+type Drop = (day: string, time: string | null | undefined) => void
+
+/** Moving and adding tasks, shared by the cells of both views. */
+interface Planner {
+  dragging: BriefingTask | null
+  dragHint: string
+  startDrag: (task: BriefingTask) => void
+  endDrag: () => void
+  drop: Drop
+  /** Opens the quick add for a task due on `day` (at `time`), next to the point clicked. */
+  add: (day: string, time: string | null, point: { x: number; y: number }) => void
+}
+
+const PlannerContext = createContext<Planner | null>(null)
+
+interface DropTarget {
+  over: boolean
+  props: {
+    onDragOver: (event: DragEvent<HTMLDivElement>) => void
+    onDragLeave: (event: DragEvent<HTMLDivElement>) => void
+    onDrop: (event: DragEvent<HTMLDivElement>) => void
+  }
+}
+
+/** The props that let a cell take a dropped task, and whether one is over it. */
+function useDropTarget(
+  onDrop: (event: DragEvent<HTMLDivElement>) => void,
+  onOver?: (event: DragEvent<HTMLDivElement>) => void
+): DropTarget {
+  const planner = use(PlannerContext)
+  const [over, setOver] = useState(false)
+  const active = !!planner?.dragging
+  useEffect(() => {
+    if (!active) setOver(false)
+  }, [active])
+  return {
+    over: active && over,
+    props: {
+      onDragOver: (event) => {
+        if (!planner?.dragging) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'move'
+        setOver(true)
+        onOver?.(event)
+      },
+      onDragLeave: (event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(false)
+      },
+      onDrop: (event) => {
+        if (!planner?.dragging) return
+        event.preventDefault()
+        setOver(false)
+        onDrop(event)
+      }
+    }
+  }
+}
+
+interface DragSource {
+  draggable?: boolean
+  title?: string
+  onDragStart?: (event: DragEvent<HTMLElement>) => void
+  onDragEnd?: () => void
+}
+
+/** The props that make a task draggable, when it can be moved. */
+function useDragSource(task: BriefingTask): DragSource {
+  const planner = use(PlannerContext)
+  if (!planner || !canMove(task)) return {}
+  return {
+    draggable: true,
+    title: `${task.title} · ${planner.dragHint}`,
+    onDragStart: (event) => {
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', task.title)
+      planner.startDrag(task)
+    },
+    onDragEnd: () => planner.endDrag()
+  }
+}
+
+/** The local moment a time of a day stands for (ms). */
+function momentOf(day: string, time: string): number {
+  const date = new Date(dayStart(day) ?? 0)
+  const [hours, minutes] = time.split(':').map(Number)
+  date.setHours(hours, minutes, 0, 0)
+  return date.getTime()
+}
+
 /** How a day is read out: its date and how much it holds. */
 function dayLabel(day: string, agenda: DayAgenda): string {
   const count = [
@@ -108,9 +235,14 @@ function Band({ event, calendars }: { event: BriefingEvent; calendars: Calendars
 }
 
 function TaskLine({ task, overdue }: { task: BriefingTask; overdue: boolean }): JSX.Element {
+  const drag = useDragSource(task)
+  const classes = ['cal-item', 'is-task']
+  if (overdue) classes.push('is-overdue')
+  if (drag.draggable) classes.push('is-movable')
   return (
-    <span className={overdue ? 'cal-item is-task is-overdue' : 'cal-item is-task'} title={task.title}>
+    <span className={classes.join(' ')} title={task.title} {...drag}>
       <span className="cal-ring" />
+      {task.time && task.due && <span className="cal-item-time">{shortClock(momentOf(task.due, task.time))}</span>}
       <span className="cal-item-title">{task.title}</span>
     </span>
   )
@@ -142,13 +274,23 @@ function DayCell({
   const room = total > DAY_LINES ? DAY_LINES - 1 : total
   const events = agenda.events.slice(0, room)
   const tasks = agenda.tasks.slice(0, room - events.length)
+  const planner = use(PlannerContext)
+  // Dropped on another day of the month, a task keeps its time.
+  const target = useDropTarget(() => planner?.drop(day, undefined))
   const classes = ['cal-day']
   if (outside) classes.push('is-outside')
   if (day === today) classes.push('is-today')
   if (selected) classes.push('is-selected')
+  if (target.over) classes.push('is-drop')
+
+  const onClick = (event: MouseEvent<HTMLDivElement>): void => {
+    onPick(day)
+    // An empty day is a place to put a task.
+    if (total === 0) planner?.add(day, null, { x: event.clientX, y: event.clientY })
+  }
 
   return (
-    <div className={classes.join(' ')} onClick={() => onPick(day)}>
+    <div className={classes.join(' ')} onClick={onClick} {...target.props}>
       {/* The day's one control: the lines below it are a preview, read out as a count. */}
       <button
         type="button"
@@ -203,16 +345,22 @@ function WeekDayHead({
   const from = dayStart(day) ?? 0
   const to = nextDayStart(from)
   const bands = agenda.events.filter((event) => fillsDay(event, from, to))
-  const total = bands.length + agenda.tasks.length
+  // Tasks due at an hour are in the hours below.
+  const untimed = agenda.tasks.filter((task) => !task.time)
+  const total = bands.length + untimed.length
   const room = total > DAY_LINES ? DAY_LINES - 1 : total
   const events = bands.slice(0, room)
-  const tasks = agenda.tasks.slice(0, room - events.length)
+  const tasks = untimed.slice(0, room - events.length)
+  const planner = use(PlannerContext)
+  // Dropped at the top of a day, a task is due that day, at no hour.
+  const target = useDropTarget(() => planner?.drop(day, null))
   const classes = ['cal-week-head']
   if (day === today) classes.push('is-today')
   if (selected) classes.push('is-selected')
+  if (target.over) classes.push('is-drop')
 
   return (
-    <div className={classes.join(' ')} onClick={() => onPick(day)}>
+    <div className={classes.join(' ')} onClick={() => onPick(day)} {...target.props}>
       <span className="cal-week-name">
         <span className="cal-week-weekday" aria-hidden="true">
           {weekday}
@@ -259,15 +407,56 @@ function WeekDayHours({
 }): JSX.Element {
   const from = dayStart(day) ?? 0
   const to = nextDayStart(from)
-  const timed = useMemo(() => dayTimeline(agenda.events, from, to), [agenda.events, from, to])
+  // Events and the tasks due at an hour share the lanes: a task is half an hour long, as drawn.
+  const timed = useMemo(() => {
+    const items: Slot[] = agenda.events.map((event) => ({ event, start: event.start, end: event.end, allDay: event.allDay }))
+    for (const task of agenda.tasks) {
+      if (!task.time) continue
+      const start = momentOf(day, task.time)
+      items.push({ task, start, end: start + 30 * 60_000, allDay: false })
+    }
+    return dayTimeline(items, from, to)
+  }, [agenda.events, agenda.tasks, day, from, to])
   const clock = new Date(now)
+  const planner = use(PlannerContext)
+  const [guide, setGuide] = useState<string | null>(null)
+  const timeAt = (event: { clientY: number; currentTarget: HTMLElement }, step = 15): string => {
+    const box = event.currentTarget.getBoundingClientRect()
+    return slotTime(event.clientY - box.top, box.height, step)
+  }
+  const target = useDropTarget(
+    (event) => planner?.drop(day, timeAt(event)),
+    (event) => setGuide(timeAt(event))
+  )
   const classes = ['cal-week-col']
   if (day === today) classes.push('is-today')
   if (selected) classes.push('is-selected')
 
+  const onClick = (event: MouseEvent<HTMLDivElement>): void => {
+    onPick(day)
+    // An empty hour is a place to put a task, on the half hour clicked.
+    if (event.target === event.currentTarget) planner?.add(day, timeAt(event, 30), { x: event.clientX, y: event.clientY })
+  }
+
   return (
-    <div className={classes.join(' ')} onClick={() => onPick(day)}>
-      {timed.map(({ event, start, end, lane, lanes }) => {
+    <div className={classes.join(' ')} onClick={onClick} {...target.props}>
+      {target.over && guide && (
+        <span
+          className="cal-drop-guide"
+          style={{ top: `${((Number(guide.slice(0, 2)) * 60 + Number(guide.slice(3))) / DAY_MINUTES) * 100}%` }}
+        >
+          <span className="cal-drop-time">{shortClock(momentOf(day, guide))}</span>
+        </span>
+      )}
+      {timed.map(({ event: item, start, end, lane, lanes }) => {
+        const place = {
+          top: `${(start / DAY_MINUTES) * 100}%`,
+          height: `${((end - start) / DAY_MINUTES) * 100}%`,
+          left: `${(lane / lanes) * 100}%`,
+          width: `${100 / lanes}%`
+        }
+        if (item.task) return <TaskBlock key={`task:${item.task.id}`} task={item.task} day={day} today={today} place={place} />
+        const event = item.event
         const title = event.title || 'Untitled'
         const color = calendars.get(event.calendarId)?.color ?? 'gray'
         const block = ['cal-block']
@@ -280,10 +469,7 @@ function WeekDayHours({
             title={`${title}, ${eventTime(event, from, to)}`}
             style={
               {
-                top: `${(start / DAY_MINUTES) * 100}%`,
-                height: `${((end - start) / DAY_MINUTES) * 100}%`,
-                left: `${(lane / lanes) * 100}%`,
-                width: `${100 / lanes}%`,
+                ...place,
                 '--block': `var(--c-${color})`,
                 '--block-bg': `var(--c-${color}-bg)`
               } as CSSProperties
@@ -296,6 +482,75 @@ function WeekDayHours({
       })}
       {day === today && (
         <span className="cal-now" style={{ top: `${((clock.getHours() * 60 + clock.getMinutes()) / DAY_MINUTES) * 100}%` }} />
+      )}
+    </div>
+  )
+}
+
+/** What the hours of a day hold: an event, or a task due at an hour. */
+type Slot = { start: number; end: number; allDay: boolean } & (
+  | { event: BriefingEvent; task?: undefined }
+  | { task: BriefingTask; event?: undefined }
+)
+
+/** A task due at an hour, in the week: half an hour tall, with its ring. */
+function TaskBlock({ task, day, today, place }: { task: BriefingTask; day: string; today: string; place: CSSProperties }): JSX.Element {
+  const drag = useDragSource(task)
+  const classes = ['cal-block', 'is-task', 'is-short']
+  if (day < today) classes.push('is-overdue')
+  if (drag.draggable) classes.push('is-movable')
+  return (
+    <span className={classes.join(' ')} title={task.title} style={place} {...drag}>
+      <span className="cal-ring" />
+      <span className="cal-block-title">{task.title}</span>
+      {task.time && <span className="cal-block-time">{shortClock(momentOf(day, task.time))}</span>}
+    </span>
+  )
+}
+
+/** The quick add of the calendar: a task due on the day (and at the hour) clicked. */
+function CalendarQuickAdd({
+  day,
+  time,
+  today,
+  title,
+  placeholder,
+  onClose
+}: {
+  day: string
+  time: string | null
+  today: string
+  title: string
+  placeholder: string
+  onClose: () => void
+}): JSX.Element {
+  const resolved = useResolvedDatabase(TASKS_DATABASE_ID, false)
+  const { schema } = useMemo(() => L.normalizeResolved(resolved), [resolved])
+  const defaults = useMemo(() => ({ [TASK_PROPS.due]: { start: time ? `${day}T${time}` : day } }), [day, time])
+  const box = useRef<HTMLDivElement>(null)
+  const ready = resolved?.status === 'ok'
+  // The popover is shown once it has been placed: the input can take the focus right after.
+  useEffect(() => {
+    if (!ready) return
+    const timer = setTimeout(() => box.current?.querySelector('input')?.focus(), 30)
+    return () => clearTimeout(timer)
+  }, [ready])
+  return (
+    <div className="cal-quickadd" ref={box}>
+      <p className="cal-quickadd-title">{title}</p>
+      {ready ? (
+        <QuickAdd
+          list={{ kind: 'inbox' }}
+          today={today}
+          projects={L.optionsOf(L.propOf(schema, TASK_PROPS.project))}
+          labels={L.optionsOf(L.propOf(schema, TASK_PROPS.labels))}
+          defaults={defaults}
+          placeholder={placeholder}
+          onAdded={onClose}
+          onCancel={onClose}
+        />
+      ) : (
+        <p className="today-quiet">…</p>
       )}
     </div>
   )
@@ -481,16 +736,106 @@ export function CalendarScreen(): JSX.Element {
   const read = useCallback((force: boolean) => window.api.briefing.agenda(from, to, force), [from, to])
   const { data, failed, refreshing, refresh } = useLive(read, 'the calendar')
   const { done, complete } = useCompleteTask()
+  const copy = CAL_COPY[useHome((state) => state.locale)]
   // While other days are on their way, what is held belongs to the ones before: these stay empty.
   const agenda = data && data.from === from && data.to === to ? data : null
+  // Tasks just moved, where they went, until the agenda read again says so itself.
+  const [moved, setMoved] = useState<ReadonlyMap<string, { due: string; time?: string }>>(() => new Map())
+  useEffect(() => {
+    if (data) setMoved(new Map())
+  }, [data])
   const byDay = useMemo(
     () =>
       agendaByDay(
         days.map((day) => day.date),
         agenda?.events ?? [],
-        (agenda?.tasks ?? []).filter((task) => !done.has(tickedKey(task)))
+        (agenda?.tasks ?? [])
+          .filter((task) => !done.has(tickedKey(task)))
+          .map((task) => {
+            const place = moved.get(task.id)
+            if (!place) return task
+            const shifted: BriefingTask = { ...task, due: place.due }
+            if (place.time) shifted.time = place.time
+            else delete shifted.time
+            return shifted
+          })
       ),
-    [days, agenda, done]
+    [days, agenda, done, moved]
+  )
+
+  // ---- moving tasks, and putting them back ----
+  const [dragging, setDragging] = useState<BriefingTask | null>(null)
+  const undo = useRef<Move[]>([])
+  const article = useRef<HTMLElement>(null)
+
+  const putBack = useCallback(
+    (move: Move): void => {
+      undo.current = undo.current.filter((entry) => entry !== move)
+      undoMove(move).then(
+        () => toast(copy.undone),
+        (error: unknown) => notifyError(copy.undoFailed, error)
+      )
+    },
+    [copy]
+  )
+
+  const drop = useCallback<Drop>(
+    (day, time) => {
+      const task = dragging
+      setDragging(null)
+      if (!task) return
+      const at = time === undefined ? task.time : (time ?? undefined)
+      setMoved((current) => new Map(current).set(task.id, at ? { due: day, time: at } : { due: day }))
+      moveTask(task, day, time).then(
+        (move) => {
+          if (!move) return
+          undo.current = [...undo.current.slice(-19), move]
+          const when = at ? `${longDate(day)}, ${shortClock(momentOf(day, at))}` : longDate(day)
+          toast(copy.moved(when), { action: { label: copy.undo, run: () => putBack(move) } })
+        },
+        (error: unknown) => {
+          setMoved((current) => {
+            const next = new Map(current)
+            next.delete(task.id)
+            return next
+          })
+          notifyError(copy.moveFailed, error)
+        }
+      )
+    },
+    [dragging, copy, putBack]
+  )
+
+  // Ctrl+Z (outside a text field) puts the last task moved back.
+  useEffect(() => {
+    const onUndoKey = (event: globalThis.KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey || event.key.toLowerCase() !== 'z') return
+      const target = event.target
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [contenteditable]')))
+        return
+      // Only while this calendar is the one on screen.
+      if (!article.current?.isConnected || article.current.offsetParent === null) return
+      const last = undo.current[undo.current.length - 1]
+      if (!last) return
+      event.preventDefault()
+      putBack(last)
+    }
+    window.addEventListener('keydown', onUndoKey)
+    return () => window.removeEventListener('keydown', onUndoKey)
+  }, [putBack])
+
+  const [adding, setAdding] = useState<{ day: string; time: string | null; point: { x: number; y: number } } | null>(null)
+  const planner = useMemo<Planner>(
+    () => ({
+      dragging,
+      dragHint: copy.dragHint,
+      // Changing the page while a drag starts can end it at once: right after is soon enough.
+      startDrag: (task) => setTimeout(() => setDragging(task), 0),
+      endDrag: () => setDragging(null),
+      drop,
+      add: (day, time, point) => setAdding({ day, time, point })
+    }),
+    [dragging, copy, drop]
   )
   const calendars = useMemo(() => new Map((data?.calendars ?? []).map((calendar) => [calendar.id, calendar])), [data])
   const enabled = [...calendars.values()].filter((calendar) => calendar.enabled)
@@ -537,124 +882,141 @@ export function CalendarScreen(): JSX.Element {
   const busy = !agenda && !failed
 
   return (
-    <article className="cal" aria-label="Calendar">
-      <header className="cal-head">
-        <h1 className="cal-title">{title}</h1>
-        <div className="cal-nav">
-          <div className="cal-views" role="group" aria-label="View">
-            {VIEWS.map((item) => (
-              <button key={item.id} type="button" className="cal-view" aria-pressed={view === item.id} onClick={() => show(item.id)}>
-                {item.label}
-              </button>
+    <PlannerContext value={planner}>
+      <article className="cal" aria-label="Calendar" ref={article}>
+        <header className="cal-head">
+          <h1 className="cal-title">{title}</h1>
+          <div className="cal-nav">
+            <div className="cal-views" role="group" aria-label="View">
+              {VIEWS.map((item) => (
+                <button key={item.id} type="button" className="cal-view" aria-pressed={view === item.id} onClick={() => show(item.id)}>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="cal-nav-button" aria-label={`Previous ${view}`} onClick={() => turn(-1)}>
+              <ChevronLeft size={14} />
+            </button>
+            <button type="button" className="cal-nav-button is-text" onClick={() => pick(today)}>
+              Today
+            </button>
+            <button type="button" className="cal-nav-button" aria-label={`Next ${view}`} onClick={() => turn(1)}>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </header>
+
+        <ul className="cal-legend" aria-label="What is shown">
+          {enabled.map((calendar) => (
+            <li key={calendar.id}>
+              <span className="cal-dot" style={{ background: `var(--c-${calendar.color})` }} />
+              {calendar.label}
+            </li>
+          ))}
+          <li>
+            <span className="cal-ring" />
+            Tasks with a due date
+          </li>
+        </ul>
+
+        <div className="cal-body">
+          <div className="cal-month">
+            {view === 'week' ? (
+              <WeekGrid
+                ref={grid}
+                title={title}
+                busy={busy}
+                days={days}
+                weekdays={weekdays}
+                today={today}
+                now={now}
+                selected={selected}
+                byDay={byDay}
+                calendars={calendars}
+                onPick={pick}
+                onKeyDown={onKeyDown}
+              />
+            ) : (
+              <>
+                <div className="cal-grid is-weekdays" aria-hidden="true">
+                  {weekdays.map((label, index) => (
+                    <div key={index} className="cal-weekday">
+                      {label}
+                    </div>
+                  ))}
+                </div>
+                <div className="cal-grid" ref={grid} role="group" aria-label={title} aria-busy={busy} onKeyDown={onKeyDown}>
+                  {days.map((day) => (
+                    <DayCell
+                      key={day.date}
+                      day={day.date}
+                      number={day.day}
+                      outside={!day.inMonth}
+                      today={today}
+                      selected={day.date === selected}
+                      agenda={byDay.get(day.date) ?? NOTHING}
+                      calendars={calendars}
+                      onPick={pick}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+            {failed && !agenda && (
+              <p className="today-note" role="alert">
+                The calendar could not be loaded.{' '}
+                <button type="button" className="today-link is-inline" onClick={refresh}>
+                  Try again
+                </button>
+              </p>
+            )}
+            {agenda && !agenda.complete && failing.length === 0 && (
+              <p className="today-note" role="status">
+                Reading your calendars for these days…
+              </p>
+            )}
+            {calendarNotes(failing, now).map((note) => (
+              <p key={note} className="today-note" role="status">
+                {note}
+              </p>
             ))}
           </div>
-          <button type="button" className="cal-nav-button" aria-label={`Previous ${view}`} onClick={() => turn(-1)}>
-            <ChevronLeft size={14} />
-          </button>
-          <button type="button" className="cal-nav-button is-text" onClick={() => pick(today)}>
-            Today
-          </button>
-          <button type="button" className="cal-nav-button" aria-label={`Next ${view}`} onClick={() => turn(1)}>
-            <ChevronRight size={14} />
-          </button>
+          <DayDetail
+            day={selected}
+            today={today}
+            now={now}
+            agenda={byDay.get(selected) ?? NOTHING}
+            calendars={calendars}
+            loading={busy}
+            onComplete={complete}
+          />
         </div>
-      </header>
 
-      <ul className="cal-legend" aria-label="What is shown">
-        {enabled.map((calendar) => (
-          <li key={calendar.id}>
-            <span className="cal-dot" style={{ background: `var(--c-${calendar.color})` }} />
-            {calendar.label}
-          </li>
-        ))}
-        <li>
-          <span className="cal-ring" />
-          Tasks with a due date
-        </li>
-      </ul>
-
-      <div className="cal-body">
-        <div className="cal-month">
-          {view === 'week' ? (
-            <WeekGrid
-              ref={grid}
-              title={title}
-              busy={busy}
-              days={days}
-              weekdays={weekdays}
+        <footer className="today-foot">
+          <span>{data ? updatedLabel(data.updatedAt, now) : ''}</span>
+          <button type="button" className="today-link" disabled={refreshing} onClick={refresh}>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <button type="button" className="today-link" onClick={openSettings}>
+            Settings
+          </button>
+        </footer>
+        <Popover open={!!adding} anchor={adding?.point ?? null} onClose={() => setAdding(null)}>
+          {adding && (
+            <CalendarQuickAdd
+              key={`${adding.day}T${adding.time ?? ''}`}
+              day={adding.day}
+              time={adding.time}
               today={today}
-              now={now}
-              selected={selected}
-              byDay={byDay}
-              calendars={calendars}
-              onPick={pick}
-              onKeyDown={onKeyDown}
+              title={copy.newTask(
+                adding.time ? `${longDate(adding.day)}, ${shortClock(momentOf(adding.day, adding.time))}` : longDate(adding.day)
+              )}
+              placeholder={copy.placeholder}
+              onClose={() => setAdding(null)}
             />
-          ) : (
-            <>
-              <div className="cal-grid is-weekdays" aria-hidden="true">
-                {weekdays.map((label, index) => (
-                  <div key={index} className="cal-weekday">
-                    {label}
-                  </div>
-                ))}
-              </div>
-              <div className="cal-grid" ref={grid} role="group" aria-label={title} aria-busy={busy} onKeyDown={onKeyDown}>
-                {days.map((day) => (
-                  <DayCell
-                    key={day.date}
-                    day={day.date}
-                    number={day.day}
-                    outside={!day.inMonth}
-                    today={today}
-                    selected={day.date === selected}
-                    agenda={byDay.get(day.date) ?? NOTHING}
-                    calendars={calendars}
-                    onPick={pick}
-                  />
-                ))}
-              </div>
-            </>
           )}
-          {failed && !agenda && (
-            <p className="today-note" role="alert">
-              The calendar could not be loaded.{' '}
-              <button type="button" className="today-link is-inline" onClick={refresh}>
-                Try again
-              </button>
-            </p>
-          )}
-          {agenda && !agenda.complete && failing.length === 0 && (
-            <p className="today-note" role="status">
-              Reading your calendars for these days…
-            </p>
-          )}
-          {calendarNotes(failing, now).map((note) => (
-            <p key={note} className="today-note" role="status">
-              {note}
-            </p>
-          ))}
-        </div>
-        <DayDetail
-          day={selected}
-          today={today}
-          now={now}
-          agenda={byDay.get(selected) ?? NOTHING}
-          calendars={calendars}
-          loading={busy}
-          onComplete={complete}
-        />
-      </div>
-
-      <footer className="today-foot">
-        <span>{data ? updatedLabel(data.updatedAt, now) : ''}</span>
-        <button type="button" className="today-link" disabled={refreshing} onClick={refresh}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-        <button type="button" className="today-link" onClick={openSettings}>
-          Settings
-        </button>
-      </footer>
-    </article>
+        </Popover>
+      </article>
+    </PlannerContext>
   )
 }
