@@ -2,7 +2,7 @@
 // week's hours stands for, and the write itself (with what undoes it). The first two are pure.
 import type { BriefingTask } from '@shared/briefing'
 import type { Op, PropertyValue } from '@shared/types'
-import { addDays, dayKey, diffDays, normalizeDay, timeOf } from '@/database/logic/dates'
+import { addDays, dayKey, diffDays, normalizeDay, timeOf } from '@shared/database/dates'
 import { applyOps, fetchBlocks, getBlock } from '@/store/blocks'
 
 /** The start of a stored date value: `{ start, end? }` or a bare string. */
