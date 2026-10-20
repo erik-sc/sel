@@ -8,6 +8,7 @@ import type { Handlers } from '../invoke'
 import { isAppUrl, isTrustedSender } from '../security'
 import { recordingGrants } from './grant'
 import type { MeetingsBridge } from './index'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `meetings:*` channels and the two places where the app's lifecycle meets a recording
@@ -218,3 +219,14 @@ export function handleDisplayMedia(ses: Session): void {
     }
   })
 }
+
+/** Meetings: recording, local transcription. What a transcription writes reaches the windows from the origin `meetings`. */
+export const meetingsFeature = defineFeature({
+  namespace: 'meetings',
+  register: (ctx): MeetingsHooks & Registered<'meetings'> =>
+    registerMeetingsIpc({
+      repo: ctx.repo,
+      eventPeople: async (uid, start) => (await ctx.feature('briefing').occurrence(uid, start))?.people ?? [],
+      flushChanges: () => ctx.changes('meetings')
+    })
+})

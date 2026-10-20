@@ -1,25 +1,14 @@
-import { app, BrowserWindow, ipcMain, nativeTheme, shell, type IpcMainEvent } from 'electron'
+import { BrowserWindow, ipcMain, nativeTheme, shell, type IpcMainEvent } from 'electron'
 import { INVOKE, IPC, type InvokeChannel } from '../shared/api'
 import { syncedAtOf } from '../shared/settings'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
-import type { AiBridge } from './ai'
-import { registerBriefingIpc } from './briefing/register'
-import { registerDataIpc } from './data/register'
-import { registerExternalIpc, type ExternalHooks } from './external/register'
-import { registerFeedbackIpc } from './feedback/register'
-import { registerTasksIpc } from './tasks/register'
-import { completionChanges, completionsBefore } from './tasks/completions'
-import { registerHermanIpc, type HermanHooks } from './herman/register'
-import { registerAlarmsIpc, type AlarmsHooks } from './alarms/register'
-import { registerMeetingsIpc, type MeetingsHooks } from './meetings/register'
-import { registerNotebookIpc } from './notebook/register'
-import { registerPomodoroIpc, type PomodoroHooks } from './pomodoro/register'
-import { registerSkyIpc } from './sky/register'
-import { registerTemplatesIpc } from './templates/register'
-import { registerUpdatesIpc, type UpdatesHooks } from './updates/register'
+import type { AlarmsHooks } from './alarms/register'
 import type { Repository } from './db/repository'
-import type { SyncBridge } from './sync'
+import type { MeetingsHooks } from './meetings/register'
+import { completionChanges, completionsBefore } from './tasks/completions'
 import { ChangeFeed } from './changes'
+import type { FeatureContext, Registered } from './feature'
+import { FEATURES, type FeatureName, type RegisteredOf } from './features'
 import { pickImage, saveGeneratedImage, saveImage } from './files'
 import type { Handler, Handlers } from './invoke'
 import { isTrustedSender, toExternalUrl } from './security'
@@ -54,7 +43,7 @@ function applyTheme(repo: Repository, theme: unknown): void {
 
 /** What the app's lifecycle needs from sync (see ./sync), without loading it. */
 export interface SyncHooks {
-  /** Loads sync and starts its timers when this device is connected to a repository. */
+  /** Starts what waits for the first window: the daily backup, and sync's timers when this device is connected to a repository. */
   start(): void
   /** A last upload on the way out, bounded to a few seconds; null when there is nothing to wait for. */
   beforeQuit(): Promise<void> | null
@@ -64,7 +53,13 @@ export interface SyncHooks {
   alarms: Pick<AlarmsHooks, 'keepRunning' | 'startHidden'>
 }
 
-const SYNC_URL_KEY = 'sync.remoteUrl'
+/** The shell's own namespaces, answered here; every other one belongs to a feature in ./features.ts. */
+type CoreNamespace = 'blocks' | 'pages' | 'databases' | 'search' | 'versions' | 'files' | 'app'
+type InvokeNamespace = InvokeChannel extends `${infer N}:${string}` ? N : never
+/** Typecheck fails here when a namespace of INVOKE is answered neither here nor by a feature. */
+const EVERY_NAMESPACE_ANSWERED: [Exclude<InvokeNamespace, CoreNamespace | FeatureName>] extends [never]
+  ? true
+  : { unanswered: Exclude<InvokeNamespace, CoreNamespace | FeatureName> } = true
 
 export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHooks {
   const changes = new ChangeFeed((change: ChangeEvent) => {
@@ -72,6 +67,27 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send(IPC.change, change)
     }
   })
+
+  // ---- the features (./features.ts), each registered with the same context, in the order listed
+  const registered = new Map<string, Omit<Registered<string>, 'handlers'> & { handlers: Partial<Handlers> }>()
+  const ctx: FeatureContext = {
+    repo,
+    ready,
+    createWindow,
+    changes(origin, options) {
+      const ids = repo.drainChanges()
+      changes.add(origin, ids, repo.drainResets())
+      if (ids.length && options?.local !== false) ctx.noteLocalChange()
+    },
+    noteLocalChange: () => ctx.feature('sync').noteLocalChange(),
+    recording: () => ctx.feature('meetings').recordingWindow() !== null,
+    feature<N extends FeatureName>(namespace: N): RegisteredOf<N> {
+      const found = registered.get(namespace)
+      if (!found) throw new Error(`The feature ${namespace} is not registered yet`)
+      return found as unknown as RegisteredOf<N>
+    }
+  }
+  for (const feature of FEATURES) registered.set(feature.namespace, feature.register(ctx))
 
   /**
    * Registers an invoke channel. Every call is checked for its sender and its
@@ -96,7 +112,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
           const ids = repo.drainChanges()
           changes.add(origin, ids, repo.drainResets())
           // Something changed on this device: sync uploads it once things have been quiet for a moment.
-          if (ids.length) syncBridge?.noteLocalChange()
+          if (ids.length) ctx.noteLocalChange()
         }
       }
     })
@@ -130,8 +146,9 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       const blocks = repo.apply(ops)
       if (before.size) {
         const { completed, uncompleted } = completionChanges(before, (id) => repo.get(id))
-        for (let i = 0; i < completed; i++) herman?.taskCompleted(event.sender)
-        for (let i = 0; i < uncompleted; i++) herman?.taskUncompleted()
+        const herman = ctx.feature('herman')
+        for (let i = 0; i < completed; i++) herman.taskCompleted(event.sender)
+        for (let i = 0; i < uncompleted; i++) herman.taskUncompleted()
       }
       return blocks
     }
@@ -207,10 +224,6 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   }
 
   // ---- app
-  let updates: UpdatesHooks | null = null
-  let external: ExternalHooks | null = null
-  let alarms: AlarmsHooks | null = null
-  let pomodoro: PomodoroHooks | null = null
   const appHandlers: Handlers<'app'> = {
     'app:getTheme': () => readTheme(repo),
     'app:setTheme': ([a]) => applyTheme(repo, a),
@@ -224,18 +237,10 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       const syncedAt = syncedAtOf(key)
       if (syncedAt) {
         repo.setSetting(syncedAt, Date.now())
-        syncBridge?.noteLocalChange()
+        ctx.noteLocalChange()
       }
-      // Which program runs, and whether any does, is decided by these: the cached answer is stale.
-      if (key.startsWith('ai.')) aiBridge?.service.invalidate()
-      // The update check was turned on or off: its timer follows.
-      if (key.startsWith('updates.')) updates?.settingChanged()
-      // Other apps were let in or shut out: the endpoint for them opens or closes.
-      if (key.startsWith('mcp.')) external?.settingChanged()
-      // A briefing time, a reminder switch or the notification-area icon: the alarms' clock follows.
-      alarms?.settingChanged(key)
-      // The pomodoro's lengths: the windows show them (a running phase keeps its own).
-      pomodoro?.settingChanged(key)
+      // A cached answer goes stale, a timer or an endpoint follows: each feature looks at the key.
+      for (const feature of registered.values()) feature.onSettingChanged?.(key)
     },
     'app:openExternal': async ([a]) => {
       const url = toExternalUrl(a)
@@ -250,175 +255,24 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     'app:window.isMaximized': (_args, event) => windowOf(event)?.isMaximized() ?? false
   }
 
-  // ---- ai (drives the Claude Code program installed on this computer; see ./ai)
-  // Nothing of it is loaded until a window asks. A request is validated, and its prompt built,
-  // in this process; its events go back to the window that made it and to no other.
-  let aiBridge: AiBridge | null = null
-  const ai = async (): Promise<AiBridge> => (aiBridge ??= new (await import('./ai')).AiBridge(repo, () => briefing.promptData()))
-  app.on('will-quit', () => aiBridge?.dispose())
-  const aiHandlers: Handlers<'ai'> = {
-    'ai:status': async ([a]) => (await ai()).status(a),
-    'ai:run': async ([a], event) => (await ai()).run(a, event.sender),
-    'ai:cancel': async ([a], event) => (await ai()).cancel(a, event.sender),
-    // Goes through a native dialog: the renderer never names a path to run.
-    'ai:pickCli': async (_args, event) => (await ai()).pickCli(windowOf(event)),
-    'ai:agents.list': async () => (await ai()).agents(),
-    'ai:agents.connect': async ([a, b], event) => (await ai()).connectAgent(a, b, windowOf(event)),
-    'ai:agents.remove': async ([a]) => (await ai()).removeAgent(a)
-  }
-
-  // ---- sync (drives the git installed on this computer; see ./sync)
-  // Loaded when this device is connected to a repository, or when a window first asks. What a
-  // sync changes in the database reaches the windows like any other change, from the origin
-  // `sync` that no window has.
-  let syncBridge: SyncBridge | null = null
-  const sync = async (): Promise<SyncBridge> =>
-    (syncBridge ??= new (await import('./sync')).SyncBridge(
-      repo,
-      () => changes.add('sync', repo.drainChanges(), repo.drainResets()),
-      () => briefing.calendarSync()
-    ))
-  app.on('will-quit', () => syncBridge?.dispose())
-  const syncHandlers: Handlers<'sync'> = {
-    'sync:status': async () => (await sync()).status(),
-    'sync:setup': async ([a]) => (await sync()).setup(a),
-    'sync:now': async () => (await sync()).now(),
-    'sync:pause': async ([a]) => (await sync()).pause(a),
-    'sync:disconnect': async ([a]) => (await sync()).disconnect(a),
-    'sync:unlock': async ([a]) => (await sync()).unlock(a),
-    'sync:setEncryption': async ([a]) => (await sync()).setEncryption(a),
-    // Goes through a native dialog: the renderer never names a path to run.
-    'sync:pickGit': async (_args, event) => (await sync()).pickGit(windowOf(event))
-  }
-
-  // ---- briefing (the Today screen: calendars, open tasks, the day's phrase; see ./briefing)
-  let herman: HermanHooks | null = null
-  const briefing = registerBriefingIpc({
-    repo,
-    ai,
-    onTaskCompleted: (sender) => herman?.taskCompleted(sender),
-    onTaskUncompleted: () => herman?.taskUncompleted(),
-    // Calendars are synced (into an encrypted repository only): a change here is one to upload.
-    onCalendarsChanged: () => syncBridge?.noteLocalChange()
-  })
-
-  // ---- meetings (recording, local transcription; see ./meetings). What a transcription writes
-  // reaches the windows like any other change, from the origin `meetings` that no window has.
-  const meetings = registerMeetingsIpc({
-    repo,
-    eventPeople: async (uid, start) => (await briefing.occurrence(uid, start))?.people ?? [],
-    flushChanges: () => {
-      const ids = repo.drainChanges()
-      changes.add('meetings', ids, repo.drainResets())
-      if (ids.length) syncBridge?.noteLocalChange()
-    }
-  })
-
-  // ---- herman (the assistant's face: his settings, and what he says unasked; see ./herman).
-  // What he says unasked is composed in this process from the day's tasks and agenda as stored:
-  // no model is called for it, and nothing is fetched.
-  const hermanIpc = registerHermanIpc({
-    repo,
-    day: async () => {
-      const { tasks, events } = await briefing.stored()
-      return { tasks: { overdue: tasks.overdue, today: tasks.today }, events: events.today }
-    },
-    recording: () => meetings.recordingWindow() !== null
-  })
-  herman = hermanIpc
-
-  // ---- notebook (the ink notebook and the closing of the day; see ./notebook). Its days are
-  // blocks: the repository keeps the rule that a day that has ended stays as it is.
-  const notebookHandlers = registerNotebookIpc({ repo })
-
-  // ---- alarms (the briefing at the times the user chose, and the reminders of tasks; see ./alarms).
-  // The one clock in sel that runs at times the user set: it starts with the app, a few seconds in.
-  const alarmsIpc = registerAlarmsIpc({
-    repo,
-    briefing: () => briefing.stored(),
-    promptData: () => briefing.promptData(),
-    calendar: (from, to) => briefing.upcoming(from, to),
-    ai,
-    recording: () => meetings.recordingWindow() !== null,
-    createWindow: () => createWindow()
-  })
-  alarms = alarmsIpc
-
-  // ---- pomodoro (the one focus timer, kept here so every window shows the same; see ./pomodoro).
-  // Silent while a meeting is recorded, like the alarms.
-  const pomodoroIpc = registerPomodoroIpc({ repo, recording: () => meetings.recordingWindow() !== null })
-  pomodoro = pomodoroIpc
-
-  // ---- sky (stars from Meditations, dust from tasks, halos from pomodoros; see ./sky). It writes a
-  // checked to-do and a finished pomodoro as they happen, so the sky is right whenever it is opened.
-  const skyIpc = registerSkyIpc({
-    repo,
-    onPomodoroCompleted: (listener) => pomodoroIpc.onCompleted(listener),
-    flushChanges: () => {
-      const ids = repo.drainChanges()
-      changes.add('sky', ids, repo.drainResets())
-      if (ids.length) syncBridge?.noteLocalChange()
-    },
-    herman: (sender, line) => hermanIpc.sky(sender, line)
-  })
-  // ---- templates (pages and databases made from a template in one transaction; see ./templates)
-  const templatesHandlers = registerTemplatesIpc({ repo })
-
-  // ---- data (backups of the database, restoring one, the workspace as Markdown; see ./data)
-  const dataIpc = registerDataIpc({ repo, busy: () => meetings.recordingWindow() !== null })
-
-  // ---- feedback (bug reports and suggestions kept as files for the nightly agent; see ./feedback)
-  const feedbackHandlers = registerFeedbackIpc()
-
-  // ---- tasks (Todoist import, the system-wide quick-add shortcut; see ./tasks)
-  const tasksIpc = registerTasksIpc({ repo })
-
-  // ---- updates (opt-in, from GitHub Releases; see ./updates). Off by default: until the user
-  // turns the check on or presses Check now, nothing of it goes on the network.
-  const updatesIpc = registerUpdatesIpc({ repo, recording: () => meetings.recordingWindow() !== null })
-  updates = updatesIpc
-
-  // ---- mcp (other apps connected to the notes over MCP, when the user turned that on; see
-  // ./external). Off by default: until then no pipe is opened. What a connected app writes
-  // reaches the windows like any other change, from the origin `mcp` that no window has.
-  const externalIpc = registerExternalIpc({
-    repo,
-    ready,
-    changed: () => {
-      const ids = repo.drainChanges()
-      changes.add('mcp', ids, repo.drainResets())
-      if (ids.length) syncBridge?.noteLocalChange()
-    }
-  })
-  external = externalIpc
-
   // Every channel declared in INVOKE (src/shared/api.ts) gets its handler here, and nothing else
-  // is registered: a channel without a handler, or a handler without a channel, fails typecheck.
-  const handlers: Handlers = {
+  // is registered: each feature answers every channel of its namespace (`Handlers<N>`), and
+  // EVERY_NAMESPACE_ANSWERED fails typecheck for a namespace nobody answers.
+  const handlers: Partial<Handlers> = {
     ...blockHandlers,
     ...pageHandlers,
     ...databaseHandlers,
     ...searchHandlers,
     ...versionHandlers,
     ...fileHandlers,
-    ...appHandlers,
-    ...aiHandlers,
-    ...syncHandlers,
-    ...briefing.handlers,
-    ...meetings.handlers,
-    ...hermanIpc.handlers,
-    ...notebookHandlers,
-    ...feedbackHandlers,
-    ...tasksIpc.handlers,
-    ...updatesIpc.handlers,
-    ...externalIpc.handlers,
-    ...alarmsIpc.handlers,
-    ...pomodoroIpc.handlers,
-    ...skyIpc.handlers,
-    ...templatesHandlers,
-    ...dataIpc.handlers
+    ...appHandlers
   }
-  for (const channel of Object.keys(INVOKE) as InvokeChannel[]) handle(channel, handlers[channel])
+  for (const feature of registered.values()) Object.assign(handlers, feature.handlers)
+  for (const channel of Object.keys(INVOKE) as InvokeChannel[]) {
+    const fn = handlers[channel]
+    if (!fn) throw new Error(`No handler for ${channel}`)
+    handle(channel, fn)
+  }
 
   // ---- window controls (the renderer draws them on frameless windows; `isMaximized` is with app)
   on(IPC.windowMinimize, (win) => win.minimize())
@@ -430,19 +284,13 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   on(IPC.windowClose, (win) => win.close())
 
   return {
-    meetings,
-    alarms: alarmsIpc,
+    meetings: ctx.feature('meetings'),
+    alarms: ctx.feature('alarms'),
     start() {
-      // The daily backup, like sync, waits until the first window is on screen.
-      dataIpc.start()
-      if (typeof repo.getSetting(SYNC_URL_KEY) !== 'string') return
-      sync().then(
-        (bridge) => bridge.start(),
-        (err: unknown) => console.error('[main] sync could not be started', err)
-      )
+      for (const feature of registered.values()) feature.start?.()
     },
-    beforeQuit() {
-      return syncBridge?.wantsQuitSync ? syncBridge.beforeQuit() : null
-    }
+    beforeQuit: () => ctx.feature('sync').beforeQuit()
   }
 }
+
+void EVERY_NAMESPACE_ANSWERED

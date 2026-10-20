@@ -5,6 +5,7 @@ import { isQuickAddUrl } from '../alarms/windows'
 import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import { PomodoroService } from './service'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `pomodoro:*` channels and the one timer behind them (./service.ts), wired to the windows,
@@ -145,3 +146,13 @@ function appWindows(): BrowserWindow[] {
     (win) => !win.isDestroyed() && !win.webContents.isDestroyed() && !isQuickAddUrl(win.webContents.getURL())
   )
 }
+
+/** The one focus timer, kept here so every window shows the same. Silent while a meeting is recorded, like the alarms. */
+export const pomodoroFeature = defineFeature({
+  namespace: 'pomodoro',
+  register: (ctx): PomodoroHooks & Registered<'pomodoro'> => {
+    const hooks = registerPomodoroIpc({ repo: ctx.repo, recording: () => ctx.recording() })
+    // The pomodoro's lengths: the windows show them (a running phase keeps its own).
+    return { ...hooks, onSettingChanged: (key) => hooks.settingChanged(key) }
+  }
+})

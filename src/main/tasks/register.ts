@@ -15,6 +15,7 @@ import * as arg from '../validate'
 import { importTodoistFiles } from './import'
 import { TODOIST_LIMITS } from './todoist'
 import { openQuickAddWindow } from './window'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `tasks:*` channels: importing Todoist exports (the dialog is opened here; the window never
@@ -73,3 +74,9 @@ export function registerTasksIpc({ repo }: { repo: Repository }): { handlers: Ha
   }
   return { handlers }
 }
+
+/** Tasks beyond block edits: the Todoist import, the system-wide quick-add shortcut. */
+export const tasksFeature = defineFeature({
+  namespace: 'tasks',
+  register: (ctx): Registered<'tasks'> => registerTasksIpc({ repo: ctx.repo })
+})

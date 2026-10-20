@@ -10,6 +10,7 @@ import { filesDir } from '../files'
 import type { Handlers } from '../invoke'
 import { DB_FILE } from '../legacy'
 import { BackupError, BACKUPS_DIR, inspectDatabase, listBackups, stageRestore, takeBackup, type ReadOnlyOpener } from './backups'
+import { defineFeature, type Registered } from '../feature'
 
 /** The first automatic backup waits for the app to settle; then, once an hour, one is made when the newest is this old. */
 const FIRST_CHECK_MS = 60_000
@@ -160,3 +161,9 @@ export function registerDataIpc({ repo, busy }: DataContext): { handlers: Handle
     }
   }
 }
+
+/** Backups of the database, restoring one, the workspace as Markdown. The daily backup waits for the first window. */
+export const dataFeature = defineFeature({
+  namespace: 'data',
+  register: (ctx): Registered<'data'> => registerDataIpc({ repo: ctx.repo, busy: () => ctx.recording() })
+})

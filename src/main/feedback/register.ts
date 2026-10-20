@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { cleanFeedbackInput } from '../../shared/feedback'
 import type { Handlers } from '../invoke'
 import type { FeedbackStore } from './store'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `feedback:*` channels: bug reports and suggestions written in the app, kept as files in
@@ -35,3 +36,9 @@ export function registerFeedbackIpc(): Handlers<'feedback'> {
     }
   }
 }
+
+/** Bug reports and suggestions, kept as files for the nightly agent. */
+export const feedbackFeature = defineFeature({
+  namespace: 'feedback',
+  register: (): Registered<'feedback'> => ({ handlers: registerFeedbackIpc() })
+})

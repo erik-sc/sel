@@ -4,6 +4,7 @@ import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import { resolveDevUrl } from '../security'
 import { UpdatesService } from './service'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `updates:*` channels and the schedule of the opt-in update check (see ./service.ts).
@@ -58,3 +59,18 @@ export function registerUpdatesIpc({ repo, recording }: { repo: Repository; reco
     settingChanged: () => service.plan()
   }
 }
+
+/** Updates, opt-in, from GitHub Releases. Off by default: until the user turns the check on or presses Check now, nothing goes on the network. */
+export const updatesFeature = defineFeature({
+  namespace: 'updates',
+  register: (ctx): Registered<'updates'> => {
+    const hooks = registerUpdatesIpc({ repo: ctx.repo, recording: () => ctx.recording() })
+    return {
+      handlers: hooks.handlers,
+      // The update check was turned on or off: its timer follows.
+      onSettingChanged: (key) => {
+        if (key.startsWith('updates.')) hooks.settingChanged()
+      }
+    }
+  }
+})

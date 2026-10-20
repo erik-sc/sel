@@ -1,6 +1,7 @@
 import { readAlarmSettings } from '../../shared/alarms'
 import type { Handlers } from '../invoke'
 import type { AlarmsBridge, AlarmsContext } from './index'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `alarms:*` channels, and the start of the alarms' clock. This file is all of the alarms
@@ -42,3 +43,21 @@ export function registerAlarmsIpc(ctx: AlarmsContext): AlarmsHooks {
     startHidden: (argv) => argv.includes('--sel-hidden') && tray()
   }
 }
+
+/** The alarms: the one clock in sel that runs at times the user set. It starts with the app, a few seconds in. */
+export const alarmsFeature = defineFeature({
+  namespace: 'alarms',
+  register: (ctx): AlarmsHooks & Registered<'alarms'> => {
+    const hooks = registerAlarmsIpc({
+      repo: ctx.repo,
+      briefing: () => ctx.feature('briefing').stored(),
+      promptData: () => ctx.feature('briefing').promptData(),
+      calendar: (from, to) => ctx.feature('briefing').upcoming(from, to),
+      ai: () => ctx.feature('ai').bridge(),
+      recording: () => ctx.recording(),
+      createWindow: () => ctx.createWindow()
+    })
+    // A briefing time, a reminder switch or the notification-area icon: the clock follows.
+    return { ...hooks, onSettingChanged: (key) => hooks.settingChanged(key) }
+  }
+})

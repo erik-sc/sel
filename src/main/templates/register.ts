@@ -2,6 +2,7 @@ import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import { isTemplateId, isTemplateLocale, type TemplateRequest } from '../../shared/templates/model'
 import * as arg from '../validate'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `templates:*` channel: making a template's page. The templates themselves (pure data, the
@@ -39,3 +40,9 @@ function placeFor(repo: Repository, parentId: string | null): string | null {
   if (!parent || parent.type !== 'page' || parent.trashedAt !== null) throw new Error('A template goes inside a page')
   return parentId
 }
+
+/** Templates: pages and databases made from a template in one transaction. */
+export const templatesFeature = defineFeature({
+  namespace: 'templates',
+  register: (ctx): Registered<'templates'> => ({ handlers: registerTemplatesIpc({ repo: ctx.repo }) })
+})

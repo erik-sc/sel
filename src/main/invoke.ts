@@ -11,7 +11,7 @@ export type Handler = (args: unknown[], event: IpcMainInvokeEvent) => unknown
 /**
  * A handler for every channel of `namespace` declared in `INVOKE` (src/shared/api.ts), and for
  * nothing else: a missing handler, or one for a channel that is not declared, fails typecheck.
- * Without a namespace: every declared channel, which is what `registerIpc` must be given.
+ * Without a namespace: every declared channel, which ./ipc.ts and the features of ./features.ts answer together.
  */
 export type Handlers<Namespace extends string = string> = {
   [C in InvokeChannel as C extends `${Namespace}:${string}` ? C : never]: Handler
