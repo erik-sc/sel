@@ -1,4 +1,4 @@
-import { cleanSettingValue, settingsSpecOf } from '../shared/settings'
+import { cleanSettingValue, SETTINGS, type SettingsSpec, settingsSpecOf } from '../shared/settings'
 import { MAX_VERSION_LABEL } from '../shared/versions'
 import { isValidId, MAX_SETTING_CHARS } from './db/blocks'
 
@@ -126,14 +126,14 @@ export function settingKey(value: unknown): string {
 }
 
 /** Whether a renderer may write `key`: a feature's spec names it, or owns its namespace (src/shared/settings.ts). */
-export function isWritableSetting(key: string): boolean {
-  return settingsSpecOf(key) !== null
+export function isWritableSetting(key: string, specs: readonly SettingsSpec[] = SETTINGS): boolean {
+  return settingsSpecOf(key, specs) !== null
 }
 
 /** A settings key the renderer is allowed to write. */
-export function writableSettingKey(value: unknown): string {
+export function writableSettingKey(value: unknown, specs: readonly SettingsSpec[] = SETTINGS): string {
   const key = settingKey(value)
-  if (!isWritableSetting(key)) throw new Error(`Setting "${key}" is read-only`)
+  if (!isWritableSetting(key, specs)) throw new Error(`Setting "${key}" is read-only`)
   return key
 }
 
@@ -146,8 +146,8 @@ export function settingValue(value: unknown): unknown {
  * process) gets that feature's clean value, null resets it, and anything else throws; every other
  * key is stored as given, within the size cap. See `SettingsSpec` in src/shared/settings.ts.
  */
-export function settingValueFor(key: string, value: unknown): unknown {
-  const found = settingsSpecOf(key)
+export function settingValueFor(key: string, value: unknown, specs: readonly SettingsSpec[] = SETTINGS): unknown {
+  const found = settingsSpecOf(key, specs)
   return found?.exact && found.spec.clean ? cleanSettingValue(found.spec, key, value) : settingValue(value)
 }
 

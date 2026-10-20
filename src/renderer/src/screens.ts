@@ -22,9 +22,9 @@ export interface Screen {
 export const SCREENS: readonly Screen[] = [...BRIEFING_SCREENS, ...TASKS_SCREENS, ...NOTEBOOK_SCREENS, ...SKY_SCREENS]
 
 /** The screen a tab showing `pageId` shows: by its route, or by the page it stands for. */
-export function screenOf(pageId: string | null | undefined): Screen | null {
+export function screenOf(pageId: string | null | undefined, screens: readonly Screen[] = SCREENS): Screen | null {
   if (!pageId) return null
-  return SCREENS.find((screen) => screen.route === pageId || screen.alias === pageId) ?? null
+  return screens.find((screen) => screen.route === pageId || screen.alias === pageId) ?? null
 }
 
 /** The name of the built-in screen a tab shows, or null when it shows a stored page (or nothing). */

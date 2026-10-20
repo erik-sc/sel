@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain, nativeTheme, shell, type IpcMainEvent } from 'electron'
 import { INVOKE, IPC, type InvokeChannel } from '../shared/api'
-import { syncedAtOf } from '../shared/settings'
+import { SETTINGS, type SettingsSpec, syncedAtOf } from '../shared/settings'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AlarmsHooks } from './alarms/register'
 import type { Repository } from './db/repository'
@@ -61,7 +61,26 @@ const EVERY_NAMESPACE_ANSWERED: [Exclude<InvokeNamespace, CoreNamespace | Featur
   ? true
   : { unanswered: Exclude<InvokeNamespace, CoreNamespace | FeatureName> } = true
 
-export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHooks {
+/**
+ * The lists the app is put together from. Only a test passes others (a feature that does not
+ * exist, added to each: see fake/fake.test.ts); the app always runs with these.
+ */
+export interface IpcLists {
+  invoke: Readonly<Record<string, true>>
+  features: readonly AnyFeature[]
+  settings: readonly SettingsSpec[]
+}
+
+/** A feature's main side whatever its namespace: what registering it gives back, its handlers among all of them. */
+type AnyRegistered = Omit<Registered<string>, 'handlers'> & { handlers: Partial<Handlers> }
+interface AnyFeature {
+  namespace: string
+  register(ctx: FeatureContext): AnyRegistered
+}
+
+const LISTS: IpcLists = { invoke: INVOKE, features: FEATURES, settings: SETTINGS }
+
+export function registerIpc({ repo, ready, createWindow }: IpcContext, lists: IpcLists = LISTS): SyncHooks {
   const changes = new ChangeFeed((change: ChangeEvent) => {
     for (const win of BrowserWindow.getAllWindows()) {
       if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send(IPC.change, change)
@@ -69,7 +88,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
   })
 
   // ---- the features (./features.ts), each registered with the same context, in the order listed
-  const registered = new Map<string, Omit<Registered<string>, 'handlers'> & { handlers: Partial<Handlers> }>()
+  const registered = new Map<string, AnyRegistered>()
   const ctx: FeatureContext = {
     repo,
     ready,
@@ -87,7 +106,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       return found as unknown as RegisteredOf<N>
     }
   }
-  for (const feature of FEATURES) registered.set(feature.namespace, feature.register(ctx))
+  for (const feature of lists.features) registered.set(feature.namespace, feature.register(ctx))
 
   /**
    * Registers an invoke channel. Every call is checked for its sender and its
@@ -229,12 +248,12 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     'app:setTheme': ([a]) => applyTheme(repo, a),
     'app:getSetting': ([a]) => repo.getSetting(arg.settingKey(a)),
     'app:setSetting': ([a, b]) => {
-      const key = arg.writableSettingKey(a)
+      const key = arg.writableSettingKey(a, lists.settings)
       if (key === THEME_KEY) return applyTheme(repo, b)
-      repo.setSetting(key, arg.settingValueFor(key, b))
+      repo.setSetting(key, arg.settingValueFor(key, b, lists.settings))
       // A synced setting (the appearance, the home, the sidebar's layout, Today's databases): when it
       // changed here decides which device's change stands.
-      const syncedAt = syncedAtOf(key)
+      const syncedAt = syncedAtOf(key, lists.settings)
       if (syncedAt) {
         repo.setSetting(syncedAt, Date.now())
         ctx.noteLocalChange()
@@ -268,7 +287,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
     ...appHandlers
   }
   for (const feature of registered.values()) Object.assign(handlers, feature.handlers)
-  for (const channel of Object.keys(INVOKE) as InvokeChannel[]) {
+  for (const channel of Object.keys(lists.invoke) as InvokeChannel[]) {
     const fn = handlers[channel]
     if (!fn) throw new Error(`No handler for ${channel}`)
     handle(channel, fn)

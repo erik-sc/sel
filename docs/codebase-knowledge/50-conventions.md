@@ -2,7 +2,7 @@
 
 ## Naming
 
-- IPC invoke channels are `namespace:method`, nested with a dot, and name the method's place on `window.api`: `api.ai.agents.list` answers on `ai:agents.list` (src/shared/ipc.ts:1-10). Each is declared once in `INVOKE` (src/shared/api.ts:279).
+- IPC invoke channels are `namespace:method`, nested with a dot, and name the method's place on `window.api`: `api.ai.agents.list` answers on `ai:agents.list` (src/shared/ipc.ts:1-10). Each is declared once, in its feature's fragment of `INVOKE` (src/shared/api.ts; see "Adicionar uma feature").
 - Settings keys are `area.key` (src/shared/ai.ts:142, src/shared/herman.ts:143-145); the pattern is enforced by a regex (src/main/validate.ts:29).
 - Main-process feature folders use `register.ts` (handlers, loaded at start-up), `index.ts` (the lazy `*Bridge`), `service.ts` (Electron-free) (src/main/briefing/register.ts:9-12, src/main/briefing/index.ts:36-55, src/main/briefing/service.ts:81).
 - Renderer features expose `gate.ts` (always loaded), `Host.tsx` (mount point) and lazy chunks (src/renderer/src/ai/gate.ts:1-3, src/renderer/src/ai/Host.tsx:8-19).
@@ -21,37 +21,70 @@
 - Main imports shared by relative path; preload and renderer use the `@shared` and `@` aliases (src/main/validate.ts:1, src/preload/index.ts:2, src/renderer/src/App.tsx:2).
 - Migrations are append-only (src/main/db/schema.ts:4-7).
 
-## Adding an IPC call
+## Adicionar uma feature
 
-An invoke call (a `window.api` method that returns a promise) is declared once; typecheck
-points at every other place that must follow. Say the new call is `databases.rename(id, name)`:
+Since 0.7.0 (item 2) a feature lives in its own folders, one per process, and joins the app with
+one line in each list of features. Nothing central has to be edited by hand beyond those lines,
+and typecheck or a test fails when one is missing. The feature that does not exist,
+`fake` (src/shared/fake, src/main/fake, src/renderer/src/fake), is written this way, and its tests
+(src/main/fake/fake.test.ts, src/renderer/src/fake/fake.test.ts) add it to every list and check that
+its call, setting, command and screen work from that alone.
 
-1. **Signature.** Add `rename(id: string, name: string): Promise<Block>` to the `databases`
-   namespace of `Api` (src/shared/api.ts:27), or to the feature's contract (`BriefingApi`,
-   `HermanApi`, `MeetingsApi`, `FeedbackApi` in src/shared/*.ts). A new namespace is a new
-   member of `Api`. Do not change the shape of anything already there.
-2. **Channel.** Add `'databases:rename': true,` to `INVOKE` (src/shared/api.ts:279), beside its
-   namespace. The channel is the namespace, a colon, then the path below it joined with dots
-   (`ai:agents.list`, `meetings:recording.begin`). Typecheck fails at `INVOKE` until this line
-   exists, and fails for a line that names no method. The preload needs no change: it builds
-   one method per line (src/preload/index.ts:30).
-3. **Handler.** Add `'databases:rename': ([a, b]) => ...` to that namespace's map: in
-   src/main/ipc.ts for the core namespaces (`databaseHandlers: Handlers<'databases'>`), or in
-   the feature's `register.ts` (`Handlers<'briefing'>` and so on). Typecheck fails until it
-   exists, and for a handler of an undeclared channel. A new namespace gets its own map, spread
-   into `handlers` in `registerIpc` (src/main/ipc.ts:280); typecheck fails until it is.
-   Arguments arrive as `unknown`: narrow them with `arg.*` (src/main/validate.ts) or in the
-   service before use. The wrapper already checks the sender and the client id, waits for
-   `ready`, drains changes and reduces errors (src/main/ipc.ts:70-92). Nothing calls
-   `ipcMain.handle` by itself.
-4. **Review list.** Add the channel to `INVOKE_CHANNELS` in src/preload/index.test.ts: that list
-   is what a renderer can reach, kept in a test so that a change to it is seen in review.
+Say the feature is `garden`, with a call, a setting, a command and a screen:
 
-Not invoke calls, and still written by hand: events (`on*` methods returning an unsubscribe
-function; their channel constants live with the feature, e.g. `SYNC_CHANNEL` in src/shared/sync.ts),
-fire-and-forget sends (`IPC.window*` in src/shared/api.ts:262, `MEETINGS_CHANNELS.frames`) and
-plain values (`clientId`, `app.platform`), all in src/preload/index.ts:43-110, with `ipcMain.on`
-in main. A `MenuCommand` (src/shared/api.ts) is not an IPC call: it travels on `event:command`.
+| What | In the feature's folder | The one line, in the list |
+|---|---|---|
+| Its contract | `GardenApi` in src/shared/garden.ts | `garden: GardenApi` in `Api` (src/shared/api.ts) |
+| Its calls | `GARDEN_INVOKE = { 'garden:plant': true } as const satisfies Record<InvokeChannels<{ garden: GardenApi }>, true>` next to `GardenApi` | `...GARDEN_INVOKE` in `INVOKE` (src/shared/api.ts) |
+| The bridge's review | src/preload/reviewed/garden.ts, the channels written out (`REVIEWED`) | none: the preload test reads the folder |
+| Its handlers | `gardenFeature = defineFeature({ namespace: 'garden', register(ctx) { … } })` in src/main/garden/register.ts | `gardenFeature` in `FEATURES` (src/main/features.ts) |
+| Its settings | `GARDEN_SETTINGS: SettingsSpec` (`keys`, `clean`, `dialogOnly?`, `syncedAt?`) in src/shared/garden.ts | `GARDEN_SETTINGS` in `SETTINGS` (src/shared/settings.ts) |
+| Its commands | `GARDEN_COMMANDS` (`id`, `shortcut`, `menu`, `palette`, `catalog`) in src/shared/garden.ts | `...GARDEN_COMMANDS` in `COMMANDS` (src/shared/commands.ts) |
+| What they do, its start-up, its overlays | `gardenFeature = defineFeature({ id, menu, init?, idle?, overlays? })` in src/renderer/src/garden/feature.ts | `gardenFeature` in `FEATURES` (src/renderer/src/features.ts) |
+| Its screen's route | none | `GARDEN_ROUTE = '_garden'` in src/renderer/src/routes.ts |
+| Its screen | `GARDEN_SCREENS` (`route`, `title`, `alias?`, `Host: lazy(…)`) in src/renderer/src/garden/screens.ts | `...GARDEN_SCREENS` in `SCREENS` (src/renderer/src/screens.ts) |
+| Its section of Settings | `GARDEN_SECTION = settingsSection({ id, label, keywords, order, Section: lazyPanel(…) })` in src/renderer/src/garden/settingsSection.ts | `GARDEN_SECTION` in `LISTED` (src/renderer/src/shell/settingsSections.ts) |
+
+What fails when a piece is missing:
+
+- A method of `GardenApi` without its channel, or a channel without a method: the fragment's own
+  `satisfies` (a spread into `INVOKE` would let a channel too many through), then `INVOKE`'s.
+- A channel without a handler: `Handlers<'garden'>` in `Registered<'garden'>`; a namespace no
+  feature answers: `EVERY_NAMESPACE_ANSWERED` in src/main/ipc.ts.
+- A channel not written in src/preload/reviewed/: src/preload/index.test.ts. A change there changes
+  what a renderer can reach, and is reviewed as such.
+- A command without a handler in any renderer feature: `EVERY_COMMAND_HANDLED` in
+  src/renderer/src/shell/menuCommands.ts. Two commands on the same keys: src/shared/shortcuts.test.ts.
+
+The rules the lists keep:
+
+- **Registries are leaf data.** A screen's `Host`, a section's panel and an overlay are lazy imports:
+  the lists are loaded at start-up, a component only when it is first drawn. Never import a Host or
+  a Settings component statically from a list or from a feature's `feature.ts`.
+- **Places are numbers.** A command's `menu.order` has its group in the hundreds (a separator goes
+  between groups), `palette.order` places it among the built-in commands when there is no query,
+  `catalog.order` among its group's lines on the shortcuts screen; Settings sections and overlays
+  have an `order` too. Ten apart, so one fits between two.
+- **A feature uses another through `ctx.feature('<namespace>')`** in main (src/main/feature.ts),
+  when it is used rather than while registering; only a feature listed earlier exists while
+  registering (the Sky listens to the pomodoro, so it comes after it).
+- **What changing a setting does** in main is the feature's `onSettingChanged(key)`; every key
+  reaches every feature. A setting that syncs names its `sync.*At` stamp in `syncedAt`.
+- **Kept central, on purpose:** the order of the sidebar's items (`SIDEBAR_ITEMS`,
+  src/shared/sidebar.ts), sync's `PATHS` (src/main/sync/format.ts) and `STATE_*` keys (src/main/sync/engine.ts), and the screens that
+  can be the home (`HOME_SCREENS`, src/shared/home.ts): they are stored or synced, so their order
+  never changes.
+- **Not invoke calls**, still written by hand in src/preload/index.ts: events (`on*` methods that
+  return an unsubscribe function, their channel constant with the feature, e.g. `SYNC_CHANNEL`),
+  fire-and-forget sends (`IPC.window*`, `MEETINGS_CHANNELS.frames`) and plain values (`clientId`,
+  `app.platform`), with `ipcMain.on` in main. A `MenuCommand` is not an IPC call: it travels on
+  `event:command`.
+
+Adding one call to an existing feature is the first rows only: the method in its contract, the
+channel in its fragment and in src/preload/reviewed/<namespace>.ts, the handler in its main side.
+Arguments arrive as `unknown`: narrow them with `arg.*` (src/main/validate.ts) or in the service.
+The wrapper in src/main/ipc.ts already checks the sender and the client id, waits for `ready`,
+drains changes and reduces errors; nothing calls `ipcMain.handle` by itself.
 
 ## Error handling
 
@@ -67,8 +100,7 @@ in main. A `MenuCommand` (src/shared/api.ts) is not an IPC call: it travels on `
 
 ## Testing
 
-- Tests sit next to the code as `*.test.ts`; 73 files at the time of the survey, none then under `src/shared` or `src/preload` (`git ls-files`); src/shared/ipc.test.ts and src/preload/index.test.ts came later. The preload test mocks each `@shared/*` alias it imports onto a relative path (src/preload/index.test.ts:28-36).
-- There is no vitest config (package.json:13), so path aliases do not resolve in tests; a unit-tested renderer module imports values relatively, for example src/renderer/src/store/blocks.ts:4.
+- Tests sit next to the code as `*.test.ts`. vitest.config.ts resolves the `@shared` and `@` aliases, so tests import code the way the app does.
 - No DOM library is installed (package.json:21-37); renderer tests cover pure logic. How src/renderer/src/editor/richtext-dom.test.ts:1 obtains a DOM was not checked (unverified).
 - Repository tests open an in-memory database on `node:sqlite`, or better-sqlite3 when `SEL_TEST_DRIVER` says so (src/main/db/testing.ts:12-22).
 - Time-zone-sensitive suites run once per zone by setting `TZ` on the first lines of a tiny test file (src/main/briefing/ical.utc.test.ts:1-4).

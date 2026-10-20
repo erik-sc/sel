@@ -15,10 +15,11 @@ export function sendCommand(command: MenuCommand, arg?: unknown, target?: Browse
   else win.webContents.send(IPC.command, command, arg)
 }
 
-function item(label: string, command: MenuCommand): MenuItemConstructorOptions {
+function item(spec: CommandSpec & { menu: NonNullable<CommandSpec['menu']> }): MenuItemConstructorOptions {
+  const command = spec.id as MenuCommand
   return {
-    label,
-    accelerator: SHORTCUTS.find((s) => s.command === command)?.accelerator,
+    label: spec.menu.label,
+    accelerator: spec.shortcut && (isMac ? (spec.shortcut.mac ?? spec.shortcut.accelerator) : spec.shortcut.accelerator),
     // Elsewhere the accelerator is display-only; attachShortcuts() does the work.
     registerAccelerator: isMac,
     click: (_item, win) => sendCommand(command, undefined, win instanceof BrowserWindow ? win : null)
@@ -38,11 +39,11 @@ function placeOf(spec: CommandSpec): MenuPlace | null {
 }
 
 /** A menu: its own items (roles) and the commands that name it, in order, separated by group. */
-function submenu(id: MenuSubmenu, own: readonly Placed[]): MenuItemConstructorOptions[] {
+function submenu(id: MenuSubmenu, own: readonly Placed[], commands: readonly CommandSpec[]): MenuItemConstructorOptions[] {
   const placed: Placed[] = [...own]
-  for (const spec of COMMANDS as readonly CommandSpec[]) {
+  for (const spec of commands) {
     const place = placeOf(spec)
-    if (place?.submenu === id && spec.menu) placed.push({ order: place.order, item: item(spec.menu.label, spec.id as MenuCommand) })
+    if (place?.submenu === id && spec.menu) placed.push({ order: place.order, item: item({ ...spec, menu: spec.menu }) })
   }
   placed.sort((a, b) => a.order - b.order)
   const out: MenuItemConstructorOptions[] = []
@@ -53,19 +54,24 @@ function submenu(id: MenuSubmenu, own: readonly Placed[]): MenuItemConstructorOp
   return out
 }
 
-export function buildMenu(): void {
+/** Builds the menu bar from the commands (a test passes others: see fake/fake.test.ts). */
+export function buildMenu(commands: readonly CommandSpec[] = COMMANDS): void {
   const template: MenuItemConstructorOptions[] = []
   if (isMac) {
     template.push({
       label: app.name,
-      submenu: submenu('app', [
-        { order: 100, item: { role: 'about' } },
-        { order: 300, item: { role: 'services' } },
-        { order: 400, item: { role: 'hide' } },
-        { order: 410, item: { role: 'hideOthers' } },
-        { order: 420, item: { role: 'unhide' } },
-        { order: 500, item: { role: 'quit' } }
-      ])
+      submenu: submenu(
+        'app',
+        [
+          { order: 100, item: { role: 'about' } },
+          { order: 300, item: { role: 'services' } },
+          { order: 400, item: { role: 'hide' } },
+          { order: 410, item: { role: 'hideOthers' } },
+          { order: 420, item: { role: 'unhide' } },
+          { order: 500, item: { role: 'quit' } }
+        ],
+        commands
+      )
     })
   }
   template.push(
@@ -73,41 +79,50 @@ export function buildMenu(): void {
       label: 'File',
       submenu: submenu(
         'file',
-        isMac ? [{ order: 310, item: { role: 'close', accelerator: 'Cmd+Shift+W' } }] : [{ order: 500, item: { role: 'quit' } }]
+        isMac ? [{ order: 310, item: { role: 'close', accelerator: 'Cmd+Shift+W' } }] : [{ order: 500, item: { role: 'quit' } }],
+        commands
       )
     },
     {
       label: 'Edit',
-      submenu: submenu('edit', [
-        { order: 100, item: { role: 'undo' } },
-        { order: 110, item: { role: 'redo' } },
-        { order: 200, item: { role: 'cut' } },
-        { order: 210, item: { role: 'copy' } },
-        { order: 220, item: { role: 'paste' } },
-        { order: 230, item: { role: 'pasteAndMatchStyle' } },
-        { order: 240, item: { role: 'delete' } },
-        { order: 300, item: { role: 'selectAll' } }
-      ])
+      submenu: submenu(
+        'edit',
+        [
+          { order: 100, item: { role: 'undo' } },
+          { order: 110, item: { role: 'redo' } },
+          { order: 200, item: { role: 'cut' } },
+          { order: 210, item: { role: 'copy' } },
+          { order: 220, item: { role: 'paste' } },
+          { order: 230, item: { role: 'pasteAndMatchStyle' } },
+          { order: 240, item: { role: 'delete' } },
+          { order: 300, item: { role: 'selectAll' } }
+        ],
+        commands
+      )
     },
     {
       label: 'View',
-      submenu: submenu('view', [
-        { order: 600, item: { role: 'reload' } },
-        { order: 610, item: { role: 'forceReload' } },
-        // Developer tools (and their Ctrl+Shift+I accelerator) exist only in unpackaged builds.
-        ...(app.isPackaged ? [] : [{ order: 620, item: { role: 'toggleDevTools' } } as Placed]),
-        { order: 700, item: { role: 'resetZoom' } },
-        { order: 710, item: { role: 'zoomIn' } },
-        { order: 720, item: { role: 'zoomOut' } },
-        { order: 800, item: { role: 'togglefullscreen' } }
-      ])
+      submenu: submenu(
+        'view',
+        [
+          { order: 600, item: { role: 'reload' } },
+          { order: 610, item: { role: 'forceReload' } },
+          // Developer tools (and their Ctrl+Shift+I accelerator) exist only in unpackaged builds.
+          ...(app.isPackaged ? [] : [{ order: 620, item: { role: 'toggleDevTools' } } as Placed]),
+          { order: 700, item: { role: 'resetZoom' } },
+          { order: 710, item: { role: 'zoomIn' } },
+          { order: 720, item: { role: 'zoomOut' } },
+          { order: 800, item: { role: 'togglefullscreen' } }
+        ],
+        commands
+      )
     },
     {
       label: 'Window',
       role: 'window',
       submenu: isMac ? [{ role: 'minimize' }, { role: 'zoom' }, { type: 'separator' }, { role: 'front' }] : [{ role: 'minimize' }]
     },
-    { label: 'Help', role: 'help', submenu: submenu('help', []) }
+    { label: 'Help', role: 'help', submenu: submenu('help', [], commands) }
   )
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }

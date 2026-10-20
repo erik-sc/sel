@@ -12,7 +12,8 @@ import { routeTitle } from '@/screens'
 import { IS_MAC } from '@/ui/platform'
 import { preloadVersionHistory } from '@/versions/VersionHistory'
 import { duplicatePage, exportMarkdown, importMarkdown, reportError, toggleFavorite, toggleFullWidth } from '@/shell/actions'
-import { menuHandlers, runMenuCommand } from '@/shell/menuCommands'
+import type { MenuHandler } from '@/feature'
+import { menuHandlers } from '@/shell/menuCommands'
 import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/actions'
 import { ARCHIVE_KEYWORDS } from '@/archive/copy'
 import { archiveCopy } from '@/archive/locale'
@@ -46,12 +47,15 @@ function onPage(command: Omit<Command, 'run' | 'when'> & { when?: (page: Block) 
   }
 }
 
-/** The palette's entry for a command with one in its spec: the menu's shortcut, its handler's `when`. */
-function fromSpec(spec: CommandSpec & { palette: NonNullable<CommandSpec['palette']> }): [number, Command] {
+/** The palette's entry for a command with one in its spec: the menu's shortcut, its handler's `when`; and its order. */
+export function paletteCommand(
+  spec: CommandSpec & { palette: NonNullable<CommandSpec['palette']> },
+  handler: MenuHandler
+): [number, Command] {
   const command = spec.id as MenuCommand
   const { title, keywords, order } = spec.palette
-  const when = menuHandlers()[command].when
-  return [order, { id: command, title, keywords, shortcut: acceleratorOf(command, IS_MAC), when, run: () => runMenuCommand(command) }]
+  const shortcut = spec.shortcut && (IS_MAC ? (spec.shortcut.mac ?? spec.shortcut.accelerator) : spec.shortcut.accelerator)
+  return [order, { id: command, title, keywords, shortcut, when: handler.when, run: () => handler.run() }]
 }
 
 function openSettings(section: SettingsSection): void {
@@ -245,7 +249,9 @@ const OWN: [number, Command][] = [
 ]
 
 export const BUILTIN_COMMANDS: readonly Command[] = [
-  ...(COMMANDS as readonly CommandSpec[]).flatMap((spec) => (spec.palette ? [fromSpec({ ...spec, palette: spec.palette })] : [])),
+  ...(COMMANDS as readonly CommandSpec[]).flatMap((spec) =>
+    spec.palette ? [paletteCommand({ ...spec, palette: spec.palette }, menuHandlers()[spec.id as MenuCommand])] : []
+  ),
   ...OWN
 ]
   .sort(([a], [b]) => a - b)
