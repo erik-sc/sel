@@ -4,6 +4,8 @@
  * the window never names a path) and the system-wide quick-add shortcut.
  */
 
+import type { InvokeChannels } from '../ipc'
+
 export interface TodoistImportResult {
   /** False when the dialog was closed without choosing a file. */
   imported: boolean
@@ -79,3 +81,10 @@ export interface TasksApi {
   /** Stores the setting and (un)registers the keys at once. Fails on a malformed accelerator. */
   setGlobalShortcut(setting: GlobalShortcutSetting): Promise<GlobalShortcutState>
 }
+
+/** The invoke channels of `api.tasks` (see `INVOKE` in ./api.ts): every method of TasksApi that returns a promise, and no other. */
+export const TASKS_INVOKE = {
+  'tasks:importTodoist': true,
+  'tasks:globalShortcut': true,
+  'tasks:setGlobalShortcut': true
+} as const satisfies Record<InvokeChannels<{ tasks: TasksApi }>, true>

@@ -8,6 +8,7 @@
  */
 
 import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
 
 /** What is written to disk while recording: mono, 16 kHz, 16-bit little-endian PCM. */
 export const PCM = { sampleRate: 16_000, bytesPerSample: 2 } as const
@@ -352,3 +353,29 @@ export const MEETINGS_SETTINGS: SettingsSpec = {
   clean: cleanMeetingsSetting,
   dialogOnly: { keys: ['meetings.whisperPath', 'meetings.modelPath'], message: 'The file can only be chosen with the file dialog' }
 }
+
+/** The invoke channels of `api.meetings` (see `INVOKE` in ./api.ts): every method of MeetingsApi that returns a promise, and no other. */
+export const MEETINGS_INVOKE = {
+  'meetings:status': true,
+  'meetings:engine.status': true,
+  'meetings:engine.download': true,
+  'meetings:engine.cancelDownload': true,
+  'meetings:engine.pickProgram': true,
+  'meetings:engine.pickModel': true,
+  'meetings:engine.remove': true,
+  'meetings:create': true,
+  'meetings:recording.probe': true,
+  'meetings:recording.begin': true,
+  'meetings:recording.pause': true,
+  'meetings:recording.resume': true,
+  'meetings:recording.stop': true,
+  'meetings:recording.recover': true,
+  'meetings:recording.discard': true,
+  'meetings:transcribe': true,
+  'meetings:cancelTranscribe': true,
+  'meetings:setSpeakers': true,
+  'meetings:audio.info': true,
+  'meetings:audio.delete': true,
+  'meetings:storage': true,
+  'meetings:openFolder': true
+} as const satisfies Record<InvokeChannels<{ meetings: MeetingsApi }>, true>

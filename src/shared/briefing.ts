@@ -6,6 +6,7 @@
  */
 
 import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
 
 export const TRADITIONS = ['stoic', 'buddhist', 'taoist', 'hindu', 'western', 'poetry', 'mystic'] as const
 export type Tradition = (typeof TRADITIONS)[number]
@@ -332,3 +333,21 @@ export const BRIEFING_SETTINGS: SettingsSpec = {
   clean: cleanBriefingSetting,
   syncedAt: { 'briefing.databases': 'sync.briefingAt' }
 }
+
+/** The invoke channels of `api.briefing` (see `INVOKE` in ./api.ts): every method of BriefingApi that returns a promise, and no other. */
+export const BRIEFING_INVOKE = {
+  'briefing:get': true,
+  'briefing:agenda': true,
+  'briefing:anotherPhrase': true,
+  'briefing:calendars.list': true,
+  'briefing:calendars.add': true,
+  'briefing:calendars.update': true,
+  'briefing:calendars.remove': true,
+  'briefing:calendars.test': true,
+  'briefing:completeTask': true,
+  'briefing:undoCompleteTask': true,
+  'briefing:ensurePhrasesDatabase': true,
+  'briefing:addPhrase': true,
+  'briefing:databases': true,
+  'briefing:brief': true
+} as const satisfies Record<InvokeChannels<{ briefing: BriefingApi }>, true>

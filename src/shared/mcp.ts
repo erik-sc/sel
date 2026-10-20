@@ -10,6 +10,7 @@
  */
 
 import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
 
 /** Whether other apps may connect. Off unless the user turns it on. */
 export const MCP_ENABLED_KEY = 'mcp.enabled'
@@ -53,3 +54,9 @@ export interface McpApi {
 
 /** Whether other apps may connect decides whether sel opens an endpoint for them: a boolean. */
 export const MCP_SETTINGS: SettingsSpec = { keys: MCP_KEYS, clean: cleanMcpSetting }
+
+/** The invoke channels of `api.mcp` (see `INVOKE` in ./api.ts): every method of McpApi that returns a promise, and no other. */
+export const MCP_INVOKE = {
+  'mcp:status': true,
+  'mcp:rotateToken': true
+} as const satisfies Record<InvokeChannels<{ mcp: McpApi }>, true>

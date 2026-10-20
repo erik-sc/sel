@@ -7,6 +7,7 @@
 // Property ids, select option ids and formulas are those of a database and stay as they are:
 // they only have to be unique inside their own database. Pure: no Electron, no React.
 import type { Block, BlockProps, BlockType, DatabaseView, PropertySchema, RichText } from '../types'
+import type { InvokeChannels } from '../ipc'
 
 export const TEMPLATE_LOCALES = ['pt-BR', 'en'] as const
 export type TemplateLocale = (typeof TEMPLATE_LOCALES)[number]
@@ -145,3 +146,8 @@ export interface TemplatesApi {
   /** Makes the template's page and everything in it, in one transaction, and returns the page. */
   create(request: TemplateRequest): Promise<Block>
 }
+
+/** The invoke channels of `api.templates` (see `INVOKE` in ./api.ts): every method of TemplatesApi that returns a promise, and no other. */
+export const TEMPLATES_INVOKE = {
+  'templates:create': true
+} as const satisfies Record<InvokeChannels<{ templates: TemplatesApi }>, true>

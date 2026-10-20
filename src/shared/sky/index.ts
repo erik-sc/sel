@@ -4,6 +4,7 @@
 
 import type { NotebookLocale } from '../notebook'
 import type { SettingsSpec } from '../settings'
+import type { InvokeChannels } from '../ipc'
 
 export type Hemisphere = 'south' | 'north'
 
@@ -201,3 +202,10 @@ export * from './words'
 
 /** The Sky's switches and this computer's memory of what it already showed. */
 export const SKY_SETTINGS: SettingsSpec = { keys: SKY_KEYS, clean: cleanSkySetting }
+
+/** The invoke channels of `api.sky` (see `INVOKE` in ./api.ts): every method of SkyApi that returns a promise, and no other. */
+export const SKY_INVOKE = {
+  'sky:view': true,
+  'sky:name': true,
+  'sky:moment': true
+} as const satisfies Record<InvokeChannels<{ sky: SkyApi }>, true>

@@ -20,6 +20,7 @@
 import { localDay } from './briefing'
 import type { BlockProps, RichText } from './types'
 import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
 
 /** The notebook page. Never changes: every device must make the same block. */
 export const NOTEBOOK_ID = 'sel-notebook'
@@ -284,3 +285,12 @@ export function bellOn(stored: unknown): boolean {
 
 /** Whether closing the day rings a bell: a boolean. */
 export const NOTEBOOK_SETTINGS: SettingsSpec = { keys: NOTEBOOK_KEYS, clean: cleanNotebookSetting }
+
+/** The invoke channels of `api.notebook` (see `INVOKE` in ./api.ts): every method of NotebookApi that returns a promise, and no other. */
+export const NOTEBOOK_INVOKE = {
+  'notebook:get': true,
+  'notebook:write': true,
+  'notebook:plan': true,
+  'notebook:dismissPlans': true,
+  'notebook:review': true
+} as const satisfies Record<InvokeChannels<{ notebook: NotebookApi }>, true>

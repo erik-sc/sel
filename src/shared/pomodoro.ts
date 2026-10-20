@@ -8,6 +8,7 @@
  */
 
 import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
 
 export type PomodoroPhase = 'focus' | 'short' | 'long'
 
@@ -231,3 +232,14 @@ export function formatClock(ms: number): string {
 
 /** The pomodoro's lengths (whole minutes in a range) and whether starting one enters focus mode. */
 export const POMODORO_SETTINGS: SettingsSpec = { keys: POMODORO_KEYS, clean: cleanPomodoroSetting }
+
+/** The invoke channels of `api.pomodoro` (see `INVOKE` in ./api.ts): every method of PomodoroApi that returns a promise, and no other. */
+export const POMODORO_INVOKE = {
+  'pomodoro:state': true,
+  'pomodoro:start': true,
+  'pomodoro:pause': true,
+  'pomodoro:resume': true,
+  'pomodoro:skip': true,
+  'pomodoro:next': true,
+  'pomodoro:stop': true
+} as const satisfies Record<InvokeChannels<{ pomodoro: PomodoroApi }>, true>
