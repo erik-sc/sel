@@ -9,6 +9,8 @@
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
 
+import type { SettingsSpec } from './settings'
+
 /** A time of day the briefing is given, on some days of the week. */
 export interface AlarmTime {
   id: string
@@ -221,3 +223,6 @@ export function readAlarmSettings(get: (key: string) => unknown): AlarmSettings 
   }
   return out
 }
+
+/** The alarms decide when sel speaks and whether it keeps running: each is typed. */
+export const ALARMS_SETTINGS: SettingsSpec = { keys: ALARMS_KEYS, clean: cleanAlarmsSetting }

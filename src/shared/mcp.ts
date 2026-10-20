@@ -9,6 +9,8 @@
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
 
+import type { SettingsSpec } from './settings'
+
 /** Whether other apps may connect. Off unless the user turns it on. */
 export const MCP_ENABLED_KEY = 'mcp.enabled'
 
@@ -48,3 +50,6 @@ export interface McpApi {
   /** Makes a new token: the old one stops working. Connected apps pick the new one up by themselves. */
   rotateToken(): Promise<McpStatus>
 }
+
+/** Whether other apps may connect decides whether sel opens an endpoint for them: a boolean. */
+export const MCP_SETTINGS: SettingsSpec = { keys: MCP_KEYS, clean: cleanMcpSetting }

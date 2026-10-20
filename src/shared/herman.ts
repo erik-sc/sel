@@ -12,6 +12,7 @@
  */
 
 import { cleanCouncil, COUNCIL_KEY } from './council'
+import type { SettingsSpec } from './settings'
 
 /** How the assistant speaks. `plain` is the assistant without Herman's voice. */
 export const HERMAN_VOICES = ['plain', 'herman', 'brief'] as const
@@ -209,3 +210,9 @@ export function activeVoice(enabled: unknown, voice: unknown): Exclude<HermanVoi
   const chosen = hermanSetting('voice', voice)
   return chosen === 'plain' ? null : chosen
 }
+
+/**
+ * The Herman settings choose among things the main process holds (a voice, a frequency), so each
+ * is one of a fixed set of values: no free text of his persona can be stored.
+ */
+export const HERMAN_SETTINGS: SettingsSpec = { keys: HERMAN_KEYS, clean: cleanHermanSetting }

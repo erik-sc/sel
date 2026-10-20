@@ -3,6 +3,7 @@
 // The sky grows, never fades, never shows a number.
 
 import type { NotebookLocale } from '../notebook'
+import type { SettingsSpec } from '../settings'
 
 export type Hemisphere = 'south' | 'north'
 
@@ -197,3 +198,6 @@ export * from './moon'
 export * from './events'
 export * from './layout'
 export * from './words'
+
+/** The Sky's switches and this computer's memory of what it already showed. */
+export const SKY_SETTINGS: SettingsSpec = { keys: SKY_KEYS, clean: cleanSkySetting }

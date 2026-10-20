@@ -19,6 +19,7 @@
 
 import { localDay } from './briefing'
 import type { BlockProps, RichText } from './types'
+import type { SettingsSpec } from './settings'
 
 /** The notebook page. Never changes: every device must make the same block. */
 export const NOTEBOOK_ID = 'sel-notebook'
@@ -280,3 +281,6 @@ export function cleanNotebookSetting(key: string, value: unknown): unknown {
 export function bellOn(stored: unknown): boolean {
   return cleanNotebookSetting(NOTEBOOK_BELL_KEY, stored) !== false
 }
+
+/** Whether closing the day rings a bell: a boolean. */
+export const NOTEBOOK_SETTINGS: SettingsSpec = { keys: NOTEBOOK_KEYS, clean: cleanNotebookSetting }

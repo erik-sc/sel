@@ -5,6 +5,8 @@
  * process, and is in none of these shapes.
  */
 
+import type { SettingsSpec } from './settings'
+
 export const TRADITIONS = ['stoic', 'buddhist', 'taoist', 'hindu', 'western', 'poetry', 'mystic'] as const
 export type Tradition = (typeof TRADITIONS)[number]
 
@@ -319,4 +321,14 @@ export function localDay(now: Date | number = new Date()): string {
   const d = typeof now === 'number' ? new Date(now) : now
   const pad = (n: number, width = 2): string => String(n).padStart(width, '0')
   return `${pad(d.getFullYear(), 4)}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/**
+ * The briefing settings steer what the main process reads and shows, so each is typed. The
+ * databases Today takes its tasks from sync, with the calendars.
+ */
+export const BRIEFING_SETTINGS: SettingsSpec = {
+  keys: BRIEFING_KEYS,
+  clean: cleanBriefingSetting,
+  syncedAt: { 'briefing.databases': 'sync.briefingAt' }
 }

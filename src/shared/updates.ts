@@ -8,6 +8,8 @@
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
 
+import type { SettingsSpec } from './settings'
+
 /** Where releases are published, and where a version's notes are read. */
 export const RELEASES_URL = 'https://github.com/erik-sc/sel/releases'
 
@@ -97,3 +99,6 @@ export function emptyUpdateStatus(current: string, supported: boolean): UpdateSt
     dismissed: false
   }
 }
+
+/** Whether sel looks for updates by itself decides whether it goes on the network: a boolean. */
+export const UPDATES_SETTINGS: SettingsSpec = { keys: UPDATES_KEYS, clean: cleanUpdatesSetting }

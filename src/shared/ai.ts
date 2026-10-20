@@ -1,4 +1,5 @@
 import type { CouncilEvent } from './council'
+import type { SettingsSpec } from './settings'
 
 /**
  * AI workflows: the shapes shared by the main process (which finds and drives the Claude Code
@@ -200,4 +201,15 @@ export function parseTitleSuggestions(text: string): { emoji: string; title: str
     if (out.length === 5) break
   }
   return out
+}
+
+/**
+ * Which AI settings a renderer may write: each typed, since they decide what the main process runs.
+ * The program's path is the exception: a renderer can clear it but never name one; a path only
+ * comes out of the native file dialog (`ai:pickCli`).
+ */
+export const AI_SETTINGS: SettingsSpec = {
+  keys: AI_KEYS,
+  clean: cleanAiSetting,
+  dialogOnly: { keys: ['ai.cliPath'], message: 'The program can only be chosen with the file dialog' }
 }

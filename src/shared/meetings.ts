@@ -7,6 +7,8 @@
  * the open-source whisper.cpp program and a speech model, after the user asked for it.
  */
 
+import type { SettingsSpec } from './settings'
+
 /** What is written to disk while recording: mono, 16 kHz, 16-bit little-endian PCM. */
 export const PCM = { sampleRate: 16_000, bytesPerSample: 2 } as const
 
@@ -339,3 +341,14 @@ export function parseClockTime(text: string): number | null {
 export const RECORDINGS_HOST = 'recordings'
 export const TRANSCRIPT_TITLE = 'Transcript'
 export const MEETINGS_TITLE = 'Meetings'
+
+/**
+ * The meetings settings decide what the main process records, keeps and runs, so each is typed.
+ * The program and the model file are like `ai.cliPath`: a renderer can clear them but never
+ * name one; a path only comes out of a native file dialog.
+ */
+export const MEETINGS_SETTINGS: SettingsSpec = {
+  keys: MEETINGS_KEYS,
+  clean: cleanMeetingsSetting,
+  dialogOnly: { keys: ['meetings.whisperPath', 'meetings.modelPath'], message: 'The file can only be chosen with the file dialog' }
+}

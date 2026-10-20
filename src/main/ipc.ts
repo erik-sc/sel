@@ -1,7 +1,6 @@
 import { app, BrowserWindow, ipcMain, nativeTheme, shell, type IpcMainEvent } from 'electron'
 import { INVOKE, IPC, type InvokeChannel } from '../shared/api'
-import { HOME_SETTING } from '../shared/home'
-import { SIDEBAR_SETTING } from '../shared/sidebar'
+import { syncedAtOf } from '../shared/settings'
 import type { ChangeEvent, CreateBlockInput, Op, Theme, UpdateBlockInput } from '../shared/types'
 import type { AiBridge } from './ai'
 import { registerBriefingIpc } from './briefing/register'
@@ -66,8 +65,6 @@ export interface SyncHooks {
 }
 
 const SYNC_URL_KEY = 'sync.remoteUrl'
-const APPEARANCE_SETTING = 'appearance'
-const BRIEFING_DATABASES_SETTING = 'briefing.databases'
 
 export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHooks {
   const changes = new ChangeFeed((change: ChangeEvent) => {
@@ -222,24 +219,11 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext): SyncHook
       const key = arg.writableSettingKey(a)
       if (key === THEME_KEY) return applyTheme(repo, b)
       repo.setSetting(key, arg.settingValueFor(key, b))
-      // The appearance is synced: when it changed here decides which device's change stands.
-      if (key === APPEARANCE_SETTING) {
-        repo.setSetting('sync.appearanceAt', Date.now())
-        syncBridge?.noteLocalChange()
-      }
-      // So is the home.
-      if (key === HOME_SETTING) {
-        repo.setSetting('sync.homeAt', Date.now())
-        syncBridge?.noteLocalChange()
-      }
-      // And the sidebar's layout.
-      if (key === SIDEBAR_SETTING) {
-        repo.setSetting('sync.sidebarAt', Date.now())
-        syncBridge?.noteLocalChange()
-      }
-      // So are the databases Today takes its tasks from, with the calendars.
-      if (key === BRIEFING_DATABASES_SETTING) {
-        repo.setSetting('sync.briefingAt', Date.now())
+      // A synced setting (the appearance, the home, the sidebar's layout, Today's databases): when it
+      // changed here decides which device's change stands.
+      const syncedAt = syncedAtOf(key)
+      if (syncedAt) {
+        repo.setSetting(syncedAt, Date.now())
         syncBridge?.noteLocalChange()
       }
       // Which program runs, and whether any does, is decided by these: the cached answer is stale.

@@ -7,6 +7,8 @@
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
 
+import type { SettingsSpec } from './settings'
+
 export type PomodoroPhase = 'focus' | 'short' | 'long'
 
 export interface PomodoroSettings {
@@ -226,3 +228,6 @@ export function formatClock(ms: number): string {
   const rest = `${two(Math.floor((total % 3600) / 60))}:${two(total % 60)}`
   return total >= 3600 ? `${Math.floor(total / 3600)}:${rest}` : rest
 }
+
+/** The pomodoro's lengths (whole minutes in a range) and whether starting one enters focus mode. */
+export const POMODORO_SETTINGS: SettingsSpec = { keys: POMODORO_KEYS, clean: cleanPomodoroSetting }

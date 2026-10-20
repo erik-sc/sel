@@ -6,6 +6,8 @@
  * Shared by the main process, which validates and syncs it, and the renderer. Pure.
  */
 
+import type { SettingsSpec } from './settings'
+
 export const SIDEBAR_SETTING = 'sidebar'
 
 /**
@@ -231,4 +233,14 @@ export function dropItem(
   else at = next.length
   next.splice(at < 0 || at > next.length ? next.length : at, 0, id)
   return next
+}
+
+/**
+ * The sidebar's layout syncs to every device: lists of item ids, nothing else. Ids this version
+ * does not know are kept for a newer device; the renderer ignores them.
+ */
+export const SIDEBAR_SETTINGS: SettingsSpec = {
+  keys: [SIDEBAR_SETTING],
+  clean: (_key, value) => cleanSidebar(value),
+  syncedAt: { [SIDEBAR_SETTING]: 'sync.sidebarAt' }
 }
