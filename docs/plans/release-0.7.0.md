@@ -23,6 +23,7 @@ reconfere antes de mexer.
 | 0b (sozinha) | 2 Uma feature, uma pasta | reescreve os registros que todas as outras branches tocam |
 | 1 (paralelo) | 3 Desempenho no processo principal · 4 Teclado e leitor de tela · 5 Falhas que aparecem · 6 Binário mais fechado | arquivos disjuntos entre si (ver "Toca em") |
 | 2 | 7 Desempenho no renderer | mexe nas mesmas views de database que o item 4 (janelamento × navegação por teclado) |
+| 1–2 | 9 Tarefas: capturar, refinar, agendar (9a → 9b → 9c) — **a pedido do Érik, a única feature nova da 0.7.0**; spec em  | 9a (datas e recorrência) quase não toca registros e pode correr junto do item 2; 9b depois do item 4 (mesmas listas, foco e aria); 9c depois de 9b |
 | 3 | 8 Documentação e README | descreve o app e o código depois de tudo integrado |
 
 **Disco.** Em 2026-10-19 o C: tinha **5,3 GB livres (99%)**, e cada worktree pediu ~5,4 GB na 0.6.x (memória
