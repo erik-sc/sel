@@ -1,10 +1,13 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { useUi } from '@/store/ui'
+import { preloadDialogSections } from './settingsSections'
 
 // The settings window and the appearance editor behind it are only fetched when somebody
 // opens them. The appearance *engine* (appearance/store.ts) is not part of this chunk: saved
-// overrides are applied at start-up whether or not the editor is ever shown.
-const load = (): Promise<typeof import('./SettingsDialog')> => import('./SettingsDialog')
+// overrides are applied at start-up whether or not the editor is ever shown. The sections that
+// open at once (General, say) are fetched with it, so the window never shows them empty.
+const load = (): Promise<typeof import('./SettingsDialog')> =>
+  Promise.all([import('./SettingsDialog'), preloadDialogSections()]).then(([module]) => module)
 const SettingsDialog = lazy(() => load().then((module) => ({ default: module.SettingsDialog })))
 
 /** Starts fetching the settings window; call it when the pointer or the focus reaches its trigger. */

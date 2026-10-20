@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Theme } from '@shared/types'
+import type { SettingsSection } from '../shell/settingsSections'
 import { readMirror, writeMirror } from '../boot'
 import { notifyError } from '../ui/toast'
 
@@ -30,19 +31,8 @@ interface UiState {
   wordCount: boolean
 }
 
-export type SettingsSection =
-  | 'general'
-  | 'appearance'
-  | 'history'
-  | 'ai'
-  | 'herman'
-  | 'notifications'
-  | 'sync'
-  | 'today'
-  | 'meetings'
-  | 'mcp'
-  | 'pomodoro'
-  | 'sidebar'
+/** A section of Settings, from their list (shell/settingsSections.ts). */
+export type { SettingsSection }
 
 export const SIDEBAR_MIN = 200
 export const SIDEBAR_MAX = 480

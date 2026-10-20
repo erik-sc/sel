@@ -18,6 +18,7 @@ import { ARCHIVE_KEYWORDS } from '@/archive/copy'
 import { archiveCopy } from '@/archive/locale'
 import { customizeSidebar, sidebarCopy } from '@/shell/sidebarLayout'
 import { SIDEBAR_KEYWORDS } from '@/shell/sidebarCopy'
+import { SETTINGS_SECTIONS } from '@/shell/settingsSections'
 import { openSidebarPanel } from '@/shell/sidebarPanels'
 import { registerCommands, type Command } from './registry'
 
@@ -57,21 +58,6 @@ function openSettings(section: SettingsSection): void {
   useUi.setState({ settingsSection: section })
   setSettingsOpen(true)
 }
-
-const SETTINGS: [SettingsSection, string, string[]][] = [
-  ['general', 'General', ['import', 'theme', 'home', 'startup']],
-  ['appearance', 'Appearance', ['colours', 'colors', 'font', 'look']],
-  ['sidebar', 'Sidebar', SIDEBAR_KEYWORDS],
-  ['history', 'History', ['versions', 'snapshots']],
-  ['ai', 'AI', ['claude', 'assistant']],
-  ['herman', 'Herman', ['assistant', 'council']],
-  ['notifications', 'Notifications', ['notificações', 'reminders', 'lembretes', 'alarms', 'events', 'tray', 'bandeja']],
-  ['sync', 'Sync', ['git', 'devices', 'backup']],
-  ['today', 'Today', ['calendar', 'briefing', 'bell', 'close the day', 'sky', 'céu', 'hemisphere', 'rare nights']],
-  ['meetings', 'Meetings', ['recording', 'transcription', 'whisper']],
-  ['pomodoro', 'Pomodoro', ['timer', 'focus', 'break', 'tomato']],
-  ['mcp', 'MCP', ['connect', 'other apps', 'claude desktop', 'claude code', 'token']]
-]
 
 const FOCUS_WORDS = ['zen', 'distraction free', 'writing', 'hide']
 
@@ -250,18 +236,11 @@ const OWN: [number, Command][] = [
       run: (page) => requestPageAi(page.id, 'title')
     })
   ]),
-  // 480: open-settings, then each section of Settings
-  ...numbered(
-    500,
-    SETTINGS.map(
-      ([section, label, keywords]): Command => ({
-        id: `settings-${section}`,
-        title: `Settings: ${label}`,
-        keywords: ['preferences', 'options', ...keywords],
-        run: () => openSettings(section)
-      })
-    )
-  )
+  // 480: open-settings, then each section of Settings, where its `order` puts it in their list
+  ...SETTINGS_SECTIONS.map(({ id, label, keywords, order }): [number, Command] => [
+    490 + order,
+    { id: `settings-${id}`, title: `Settings: ${label}`, keywords: ['preferences', 'options', ...keywords], run: () => openSettings(id) }
+  ])
   // 900: keyboard-shortcuts, 910: send-feedback
 ]
 
