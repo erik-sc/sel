@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { cleanHome, cleanStartup, HOME_SETTING, homeTarget, STARTUP_SETTING, type Home, type StartupMode } from '@shared/home'
-import { NOTEBOOK_ID } from '@shared/notebook'
-import { SKY_ID } from '@shared/sky'
+import { SCREENS } from '../screens'
 import { notifyError } from '../ui/toast'
 import { addCacheRoots, fetchBlocks, newId, scheduleSweep } from './blocks'
 
@@ -26,21 +25,6 @@ const MAX_HISTORY = 50
 /** Restored tab sets are cut to this many tabs. */
 const MAX_RESTORED_TABS = 100
 const PERSIST_DELAY = 250
-/**
- * The built-in Today screen as a tab: not a stored page, so it has an id of its own that no
- * block can have (block ids are uuids). See briefing/route.ts.
- */
-export const TODAY_ROUTE = '_today'
-/** The calendar screen, likewise. */
-export const CALENDAR_ROUTE = '_calendar'
-/** The Tasks screen (tasks/gate.ts). */
-export const TASKS_ROUTE = '_tasks'
-/** The ink notebook (see notebook/route.ts). */
-export const NOTEBOOK_ROUTE = '_notebook'
-/** The ritual that closes the day, likewise. */
-export const CLOSE_ROUTE = '_close'
-/** The Sky (see sky/route.ts). */
-export const SKY_ROUTE = '_sky'
 /** The shape of every block id (the backend enforces the same). */
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 
@@ -51,12 +35,9 @@ export function isBlockId(value: unknown): value is string {
 
 /**
  * Pages that are shown as a screen, by the screen's route: the notebook's and the Sky's own
- * pages, which a search result or a link may open. The one place for such aliases.
+ * pages, which a search result or a link may open. Each screen names its own (../screens.ts).
  */
-const ALIASES = new Map<string, string>([
-  [NOTEBOOK_ID, NOTEBOOK_ROUTE],
-  [SKY_ID, SKY_ROUTE]
-])
+const ALIASES = new Map<string, string>(SCREENS.flatMap((screen) => (screen.alias ? [[screen.alias, screen.route] as const] : [])))
 
 /**
  * What a tab shows, the same way however it was reached: one page (or screen), one key. Tabs
@@ -397,12 +378,8 @@ async function restoreTabs(initialPageId: string | null): Promise<void> {
     // Through the cache: the tab strip and the page host need these blocks right away.
     const blocks = pageIds.length ? await fetchBlocks(() => window.api.blocks.getMany([...new Set(pageIds)])) : []
     const alive = new Set(blocks.filter((b) => !b.trashedAt).map((b) => b.id))
-    alive.add(TODAY_ROUTE)
-    alive.add(CALENDAR_ROUTE)
-    alive.add(TASKS_ROUTE)
-    alive.add(NOTEBOOK_ROUTE)
-    alive.add(CLOSE_ROUTE)
-    alive.add(SKY_ROUTE)
+    // A screen is always there to be shown.
+    for (const screen of SCREENS) alive.add(screen.route)
     if (restored) {
       restored.tabs = restored.tabs.filter((t) => {
         const page = tabPage(t)

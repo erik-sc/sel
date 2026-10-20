@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 import { tabPage, useActiveTab, useTabs } from '@/store/tabs'
 import { setFocusMode, useUi } from '@/store/ui'
@@ -6,22 +6,16 @@ import { Toaster } from '@/ui/Toaster'
 import { VersionHistory } from '@/versions/VersionHistory'
 import { AiSetup, AssistantDock } from '@/ai/Host'
 import { useAiGate } from '@/ai/gate'
-import { CalendarHost, TodayHost } from '@/briefing/Host'
 import { HermanHost } from '@/herman/Host'
 import { PomodoroHost } from '@/pomodoro/Host'
 import { FeedbackHost } from '@/feedback/Host'
 import { MeetingSetup, RecordingIndicator } from '@/meetings/slot'
-import { isCalendarRoute, isTodayRoute } from '@/briefing/route'
-import { isTasksRoute } from '@/tasks/gate'
-import { TasksHost } from '@/tasks/Host'
-import { CloseDayHost, NotebookHost } from '@/notebook/Host'
-import { isCloseRoute, isNotebookRoute } from '@/notebook/route'
-import { SkyHost } from '@/sky/Host'
-import { isSkyRoute } from '@/sky/route'
+import { screenOf } from '@/screens'
 import { UpdateNotice } from '@/updates/Notice'
 import { CommandPalette } from '@/commands/Palette'
 import { ShortcutsHost } from '@/shortcuts/Host'
 import { TemplatesHost } from '@/templates/Host'
+import { PageSkeleton } from '@/ui/Skeleton'
 import { EmptyState, PageHost } from './PageHost'
 import { FindBar } from './FindBar'
 import { MainBars } from './MainBars'
@@ -41,6 +35,7 @@ export function Shell() {
   const ready = useTabs((state) => state.ready)
   const tab = useActiveTab()
   const pageId = tabPage(tab)
+  const screen = screenOf(pageId)
 
   const classes = ['shell', `platform-${window.api.app.platform}`]
   if (sidebarCollapsed) classes.push('is-sidebar-collapsed')
@@ -76,18 +71,11 @@ export function Shell() {
         )}
         <div className="content-row">
           <main className="content">
-            {!ready ? null : isTodayRoute(pageId) ? (
-              <TodayHost />
-            ) : isCalendarRoute(pageId) ? (
-              <CalendarHost />
-            ) : isTasksRoute(pageId) ? (
-              <TasksHost />
-            ) : isNotebookRoute(pageId) ? (
-              <NotebookHost />
-            ) : isCloseRoute(pageId) ? (
-              <CloseDayHost />
-            ) : isSkyRoute(pageId) ? (
-              <SkyHost />
+            {!ready ? null : screen ? (
+              // A screen's mount point is fetched the first time it is shown (../screens.ts).
+              <Suspense fallback={<ScreenSkeleton />}>
+                <screen.Host />
+              </Suspense>
             ) : pageId && tab ? (
               <PageHost key={`${tab.id}:${pageId}`} pageId={pageId} />
             ) : (
@@ -111,6 +99,17 @@ export function Shell() {
       <FeedbackHost />
       <TemplatesHost />
       <Toaster />
+    </div>
+  )
+}
+
+/** What a screen shows while its mount point loads: what the mount point itself shows while its screen does. */
+function ScreenSkeleton() {
+  return (
+    <div className="page-host">
+      <div className="page-scroll">
+        <PageSkeleton />
+      </div>
     </div>
   )
 }
