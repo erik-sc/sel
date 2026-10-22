@@ -47,7 +47,9 @@ import {
   type DayAgenda,
   type EventMoment
 } from './format'
-import { EventRow, TaskRow, openSettings, useCompleteTask, useLive, useNow } from './parts'
+import { TaskPanel } from '@/tasks/lazy'
+import { useTaskRows } from '@/tasks/TaskRow'
+import { BriefingTaskItem, EventRow, openSettings, useCompleteTask, useLive, useNow, useTaskViews } from './parts'
 import { canMove, moveTask, slotTime, undoMove, type Move } from './reschedule'
 import '@/tasks/tasks.css'
 import './today.css'
@@ -663,6 +665,10 @@ function DayDetail({
   )
   const near = dueLabel(day, today)
   const connected = calendars.size > 0
+  // The built-in Tasks database's tasks are edited where they are, and open in the task panel.
+  const [panel, setPanel] = useState<string | null>(null)
+  const views = useTaskViews(agenda.tasks)
+  const rows = useTaskRows(useMemo(() => agenda.tasks.filter((task) => views.get(task.id)).map((task) => task.id), [agenda.tasks, views]))
 
   return (
     <aside className="cal-detail" aria-labelledby="cal-detail-date" aria-busy={loading}>
@@ -697,20 +703,43 @@ function DayDetail({
           </p>
         )}
       </section>
-      <section className="cal-section" aria-labelledby="cal-detail-tasks">
+      <section className="cal-section" aria-labelledby="cal-detail-tasks" {...rows.listProps}>
         <h3 className="today-label" id="cal-detail-tasks">
           Due
         </h3>
         {agenda.tasks.length > 0 ? (
           <ul className="today-list">
             {agenda.tasks.map((task) => (
-              <TaskRow key={task.id} task={task} day={day} onComplete={onComplete} />
+              <BriefingTaskItem
+                key={task.id}
+                task={task}
+                view={views.get(task.id)}
+                day={day}
+                today={today}
+                rows={rows}
+                panel={panel}
+                onComplete={onComplete}
+                onOpen={setPanel}
+              />
             ))}
           </ul>
         ) : (
           <p className="today-quiet">{loading ? 'Reading…' : 'Nothing due.'}</p>
         )}
       </section>
+      {panel && (
+        <TaskPanel
+          overlay
+          taskId={panel}
+          today={today}
+          onClose={() => setPanel(null)}
+          onToggle={(item) => {
+            const listed = agenda.tasks.find((task) => task.id === item.id)
+            onComplete(listed ?? { id: item.id, kind: 'row', title: item.title, pageId: item.id, source: '' })
+          }}
+          onSelect={setPanel}
+        />
+      )}
     </aside>
   )
 }

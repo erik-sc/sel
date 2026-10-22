@@ -24,7 +24,9 @@ import {
   taskGroups,
   updatedLabel
 } from './format'
-import { EventRow, Lines, TaskRow, openSettings, useCompleteTask, useLive, useNow } from './parts'
+import { TaskPanel } from '@/tasks/lazy'
+import { useTaskRows } from '@/tasks/TaskRow'
+import { BriefingTaskItem, EventRow, Lines, openSettings, useCompleteTask, useLive, useNow, useTaskViews } from './parts'
 import './today.css'
 
 const readBriefing = (force: boolean): Promise<Briefing> => window.api.briefing.get(force)
@@ -279,13 +281,22 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
 
 // ---- the tasks ----------------------------------------------------------------
 
-function Tasks({ briefing }: { briefing: Briefing }): JSX.Element {
+/**
+ * The open tasks. Those of the built-in Tasks database are edited where they are (chips, the
+ * row's menu and keys) and open in the task panel, over the right side of the screen.
+ */
+function Tasks({ briefing, today }: { briefing: Briefing; today: string }): JSX.Element {
   const [expanded, setExpanded] = useState(false)
+  const [panel, setPanel] = useState<string | null>(null)
   const { done, complete } = useCompleteTask()
   const { groups, hidden } = useMemo(() => taskGroups(briefing.tasks, expanded, done), [briefing.tasks, expanded, done])
+  const shown = useMemo(() => groups.flatMap((group) => group.tasks), [groups])
+  const views = useTaskViews(shown)
+  const rows = useTaskRows(useMemo(() => shown.filter((task) => views.get(task.id)).map((task) => task.id), [shown, views]))
+  const byId = useMemo(() => new Map(shown.map((task) => [task.id, task])), [shown])
 
   return (
-    <section className="today-section" aria-labelledby="today-tasks">
+    <section className="today-section" aria-labelledby="today-tasks" {...rows.listProps}>
       <h2 className="today-label" id="today-tasks">
         Open tasks
       </h2>
@@ -297,7 +308,17 @@ function Tasks({ briefing }: { briefing: Briefing }): JSX.Element {
             {(groups.length > 1 || group.key !== 'today') && <h3 className="today-group-label">{group.label}</h3>}
             <ul className="today-list">
               {group.tasks.map((task) => (
-                <TaskRow key={task.id} task={task} day={briefing.date} onComplete={complete} />
+                <BriefingTaskItem
+                  key={task.id}
+                  task={task}
+                  view={views.get(task.id)}
+                  day={briefing.date}
+                  today={today}
+                  rows={rows}
+                  panel={panel}
+                  onComplete={complete}
+                  onOpen={setPanel}
+                />
               ))}
             </ul>
           </div>
@@ -307,6 +328,19 @@ function Tasks({ briefing }: { briefing: Briefing }): JSX.Element {
         <button type="button" className="today-link today-more" onClick={() => setExpanded(true)}>
           and {hidden} more…
         </button>
+      )}
+      {panel && (
+        <TaskPanel
+          overlay
+          taskId={panel}
+          today={today}
+          onClose={() => setPanel(null)}
+          onToggle={(item) => {
+            const listed = byId.get(item.id)
+            complete(listed ?? { id: item.id, kind: 'row', title: item.title, pageId: item.id, source: '' })
+          }}
+          onSelect={setPanel}
+        />
       )}
     </section>
   )
@@ -461,7 +495,7 @@ export function TodayScreen(): JSX.Element {
       <Plans date={data.date} />
       <Phrase phrase={data.phrase} hasPhrases={data.hasPhrases} onChange={setPhrase} />
       <Agenda briefing={data} now={now} />
-      <Tasks briefing={data} />
+      <Tasks briefing={data} today={localDay(now)} />
       <BriefMe />
       <footer className="today-foot">
         <span>{updatedLabel(data.updatedAt, now)}</span>

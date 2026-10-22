@@ -186,6 +186,35 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
     ]
   },
   {
+    id: 'tasks',
+    title: 'Tasks',
+    entries: [
+      { id: 'task-move-focus', label: 'Previous or next task, in a list of tasks', keys: ['Up', 'Down'], keywords: ['todo'] },
+      { id: 'task-panel', label: 'Open the task panel, on a focused task', keys: ['Enter'], keywords: ['details', 'todo'] },
+      { id: 'task-page-tab', label: "Open the task's page in a new tab", keys: ['CmdOrCtrl+Enter', 'CmdOrCtrl+Click'] },
+      {
+        id: 'task-rename',
+        label: 'Rename the task; dates, p1–p4, #project and @label in the name are read',
+        keys: ['F2'],
+        keywords: ['title', 'edit']
+      },
+      { id: 'task-date', label: 'Change the date of the task', keys: ['D'], keywords: ['due', 'schedule'] },
+      { id: 'task-repeat', label: 'Change how the task repeats', keys: ['R'], keywords: ['recurrence', 'recurring'] },
+      { id: 'task-priority', label: 'Priority 1 to 4; the same again takes it away', keys: ['1…4'], keywords: ['p1', 'urgent'] },
+      { id: 'task-project', label: 'Change the project of the task', keys: ['#'] },
+      { id: 'task-labels', label: 'Change the labels of the task', keys: ['@'], keywords: ['tags'] },
+      { id: 'task-remind', label: 'Remind about the task', keys: ['L'], keywords: ['reminder', 'alarm'] },
+      { id: 'task-complete', label: 'Complete the task', keys: ['Space'], keywords: ['done', 'check'] },
+      { id: 'task-delete', label: 'Delete the task (Undo on the message)', keys: ['Delete'], keywords: ['remove', 'trash'] },
+      {
+        id: 'task-nest',
+        label: 'Make the task a subtask of the one above, or take it out',
+        keys: ['CmdOrCtrl+]', 'CmdOrCtrl+['],
+        keywords: ['indent', 'outdent', 'subtask']
+      }
+    ]
+  },
+  {
     id: 'herman',
     title: 'Herman',
     entries: [
