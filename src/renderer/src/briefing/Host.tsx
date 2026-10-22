@@ -1,5 +1,6 @@
 // Mount points of the Today screen and of the calendar screen. A screen and its stylesheet are
 // fetched the first time it is shown; until then a few skeleton lines stand in, laid out like a page.
+// The host is what the task panel is laid over (tasks/panel.css), outside the scrolling page.
 import { Suspense, lazy } from 'react'
 import type { JSX } from 'react'
 import { PageSkeleton } from '@/ui/Skeleton'
@@ -9,7 +10,7 @@ const CalendarScreen = lazy(() => import('./CalendarScreen').then((module) => ({
 
 export function CalendarHost(): JSX.Element {
   return (
-    <div className="page-host">
+    <div className="page-host task-panel-host">
       <div className="page-scroll">
         <Suspense fallback={<PageSkeleton />}>
           <CalendarScreen />
@@ -21,7 +22,7 @@ export function CalendarHost(): JSX.Element {
 
 export function TodayHost(): JSX.Element {
   return (
-    <div className="page-host">
+    <div className="page-host task-panel-host">
       <div className="page-scroll">
         <Suspense fallback={<PageSkeleton />}>
           <TodayScreen />

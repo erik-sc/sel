@@ -12,6 +12,11 @@
   animation: ui-fade var(--duration) var(--ease);
 }
 
+/* With a task open in the panel: a third column. */
+.tasks.has-panel {
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(300px, 400px);
+}
+
 .tasks.is-loading,
 .tasks.is-unavailable {
   display: block;
@@ -153,147 +158,7 @@
   list-style: none;
 }
 
-.task-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 10px;
-  padding: 2px 0 2px calc(var(--depth, 0) * 28px);
-  border-bottom: var(--hairline) solid var(--border);
-}
-
-/* The checkbox: a ring in the colour of the priority, filled when hovered or done. */
-.task-check {
-  --task-colour: var(--border-strong);
-  box-sizing: border-box;
-  width: 18px;
-  height: 18px;
-  margin-top: 9px;
-  border: 1.5px solid var(--task-colour);
-  border-radius: var(--radius-pill);
-  transition:
-    border-color var(--duration-fast) var(--ease),
-    background-color var(--duration-fast) var(--ease);
-}
-
-.task-check.is-p1 {
-  --task-colour: var(--c-red);
-  border-width: 2px;
-}
-
-.task-check.is-p2 {
-  --task-colour: var(--c-orange);
-  border-width: 2px;
-}
-
-.task-check.is-p3 {
-  --task-colour: var(--c-blue);
-  border-width: 2px;
-}
-
-.task-check:hover,
-.task-check:focus-visible {
-  background-color: color-mix(in srgb, var(--task-colour) 18%, transparent);
-}
-
-.task-check:active,
-.task-row.is-done .task-check {
-  background-color: var(--task-colour);
-}
-
-.task-open {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-width: 0;
-  padding: 6px 8px;
-  margin-left: -8px;
-  border-radius: var(--radius-s);
-  font-size: var(--text-ui);
-  line-height: var(--leading-body);
-  text-align: left;
-  transition: background-color var(--duration-fast) var(--ease);
-}
-
-.task-open:hover {
-  background-color: var(--bg-hover);
-}
-
-.task-title {
-  max-width: 100%;
-  overflow-wrap: anywhere;
-}
-
-.task-row.is-done .task-title {
-  color: var(--text-tertiary);
-  text-decoration: line-through;
-}
-
-.task-meta {
-  display: flex;
-  gap: 8px;
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
-}
-
-.task-due.is-overdue {
-  color: var(--danger);
-}
-
-.task-side {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-/* Indent and outdent: there when the row is hovered or has focus. */
-.task-moves {
-  display: flex;
-  gap: 2px;
-  padding-top: 6px;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease);
-}
-
-.task-row:hover .task-moves,
-.task-row:focus-within .task-moves {
-  opacity: 1;
-}
-
-.task-move {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-s);
-  color: var(--text-tertiary);
-  font-size: var(--text-sm);
-}
-
-.task-move:hover,
-.task-move:focus-visible {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.task-tags {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 6px;
-  max-width: 220px;
-  padding-top: 8px;
-  font-size: var(--text-sm);
-}
-
-.task-label {
-  padding: 0 6px;
-  border-radius: var(--radius-xs);
-  line-height: 1.6;
-}
-
-.task-project {
-  color: var(--text-tertiary);
-}
+/* The rows themselves are in row.css, with TaskRow.tsx. */
 
 /* ---- quick add ---- */
 

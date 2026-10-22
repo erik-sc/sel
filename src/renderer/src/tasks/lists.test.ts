@@ -82,7 +82,26 @@ describe('reading tasks', () => {
     expect(task).toMatchObject({ title: 'Call mum', done: false, due: '2026-10-15T09:30', priority: 1, recurring: true })
     expect(task.project?.name).toBe('Home')
     expect(task.labels.map((label) => label.name)).toEqual(['calls'])
-    expect(readTasks([row('Bare')], schema)[0]).toMatchObject({ priority: 4, project: null, labels: [], due: null, recurring: false })
+    expect(task.recurrence).toEqual({ rule: 'FREQ=WEEKLY', from: 'due', text: 'FREQ=WEEKLY' })
+    expect(readTasks([row('Bare')], schema)[0]).toMatchObject({
+      priority: null,
+      project: null,
+      labels: [],
+      due: null,
+      recurring: false,
+      recurrence: null,
+      remind: null
+    })
+  })
+
+  it('tells no priority from P4', () => {
+    const [none, p4, unknown] = readTasks(
+      [row('None'), row('Four', { [TASK_PROPS.priority]: 'tasks.p4' }), row('Odd', { [TASK_PROPS.priority]: 'someday' })],
+      schema
+    )
+    expect(none.priority).toBeNull()
+    expect(p4.priority).toBe(4)
+    expect(unknown.priority).toBeNull()
   })
 })
 

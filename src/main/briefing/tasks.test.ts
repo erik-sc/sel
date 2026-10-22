@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BlockProps, PropertySchema } from '../../shared/types'
 import { detectSignal, fold, isOpenRow, planCompletion, planUndo, selectTasks, type TaskBlock } from './tasks'
+import { TASK_PROPS, TASKS_DATABASE_ID, tasksDatabaseProps } from '../../shared/tasks'
 
 const TODAY = '2026-10-13'
 
@@ -194,7 +195,7 @@ describe('selecting tasks', () => {
       source: 'Tasks',
       due: '2026-10-13',
       dateProperty: 'due',
-      priority: { name: 'High', color: 'red' }
+      priority: { id: 'hi', name: 'High', color: 'red' }
     })
     expect(selected.today[2].due).toBe('2026-10-13')
     expect(selected.today[1].due).toBe('2026-11-01')
@@ -438,5 +439,80 @@ describe('the tasks of a span of days', () => {
     ])
     // Asked for no span, it answers as before.
     expect(Object.keys(selectTasks(blocks, { today: TODAY })).sort()).toEqual(['noDate', 'overdue', 'today'])
+  })
+})
+
+describe('the built-in Tasks database', () => {
+  const builtIn = (): TaskBlock => {
+    const props = tasksDatabaseProps()
+    const schema = props.schema as Record<string, PropertySchema>
+    schema[TASK_PROPS.project] = { ...schema[TASK_PROPS.project], options: [{ id: 'home', name: 'Home', color: 'green' }] }
+    schema[TASK_PROPS.labels] = {
+      ...schema[TASK_PROPS.labels],
+      options: [
+        { id: 'calls', name: 'calls', color: 'blue' },
+        { id: 'errands', name: 'errands', color: 'pink' }
+      ]
+    }
+    return block(TASKS_DATABASE_ID, 'database', null, props)
+  }
+  const weekly = JSON.stringify({ rule: 'FREQ=WEEKLY;BYDAY=MO', from: 'due', text: 'every monday' })
+
+  it('gives its rows their project, labels and repeat', () => {
+    const selection = selectTasks(
+      [
+        builtIn(),
+        row('a', TASKS_DATABASE_ID, 'Call the bank', {
+          [TASK_PROPS.due]: { start: TODAY },
+          [TASK_PROPS.project]: 'home',
+          [TASK_PROPS.labels]: ['errands', 'gone', 'calls'],
+          [TASK_PROPS.recurrence]: weekly
+        })
+      ],
+      { today: TODAY }
+    )
+    expect(selection.today).toHaveLength(1)
+    const [task] = selection.today
+    expect(task.project).toEqual({ id: 'home', name: 'Home', color: 'green' })
+    expect(task.labels).toEqual([
+      { id: 'errands', name: 'errands', color: 'pink' },
+      { id: 'calls', name: 'calls', color: 'blue' }
+    ])
+    expect(task.recurrence).toEqual({ rule: 'FREQ=WEEKLY;BYDAY=MO', from: 'due', text: 'every monday' })
+  })
+
+  it('marks its rows by their labels, even with none, and leaves out what they lack', () => {
+    const selection = selectTasks(
+      [
+        builtIn(),
+        row('a', TASKS_DATABASE_ID, 'Plain', { [TASK_PROPS.due]: { start: TODAY }, [TASK_PROPS.project]: 'gone' }),
+        row('b', TASKS_DATABASE_ID, 'Broken repeat', { [TASK_PROPS.due]: { start: TODAY }, [TASK_PROPS.recurrence]: '{nope' })
+      ],
+      { today: TODAY }
+    )
+    for (const task of selection.today) {
+      expect(task.labels).toEqual([])
+      expect(task).not.toHaveProperty('project')
+      expect(task).not.toHaveProperty('recurrence')
+    }
+  })
+
+  it('carries them into a span of days too', () => {
+    const selection = selectTasks(
+      [builtIn(), row('a', TASKS_DATABASE_ID, 'Later', { [TASK_PROPS.due]: { start: '2026-10-20' }, [TASK_PROPS.project]: 'home' })],
+      { today: TODAY, range: { from: TODAY, to: '2026-10-31' } }
+    )
+    expect(selection.dated?.[0].project?.name).toBe('Home')
+  })
+
+  it('gives other task databases none of them', () => {
+    const selection = selectTasks(
+      [database('db'), row('a', 'db', 'Other', { due: { start: TODAY }, [TASK_PROPS.project]: 'home', [TASK_PROPS.recurrence]: weekly })],
+      { today: TODAY }
+    )
+    const [task] = selection.today
+    expect(task).not.toHaveProperty('labels')
+    expect(task).not.toHaveProperty('project')
+    expect(task).not.toHaveProperty('recurrence')
   })
 })

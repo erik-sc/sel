@@ -1,6 +1,7 @@
-import type { BriefingTask } from '../../shared/briefing'
+import type { BriefingTask, BriefingTaskTag } from '../../shared/briefing'
 import { plainText } from '../../shared/richtext'
 import { TASK_PROPS } from '../../shared/tasks'
+import { readRecurrence } from '../../shared/tasks/recur'
 import type { Block, BlockProps, PropertySchema, PropertyValue } from '../../shared/types'
 
 /**
@@ -158,6 +159,8 @@ export interface TaskSignal {
   /** The date property that says when a row is due. */
   date?: string
   priority?: { property: string; options: ReadonlyMap<string, { name: string; color: string; rank: number }> }
+  /** The built-in Tasks database: its projects and labels, read by their fixed property ids. */
+  builtIn?: { projects: ReadonlyMap<string, BriefingTaskTag>; labels: ReadonlyMap<string, BriefingTaskTag> }
 }
 
 /** Reads a database's schema for a done signal. Null when it has none (it is not a task list). */
@@ -218,7 +221,37 @@ export function detectSignal(props: BlockProps | undefined | null): TaskSignal |
     }
     signal.priority = { property: priority.id, options }
   }
+
+  if (props?.system === 'tasks') {
+    const tags = (id: string, type: string): Map<string, BriefingTaskTag> => {
+      const property = builtIn(id, type)
+      const map = new Map<string, BriefingTaskTag>()
+      for (const option of property ? optionsOf(property) : []) {
+        map.set(option.id, { id: option.id, name: option.name.slice(0, 60), color: option.color })
+      }
+      return map
+    }
+    signal.builtIn = { projects: tags(TASK_PROPS.project, 'select'), labels: tags(TASK_PROPS.labels, 'multi_select') }
+  }
   return signal
+}
+
+/** What a row of the built-in Tasks database adds to its task: project, labels, and how it repeats. */
+function builtInFields(builtIn: NonNullable<TaskSignal['builtIn']>, values: Record<string, PropertyValue>): Partial<BriefingTask> {
+  const out: Partial<BriefingTask> = {}
+  const project = own(values, TASK_PROPS.project)
+  const tag = typeof project === 'string' ? builtIn.projects.get(project) : undefined
+  if (tag) out.project = tag
+  const tagged = own(values, TASK_PROPS.labels)
+  out.labels = Array.isArray(tagged)
+    ? tagged
+        .slice(0, 50)
+        .map((id) => (typeof id === 'string' ? builtIn.labels.get(id) : undefined))
+        .filter((label): label is BriefingTaskTag => !!label)
+    : []
+  const recurrence = readRecurrence(own(values, TASK_PROPS.recurrence))
+  if (recurrence) out.recurrence = recurrence
+  return out
 }
 
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})/
@@ -379,7 +412,7 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
       const picked = own(values, signal.priority.property)
       const option = typeof picked === 'string' ? signal.priority.options.get(picked) : undefined
       if (option) {
-        task.priority = { name: option.name.slice(0, 60), color: option.color }
+        task.priority = { id: picked as string, name: option.name.slice(0, 60), color: option.color }
         rank = option.rank
       }
     }
@@ -400,6 +433,7 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
       }
       task.dateProperty = signal.date
     }
+    if (signal.builtIn) Object.assign(task, builtInFields(signal.builtIn, values))
     const status = signal.status ? own(values, signal.status.property) : undefined
     const active = typeof status === 'string' && !!signal.status?.active.has(status)
     if (start) {

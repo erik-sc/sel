@@ -133,7 +133,24 @@ export const PAGE_KEYS: readonly PageKey[] = [
   { where: 'sidebar', accelerator: 'Alt+Shift+Left', key: 'arrowleft', alt: true, shift: true },
   { where: 'tab strip', accelerator: 'Control+Shift+PageUp', key: 'pageup', ctrl: true, shift: true },
   { where: 'tab strip', accelerator: 'Control+Shift+PageDown', key: 'pagedown', ctrl: true, shift: true },
-  { where: 'selected text', accelerator: 'Alt+F10', key: 'f10', alt: true }
+  { where: 'selected text', accelerator: 'Alt+F10', key: 'f10', alt: true },
+  // A focused task row (src/renderer/src/tasks/model.ts, rowKeyAction): letters, digits and signs, unmodified.
+  { where: 'task rows', accelerator: 'Enter', key: 'enter' },
+  { where: 'task rows', accelerator: 'Control+Enter', key: 'enter', ctrl: true },
+  { where: 'task rows', accelerator: 'F2', key: 'f2' },
+  { where: 'task rows', accelerator: 'D', key: 'd' },
+  { where: 'task rows', accelerator: 'R', key: 'r' },
+  { where: 'task rows', accelerator: 'L', key: 'l' },
+  { where: 'task rows', accelerator: '1', key: '1' },
+  { where: 'task rows', accelerator: '2', key: '2' },
+  { where: 'task rows', accelerator: '3', key: '3' },
+  { where: 'task rows', accelerator: '4', key: '4' },
+  { where: 'task rows', accelerator: '#', key: '#' },
+  { where: 'task rows', accelerator: '@', key: '@' },
+  { where: 'task rows', accelerator: 'Space', key: ' ' },
+  { where: 'task rows', accelerator: 'Delete', key: 'delete' },
+  { where: 'task rows', accelerator: 'Control+]', key: ']', ctrl: true },
+  { where: 'task rows', accelerator: 'Control+[', key: '[', ctrl: true }
 ]
 
 /**

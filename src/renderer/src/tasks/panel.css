@@ -1,0 +1,196 @@
+/*
+ * The task panel (TaskPanel.tsx): a column of the Tasks screen, or a sheet over the right side of
+ * Today and the calendar. Tokens from styles/tokens.css.
+ */
+
+.task-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  padding: 20px 20px 32px;
+  border-left: var(--hairline) solid var(--border);
+  background: var(--bg-solid);
+  color: var(--text);
+  animation: ui-fade var(--duration) var(--ease);
+}
+
+.task-panel.is-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  width: min(420px, 100%);
+  box-shadow: var(--shadow-panel);
+}
+
+/* The screen a sheet is laid over. */
+.task-panel-host {
+  position: relative;
+}
+
+.task-panel-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.task-panel-head .task-check {
+  margin-top: 6px;
+}
+
+.task-panel-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-title);
+}
+
+.task-panel-title.is-done {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.task-panel-rename {
+  width: 100%;
+  margin: 0 -4px;
+  padding: 2px 4px;
+  border-radius: var(--radius-s);
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.task-panel-rename:hover {
+  background: var(--bg-hover);
+}
+
+.task-panel-title-edit {
+  font-size: var(--text-lg);
+}
+
+.task-panel-close {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-s);
+  color: var(--text-tertiary);
+}
+
+.task-panel-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.task-panel-fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 16px;
+  margin: 0;
+}
+
+.task-panel-field {
+  display: contents;
+}
+
+.task-panel-field dt {
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.task-panel-field dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.task-panel-value {
+  max-width: 100%;
+  margin-left: -6px;
+  padding: 3px 6px;
+  border-radius: var(--radius-s);
+  font-size: var(--text-ui);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.task-panel-value:hover {
+  background: var(--bg-hover);
+}
+
+.task-panel-value.is-empty {
+  color: var(--text-tertiary);
+}
+
+.task-panel-label {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-ui);
+}
+
+.task-panel-section .tasks-rows {
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.task-panel-add {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-ui);
+  outline: none;
+}
+
+.task-panel-add::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* The notes are the page's own blocks, at the panel's width. */
+.task-panel-notes .pe-root.is-body-only {
+  height: auto;
+  min-height: 120px;
+  overflow: visible;
+}
+
+.task-panel-notes .pe-root.is-body-only .pe-content {
+  max-width: none;
+  padding: 0 0 0 24px;
+}
+
+.task-panel-notes .pe-root.is-body-only .pe-tail {
+  min-height: 80px;
+}
+
+.task-panel-quiet {
+  color: var(--text-secondary);
+}
+
+.task-panel-foot {
+  margin-top: auto;
+}
+
+.task-panel-open {
+  padding: 4px 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.task-panel-open:hover {
+  color: var(--text);
+}

@@ -152,7 +152,23 @@ export interface BriefingTask {
   time?: string
   /** A row's date property (the one `due` is read from): what rescheduling it writes. */
   dateProperty?: string
-  priority?: { name: string; color: string }
+  /** `id` is the option's: the built-in Tasks database tells its four priorities apart by it. */
+  priority?: { id?: string; name: string; color: string }
+  /**
+   * Rows of the built-in Tasks database only (`labels` is there, even empty, exactly for them):
+   * what the lists show and edit beside the date. Other task databases leave these out.
+   */
+  project?: BriefingTaskTag
+  labels?: BriefingTaskTag[]
+  /** How it repeats, when it does. */
+  recurrence?: { rule: string; from: 'due' | 'completion'; text: string }
+}
+
+/** A project or a label of the built-in Tasks database: one of its options. */
+export interface BriefingTaskTag {
+  id: string
+  name: string
+  color: string
 }
 
 export interface BriefingTasks {
