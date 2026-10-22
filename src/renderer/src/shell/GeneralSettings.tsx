@@ -55,7 +55,6 @@ export function GeneralSection() {
             </div>
           </div>
         </div>
-        <p className="ap-note">Colours, glass, fonts and spacing are under Appearance.</p>
       </section>
 
       <section className="ap-group">

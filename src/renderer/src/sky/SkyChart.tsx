@@ -57,7 +57,13 @@ function ring(x: number, y: number, r: number): string {
   return `M${r1(x - r)} ${r1(y)}a${r1(r)} ${r1(r)} 0 1 0 ${r1(r * 2)} 0a${r1(r)} ${r1(r)} 0 1 0 ${r1(-r * 2)} 0`
 }
 
-const line = (a: { x: number; y: number }, b: { x: number; y: number }): string => `M${r1(a.x)} ${r1(a.y)}L${r1(b.x)} ${r1(b.y)}`
+/**
+ * The chart's grid: the same dots as the ground behind the sidebar, every GRID units. Every star,
+ * grain and line end is drawn on a node of it, so the Sky is written on the app's own paper.
+ */
+const GRID = 12
+const snap = (v: number): number => Math.round(v / GRID) * GRID
+const line = (a: { x: number; y: number }, b: { x: number; y: number }): string => `M${snap(a.x)} ${snap(a.y)}L${snap(b.x)} ${snap(b.y)}`
 
 /** The pixel size of one unit of the drawing, so that strokes stay 1–1.4 px at any size. */
 function usePx(ref: React.RefObject<HTMLDivElement | null>): number {
@@ -125,11 +131,15 @@ export function SkyChart({
           <clipPath id={`${clip}-box`}>
             <rect x="0" y="0" width={SKY_WIDTH} height={SKY_HEIGHT} />
           </clipPath>
+          <pattern id={`${clip}-dots`} x={-GRID / 2} y={-GRID / 2} width={GRID} height={GRID} patternUnits="userSpaceOnUse">
+            <rect className="dot" x={GRID / 2 - px} y={GRID / 2 - px} width={2 * px} height={2 * px} />
+          </pattern>
           <clipPath id={`${clip}-moon`}>
             <circle cx={scene.moon.x} cy={scene.moon.y} r={scene.moon.r} />
           </clipPath>
         </defs>
         <g clipPath={`url(#${clip}-box)`} className="sky-root">
+          <rect className="sky-dots" x="0" y="0" width={SKY_WIDTH} height={SKY_HEIGHT} fill={`url(#${clip}-dots)`} />
           {/* the chart: three arcs and five meridians, very faint */}
           <g className="sky-grid">
             {CHART_ARCS.map((d, i) => (
@@ -172,7 +182,7 @@ export function SkyChart({
           {/* background stars: they mean nothing */}
           <g className={t.field ? 'fade' : undefined} style={tm(t.field)}>
             {scene.field.map((s, i) => (
-              <circle key={i} className={i >= 60 ? 'fs is-dark' : 'fs'} cx={s.x} cy={s.y} r={r1(s.r * k)} />
+              <circle key={i} className={i >= 60 ? 'fs is-dark' : 'fs'} cx={snap(s.x)} cy={snap(s.y)} r={r1(s.r * k)} />
             ))}
           </g>
 
@@ -193,8 +203,8 @@ export function SkyChart({
                   )}
                   <circle
                     className={['grain', arriving ? 'land' : timing ? 'fade' : ''].join(' ').trim()}
-                    cx={g.x}
-                    cy={g.y}
+                    cx={snap(g.x)}
+                    cy={snap(g.y)}
                     r={r1(g.r * k)}
                     style={tm(timing)}
                   />
@@ -349,12 +359,19 @@ function Month({
         return (
           <g key={s.day}>
             {fresh && <path className="sparkle" d={glint(s.x, s.y, 10)} style={tm({ w: fresh.w - 0.4, n: 4.5 })} />}
-            <circle className={cls} cx={s.x} cy={s.y} r={r} style={tm(fresh ?? reveal ?? breathe ?? handoff)} data-day={s.day} />
+            <circle
+              className={cls}
+              cx={snap(s.x)}
+              cy={snap(s.y)}
+              r={r}
+              style={tm(fresh ?? reveal ?? breathe ?? handoff)}
+              data-day={s.day}
+            />
             {!small && (
               <circle
                 className="hit"
-                cx={s.x}
-                cy={s.y}
+                cx={snap(s.x)}
+                cy={snap(s.y)}
                 r={9}
                 onPointerEnter={() => onHover(s)}
                 onPointerLeave={() => onHover(null)}

@@ -1,6 +1,9 @@
 // A tiny software renderer with the PlayStation 1 look: low-poly meshes, flat shading, vertices
-// snapped to whole pixels, a z-buffer, 4×4 ordered dithering down to 15-bit colour, a small
-// frame shown scaled up. Output: a PNG (RGBA, transparent background) as a data: URI.
+// snapped to whole pixels, a z-buffer, a small frame shown scaled up. With a palette (the sprites
+// use the design system's inks, palette.mjs) every material is drawn in three of its tones —
+// shade, mid, light — with a 4×4 ordered dither only at the seams; without one, 15-bit colour.
+// With outline: null nothing is drawn around the figure.
+// Output: a PNG (RGBA, transparent background) as a data: URI.
 import { deflateSync } from 'node:zlib'
 
 const rad = (d) => (d * Math.PI) / 180
@@ -80,7 +83,16 @@ export function xf(mesh, { s = [1, 1, 1], r = [0, 0, 0], t = [0, 0, 0] } = {}) {
 
 // ---- render ----
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]
-export function render(mesh, { size = 84, yaw = -28, pitch = 8, dist = 7, fov = 4.6, center = [0, 0.9, 0], light = [-0.5, 0.75, 0.55], ambient = 0.38, outline = '#16151a', raw = false } = {}) {
+export function render(mesh, { size = 84, yaw = -28, pitch = 8, dist = 7, fov = 4.6, center = [0, 0.9, 0], light = [-0.5, 0.75, 0.55], ambient = 0.38, outline = '#16151a', raw = false, palette = null, spread = 36 } = {}) {
+  const PAL = palette ? palette.map(hex) : null
+  const near = (c) => { let best = PAL[0], bd = Infinity; for (const p of PAL) { const d = (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2; if (d < bd) { bd = d; best = p } } return best }
+  const ramps = new Map()
+  /** The dark, mid and light ink a material is drawn in: the palette colours nearest to it shaded and lit. */
+  const rampOf = (c) => {
+    const key = c.join(',')
+    if (!ramps.has(key)) ramps.set(key, [near(c.map((q) => q * 0.55)), near(c), near(c.map((q) => Math.min(255, q * 1.18 + 12)))])
+    return ramps.get(key)
+  }
   const W = size, H = size
   const color = new Uint8ClampedArray(W * H * 4)
   const depth = new Float32Array(W * H).fill(-Infinity)
@@ -120,11 +132,18 @@ export function render(mesh, { size = 84, yaw = -28, pitch = 8, dist = 7, fov = 
         depth[i] = z
         const t = BAYER[(y % 4) * 4 + (x % 4)] / 16 - 0.5
         // 15-bit colour (5 bits a channel) with the ordered dither
-        for (let k = 0; k < 3; k++) color[i * 4 + k] = Math.max(0, Math.min(31, Math.round(col[k] / 8.226 + t))) * 8.226
+        if (PAL) {
+          // three tones of the material from the design system's inks; the ordered dither only at the seams
+          const ramp = rampOf(c)
+          const level = shade + t * 0.12
+          const best = level < 0.62 ? ramp[0] : level < 0.98 ? ramp[1] : ramp[2]
+          color[i * 4] = best[0]; color[i * 4 + 1] = best[1]; color[i * 4 + 2] = best[2]
+        } else for (let k = 0; k < 3; k++) color[i * 4 + k] = Math.max(0, Math.min(31, Math.round(col[k] / 8.226 + t))) * 8.226
         color[i * 4 + 3] = 255
       }
   }
   // a one-pixel dark outline around the silhouette, the way sprites were often cut
+  if (!outline) return raw ? { W, H, color } : png(W, H, color)
   const ol = hex(outline)
   const solid = (x, y) => x >= 0 && y >= 0 && x < W && y < H && color[(y * W + x) * 4 + 3] === 255
   const edge = []

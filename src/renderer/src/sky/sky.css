@@ -35,8 +35,10 @@
 .sky-kicker {
   margin: 0 0 8px;
   color: var(--text-tertiary);
-  font-size: var(--text-sm);
-  letter-spacing: var(--tracking-ui);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .sky-title {
@@ -59,9 +61,8 @@
   margin: 14px auto 0;
   max-width: 70ch;
   color: var(--text-tertiary);
-  font-family: var(--font-serif);
-  font-size: var(--text-md);
-  font-style: italic;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
   line-height: var(--leading-body);
   text-align: center;
   text-wrap: balance;
@@ -168,12 +169,18 @@
   width: 100%;
   height: auto;
   overflow: visible;
+  /* drawn like the rest of the app: no smoothing, square ends, the stars sitting on the grid's dots */
+  shape-rendering: crispEdges;
 }
 
 .sky-svg path {
   fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.sky-svg .dot {
+  fill: var(--grid-dot);
 }
 
 .sky-svg * {
@@ -183,15 +190,15 @@
 
 .sky-svg .grid-l {
   stroke: var(--text-tertiary);
-  stroke-width: calc(var(--px) * 0.7);
-  opacity: 0.2;
+  stroke-width: calc(var(--px) * 1);
+  opacity: 0.22;
 }
 
 .sky-svg .wheel {
   fill: none;
   stroke: var(--text-tertiary);
-  stroke-width: calc(var(--px) * 0.8);
-  opacity: 0.32;
+  stroke-width: calc(var(--px) * 1);
+  opacity: 0.45;
 }
 
 .sky-svg .tick {
@@ -210,8 +217,8 @@
 }
 
 .sky-svg .cl {
-  stroke: var(--text-secondary);
-  stroke-width: calc(var(--px) * 1.1);
+  stroke: var(--text);
+  stroke-width: calc(var(--px) * 2);
 }
 
 .sky-svg .glint {
@@ -358,7 +365,7 @@
 
 /* A miniature: its lines a touch bolder, since a unit is a fraction of a pixel. */
 .is-small .sky-svg .cl {
-  stroke-width: calc(var(--px) * 0.9);
+  stroke-width: calc(var(--px) * 1.5);
 }
 
 /* ---- the names of the constellations, and what is under the pointer ---- */
@@ -374,9 +381,9 @@
   border: 0;
   background: transparent;
   color: var(--text-tertiary);
-  font-family: var(--font-serif);
-  font-size: clamp(10px, 1.45cqi, 14px);
-  font-style: italic;
+  font-family: var(--font-mono);
+  font-size: clamp(10px, 1.3cqi, 12px);
+  letter-spacing: 0.04em;
   white-space: nowrap;
   cursor: pointer;
 }

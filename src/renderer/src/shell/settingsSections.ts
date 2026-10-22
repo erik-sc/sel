@@ -2,7 +2,6 @@
 // "Settings: …" commands (commands/builtin.ts) both read this. Each feature describes its own
 // (`<feature>/settingsSection.ts`); this lists them, one line each. Leaf data: a section's panel
 // is fetched the first time it is shown.
-import { APPEARANCE_SECTION } from '@/appearance/settingsSection'
 import { AI_SECTION } from '@/ai/settingsSection'
 import { NOTIFICATIONS_SECTION } from '@/alarms/settingsSection'
 import { TODAY_SECTION } from '@/briefing/settingsSection'
@@ -36,7 +35,6 @@ const SIDEBAR_SECTION = settingsSection({
 
 const LISTED = [
   GENERAL_SECTION,
-  APPEARANCE_SECTION,
   SIDEBAR_SECTION,
   HISTORY_SECTION,
   AI_SECTION,

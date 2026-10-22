@@ -7,16 +7,19 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ANIMATIONS, CAM, herman } from './herman64.mjs'
+import { PALETTE } from './palette.mjs'
 import { png, render } from './ps1.mjs'
 import { SKINS } from './skins.mjs'
 import { STONE_ANIMATIONS, stone } from './stone.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
+/** In the system's inks, with no outline around him. */
+const LOOK = { ...CAM, palette: PALETTE, outline: null }
 const out = join(here, '..', '..', 'src', 'renderer', 'src', 'herman', 'sprites')
 mkdirSync(out, { recursive: true })
 
 function strip(build, poses) {
-  const shots = poses.map((p) => render(build(p), { ...CAM, raw: true }))
+  const shots = poses.map((p) => render(build(p), { ...LOOK, raw: true }))
   const { W, H } = shots[0]
   const n = shots.length
   const rgba = new Uint8ClampedArray(W * n * H * 4)
@@ -25,7 +28,7 @@ function strip(build, poses) {
   })
   return Buffer.from(png(W * n, H, rgba).split(',')[1], 'base64')
 }
-const still = (mesh) => Buffer.from(render(mesh, CAM).split(',')[1], 'base64')
+const still = (mesh) => Buffer.from(render(mesh, LOOK).split(',')[1], 'base64')
 
 const ALL = [...SKINS.map((s) => ({ id: s.id, build: (p) => herman(s.o, p), poses: (a) => a.poses })), { id: 'stone', build: (p) => stone(null, p), poses: (a) => STONE_ANIMATIONS[a.id] }]
 
