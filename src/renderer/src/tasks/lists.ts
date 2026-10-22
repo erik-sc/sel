@@ -211,8 +211,8 @@ export function listCounts(tasks: readonly TaskItem[], schema: L.Schema): Map<st
   const due = L.propOf(schema, TASK_PROPS.due)
   for (const task of tasks) {
     if (task.done) continue
-    if (!task.project) add('inbox')
     if (needsRefining(task)) add('refine')
+    if (!task.project) add('inbox')
     else add(`project:${task.project.id}`)
     for (const label of task.labels) add(`label:${label.id}`)
     if (due && L.matchesFilter(task.row, due, BY_TODAY)) add('today')

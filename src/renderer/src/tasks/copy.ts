@@ -154,7 +154,14 @@ const PT: TaskCopy = {
   none: 'nenhum',
   willSet: (parts) => `Vai definir ${parts.join(', ')}`,
   fromCompletion: 'a partir da conclusão',
-  addField: { date: '+ data', repeat: '+ repetir', priority: '+ prioridade', project: '+ projeto', labels: '+ rótulos', remind: '+ lembrete' },
+  addField: {
+    date: '+ data',
+    repeat: '+ repetir',
+    priority: '+ prioridade',
+    project: '+ projeto',
+    labels: '+ rótulos',
+    remind: '+ lembrete'
+  },
   refineList: 'A refinar',
   refine: 'Refinar',
   refineEmpty: 'Nada para refinar. Toda tarefa aberta tem data, prioridade e projeto.',

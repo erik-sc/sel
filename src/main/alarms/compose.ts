@@ -75,8 +75,7 @@ const WORDS = {
     refine: (count: number) =>
       count === 1 ? 'There is one task waiting to be refined.' : `There are ${count} tasks waiting to be refined.`,
     refineTitle: 'Time to refine',
-    refineNow: (count: number) =>
-      count === 1 ? 'Time to refine: one task is waiting.' : `Time to refine: ${count} tasks are waiting.`
+    refineNow: (count: number) => (count === 1 ? 'Time to refine: one task is waiting.' : `Time to refine: ${count} tasks are waiting.`)
   },
   'pt-BR': {
     hello: (hour: number, name: string) => `${hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'}${name ? `, ${name}` : ''}.`,

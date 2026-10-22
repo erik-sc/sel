@@ -101,7 +101,8 @@ export function refineStep(state: RefineState, command: RefineCommand): RefineSt
     case 'next':
     case 'skip': {
       if (state.done || id === null) return state
-      const skipped = command.kind === 'skip' ? [...state.skipped.filter((each) => each !== id), id] : state.skipped.filter((each) => each !== id)
+      const skipped =
+        command.kind === 'skip' ? [...state.skipped.filter((each) => each !== id), id] : state.skipped.filter((each) => each !== id)
       const index = state.index + 1
       return index >= state.queue.length ? { ...state, skipped, index: state.queue.length - 1, done: true } : { ...state, skipped, index }
     }

@@ -128,6 +128,18 @@
   letter-spacing: var(--tracking-title);
 }
 
+/* The heading, and beside it the button that starts the refine mode (Inbox, To refine). */
+.tasks-heading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tasks-heading-row > .tasks-refine {
+  flex: none;
+}
+
 .tasks-empty {
   margin: 24px 0 0;
   color: var(--text-tertiary);

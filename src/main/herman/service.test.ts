@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { cleanHermanSetting, HERMAN_DEFAULTS, HERMAN_KEYS, hermanSetting, type HermanSignals } from '../../shared/herman'
+import { REFINE_SETTING } from '../../shared/tasks/refine'
 import * as arg from '../validate'
 import { SKY_LINES } from './lines'
 import { EMPTY_MEMORY, readMemory } from './scheduler'
@@ -226,6 +227,24 @@ describe('asking him', () => {
     expect(await service.next(idle)).toEqual({ nudge: null, waitMs: 90 * MIN })
     clock.now += 90 * MIN
     expect((await service.next(idle)).nudge?.kind).toBe('overdue')
+  })
+
+  it('speaks of the Inbox once a day, within his limits, while that reminder is on', async () => {
+    const inbox: HermanDay = { ...EMPTY_DAY, inbox: { waiting: 2, title: 'Comprar pão', days: 2 } }
+    const { service, clock, settings } = world({ day: inbox })
+    const first = await service.next(idle)
+    expect(first.nudge).toMatchObject({ kind: 'inbox', action: { label: 'Refine now', command: { type: 'refine-inbox' } } })
+    // Ninety minutes on the tasks still wait, but that was said today.
+    clock.now += 90 * MIN
+    expect((await service.next(idle)).nudge).toBeNull()
+    // Tomorrow, again; but not past the day's limit, and not when it is turned off.
+    clock.now = at(15, 10)
+    expect((await service.next(idle)).nudge?.kind).toBe('inbox')
+    clock.now = at(16, 10)
+    settings[MEMORY_KEY] = { ...readMemory(settings[MEMORY_KEY]), day: '2026-10-16', shown: 4 }
+    expect((await service.next(idle)).nudge).toBeNull()
+    const off = world({ day: inbox, settings: { [REFINE_SETTING.herman]: false } })
+    expect((await off.service.next(idle)).nudge).toBeNull()
   })
 
   it('is silent when he or his nudges are turned off', async () => {

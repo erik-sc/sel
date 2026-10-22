@@ -273,7 +273,12 @@ export class AlarmsService {
 
     const nextAlarm = nextAlarmAt(settings.times, now)
     let next = nextAlarm
-    for (const candidate of [nextAlarmAt(refineTimes, now), nextReminderAt(reminders, now), nextEventAlarmAt(events, now), nextSnoozedAt(snoozed, now)]) {
+    for (const candidate of [
+      nextAlarmAt(refineTimes, now),
+      nextReminderAt(reminders, now),
+      nextEventAlarmAt(events, now),
+      nextSnoozedAt(snoozed, now)
+    ]) {
       if (candidate !== null && (next === null || candidate < next)) next = candidate
     }
     if (settings.ai && nextAlarm !== null && this.deps.writeBriefing) {

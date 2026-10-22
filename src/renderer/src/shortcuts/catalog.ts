@@ -211,6 +211,19 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
         label: 'Make the task a subtask of the one above, or take it out',
         keys: ['CmdOrCtrl+]', 'CmdOrCtrl+['],
         keywords: ['indent', 'outdent', 'subtask']
+      },
+      {
+        id: 'refine-next',
+        label: 'Refine mode: the next task, or skip this one for now',
+        keys: ['Enter', 'S'],
+        keywords: ['refinar', 'inbox', 'triage']
+      },
+      { id: 'refine-back', label: 'Refine mode: the task before, or the one after', keys: ['Left', 'Right'], keywords: ['refinar'] },
+      {
+        id: 'refine-fields',
+        label: 'Refine mode: name, date, repeat, priority, project, labels; Delete deletes, Escape leaves',
+        keys: ['F2', 'D', 'R', '1…4', '#', '@'],
+        keywords: ['refinar', 'triage']
       }
     ]
   },

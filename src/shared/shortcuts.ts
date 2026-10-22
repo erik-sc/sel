@@ -134,23 +134,27 @@ export const PAGE_KEYS: readonly PageKey[] = [
   { where: 'tab strip', accelerator: 'Control+Shift+PageUp', key: 'pageup', ctrl: true, shift: true },
   { where: 'tab strip', accelerator: 'Control+Shift+PageDown', key: 'pagedown', ctrl: true, shift: true },
   { where: 'selected text', accelerator: 'Alt+F10', key: 'f10', alt: true },
-  // A focused task row (src/renderer/src/tasks/model.ts, rowKeyAction): letters, digits and signs, unmodified.
-  { where: 'task rows', accelerator: 'Enter', key: 'enter' },
-  { where: 'task rows', accelerator: 'Control+Enter', key: 'enter', ctrl: true },
-  { where: 'task rows', accelerator: 'F2', key: 'f2' },
-  { where: 'task rows', accelerator: 'D', key: 'd' },
-  { where: 'task rows', accelerator: 'R', key: 'r' },
-  { where: 'task rows', accelerator: 'L', key: 'l' },
-  { where: 'task rows', accelerator: '1', key: '1' },
-  { where: 'task rows', accelerator: '2', key: '2' },
-  { where: 'task rows', accelerator: '3', key: '3' },
-  { where: 'task rows', accelerator: '4', key: '4' },
-  { where: 'task rows', accelerator: '#', key: '#' },
-  { where: 'task rows', accelerator: '@', key: '@' },
-  { where: 'task rows', accelerator: 'Space', key: ' ' },
-  { where: 'task rows', accelerator: 'Delete', key: 'delete' },
-  { where: 'task rows', accelerator: 'Control+]', key: ']', ctrl: true },
-  { where: 'task rows', accelerator: 'Control+[', key: '[', ctrl: true }
+  // A focused task row (src/renderer/src/tasks/model.ts, rowKeyAction) and the refine mode's card
+  // (tasks/refineWalk.ts, refineKeyAction): letters, digits and signs, unmodified.
+  { where: 'task rows and the refine card', accelerator: 'Enter', key: 'enter' },
+  { where: 'task rows and the refine card', accelerator: 'Control+Enter', key: 'enter', ctrl: true },
+  { where: 'task rows and the refine card', accelerator: 'F2', key: 'f2' },
+  { where: 'task rows and the refine card', accelerator: 'D', key: 'd' },
+  { where: 'task rows and the refine card', accelerator: 'R', key: 'r' },
+  { where: 'task rows and the refine card', accelerator: 'L', key: 'l' },
+  { where: 'task rows and the refine card', accelerator: '1', key: '1' },
+  { where: 'task rows and the refine card', accelerator: '2', key: '2' },
+  { where: 'task rows and the refine card', accelerator: '3', key: '3' },
+  { where: 'task rows and the refine card', accelerator: '4', key: '4' },
+  { where: 'task rows and the refine card', accelerator: '#', key: '#' },
+  { where: 'task rows and the refine card', accelerator: '@', key: '@' },
+  { where: 'task rows and the refine card', accelerator: 'Space', key: ' ' },
+  { where: 'task rows and the refine card', accelerator: 'Delete', key: 'delete' },
+  { where: 'task rows and the refine card', accelerator: 'Control+]', key: ']', ctrl: true },
+  { where: 'task rows and the refine card', accelerator: 'Control+[', key: '[', ctrl: true },
+  { where: 'refine card', accelerator: 'S', key: 's' },
+  { where: 'refine card', accelerator: 'Left', key: 'arrowleft' },
+  { where: 'refine card', accelerator: 'Right', key: 'arrowright' }
 ]
 
 /**

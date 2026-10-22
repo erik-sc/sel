@@ -1,0 +1,110 @@
+/*
+ * The refine mode (Refine.tsx): one task on a card, at the page measure, framed like what floats
+ * (the ink frame and the stamp shadow), its fields as the rows' chips, the keys in mono beneath.
+ */
+
+.refine {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--page-width) + var(--page-padding-x) * 2);
+  margin: 0 auto;
+  padding: 72px var(--page-padding-x) 120px;
+}
+
+.refine-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.refine-progress {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.refine-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 24px;
+  border-radius: var(--radius-m);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  outline: none;
+}
+
+.refine-card:focus-visible {
+  box-shadow:
+    var(--shadow-popover),
+    0 0 0 3px var(--focus-ring);
+}
+
+.refine-title {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  line-height: var(--leading-title);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.refine-title:hover {
+  text-decoration: underline dotted var(--text-tertiary);
+}
+
+.refine-title-edit {
+  font-size: var(--text-body);
+}
+
+.refine-fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 18px;
+  margin: 0;
+}
+
+.refine-field {
+  display: contents;
+}
+
+.refine-field dt {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 24px;
+}
+
+.refine-field dt kbd {
+  display: inline-block;
+  min-width: 2.4em;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  text-align: center;
+}
+
+.refine-field dd {
+  margin: 0;
+}
+
+.refine-keys {
+  margin: 14px 0 0;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-ui);
+}
+
+/* The end of the walk: one quiet sentence and Close. */
+.refine-card.is-end {
+  align-items: flex-start;
+}
+
+.refine-end {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+}

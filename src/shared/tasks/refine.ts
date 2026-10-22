@@ -68,7 +68,9 @@ export function refineList<T extends Refinable & { createdAt: number; order: num
 export function daysBetween(from: number, now: number): number {
   const a = new Date(from)
   const b = new Date(now)
-  return Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86_400_000)
+  return Math.round(
+    (Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86_400_000
+  )
 }
 
 // ---- rows as stored (the main process) ------------------------------------------------

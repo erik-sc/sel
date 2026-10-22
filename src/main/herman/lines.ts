@@ -77,7 +77,10 @@ const EN: Record<HermanNudgeKind, Line[]> = {
     titled((w) => `“${w.title}” has sat in the Inbox ${w.since}. Where does it belong?`),
     line((w) => `The Inbox has held ${w.n} ${s(w, 'thing', 'things')} ${w.since}. A day and a place for ${s(w, 'it', 'each')}?`),
     line((w) => `Things have waited in the Inbox ${w.since}. Decided, they weigh less.`),
-    line((w) => `${w.N} in the Inbox, unsorted. When, how urgent, where?`)
+    line((w) => `${w.N} in the Inbox, unsorted. When, how urgent, where?`),
+    line((w) => `${w.N} without a place ${w.since}. Which one is easy to place?`),
+    titled((w) => `“${w.title}” is still in the Inbox. A date, a weight, a home?`),
+    line(() => 'The Inbox is for catching, not keeping. Sort a few?')
   ],
   'free-block': [
     line((w) => `Nothing scheduled ${w.until}. What deserves it?`),
@@ -172,7 +175,10 @@ const PT: Record<HermanNudgeKind, Line[]> = {
     titled((w) => `“${w.title}” está no Inbox ${w.since}. Onde ela mora?`),
     line((w) => `O Inbox guarda ${w.n} ${s(w, 'coisa', 'coisas')} ${w.since}. Um dia e um lugar para ${s(w, 'ela', 'cada uma')}?`),
     line((w) => `Há coisas no Inbox ${w.since}. Decididas, pesam menos.`),
-    line((w) => `${w.N} no Inbox, sem pontuar. Quando, quão urgente, onde?`)
+    line((w) => `${w.N} no Inbox, sem pontuar. Quando, quão urgente, onde?`),
+    line((w) => `${w.N} sem lugar ${w.since}. Qual é fácil de encaixar?`),
+    titled((w) => `“${w.title}” ainda está no Inbox. Uma data, um peso, uma casa?`),
+    line(() => 'O Inbox é para pegar, não para guardar. Pontua algumas?')
   ],
   'free-block': [
     line((w) => `Nada na agenda ${w.until}. O que merece esse tempo?`),
