@@ -9,6 +9,8 @@ export interface AlarmsCopy {
   // The buttons of an announcement.
   openToday: string
   openTask: string
+  /** The refine time's button: the refine mode. */
+  refine: string
   snooze: string
   record: string
   justNotes: string
@@ -19,6 +21,22 @@ export interface AlarmsCopy {
   tasksGroup: string
   reminders: string
   remindersHelp: string
+  /** Reminders to refine the tasks still without a date, a priority or a project. */
+  refineGroup: string
+  refineHelp: string
+  refineBriefing: string
+  refineBriefingHelp: string
+  refineHerman: string
+  refineHermanHelp: string
+  refineTime: string
+  refineTimeHelp: string
+  refineMark: string
+  refineMarkHelp: string
+  time: string
+  days: string
+  /** Sunday first, as the stored days count. */
+  dayLetters: readonly string[]
+  dayNames: readonly string[]
   eventsGroup: string
   events: string
   eventsHelp: string
@@ -46,6 +64,7 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
   en: {
     openToday: 'Open Today',
     openTask: 'Open task',
+    refine: 'Refine',
     snooze: 'Snooze 10 min',
     record: 'Record',
     justNotes: 'Just notes',
@@ -55,6 +74,20 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
     tasksGroup: 'Tasks',
     reminders: 'Reminders of tasks',
     remindersHelp: 'A task with a reminder, or due at a time of day, is announced when it comes.',
+    refineGroup: 'Refining',
+    refineHelp: 'A task is refined once it has a date, a priority and a project. Those still missing one are kept in “To refine”.',
+    refineBriefing: 'In the briefing',
+    refineBriefingHelp: 'The briefing at its times says how many tasks are waiting to be refined, when there are any.',
+    refineHerman: 'From Herman',
+    refineHermanHelp: 'Once a day at most, when a task has sat in the Inbox for two days, Herman offers to refine it.',
+    refineTime: 'Refine time',
+    refineTimeHelp: 'A notification at this time opens the refine mode. It comes only when there is something to refine.',
+    refineMark: 'Mark on Tasks',
+    refineMarkHelp: 'A small dot beside Tasks in the sidebar while there is something to refine.',
+    time: 'Time',
+    days: 'Days',
+    dayLetters: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
     eventsGroup: 'Calendar',
     events: 'Events',
     eventsHelp:
@@ -83,6 +116,7 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
   'pt-BR': {
     openToday: 'Abrir Hoje',
     openTask: 'Abrir tarefa',
+    refine: 'Refinar',
     snooze: 'Adiar 10 min',
     record: 'Gravar',
     justNotes: 'Só notas',
@@ -92,6 +126,20 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
     tasksGroup: 'Tarefas',
     reminders: 'Lembretes de tarefas',
     remindersHelp: 'Uma tarefa com lembrete, ou com prazo numa hora do dia, é avisada quando chega a hora.',
+    refineGroup: 'Refino',
+    refineHelp: 'Uma tarefa está refinada quando tem data, prioridade e projeto. As que ainda não têm ficam em “A refinar”.',
+    refineBriefing: 'No briefing',
+    refineBriefingHelp: 'O briefing, nos horários dele, diz quantas tarefas esperam refino, quando houver.',
+    refineHerman: 'Pelo Herman',
+    refineHermanHelp: 'No máximo uma vez por dia, quando uma tarefa está no Inbox há dois dias, o Herman oferece refinar.',
+    refineTime: 'Hora de refinar',
+    refineTimeHelp: 'Uma notificação neste horário abre o modo Refinar. Só vem quando há o que refinar.',
+    refineMark: 'Marca em Tarefas',
+    refineMarkHelp: 'Um pontinho ao lado de Tarefas na barra lateral enquanto houver o que refinar.',
+    time: 'Horário',
+    days: 'Dias',
+    dayLetters: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+    dayNames: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
     eventsGroup: 'Calendário',
     events: 'Eventos',
     eventsHelp:

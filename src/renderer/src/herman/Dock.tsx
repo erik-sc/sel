@@ -11,6 +11,7 @@ import { announcementActions, putAway, useAlarms, type AnnouncementAction } from
 import { openToday } from '@/briefing/route'
 import { newMeeting } from '@/meetings/gate'
 import { openCloseDay } from '@/notebook/route'
+import { startRefine } from '@/tasks/gate'
 import { getBlock } from '@/store/blocks'
 import { activeTab, isBlockId, openPage, tabPage, useTabs } from '@/store/tabs'
 import { setSettingsOpen, useUi } from '@/store/ui'
@@ -397,6 +398,9 @@ export function Dock(): JSX.Element | null {
         break
       case 'close-day':
         openCloseDay()
+        break
+      case 'refine-inbox':
+        startRefine('inbox')
         break
       case 'open-page':
         if (isBlockId(command.pageId)) openPage(command.pageId)

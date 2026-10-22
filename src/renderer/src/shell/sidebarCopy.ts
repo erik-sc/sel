@@ -9,6 +9,8 @@ export type SidebarLocale = 'en' | 'pt-BR'
 export interface SidebarCopy {
   /** What each item is called in the sidebar and in its settings. */
   items: Record<SidebarItemId, string>
+  /** Read after Tasks while its quiet mark shows: tasks are waiting to be refined. */
+  toRefine: string
   /** The heading over the page tree. */
   privatePages: string
   addPage: string
@@ -57,6 +59,7 @@ export const SIDEBAR_COPY: Record<SidebarLocale, SidebarCopy> = {
       settings: 'Settings',
       sync: 'Sync'
     },
+    toRefine: 'tasks to refine',
     privatePages: 'Private',
     addPage: 'Add a page',
     closeSidebar: 'Close sidebar',
@@ -99,6 +102,7 @@ export const SIDEBAR_COPY: Record<SidebarLocale, SidebarCopy> = {
       settings: 'Configurações',
       sync: 'Sincronização'
     },
+    toRefine: 'tarefas a refinar',
     privatePages: 'Privadas',
     addPage: 'Adicionar uma página',
     closeSidebar: 'Fechar a barra lateral',

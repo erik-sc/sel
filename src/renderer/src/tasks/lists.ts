@@ -4,6 +4,7 @@
 import type { Block, SelectOption, ViewFilter } from '@shared/types'
 import { TASK_PROPS } from '@shared/tasks'
 import { readRecurrence } from '@shared/tasks/recur'
+import { missingFields, needsRefining, refineList, type RefineField } from '@shared/tasks/refine'
 import * as L from '@/database/logic'
 import type { DayWords } from './copy'
 import type { TaskListKey } from './gate'
@@ -17,6 +18,8 @@ export interface TaskItem extends TaskView {
   row: Block
   /** Position in the database: the manual order. */
   order: number
+  /** When the row was made (ms): "A refinar" lists the oldest first. */
+  createdAt: number
 }
 
 export interface TaskGroup {
@@ -65,7 +68,8 @@ export function readTasks(rows: readonly Block[], schema: L.Schema): TaskItem[] 
       remind: remind?.start ?? null,
       parent: parentId,
       row,
-      order
+      order,
+      createdAt: row.createdAt
     }
   })
 }
@@ -156,6 +160,8 @@ function groupTasks(
   switch (key.kind) {
     case 'inbox':
       return [{ id: 'all', title: null, items: open.filter((task) => !task.project).sort(byOrder) }]
+    case 'refine':
+      return [{ id: 'all', title: null, items: refineList(open) }]
     case 'today': {
       const due = L.propOf(schema, TASK_PROPS.due)
       const matching = due ? open.filter((task) => L.matchesFilter(task.row, due, BY_TODAY)).sort(byDue) : []
@@ -206,6 +212,7 @@ export function listCounts(tasks: readonly TaskItem[], schema: L.Schema): Map<st
   for (const task of tasks) {
     if (task.done) continue
     if (!task.project) add('inbox')
+    if (needsRefining(task)) add('refine')
     else add(`project:${task.project.id}`)
     for (const label of task.labels) add(`label:${label.id}`)
     if (due && L.matchesFilter(task.row, due, BY_TODAY)) add('today')
@@ -252,4 +259,12 @@ export function dueLabel(due: string, today: string, heading?: string, words?: D
   const time = clock ? L.formatTime(clock, { locale: words?.locale }) : ''
   const text = day === heading ? '' : relativeDay(day, today, words)
   return { text: [text, time].filter(Boolean).join(' '), overdue: day < today }
+}
+
+/**
+ * The fields a row offers as empty chips ("+ date"): what a task still to refine lacks. None for
+ * one that is refined, done or a subtask (shared/tasks/refine.ts).
+ */
+export function emptyChipsOf(task: Pick<TaskItem, 'done' | 'due' | 'priority' | 'project' | 'parent'>): RefineField[] | undefined {
+  return needsRefining(task) ? missingFields(task) : undefined
 }

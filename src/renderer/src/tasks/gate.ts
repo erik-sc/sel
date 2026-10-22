@@ -7,7 +7,7 @@ import { openScreen } from '@/store/tabs'
 
 /** What the screen lists: a fixed list, a project or label (by option id), or one of the database's views. */
 export type TaskListKey =
-  | { kind: 'inbox' | 'today' | 'upcoming' | 'completed' }
+  | { kind: 'inbox' | 'refine' | 'today' | 'upcoming' | 'completed' }
   | { kind: 'project' | 'label'; id: string }
   | { kind: 'view'; id: string }
 
@@ -15,9 +15,14 @@ interface TasksGate {
   list: TaskListKey
   /** Bumped to ask the quick-add input for focus. */
   focus: number
+  /** The refine mode (Refine.tsx), walking the Inbox's tasks to refine or all of them; null when off. */
+  refining: RefineFrom | null
 }
 
-export const useTasksGate = create<TasksGate>(() => ({ list: { kind: 'today' }, focus: 0 }))
+/** Which tasks the refine mode walks: those of the Inbox, or every one still to refine. */
+export type RefineFrom = 'inbox' | 'refine'
+
+export const useTasksGate = create<TasksGate>(() => ({ list: { kind: 'today' }, focus: 0, refining: null }))
 
 export function showTaskList(list: TaskListKey): void {
   useTasksGate.setState({ list })
@@ -39,6 +44,16 @@ export function isTasksRoute(pageId: string | null | undefined): boolean {
 
 export function openTasks(): void {
   openScreen(TASKS_ROUTE)
+}
+
+/** Opens Tasks on the list and starts the refine mode over it (from Herman, a notification, Today, the palette). */
+export function startRefine(from: RefineFrom = 'refine'): void {
+  openTasks()
+  useTasksGate.setState({ list: { kind: from }, refining: from })
+}
+
+export function stopRefine(): void {
+  useTasksGate.setState({ refining: null })
 }
 
 export function loadTasksScreen(): Promise<typeof import('./TasksScreen')> {

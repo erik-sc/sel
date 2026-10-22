@@ -5,6 +5,7 @@ import type { Handlers } from '../invoke'
 import type { HermanDay } from './service'
 import type { HermanBridge } from './index'
 import { defineFeature, type Registered } from '../feature'
+import { refineFacts } from '../tasks/refine'
 
 /**
  * The `herman:*` channels. This file is all of Herman that loads at start-up; his lines, the
@@ -66,7 +67,12 @@ export const hermanFeature = defineFeature({
       repo: ctx.repo,
       day: async () => {
         const { tasks, events } = await ctx.feature('briefing').stored()
-        return { tasks: { overdue: tasks.overdue, today: tasks.today }, events: events.today }
+        const { waiting, oldest } = refineFacts(ctx.repo, Date.now())
+        return {
+          tasks: { overdue: tasks.overdue, today: tasks.today },
+          events: events.today,
+          inbox: oldest ? { waiting, title: oldest.title, days: oldest.days } : null
+        }
       },
       recording: () => ctx.recording()
     })

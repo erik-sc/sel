@@ -88,10 +88,13 @@ export interface AnnouncedEvent {
   ask: boolean
 }
 
-/** Something said at a moment the user chose: the briefing at one of its times, a task's reminder, or an event about to start. */
+/**
+ * Something said at a moment the user chose: the briefing at one of its times, a task's reminder,
+ * an event about to start, or the refine time (tasks still to refine, shared/tasks/refine.ts).
+ */
 export interface Announcement {
   id: string
-  kind: 'briefing' | 'reminder' | 'event'
+  kind: 'briefing' | 'reminder' | 'event' | 'refine'
   /** A short heading for the system's notification ("Reminder", "Meeting in 5 min"). */
   title?: string
   /** What the bubble shows. */

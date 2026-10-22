@@ -3,12 +3,22 @@ import {
   ALARMS_SNOOZED_KEY,
   readAlarmSettings,
   type AlarmSettings,
+  type AlarmTime,
   type AnnouncedEvent,
   type Announcement
 } from '../../shared/alarms'
 import type { Briefing, BriefingEvent } from '../../shared/briefing'
+import { readRefineSettings, refineSummary, type RefineSettings } from '../../shared/tasks/refine'
 import type { Block } from '../../shared/types'
-import { composeBriefing, composeEvents, composeReminder, reminderTitle, type AlarmLocale } from './compose'
+import {
+  composeBriefing,
+  composeEvents,
+  composeRefine,
+  composeRefineLine,
+  composeReminder,
+  reminderTitle,
+  type AlarmLocale
+} from './compose'
 import {
   addSnoozed,
   announcedEvent,
@@ -49,6 +59,8 @@ const PENDING_MS = 10 * MINUTE
 const EVENTS_REFRESH_MS = MINUTE
 /** How many of the latest announcements can still be snoozed. */
 const SNOOZABLE = 20
+/** The refine time, kept in what has rung like a briefing time (a user's time has a random id: no clash). */
+export const REFINE_ALARM_ID = 'refine-time'
 
 export interface AlarmsDeps {
   getSetting(key: string): unknown
@@ -111,6 +123,26 @@ export class AlarmsService {
       this.deps.setSetting(ALARMS_FIRED_KEY, fired)
     } catch (err) {
       this.deps.log('could not remember what rang', err)
+    }
+  }
+
+  private refineSettings(): RefineSettings {
+    return readRefineSettings((key) => this.deps.getSetting(key))
+  }
+
+  /** The refine time as an alarm time (Settings → Notifications). */
+  private refineTimes(refine: RefineSettings): AlarmTime[] {
+    return [{ id: REFINE_ALARM_ID, time: refine.time.time, days: refine.time.days, enabled: refine.time.enabled }]
+  }
+
+  /** How many open tasks are still to refine (shared/tasks/refine.ts); 0 when they cannot be read. */
+  private toRefine(): number {
+    try {
+      const found = this.deps.tasks()
+      return found ? refineSummary(found.database, found.rows, this.deps.now()).count : 0
+    } catch (err) {
+      this.deps.log('could not count the tasks to refine', err)
+      return 0
     }
   }
 
@@ -185,8 +217,13 @@ export class AlarmsService {
     const storedSnoozed = this.snoozed()
     const snoozed = storedSnoozed ?? []
     const due = dueAlarm(settings.times, fired, now)
+    // The refine time rings only when there is something to refine then; otherwise it passes quietly.
+    const refineTimes = this.refineTimes(this.refineSettings())
+    const refineDue = dueAlarm(refineTimes, fired, now)
+    const refineCount = refineDue ? this.toRefine() : 0
     const ringing =
       due !== null ||
+      (refineDue !== null && refineCount > 0) ||
       dueReminders(reminders, fired, now).length > 0 ||
       dueEventAlarms(events, fired, now).length > 0 ||
       takeDueSnoozed(snoozed, now).due.length > 0
@@ -200,6 +237,11 @@ export class AlarmsService {
         fired = markAlarms(settings.times, fired, now)
         this.remember(fired)
         void this.giveBriefing(settings, due.at)
+      }
+      if (refineDue) {
+        fired = markAlarms(refineTimes, fired, now)
+        this.remember(fired)
+        if (refineCount > 0) this.giveRefine(settings, refineCount, refineDue.at)
       }
       const reminding = dueReminders(reminders, fired, now)
       if (reminding.length) {
@@ -231,7 +273,7 @@ export class AlarmsService {
 
     const nextAlarm = nextAlarmAt(settings.times, now)
     let next = nextAlarm
-    for (const candidate of [nextReminderAt(reminders, now), nextEventAlarmAt(events, now), nextSnoozedAt(snoozed, now)]) {
+    for (const candidate of [nextAlarmAt(refineTimes, now), nextReminderAt(reminders, now), nextEventAlarmAt(events, now), nextSnoozedAt(snoozed, now)]) {
       if (candidate !== null && (next === null || candidate < next)) next = candidate
     }
     if (settings.ai && nextAlarm !== null && this.deps.writeBriefing) {
@@ -273,6 +315,7 @@ export class AlarmsService {
   private async compose(settings: AlarmSettings, at: number | null): Promise<{ text: string; speech: string; ai: boolean }> {
     const locale = this.deps.locale()
     let own: { text: string; speech: string }
+    const refine = this.refineSettings().briefing ? this.toRefine() : 0
     try {
       const day = await this.deps.briefing()
       const name = this.deps.getSetting('briefing.name')
@@ -281,7 +324,8 @@ export class AlarmsService {
         locale,
         name: typeof name === 'string' ? name : '',
         events: day.events.today,
-        tasks: { overdue: day.tasks.overdue, today: day.tasks.today }
+        tasks: { overdue: day.tasks.overdue, today: day.tasks.today },
+        refine
       })
     } catch (err) {
       this.deps.log('could not read the day', err)
@@ -292,7 +336,10 @@ export class AlarmsService {
     const prepared = this.prepared
     const text = prepared ? await prepared.text : null
     if (this.prepared === prepared) this.prepared = null
-    return text ? { text, speech: text, ai: true } : { ...own, ai: false }
+    if (!text) return { ...own, ai: false }
+    // The AI writes about the day; the tasks waiting to be refined are said after it, in his own words.
+    const withRefine = refine > 0 ? `${text} ${composeRefineLine(refine, locale)}` : text
+    return { text: withRefine, speech: withRefine, ai: true }
   }
 
   private async giveBriefing(settings: AlarmSettings, at: number | null): Promise<void> {
@@ -335,6 +382,24 @@ export class AlarmsService {
       ...(reminders.length === 1 ? { pageId: first.rowId } : {}),
       snooze: true,
       at: at ?? first.at
+    })
+  }
+
+  /** The refine time: tasks wait to be refined. The bubble and the notification open the refine mode. */
+  private giveRefine(settings: AlarmSettings, count: number, at: number): void {
+    const locale = this.deps.locale()
+    const { title, text, speech } = composeRefine(count, locale)
+    this.announce({
+      id: this.deps.id(),
+      kind: 'refine',
+      title,
+      text,
+      speech,
+      locale,
+      sound: settings.sound,
+      voice: settings.voice,
+      voiceName: settings.voiceName,
+      at
     })
   }
 

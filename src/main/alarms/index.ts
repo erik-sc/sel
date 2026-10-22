@@ -6,6 +6,7 @@ import type { BriefingPromptData } from '../ai/prompts'
 import type { AiService } from '../ai/service'
 import type { Repository } from '../db/repository'
 import { hermanLocale } from '../herman/service'
+import { sendCommand } from '../menu'
 import { tasksDatabase } from './reminders'
 import { AlarmsService } from './service'
 import { isQuickAddUrl } from './windows'
@@ -110,6 +111,8 @@ export class AlarmsBridge {
       if (win.isMinimized()) win.restore()
       win.show()
       win.focus()
+      // The refine time's notification opens what it is about: the refine mode.
+      if (announcement.kind === 'refine') sendCommand('refine-tasks', undefined, win)
     })
     notification.show()
   }

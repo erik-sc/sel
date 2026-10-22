@@ -189,7 +189,7 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     </button>
   )
   const empty = (field: TaskField): JSX.Element | null =>
-    emptyChips?.includes(field) ? chip(field, `+ ${words.field[field]}`, words.none, 'is-empty') : null
+    emptyChips?.includes(field) ? chip(field, words.addField[field], words.none, 'is-empty') : null
 
   const details = [
     dueFull,

@@ -1,4 +1,5 @@
 import { readAlarmSettings } from '../../shared/alarms'
+import { REFINE_KEYS } from '../../shared/tasks/refine'
 import type { Handlers } from '../invoke'
 import type { AlarmsBridge, AlarmsContext } from './index'
 import { defineFeature, type Registered } from '../feature'
@@ -37,7 +38,8 @@ export function registerAlarmsIpc(ctx: AlarmsContext): AlarmsHooks {
       'alarms:test': async () => (await alarms()).service.test()
     },
     settingChanged(key) {
-      if (key.startsWith('alarms.')) bridge?.settingChanged()
+      // The refine time and the briefing's refine line are the alarms' to keep too.
+      if (key.startsWith('alarms.') || REFINE_KEYS.includes(key)) bridge?.settingChanged()
     },
     keepRunning: tray,
     startHidden: (argv) => argv.includes('--sel-hidden') && tray()

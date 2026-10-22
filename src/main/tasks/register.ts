@@ -13,6 +13,7 @@ import { readFileCapped } from '../fsutil'
 import type { Handlers } from '../invoke'
 import * as arg from '../validate'
 import { importTodoistFiles } from './import'
+import { refineFacts } from './refine'
 import { TODOIST_LIMITS } from './todoist'
 import { openQuickAddWindow } from './window'
 import { defineFeature, type Registered } from '../feature'
@@ -70,7 +71,8 @@ export function registerTasksIpc({ repo }: { repo: Repository }): { handlers: Ha
       repo.setSetting(GLOBAL_SHORTCUT_KEY, setting)
       state = apply(setting)
       return state
-    }
+    },
+    'tasks:refining': async () => ({ count: refineFacts(repo, Date.now()).count })
   }
   return { handlers }
 }

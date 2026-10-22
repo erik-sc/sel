@@ -5,13 +5,19 @@
 import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import { ALARM_DEFAULTS, ALARMS_SETTING, ASK_RECORD, EVENT_LEADS, readAlarmSettings, type AlarmSettings } from '@shared/alarms'
+import { REFINE_DEFAULTS, REFINE_SETTING, readRefineSettings, type RefineSettings } from '@shared/tasks/refine'
 import { Segmented } from '@/appearance/controls'
+import { setRefineMark } from '@/tasks/refining'
 import { notifyError } from '@/ui/toast'
 import { alarmsCopy, type AlarmsLocale } from './copy'
 import './alarms.css'
 
+/** Monday first, as a week is read; the stored days count from Sunday (0). */
+const WEEK = [1, 2, 3, 4, 5, 6, 0]
+
 export function NotificationsSection(): JSX.Element {
   const [values, setValues] = useState<AlarmSettings>(ALARM_DEFAULTS)
+  const [refine, setRefine] = useState<RefineSettings>(REFINE_DEFAULTS)
   const [locale, setLocale] = useState<AlarmsLocale>('en')
   const copy = alarmsCopy(locale)
 
@@ -22,6 +28,12 @@ export function NotificationsSection(): JSX.Element {
       if (!alive) return
       const byKey = new Map(keys.map((key, index) => [key, stored[index]]))
       setValues(readAlarmSettings((key) => byKey.get(key)))
+    })
+    const refineKeys = Object.values(REFINE_SETTING)
+    Promise.all(refineKeys.map((key) => window.api.app.getSetting<unknown>(key).catch(() => null))).then((stored) => {
+      if (!alive) return
+      const byKey = new Map(refineKeys.map((key, index) => [key, stored[index]]))
+      setRefine(readRefineSettings((key) => byKey.get(key)))
     })
     window.api.herman.state().then(
       (state) => {
@@ -43,6 +55,36 @@ export function NotificationsSection(): JSX.Element {
       notifyError(copy.saveFailed, error)
     })
   }
+
+  /** The same for a refine setting. The sidebar's mark follows at once. */
+  const changeRefine = <K extends keyof RefineSettings>(name: K, value: RefineSettings[K]): void => {
+    const previous = refine[name]
+    setRefine((current) => ({ ...current, [name]: value }))
+    if (name === 'mark') setRefineMark(value as boolean)
+    window.api.app.setSetting(REFINE_SETTING[name], value).catch((error: unknown) => {
+      setRefine((current) => ({ ...current, [name]: previous }))
+      if (name === 'mark') setRefineMark(previous as boolean)
+      notifyError(copy.saveFailed, error)
+    })
+  }
+  const refineToggle = (name: 'briefing' | 'herman' | 'mark', label: string): JSX.Element => (
+    <Segmented label={label} value={refine[name] ? 'on' : 'off'} options={onOff} onChange={(value) => changeRefine(name, value === 'on')} />
+  )
+  const refineRow = (name: 'briefing' | 'herman' | 'mark', label: string, help: string): JSX.Element => (
+    <div className="ap-row">
+      <div className="ap-row-text">
+        <span className="ap-row-label">{label}</span>
+        <span className="ap-row-help">{help}</span>
+      </div>
+      <div className="ap-row-control">{refineToggle(name, label)}</div>
+    </div>
+  )
+  const time = refine.time
+  const toggleDay = (day: number): void =>
+    changeRefine('time', {
+      ...time,
+      days: time.days.includes(day) ? time.days.filter((d) => d !== day) : [...time.days, day].sort((a, b) => a - b)
+    })
 
   const onOff = [
     { value: 'on' as const, label: copy.on },
@@ -66,6 +108,59 @@ export function NotificationsSection(): JSX.Element {
             </div>
             <div className="ap-row-control">{toggle('reminders', copy.reminders)}</div>
           </div>
+        </div>
+      </section>
+
+      <section className="ap-group">
+        <div className="ap-group-head">
+          <h3 className="ap-group-title">{copy.refineGroup}</h3>
+        </div>
+        <p className="ap-note">{copy.refineHelp}</p>
+        <div className="ap-list">
+          {refineRow('briefing', copy.refineBriefing, copy.refineBriefingHelp)}
+          {refineRow('herman', copy.refineHerman, copy.refineHermanHelp)}
+          <div className="ap-row alarm-times-row">
+            <div className="ap-row-text">
+              <span className="ap-row-label">{copy.refineTime}</span>
+              <span className="ap-row-help">{copy.refineTimeHelp}</span>
+            </div>
+            <div className="ap-row-control alarm-times">
+              <div className={time.enabled ? 'alarm-time' : 'alarm-time is-off'}>
+                <input
+                  type="checkbox"
+                  className="alarm-enabled"
+                  aria-label={copy.refineTime}
+                  checked={time.enabled}
+                  onChange={(event) => changeRefine('time', { ...time, enabled: event.target.checked })}
+                />
+                <input
+                  className="ap-field herman-time"
+                  type="time"
+                  aria-label={copy.time}
+                  value={time.time}
+                  onChange={(event) => {
+                    if (/^\d{2}:\d{2}$/.test(event.target.value)) changeRefine('time', { ...time, time: event.target.value })
+                  }}
+                />
+                <div className="alarm-days" role="group" aria-label={copy.days}>
+                  {WEEK.map((day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      className={time.days.includes(day) ? 'alarm-day is-on' : 'alarm-day'}
+                      aria-pressed={time.days.includes(day)}
+                      aria-label={copy.dayNames[day]}
+                      title={copy.dayNames[day]}
+                      onClick={() => toggleDay(day)}
+                    >
+                      {copy.dayLetters[day]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          {refineRow('mark', copy.refineMark, copy.refineMarkHelp)}
         </div>
       </section>
 
