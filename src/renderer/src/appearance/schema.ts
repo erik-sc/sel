@@ -162,6 +162,7 @@ export const TOKENS: TokenDef[] = [
   color('Accents', '--danger', 'Danger', '#b0432f', '#dc7a68'),
   color('Accents', '--success', 'Success', '#55794c', '#92b586'),
   color('Accents', '--moon', 'Moon', 'rgba(196, 163, 58, 0.22)', 'rgba(232, 214, 160, 0.3)', 'The lit part of the moon in the Sky.'),
+  color('Accents', '--moon-lit', 'Moon, lit', '#d1b660', '#d1b660', 'The lit part of the moon, drawn solid in the pixel Sky.'),
   color(
     'Accents',
     '--copper',

@@ -20,6 +20,7 @@ import {
 } from '@shared/sky'
 import type { NotebookLocale } from '@shared/notebook'
 import { longDay, type SkyCopy } from './copy'
+import { FIGURE_FRAMES, SkySprite } from './Sprite'
 import { segmentKey, timeline, type SkyPlay, type Timing } from './timeline'
 
 export interface SkyChartProps {
@@ -58,11 +59,20 @@ function ring(x: number, y: number, r: number): string {
 }
 
 /**
- * The chart's grid: the same dots as the ground behind the sidebar, every GRID units. Every star,
- * grain and line end is drawn on a node of it, so the Sky is written on the app's own paper.
+ * "Janela 64": the chart is drawn as a 320 × 180 pixel picture shown at the size of the screen.
+ * P is one of its pixels in chart units; everything lands on whole pixels, the dots of the ground
+ * come every six of them, a star is a cross of pixels and a line is one pixel wide.
  */
-const GRID = 12
-const snap = (v: number): number => Math.round(v / GRID) * GRID
+const P = SKY_WIDTH / 320
+const GRID = 6 * P
+const snap = (v: number): number => Math.round(v / P) * P
+/** A star as a cross of pixels, `arm` pixels out from its middle one. */
+function cross(x: number, y: number, arm: number): string {
+  const cx = snap(x) - P / 2
+  const cy = snap(y) - P / 2
+  const long = (2 * arm + 1) * P
+  return `M${r1(cx - arm * P)} ${r1(cy)}h${r1(long)}v${P}h${r1(-long)}ZM${r1(cx)} ${r1(cy - arm * P)}h${P}v${r1(long)}h${-P}Z`
+}
 const line = (a: { x: number; y: number }, b: { x: number; y: number }): string => `M${snap(a.x)} ${snap(a.y)}L${snap(b.x)} ${snap(b.y)}`
 
 /** The pixel size of one unit of the drawing, so that strokes stay 1–1.4 px at any size. */
@@ -132,7 +142,12 @@ export function SkyChart({
             <rect x="0" y="0" width={SKY_WIDTH} height={SKY_HEIGHT} />
           </clipPath>
           <pattern id={`${clip}-dots`} x={-GRID / 2} y={-GRID / 2} width={GRID} height={GRID} patternUnits="userSpaceOnUse">
-            <rect className="dot" x={GRID / 2 - px} y={GRID / 2 - px} width={2 * px} height={2 * px} />
+            <rect className="dot" x={GRID / 2 - P / 2} y={GRID / 2 - P / 2} width={P} height={P} />
+          </pattern>
+          {/* the dark side of the moon: every other pixel, a 50% ordered dither */}
+          <pattern id={`${clip}-dither`} width={2 * P} height={2 * P} patternUnits="userSpaceOnUse">
+            <rect className="dith" x="0" y="0" width={P} height={P} />
+            <rect className="dith" x={P} y={P} width={P} height={P} />
           </pattern>
           <clipPath id={`${clip}-moon`}>
             <circle cx={scene.moon.x} cy={scene.moon.y} r={scene.moon.r} />
@@ -182,7 +197,7 @@ export function SkyChart({
           {/* background stars: they mean nothing */}
           <g className={t.field ? 'fade' : undefined} style={tm(t.field)}>
             {scene.field.map((s, i) => (
-              <circle key={i} className={i >= 60 ? 'fs is-dark' : 'fs'} cx={snap(s.x)} cy={snap(s.y)} r={r1(s.r * k)} />
+              <rect key={i} className={i >= 60 ? 'fs is-dark' : 'fs'} x={snap(s.x) - P / 2} y={snap(s.y) - P / 2} width={P} height={P} />
             ))}
           </g>
 
@@ -201,11 +216,12 @@ export function SkyChart({
                       style={tm({ w: timing.w, n: 4 })}
                     />
                   )}
-                  <circle
+                  <rect
                     className={['grain', arriving ? 'land' : timing ? 'fade' : ''].join(' ').trim()}
-                    cx={snap(g.x)}
-                    cy={snap(g.y)}
-                    r={r1(g.r * k)}
+                    x={snap(g.x) - P / 2}
+                    y={snap(g.y) - P / 2}
+                    width={P}
+                    height={P}
                     style={tm(timing)}
                   />
                 </g>
@@ -215,7 +231,7 @@ export function SkyChart({
 
           {/* the months */}
           {scene.months.map((m) => (
-            <Month key={m.month} month={m} t={t} k={k} small={small} onHover={setHover} onOpen={onOpenNotebook} />
+            <Month key={m.month} month={m} t={t} small={small} onHover={setHover} onOpen={onOpenNotebook} />
           ))}
 
           {/* the halos of pomodoros */}
@@ -257,7 +273,7 @@ export function SkyChart({
             </g>
           )}
 
-          <Moon scene={scene} clip={`${clip}-moon`} t={t} reduced={reduced} />
+          <Moon scene={scene} clip={`${clip}-moon`} dither={`${clip}-dither`} t={t} reduced={reduced} />
 
           {!small && <Night scene={scene} t={t} reduced={reduced} />}
 
@@ -307,14 +323,12 @@ export function SkyChart({
 function Month({
   month,
   t,
-  k,
   small,
   onHover,
   onOpen
 }: {
   month: SkyMonth
   t: ReturnType<typeof timeline>
-  k: number
   small: boolean
   onHover: (star: SkyStar | null) => void
   onOpen?: () => void
@@ -342,7 +356,6 @@ function Month({
         const reveal = t.reveal.get(s.day)
         const breathe = t.breathe.get(s.day)
         const handoff = handoffs.get(s.day)
-        const r = r1((s.loose ? 1.3 : 1.9) * k)
         const cls = fresh
           ? s.loose
             ? 'n-star is-loose pop'
@@ -359,11 +372,9 @@ function Month({
         return (
           <g key={s.day}>
             {fresh && <path className="sparkle" d={glint(s.x, s.y, 10)} style={tm({ w: fresh.w - 0.4, n: 4.5 })} />}
-            <circle
+            <path
               className={cls}
-              cx={snap(s.x)}
-              cy={snap(s.y)}
-              r={r}
+              d={cross(s.x, s.y, s.loose ? 0 : fresh ? 2 : 1)}
               style={tm(fresh ?? reveal ?? breathe ?? handoff)}
               data-day={s.day}
             />
@@ -422,6 +433,7 @@ function MonthName({
       </button>
       {open && (
         <div className="sky-lines" id={`sky-lines-${month.month}`} role="tooltip">
+          <SkySprite name={`figure-${month.figureId}`} frames={FIGURE_FRAMES} />
           {lines.slice(0, 4).map((text, i) => (
             <p key={i}>{text}</p>
           ))}
@@ -435,11 +447,13 @@ function MonthName({
 function Moon({
   scene,
   clip,
+  dither,
   t,
   reduced
 }: {
   scene: SkyScene
   clip: string
+  dither: string
   t: ReturnType<typeof timeline>
   reduced: boolean
 }): JSX.Element {
@@ -484,6 +498,7 @@ function Moon({
         </>
       ) : (
         <>
+          <circle className="moond" cx={moon.x} cy={moon.y} r={moon.r} fill={`url(#${dither})`} />
           {moon.phaseIndex !== 0 && <path className="moonw" d={moon.lit} />}
           <path className="moonl" d={moon.lit} />
         </>

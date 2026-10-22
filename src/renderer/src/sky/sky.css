@@ -183,33 +183,40 @@
   fill: var(--grid-dot);
 }
 
+/* the dark side of the moon, one pixel in two */
+.sky-svg .dith {
+  fill: var(--text-tertiary);
+  opacity: 0.5;
+}
+
 .sky-svg * {
   transform-box: fill-box;
   transform-origin: center;
 }
 
 .sky-svg .grid-l {
-  stroke: var(--text-tertiary);
-  stroke-width: calc(var(--px) * 1);
-  opacity: 0.22;
+  /* Janela 64 keeps only the wheel of the year: the astrolabe's arcs and meridians are gone */
+  display: none;
 }
 
 .sky-svg .wheel {
   fill: none;
   stroke: var(--text-tertiary);
-  stroke-width: calc(var(--px) * 1);
-  opacity: 0.45;
+  stroke-width: 2.5;
+  /* a dotted wheel: one pixel on, two off (the wheel's length is 1, see pathLength) */
+  stroke-dasharray: 0.0017 0.0034;
+  opacity: 0.6;
 }
 
 .sky-svg .tick {
   stroke: var(--text-tertiary);
-  stroke-width: calc(var(--px) * 0.8);
-  opacity: 0.4;
+  stroke-width: 2.5;
+  opacity: 0.6;
 }
 
 .sky-svg .fs {
   fill: var(--text-tertiary);
-  opacity: 0.4;
+  opacity: 0.55;
 }
 
 .sky-svg .fs.is-dark {
@@ -217,8 +224,8 @@
 }
 
 .sky-svg .cl {
-  stroke: var(--text);
-  stroke-width: calc(var(--px) * 2);
+  stroke: var(--text-secondary);
+  stroke-width: 2.5;
 }
 
 .sky-svg .glint {
@@ -246,13 +253,13 @@
 
 .sky-svg .grain {
   fill: var(--text-secondary);
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .sky-svg .halo {
   stroke: var(--accent);
-  stroke-width: calc(var(--px) * 0.9);
-  opacity: 0.35;
+  stroke-width: 2.5;
+  stroke-dasharray: 0.02 0.02;
 }
 
 .sky-svg .moon-halo {
@@ -283,19 +290,18 @@
 .sky-svg .moonr {
   fill: none;
   stroke: var(--text-tertiary);
-  stroke-width: calc(var(--px) * 0.7);
-  opacity: 0.5;
+  stroke-width: 2.5;
+  opacity: 0.6;
 }
 
 .sky-svg .moonw {
-  fill: var(--moon);
+  fill: var(--moon-lit);
   stroke: none;
 }
 
 .sky-svg .moonl {
   fill: none;
-  stroke: var(--text-secondary);
-  stroke-width: calc(var(--px) * 1);
+  stroke: none;
 }
 
 .sky-svg .copper {
@@ -365,7 +371,7 @@
 
 /* A miniature: its lines a touch bolder, since a unit is a fraction of a pixel. */
 .is-small .sky-svg .cl {
-  stroke-width: calc(var(--px) * 1.5);
+  stroke-width: 2.5;
 }
 
 /* ---- the names of the constellations, and what is under the pointer ---- */
@@ -768,5 +774,124 @@
   .sky-svg .pulse,
   .sky-svg .flicker {
     animation: none;
+  }
+}
+
+
+/* ---- pixel sprites: the constellation objects, the rare nights, Herman's hill (scripts/sky64) ---- */
+
+.sky-sprite {
+  display: inline-block;
+  width: 168px;
+  height: 168px;
+}
+
+.sky-sprite-frame {
+  display: block;
+  width: 168px;
+  height: 168px;
+  background-repeat: no-repeat;
+  background-size: calc(var(--frames) * 168px) 168px;
+  image-rendering: pixelated;
+  animation: sky-sprite steps(var(--frames)) infinite;
+}
+
+.sky-sprite.is-once .sky-sprite-frame {
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+
+@keyframes sky-sprite {
+  to {
+    background-position: calc(var(--frames) * -168px) 0;
+  }
+}
+
+/* one picture per theme: ink on paper, light on charcoal */
+.sky-sprite-frame.is-dark,
+.rest-hill-scene.is-dark {
+  display: none;
+}
+
+:root[data-theme='dark'] .sky-sprite-frame.is-dark,
+:root[data-theme='dark'] .rest-hill-scene.is-dark {
+  display: block;
+}
+
+:root[data-theme='dark'] .sky-sprite-frame.is-light,
+:root[data-theme='dark'] .rest-hill-scene.is-light {
+  display: none;
+}
+
+.sky-lines .sky-sprite {
+  justify-self: center;
+  width: 84px;
+  height: 84px;
+}
+
+.sky-lines .sky-sprite-frame {
+  width: 84px;
+  height: 84px;
+  background-size: calc(var(--frames) * 84px) 84px;
+  animation-name: sky-sprite-small;
+}
+
+@keyframes sky-sprite-small {
+  to {
+    background-position: calc(var(--frames) * -84px) 0;
+  }
+}
+
+.sky-rare {
+  display: flex;
+  justify-content: center;
+  margin: 10px auto -6px;
+}
+
+.rest-hill {
+  position: relative;
+  width: 480px;
+  height: 272px;
+  margin: 0 auto 18px;
+}
+
+.rest-hill-scene {
+  display: block;
+  width: 480px;
+  height: 272px;
+  image-rendering: pixelated;
+  box-shadow: var(--shadow-popover);
+}
+
+.rest-hill-moon {
+  position: absolute;
+  inset: 0;
+  width: 480px;
+  height: 272px;
+}
+
+.rest-hill-moon-disc {
+  fill: var(--text-tertiary);
+  opacity: 0.45;
+}
+
+.rest-hill-moon-lit {
+  fill: var(--moon-lit);
+}
+
+/* his feet stand at (78, 112) of the hill: an 84px sprite's top-left at (33, 37), all at 2× */
+.rest-hill-herman {
+  --herman-size: 168;
+  position: absolute;
+  left: 66px;
+  top: 74px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sky-sprite-frame {
+    animation: none;
+  }
+  .sky-sprite.is-once .sky-sprite-frame {
+    background-position: calc((1 - var(--frames)) * 168px) 0;
   }
 }
