@@ -76,12 +76,17 @@ export function resolveDatabase(view: Block, lookup: BlockLookup): ResolvedDatab
  * normalised schema of any database in it (a linked view has none of its own).
  */
 export function cellContext(lookup: BlockLookup): CellContext {
+  // Every formula and rollup of every row asks for its database's schema: remember the last answer.
+  let last: { block: Block | undefined; schema: Schema | undefined } | undefined
   return {
     get: (id) => lookup.get(id),
     isMissing: (id) => lookup.isMissing?.(id) === true,
     schemaOf: (id) => {
       const block = lookup.get(id)
-      return block?.type === 'database' && sourceIdOf(block) === null ? normalizeDatabase(block).schema : undefined
+      if (last && last.block === block) return last.schema
+      const schema = block?.type === 'database' && sourceIdOf(block) === null ? normalizeDatabase(block).schema : undefined
+      last = { block, schema }
+      return schema
     }
   }
 }

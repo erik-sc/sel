@@ -442,26 +442,49 @@ function compareKeys(a: Exclude<SortKey, null>, b: Exclude<SortKey, null>): numb
  * always go last, whatever the direction.
  */
 export function applySorts(rows: Block[], schema: Schema, sorts: ViewSort[] | undefined, ctx?: CellContext): Block[] {
-  const active: { prop: PropertySchema; desc: boolean }[] = []
+  const active = activeSorts(schema, sorts)
+  if (!active.length) return rows
+  const decorated = rows.map((row, index) => decorate(row, index, active, ctx))
+  decorated.sort((x, y) => compareSorted(x, y, active))
+  return decorated.map((d) => d.row)
+}
+
+interface ActiveSort {
+  prop: PropertySchema
+  desc: boolean
+}
+
+/** A row with its position in the input and its sort keys. */
+interface Sorted {
+  row: Block
+  index: number
+  keys: SortKey[]
+}
+
+function activeSorts(schema: Schema, sorts: ViewSort[] | undefined): ActiveSort[] {
+  const active: ActiveSort[] = []
   for (const sort of Array.isArray(sorts) ? sorts : []) {
     const prop = propOf(schema, sort?.propertyId)
     if (prop) active.push({ prop, desc: sort.direction === 'desc' })
   }
-  if (!active.length) return rows
-  const decorated = rows.map((row, index) => ({ row, index, keys: active.map((s) => sortKey(row, s.prop, ctx)) }))
-  decorated.sort((x, y) => {
-    for (let i = 0; i < active.length; i++) {
-      const a = x.keys[i]
-      const b = y.keys[i]
-      if (a === null && b === null) continue
-      if (a === null) return 1
-      if (b === null) return -1
-      const c = compareKeys(a, b)
-      if (c !== 0) return active[i].desc ? -c : c
-    }
-    return x.index - y.index
-  })
-  return decorated.map((d) => d.row)
+  return active
+}
+
+function decorate(row: Block, index: number, active: ActiveSort[], ctx: CellContext | undefined): Sorted {
+  return { row, index, keys: active.map((s) => sortKey(row, s.prop, ctx)) }
+}
+
+function compareSorted(x: Sorted, y: Sorted, active: ActiveSort[]): number {
+  for (let i = 0; i < active.length; i++) {
+    const a = x.keys[i]
+    const b = y.keys[i]
+    if (a === null && b === null) continue
+    if (a === null) return 1
+    if (b === null) return -1
+    const c = compareKeys(a, b)
+    if (c !== 0) return active[i].desc ? -c : c
+  }
+  return x.index - y.index
 }
 
 /**
@@ -471,6 +494,107 @@ export function applySorts(rows: Block[], schema: Schema, sorts: ViewSort[] | un
 export function queryRows(rows: Block[], schema: Schema, view: DatabaseView | undefined, search = '', ctx?: CellContext): Block[] {
   const filtered = applySearch(applyFilters(rows, schema, view?.filters, ctx), search, search ? visibleProps(view, schema) : [])
   return applySorts(filtered, schema, view?.sorts, ctx)
+}
+
+/** Above this many changed rows, a query starts over rather than placing each one again. */
+const PATCH_LIMIT = 64
+
+export type RowQuery = (rows: Block[], schema: Schema, view: DatabaseView | undefined, search?: string, ctx?: CellContext) => Block[]
+
+/**
+ * `queryRows` with a memory, for a view that runs it on every edit. When the only difference
+ * from the last call is a few rows replaced by new versions (an edit; same ids in the same
+ * order, same schema, view, search, context and day), only those rows are filtered and placed
+ * again; the others cannot have moved, since nothing they are read with changed. Anything else
+ * runs the whole query. The result is a new array whenever it differs from the last one.
+ */
+export function createRowQuery(): RowQuery {
+  let last: {
+    rows: Block[]
+    schema: Schema
+    view: DatabaseView | undefined
+    search: string
+    ctx: CellContext | undefined
+    day: string
+    /** The rows that pass, sorted, with their keys. */
+    sorted: Sorted[]
+    out: Block[]
+  } | null = null
+
+  return (rows, schema, view, search = '', ctx) => {
+    const day = todayISO()
+    if (
+      last &&
+      last.rows === rows &&
+      last.schema === schema &&
+      last.view === view &&
+      last.search === search &&
+      last.ctx === ctx &&
+      last.day === day
+    )
+      return last.out
+    const changed =
+      last && last.schema === schema && last.view === view && last.search === search && last.ctx === ctx && last.day === day
+        ? changedRows(last.rows, rows)
+        : null
+    if (last && changed) {
+      const active = activeSorts(schema, view?.sorts)
+      const filters = activeFilters(schema, view?.filters)
+      const props = search ? visibleProps(view, schema) : []
+      const sorted = last.sorted
+      let out = last.out
+      for (const index of changed) {
+        const row = rows[index]
+        const at = out.indexOf(last.rows[index])
+        const passes =
+          filters.every(({ filter, prop }) => matchesFilter(row, prop, filter, ctx)) && applySearch([row], search, props).length === 1
+        // Left out before and after: nothing to place.
+        if (at < 0 && !passes) continue
+        if (out === last.out) out = out.slice()
+        if (at >= 0) {
+          sorted.splice(at, 1)
+          out.splice(at, 1)
+        }
+        if (!passes) continue
+        const entry = decorate(row, index, active, ctx)
+        // The first position whose row sorts after the new one.
+        let lo = 0
+        let hi = sorted.length
+        while (lo < hi) {
+          const mid = (lo + hi) >>> 1
+          if (compareSorted(sorted[mid], entry, active) < 0) lo = mid + 1
+          else hi = mid
+        }
+        sorted.splice(lo, 0, entry)
+        out.splice(lo, 0, row)
+      }
+      last = { ...last, rows, sorted, out }
+      return out
+    }
+    const filtered = applySearch(applyFilters(rows, schema, view?.filters, ctx), search, search ? visibleProps(view, schema) : [])
+    const active = activeSorts(schema, view?.sorts)
+    // Positions are those of the input rows, so that a patched row sorts among the others as it would here.
+    const index = new Map<Block, number>()
+    rows.forEach((row, i) => index.set(row, i))
+    const sorted = filtered.map((row) => decorate(row, index.get(row) ?? 0, active, ctx))
+    if (active.length) sorted.sort((x, y) => compareSorted(x, y, active))
+    const out = sorted.map((entry) => entry.row)
+    const same = last !== null && last.out.length === out.length && out.every((row, i) => row === last!.out[i])
+    last = { rows, schema, view, search, ctx, day, sorted, out: same ? last!.out : out }
+    return last.out
+  }
+}
+
+/** Positions where `next` holds a new version of the row `prev` had; null when ids or order differ, or too many changed. */
+function changedRows(prev: Block[], next: Block[]): number[] | null {
+  if (prev.length !== next.length) return null
+  const out: number[] = []
+  for (let i = 0; i < next.length; i++) {
+    if (next[i] === prev[i]) continue
+    if (next[i].id !== prev[i].id || out.length >= PATCH_LIMIT) return null
+    out.push(i)
+  }
+  return out
 }
 
 // ---------------------------------------------------------------------------

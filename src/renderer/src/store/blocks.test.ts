@@ -288,3 +288,88 @@ describe('lookups', () => {
     expect(store.getBlock('a')).toBe(text)
   })
 })
+
+describe('writes in place and the selectors over many ids', () => {
+  const rows = Array.from({ length: 50 }, (_, i) => block(`r${i}`, 'page', 'db'))
+  const db = block(
+    'db',
+    'database',
+    null,
+    rows.map((r) => r.id)
+  )
+
+  beforeEach(() => {
+    store.useBlockStore.setState({ blocks: Object.fromEntries([db, page, text, ...rows].map((b) => [b.id, b])), missing: {} })
+  })
+
+  it('keeps the map, gives the changed block a new object and names it', async () => {
+    const before = store.useBlockStore.getState()
+    api.blocks.apply.mockReturnValueOnce(new Promise(() => undefined))
+    void store.applyOps([{ op: 'update', id: 'r3', patch: { props: { color: 'red' } } }])
+    const after = store.useBlockStore.getState()
+    expect(after.blocks).toBe(before.blocks)
+    expect(after.version).toBe(before.version + 1)
+    expect([...(after.changed ?? [])]).toEqual(['r3'])
+    expect(store.getBlock('r3')).not.toBe(rows[3])
+    expect(store.getBlock('r4')).toBe(rows[4])
+  })
+
+  it('blocksSelector: the same array after an unrelated write, one entry replaced after a related one', () => {
+    const select = store.blocksSelector(db.content)
+    const first = select(store.useBlockStore.getState())
+    expect(first).toEqual(rows)
+    store.putBlocks([{ ...text, props: { color: 'blue' } }])
+    expect(select(store.useBlockStore.getState())).toBe(first)
+    const edited = { ...rows[7], updatedAt: 9 }
+    store.putBlocks([edited])
+    const second = select(store.useBlockStore.getState())
+    expect(second).not.toBe(first)
+    expect(second[7]).toBe(edited)
+    expect(second.filter((b, i) => b !== first[i])).toEqual([edited])
+    expect(select(store.useBlockStore.getState())).toBe(second)
+  })
+
+  it('blocksSelector: starts over after missed writes or a map replaced from outside', () => {
+    const select = store.blocksSelector(['r1', 'r2', 'nope'])
+    const first = select(store.useBlockStore.getState())
+    expect(first[2]).toBeUndefined()
+    const created = block('nope', 'page', 'db')
+    store.putBlocks([{ ...rows[1], updatedAt: 5 }])
+    store.putBlocks([created])
+    const second = select(store.useBlockStore.getState())
+    expect(second[0]?.updatedAt).toBe(5)
+    expect(second[2]).toBe(created)
+    store.useBlockStore.setState({ blocks: { r2: rows[2] } })
+    expect(select(store.useBlockStore.getState())).toEqual([undefined, rows[2], undefined])
+  })
+
+  it('watchSelector: recomputes only after a write to an id it read, missing entries included', () => {
+    let runs = 0
+    const select = store.watchSelector((read) => {
+      runs++
+      return [read.get('db')?.content.length, read.isMissing('gone')]
+    })
+    const first = select(store.useBlockStore.getState())
+    expect(first).toEqual([50, false])
+    store.putBlocks([{ ...rows[0], updatedAt: 2 }])
+    expect(select(store.useBlockStore.getState())).toBe(first)
+    expect(runs).toBe(1)
+    // Read again, same answer: the same array.
+    store.putBlocks([{ ...db, updatedAt: 2 }])
+    expect(select(store.useBlockStore.getState())).toBe(first)
+    expect(runs).toBe(2)
+    store.useBlockStore.setState((state) => ({ missing: { ...state.missing, gone: true } }))
+    expect(select(store.useBlockStore.getState())).toEqual([50, true])
+  })
+
+  it('the sweep drops blocks in place and says which', () => {
+    store.resetCacheTracking()
+    const state = store.useBlockStore.getState()
+    const dropped = store.sweepCache(Date.now() + store.GRACE_MS * 10)
+    expect(dropped).toBe(53)
+    const after = store.useBlockStore.getState()
+    expect(after.blocks).toBe(state.blocks)
+    expect(after.changed?.size).toBe(53)
+    expect(Object.keys(after.blocks)).toEqual([])
+  })
+})

@@ -16,7 +16,7 @@
 | Rich text | An array of spans, each `[text, marks?]` | src/shared/types.ts:21-26 | `RichText`, `Span`, `Mark` | DOM bridge at src/renderer/src/editor/richtext-dom.ts:358 |
 | Op | One of create, update, move, delete; the only way block data changes | src/shared/types.ts:264 | `Op`, "ops" | Applied in main at src/main/db/repository.ts:829, mirrored on the client at src/renderer/src/store/ops.ts:31 |
 | Change event | The broadcast telling windows which block ids changed and who caused it | src/shared/types.ts:281 | `ChangeEvent`, `IPC.change` | Channel name at src/shared/api.ts:252 |
-| Client id | A random id per window, prepended to every invoke, used as the change origin | src/preload/index.ts:19, src/preload/index.ts:25 | `clientId`, `origin` | Lets a window ignore its own echoes (src/renderer/src/store/blocks.ts:598-611) |
+| Client id | A random id per window, prepended to every invoke, used as the change origin | src/preload/index.ts:19, src/preload/index.ts:25 | `clientId`, `origin` | Lets a window ignore its own echoes (src/renderer/src/store/blocks.ts:734-747) |
 | `window.api` | The only bridge from renderer to main | src/preload/index.ts:157 | `Api` (src/shared/api.ts:24) | |
 | Repository | The single-writer block store over SQLite | src/main/db/repository.ts:105 | `repo`, `store` in src/main/index.ts:335 | |
 | Trash | `trashed_at` set on a page-like block; other blocks are purged | src/main/db/repository.ts:708-715 | `trashedAt` | |

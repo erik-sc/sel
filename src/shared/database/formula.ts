@@ -36,7 +36,7 @@ import {
   type FormulaValue,
   type PropertyRef
 } from './formulaEngine'
-import { linkedTitles, type CellContext } from './relation'
+import { linkedRows, linkedTitles, type CellContext } from './relation'
 import { computeRollup, rollupKind, DEFAULT_ROLLUP } from './rollup'
 import { findOption, formatNumber, getCellValue, isPlainObject, orderedProperties, propOf, type Schema } from './values'
 
@@ -270,6 +270,28 @@ interface Evaluation {
   today: string
   locale: string | undefined
   results: Map<string, FormulaOutcome>
+  /**
+   * What the results read through the context (relations and rollups), each as a check that a
+   * new context still gives the same: the results then stay valid with it.
+   */
+  reads: ((ctx: CellContext) => boolean)[]
+}
+
+/** How a relation or rollup read inside a formula is checked against a new context. */
+function contextRead(row: Block, prop: PropertySchema, ctx: CellContext): ((next: CellContext) => boolean) | null {
+  if (prop.type === 'rollup') {
+    const result = computeRollup(row, prop, ctx)
+    // The rollup memo hands back the same result object for as long as it holds.
+    return (next) => computeRollup(row, prop, next) === result
+  }
+  if (prop.type === 'relation') {
+    const rows = linkedRows(row, prop, ctx)
+    return (next) => {
+      const now = linkedRows(row, prop, next)
+      return now.length === rows.length && now.every((linked, i) => linked === rows[i])
+    }
+  }
+  return null
 }
 
 let clock = { at: -Infinity, day: '' }
@@ -332,7 +354,11 @@ function evaluate(ev: Evaluation, row: Block, id: string): FormulaOutcome {
     const read = (propertyId: string): FormulaValue => {
       const prop = propOf(ev.schema, propertyId)
       if (!prop) return null
-      if (prop.type !== 'formula') return readProperty(row, prop, ev.ctx)
+      if (prop.type !== 'formula') {
+        const check = contextRead(row, prop, ev.ctx)
+        if (check) ev.reads.push(check)
+        return readProperty(row, prop, ev.ctx)
+      }
       const inner = evaluate(ev, row, propertyId)
       if (!inner.ok) throw new FormulaRunError(`${prop.name} has an error`)
       return inner.value
@@ -345,13 +371,15 @@ function evaluate(ev: Evaluation, row: Block, id: string): FormulaOutcome {
   return outcome
 }
 
-/** Per row version: the results computed so far, for one schema, context and day. */
+/** Per row version: the results computed so far, for one schema, day and locale. */
 const memo = new WeakMap<Block, Evaluation>()
 
 /**
  * The result of a formula for a row, computed once per version of the row (and per schema,
- * context and day). Null when the row is not in a database the context knows, or the
- * property is not a formula of it.
+ * day and locale). A new context keeps the results when the relations and rollups they read
+ * give the same with it: a change to one related row recomputes the formulas of the rows
+ * linked to it, not every formula of the view. Null when the row is not in a database the
+ * context knows, or the property is not a formula of it.
  */
 export function computeFormula(row: Block, prop: PropertySchema, ctx: CellContext, opts: FormulaOptions = {}): FormulaOutcome | null {
   if (prop.type !== 'formula' || !row.parentId) return null
@@ -359,8 +387,9 @@ export function computeFormula(row: Block, prop: PropertySchema, ctx: CellContex
   if (!schema || propOf(schema, prop.id)?.type !== 'formula') return null
   const today = opts.today ?? currentDay()
   let ev = memo.get(row)
+  if (ev && ev.ctx !== ctx && ev.schema === schema && ev.reads.every((check) => check(ctx))) ev.ctx = ctx
   if (!ev || ev.schema !== schema || ev.ctx !== ctx || ev.today !== today || ev.locale !== opts.locale) {
-    ev = { schema, compiled: compiledFormulas(schema), ctx, today, locale: opts.locale, results: new Map() }
+    ev = { schema, compiled: compiledFormulas(schema), ctx, today, locale: opts.locale, results: new Map(), reads: [] }
     memo.set(row, ev)
   }
   return evaluate(ev, row, prop.id)
@@ -464,7 +493,8 @@ export function previewFormula(
       ctx,
       today: opts.today ?? currentDay(),
       locale: opts.locale,
-      results: new Map()
+      results: new Map(),
+      reads: []
     }
     out.outcome = evaluate(ev, row, propertyId)
   }

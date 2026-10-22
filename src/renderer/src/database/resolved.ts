@@ -1,9 +1,8 @@
 // The store side of linked views: loading, pinning and subscribing to the source of
 // whatever database is on screen. The rules themselves live in logic/resolve.ts.
 import { useEffect, useMemo } from 'react'
-import { useShallow } from 'zustand/react/shallow'
 import type { Block } from '@shared/types'
-import { fetchBlocks, loadChildren, useBlock, useBlockStore, useTreePin } from '@/store/blocks'
+import { type BlockState, fetchBlocks, loadChildren, useBlock, useBlockStore, useTreePin, watchSelector } from '@/store/blocks'
 import * as L from './logic'
 
 interface SourceState {
@@ -14,8 +13,13 @@ interface SourceState {
 
 const UNRESOLVED: SourceState = { source: null, status: 'loading', trashedId: null }
 
-function own<T>(map: Record<string, T>, id: string): T | undefined {
-  return Object.hasOwn(map, id) ? map[id] : undefined
+/** A store selector for what `block` (a database or a linked view) shows: the same object while that stays the same. */
+export function sourceSelector(block: Block | undefined): (store: BlockState) => SourceState {
+  return watchSelector((read) => {
+    if (!block) return UNRESOLVED
+    const resolved = L.resolveDatabase(block, read)
+    return { source: resolved.source, status: resolved.status, trashedId: resolved.trashedId }
+  })
 }
 
 /**
@@ -51,16 +55,7 @@ export function useResolvedDatabase(databaseId: string, remember: boolean): L.Re
     )
   }, [sourceId])
 
-  const state = useBlockStore(
-    useShallow((store): SourceState => {
-      if (!block) return UNRESOLVED
-      const resolved = L.resolveDatabase(block, {
-        get: (id) => own(store.blocks, id),
-        isMissing: (id) => own(store.missing, id) === true
-      })
-      return { source: resolved.source, status: resolved.status, trashedId: resolved.trashedId }
-    })
-  )
+  const state = useBlockStore(useMemo(() => sourceSelector(block), [block]))
 
   return useMemo(
     () =>

@@ -212,7 +212,9 @@ export function DatabaseView(props: {
   // Relations and rollups read the databases this one relates to; a change there re-runs the query.
   const cells = useRelatedCells(schema)
   const related = useMemo(() => ({ cells, openPage: onOpenPage }), [cells, onOpenPage])
-  const rows = useMemo(() => L.queryRows(allRows, schema, view, search, cells), [allRows, schema, view, search, cells])
+  // One query per view and database: an edit to a few rows places only those again.
+  const query = useMemo(() => L.createRowQuery(), [databaseId, view.id])
+  const rows = useMemo(() => query(allRows, schema, view, search, cells), [query, allRows, schema, view, search, cells])
 
   const onOpen = useCallback(
     (rowId: string, event?: OpenModifiers) => {

@@ -118,7 +118,11 @@ The helpers are in src/renderer/src/a11y/: `keys.ts` (keys), `announce.ts` (the 
   against the app shortcuts (main sees every key first and would keep one that matched), and in
   the shortcuts screen (src/renderer/src/shortcuts/catalog.ts).
 - **Windowed** (item 7): the focused item is never left out of the window, or the focus falls to
-  `<body>` and the place is lost.
+  `<body>` and the place is lost. Lists, galleries and board columns of 200+ items window with
+  `useItemWindow` (src/renderer/src/database/views/windowing.ts): pass the focused item, the
+  list's Tab stop and the item being edited as `pinned`. A key that moves the focus to an item
+  that is not drawn makes it the focused one first and focuses it once drawn (`focusCard` in
+  BoardView.tsx). Items say their place with `aria-posinset`/`aria-setsize`.
 
 **Grids** (the table, src/renderer/src/database/views/TableView.tsx): the grid element holds the
 focus and points at the focused cell with `aria-activedescendant` (`cellId` in TableRow.tsx), only
@@ -156,9 +160,9 @@ focus ring; the few exceptions, kept for fidelity to the original, are listed th
 - Errors crossing IPC are reduced to user-safe messages; anything with a system `code` becomes a generic message and is logged (src/main/validate.ts:234-244, src/main/ipc.ts:78).
 - Expected failures are typed codes defined in shared (src/shared/sync.ts:10-29, src/shared/ai.ts:114, src/shared/briefing.ts:34); sync's public methods return a status instead of throwing (src/main/sync/engine.ts:230-237).
 - Main logs with `console.error` and an area prefix such as `[main]`, `[ipc]`, `[sync]` (src/main/index.ts:163, src/main/ipc.ts:78, src/main/sync/engine.ts:362).
-- Renderer: `notifyError` for things the user must know, plain `console.error` for background refreshes (src/renderer/src/ui/toast.ts:88-91, src/renderer/src/store/blocks.ts:331).
+- Renderer: `notifyError` for things the user must know, plain `console.error` for background refreshes (src/renderer/src/ui/toast.ts:88-91, src/renderer/src/store/blocks.ts:486).
 - Untrusted persisted data is sanitised on read and returned by reference when already valid, so memoisation holds (src/shared/database/normalize.ts:16, src/shared/chart.ts:60-84, src/renderer/src/store/tabs.ts:256).
-- Object keys from data are guarded against prototype members (src/shared/chart.ts:42-44, src/renderer/src/store/blocks.ts:51-57).
+- Object keys from data are guarded against prototype members (src/shared/chart.ts:42-44, src/renderer/src/store/blocks.ts:94-97).
 - Child processes: no shell, argument arrays, allow-listed environment, timeouts and process-tree kill (src/main/sync/git.ts:370-378, src/main/ai/service.ts:118-148).
 
 ## Testing

@@ -2534,3 +2534,13 @@ input.db-rule-value:focus {
   background: var(--bg-hover);
   color: var(--text-secondary);
 }
+
+/* windowing (views/windowing.ts): stands in for the items that are not drawn */
+.db-window-spacer {
+  flex: none;
+  pointer-events: none;
+}
+
+.db-window-spacer.is-grid-row {
+  grid-column: 1 / -1;
+}
