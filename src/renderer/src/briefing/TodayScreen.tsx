@@ -7,7 +7,7 @@ import { localDay, type Briefing, type BriefingPhrase } from '@shared/briefing'
 import { NOTEBOOK_ID, type NotebookLocale } from '@shared/notebook'
 import { CLOSE_COPY } from '@/notebook/copy'
 import { aiReady, useAiGate } from '@/ai/gate'
-import { Figure } from '@/herman/Figure'
+import { Herman64 } from '@/herman/Herman64'
 import { noteAiEvent, useHerman } from '@/herman/gate'
 import { refreshTree } from '@/store/tree'
 import { openPage } from '@/store/tabs'
@@ -169,7 +169,7 @@ function Phrase({
       {/* With Herman on, the phrase is something he hands over. Presentation only: the phrase is chosen as before. */}
       {herman && (
         <div className="today-herman">
-          <Figure pose="pleased" alive={false} />
+          <Herman64 pose="resting" />
           <span>For today, from Herman</span>
         </div>
       )}

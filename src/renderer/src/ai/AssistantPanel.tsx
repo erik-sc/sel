@@ -15,7 +15,7 @@ import { isTodayRoute } from '@/briefing/route'
 import { routeTitle } from '@/screens'
 import { CouncilFace } from '@/herman/CouncilFace'
 import { MEMBER_COLORS } from '@/herman/faces'
-import { Figure } from '@/herman/Figure'
+import { Herman64 } from '@/herman/Herman64'
 import { useHerman } from '@/herman/gate'
 import { poseFor } from '@/herman/mood'
 import { pageTitle } from '@/shell/actions'
@@ -475,7 +475,7 @@ export function AssistantPanel(): JSX.Element {
       </header>
       {herman && (
         <div className={messages.length === 0 ? 'herman-stage is-large' : 'herman-stage'}>
-          <Figure pose={poseFor({ mood, attended: composing || draft.trim() !== '' })} draw />
+          <Herman64 pose={poseFor({ mood, attended: composing || draft.trim() !== '' })} draw />
         </div>
       )}
       {seated.length > 0 && (

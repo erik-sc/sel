@@ -1,0 +1,62 @@
+/*
+ * The two faces the design system is set in, shipped with the app so it looks the same on every
+ * machine and never reaches the network. Latin subset, woff2 only (Chromium always takes it).
+ * Newsreader: titles and page text. IBM Plex Mono: the interface, labels, metadata and code.
+ * Both under the SIL Open Font License 1.1 (fonts/OFL-*.txt); copied from @fontsource.
+ */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/newsreader-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/newsreader-latin-400-italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/newsreader-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/newsreader-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/ibm-plex-mono-latin-400-italic.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('./fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('./fonts/ibm-plex-mono-latin-600-normal.woff2') format('woff2');
+}

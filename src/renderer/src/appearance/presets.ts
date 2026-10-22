@@ -40,6 +40,12 @@ function wallpaper(base: string, c1: string, c2: string, c3: string, c4: string)
 // <glass-defaults> generated: every token whose Zen default differs from the original Glass default
 const GLASS = {
   shared: {
+    // The looks made before the brutalist default keep the system's sans for the interface and live blur.
+    '--font-sans': "'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif",
+    '--font-mono': "'SF Mono', ui-monospace, 'Cascadia Code', Consolas, monospace",
+    '--text-ui': 'calc(14px * var(--font-scale))',
+    '--glass-blur': '28px',
+    '--radius-pill': '999px',
     '--font-display': "'SF Pro Rounded', ui-rounded, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif",
     '--font-serif': "'New York', ui-serif, Georgia, 'Times New Roman', serif",
     '--text-body': 'calc(16px * var(--font-scale))',

@@ -77,7 +77,9 @@ describe('his state', () => {
       frequency: 'sometimes',
       quietHours: { from: 1260, to: 480 },
       size: 'small',
-      corner: 'bottom-right'
+      corner: 'bottom-right',
+      skin: 'classic',
+      seasonalSkins: false
     })
     Object.assign(settings, {
       'herman.enabled': false,
@@ -86,9 +88,13 @@ describe('his state', () => {
       'herman.frequency': 'rare',
       'herman.size': 'medium',
       'herman.corner': 'top-left',
+      'herman.skin': 'stone',
+      'herman.seasonalSkins': true,
       'herman.quietHours': { from: 60, to: 120 }
     })
     expect(service.state()).toMatchObject({
+      skin: 'stone',
+      seasonalSkins: true,
       enabled: false,
       voice: 'brief',
       nudges: false,
@@ -439,7 +445,9 @@ describe('his settings', () => {
       'herman.frequency',
       'herman.nudges',
       'herman.quietHours',
+      'herman.seasonalSkins',
       'herman.size',
+      'herman.skin',
       'herman.voice'
     ])
     for (const key of HERMAN_KEYS) expect(arg.writableSettingKey(key)).toBe(key)
@@ -458,6 +466,8 @@ describe('his settings', () => {
     expect(accepts('herman.frequency', 'often')).toBe('often')
     expect(accepts('herman.size', 'medium')).toBe('medium')
     expect(accepts('herman.corner', 'top-left')).toBe('top-left')
+    expect(accepts('herman.skin', 'stone')).toBe('stone')
+    expect(accepts('herman.seasonalSkins', true)).toBe(true)
     expect(accepts('herman.quietHours', { from: 0, to: 1439 })).toEqual({ from: 0, to: 1439 })
     // Null puts a setting back to its default.
     for (const key of HERMAN_KEYS) expect(accepts(key, null)).toBeNull()
@@ -472,6 +482,9 @@ describe('his settings', () => {
       ['herman.frequency', 'always'],
       ['herman.frequency', 0],
       ['herman.size', 'large'],
+      ['herman.skin', 'clippy'],
+      ['herman.skin', '../../evil'],
+      ['herman.seasonalSkins', 'yes'],
       ['herman.corner', 'center'],
       ['herman.corner', { x: 10, y: 10 }],
       ['herman.quietHours', { from: -1, to: 10 }],

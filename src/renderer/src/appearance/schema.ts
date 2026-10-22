@@ -95,11 +95,11 @@ export const TOKENS: TokenDef[] = [
   }),
 
   // ---- glass ----
-  px('Glass', '--glass-blur', 'Blur', 28, 0, 80),
+  px('Glass', '--glass-blur', 'Blur', 0, 0, 80),
   def('Glass', 'percent', '--glass-saturate', 'Saturation', '100%', undefined, { min: 0, max: 300, step: 5, unit: '%' }),
-  px('Glass', '--glass-thick-blur', 'Thick glass blur', 12, 0, 120, 1, 'Used by popovers and dialogs.'),
+  px('Glass', '--glass-thick-blur', 'Thick glass blur', 0, 0, 120, 1, 'Used by popovers and dialogs.'),
   color('Glass', '--glass-bg', 'Glass tint', 'rgba(250, 248, 244, 0.6)', 'rgba(29, 28, 26, 0.6)'),
-  color('Glass', '--glass-thick-bg', 'Thick glass tint', 'rgba(252, 251, 248, 0.98)', 'rgba(39, 37, 35, 0.98)'),
+  color('Glass', '--glass-thick-bg', 'Thick glass tint', '#fdfcfa', '#2b2927'),
   color('Glass', '--glass-border', 'Glass edge', 'rgba(70, 58, 36, 0)', 'rgba(232, 222, 200, 0)'),
   color('Glass', '--glass-highlight', 'Glass top highlight', 'rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 0)'),
 
@@ -126,6 +126,15 @@ export const TOKENS: TokenDef[] = [
   color('Surfaces', '--fill-3', 'Fill 3', 'rgba(84, 72, 48, 0.09)', 'rgba(232, 222, 200, 0.1)'),
   color('Surfaces', '--fill-4', 'Fill 4 (subtlest)', 'rgba(84, 72, 48, 0.05)', 'rgba(232, 222, 200, 0.05)'),
   color('Surfaces', '--bg-code', 'Code background', 'rgba(84, 72, 48, 0.08)', 'rgba(232, 222, 200, 0.09)'),
+  color('Surfaces', '--bg-sunk', 'Sunk surface', '#ebe7de', '#141311', 'Callouts and other blocks pressed into the page.'),
+  color(
+    'Surfaces',
+    '--grid-dot',
+    'Grid dots',
+    'rgba(70, 58, 36, 0.16)',
+    'rgba(232, 222, 200, 0.12)',
+    'The dots on the ground behind the sidebar.'
+  ),
   color('Surfaces', '--bg-selection', 'Selection', 'rgba(59, 79, 125, 0.2)', 'rgba(163, 177, 217, 0.28)'),
   color('Surfaces', '--scrim', 'Dialog backdrop', 'rgba(38, 34, 26, 0.24)', 'rgba(0, 0, 0, 0.42)'),
 
@@ -144,6 +153,7 @@ export const TOKENS: TokenDef[] = [
   // ---- lines ----
   color('Lines', '--border', 'Separator', 'rgba(70, 58, 36, 0.11)', 'rgba(232, 222, 200, 0.09)'),
   color('Lines', '--border-strong', 'Strong separator', 'rgba(70, 58, 36, 0.24)', 'rgba(232, 222, 200, 0.2)'),
+  color('Lines', '--frame', 'Frame', '#24221d', '#e8e3d9', 'The solid line around menus, dialogs and toasts.'),
 
   // ---- accents ----
   color('Accents', '--accent', 'Accent', '#3b4f7d', '#a3b1d9'),
@@ -168,25 +178,25 @@ export const TOKENS: TokenDef[] = [
     'font',
     '--font-sans',
     'Interface font',
-    "'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif"
+    "'IBM Plex Mono', 'SF Mono', 'Cascadia Code', Consolas, ui-monospace, monospace"
   ),
   def(
     'Typography',
     'font',
     '--font-display',
     'Title font',
-    "'Iowan Old Style', 'Sitka Heading', 'Palatino Linotype', Palatino, Georgia, Cambria, serif"
+    "Newsreader, 'Iowan Old Style', 'Sitka Heading', 'Palatino Linotype', Palatino, Georgia, serif"
   ),
   def(
     'Typography',
     'font',
     '--font-serif',
     'Serif font',
-    "'Iowan Old Style', 'Sitka Text', 'Palatino Linotype', Palatino, Georgia, Cambria, serif"
+    "Newsreader, 'Iowan Old Style', 'Sitka Text', 'Palatino Linotype', Palatino, Georgia, serif"
   ),
-  def('Typography', 'font', '--font-mono', 'Code font', "'SF Mono', ui-monospace, 'Cascadia Code', Consolas, monospace"),
+  def('Typography', 'font', '--font-mono', 'Code font', "'IBM Plex Mono', 'SF Mono', ui-monospace, 'Cascadia Code', Consolas, monospace"),
   weight('--weight-regular', 'Regular weight', 400),
-  weight('--weight-medium', 'Medium weight', 400),
+  weight('--weight-medium', 'Medium weight', 500),
   weight('--weight-semibold', 'Semibold weight', 600),
   weight('--weight-bold', 'Bold weight', 600),
   weight('--weight-title', 'Title weight', 400),
@@ -225,7 +235,7 @@ export const TOKENS: TokenDef[] = [
   size('--text-xs', 'Extra small', 11, 7, 18),
   size('--text-sm', 'Small', 12, 8, 20),
   size('--text-md', 'Medium', 13, 9, 22),
-  size('--text-ui', 'Interface', 14, 10, 24),
+  size('--text-ui', 'Interface', 13, 10, 24),
   size('--text-body', 'Body', 17, 12, 28, 11),
   size('--text-lg', 'Large', 18, 12, 32),
   size('--text-h3', 'Heading 3', 20, 14, 36),
@@ -235,12 +245,12 @@ export const TOKENS: TokenDef[] = [
   size('--text-emoji-hero', 'Page icon', 64, 32, 128),
 
   // ---- shape ----
-  px('Shape', '--radius-xs', 'Corner radius, extra small', 4, 0, 16),
-  px('Shape', '--radius-s', 'Corner radius, small', 6, 0, 24),
-  px('Shape', '--radius-m', 'Corner radius, medium', 9, 0, 32),
-  px('Shape', '--radius-l', 'Corner radius, large', 12, 0, 40),
-  px('Shape', '--radius-xl', 'Corner radius, extra large', 18, 0, 56),
-  px('Shape', '--radius-pill', 'Pill radius', 999, 0, 999),
+  px('Shape', '--radius-xs', 'Corner radius, extra small', 2, 0, 16),
+  px('Shape', '--radius-s', 'Corner radius, small', 0, 0, 24),
+  px('Shape', '--radius-m', 'Corner radius, medium', 0, 0, 32),
+  px('Shape', '--radius-l', 'Corner radius, large', 0, 0, 40),
+  px('Shape', '--radius-xl', 'Corner radius, extra large', 0, 0, 56),
+  px('Shape', '--radius-pill', 'Pill radius', 0, 0, 999),
   px('Shape', '--hairline', 'Hairline thickness', 0.5, 0, 3, 0.5),
 
   // ---- layout & density ----
@@ -284,24 +294,9 @@ export const TOKENS: TokenDef[] = [
 
   // ---- shadows ----
   shadow('--shadow-panel', 'Panel shadow', '0 0 0 0 rgba(70, 58, 36, 0)', '0 0 0 0 rgba(0, 0, 0, 0)'),
-  shadow(
-    '--shadow-card',
-    'Card shadow',
-    '0 0 0 0.5px rgba(70, 58, 36, 0.1), 0 1px 2px rgba(70, 58, 36, 0.05)',
-    '0 0 0 0.5px rgba(232, 222, 200, 0.13), 0 1px 2px rgba(0, 0, 0, 0.22)'
-  ),
-  shadow(
-    '--shadow-popover',
-    'Popover shadow',
-    '0 0 0 0.5px rgba(70, 58, 36, 0.12), 0 6px 20px rgba(70, 58, 36, 0.1), 0 18px 48px rgba(70, 58, 36, 0.08)',
-    '0 0 0 0.5px rgba(232, 222, 200, 0.12), 0 8px 24px rgba(0, 0, 0, 0.34), 0 20px 56px rgba(0, 0, 0, 0.28)'
-  ),
-  shadow(
-    '--shadow-control',
-    'Control shadow',
-    '0 0 0 0.5px rgba(70, 58, 36, 0.12), 0 1px 2px rgba(70, 58, 36, 0.08)',
-    '0 0 0 0.5px rgba(232, 222, 200, 0.1), 0 1px 2px rgba(0, 0, 0, 0.24)'
-  ),
+  shadow('--shadow-card', 'Card shadow', '0 0 0 1px rgba(70, 58, 36, 0.24)', '0 0 0 1px rgba(232, 222, 200, 0.2)'),
+  shadow('--shadow-popover', 'Popover shadow', '0 0 0 1px #24221d, 3px 3px 0 0 #24221d', '0 0 0 1px #e8e3d9, 3px 3px 0 0 #000000'),
+  shadow('--shadow-control', 'Control shadow', '0 0 0 1px rgba(70, 58, 36, 0.32)', '0 0 0 1px rgba(232, 222, 200, 0.28)'),
 
   // ---- motion ----
   def('Motion', 'duration', '--duration-fast', 'Fast duration', '150ms', undefined, { min: 0, max: 600, step: 10, unit: 'ms' }),
