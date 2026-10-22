@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { create } from 'zustand'
-import { useShallow } from 'zustand/react/shallow'
+import { shallow } from 'zustand/shallow'
 import type { Block, Op } from '@shared/types'
 import { sourceIdOf } from '../../../shared/linked'
 import { applyOpsToMap, type BlockMap } from './ops'
@@ -32,7 +32,7 @@ import { applyOpsToMap, type BlockMap } from './ops'
  * predate that write. A reconcile never overwrites a block that a later write touched.
  */
 
-interface BlockState {
+export interface BlockState {
   blocks: BlockMap
   /** Ids that were requested and do not exist in the database. */
   missing: Record<string, true>
@@ -214,8 +214,17 @@ export function useBlock(id: string | null | undefined): Block | undefined {
   return block
 }
 
+/** The blocks of `ids`, in order, as one selector: the same array while none of them changes. */
+export function blocksSelector(ids: readonly string[]): (state: BlockState) => (Block | undefined)[] {
+  let prev: (Block | undefined)[] | undefined
+  return (state) => {
+    const next = ids.map((id) => lookup(state.blocks, id))
+    return prev && shallow(prev, next) ? prev : (prev = next)
+  }
+}
+
 export function useBlocks(ids: string[]): (Block | undefined)[] {
-  const blocks = useBlockStore(useShallow((state) => ids.map((id) => lookup(state.blocks, id))))
+  const blocks = useBlockStore(useMemo(() => blocksSelector(ids), [ids]))
   useEffect(() => {
     blocks.forEach((block, index) => {
       if (!block && ids[index]) requestBlock(ids[index])
