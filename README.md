@@ -58,6 +58,10 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Keep tasks.** Tasks has a place of its own (`Ctrl+Alt+K`). Write a task the way you would say it, in English or Portuguese, and sel reads the date, the time, the priority, the project, the labels and how it repeats: "pay the card every 5th p1", "ligar pra mãe quinzenalmente". `Ctrl+Alt+A` adds one from anywhere in the app, and a shortcut for the whole system can be turned on. Tasks can have subtasks; a repeating task moves to its next date when you tick it. Todoist's CSV export can be imported.
 
+**Edit them where they are.** On Today, in the Inbox, in Tasks and on the Calendar, a task shows its date, priority, project and labels as small chips: click one to change it. Click the task for a panel with everything, its notes and subtasks; F2 renames it, and the keys D, R, 1–4, # and @ set the date, the repeat, the priority, the project and the labels. A date can be written ("sex 15h", "daqui 3 dias", "next monday") or picked from Today, Tomorrow, Weekend or Next week. Repeats are chosen from every day, weekdays, every week, month or year, or your own rule, and read back in words. On the Calendar, drag a task to another day or hour; click an empty one to add a task there.
+
+**Capture now, refine later.** Write a task down as it comes and leave it in the Inbox. Until it has a date, a priority and a project, it shows what is missing and waits in To refine. Refine walks through them one at a time, by keyboard. sel reminds you: a line in your briefing, a word from Herman when something has waited two days, a refine time on weekdays at 17:00, and a quiet dot on Tasks in the sidebar. Each one can be turned off in Settings → Notifications.
+
 **Be reminded.** A task with a time or a reminder, and the events of your calendar, a few minutes before they start, bring the window forward with a chime, or a notification when you are elsewhere; any of them can be snoozed for 10 minutes. Before a meeting, sel asks whether to record it, take notes only, or leave it. Settings → Notifications chooses what reminds you and how early. With the window closed nothing rings, unless sel stays in the tray.
 
 | | |
@@ -80,7 +84,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 ### Herman, and meetings
 
-**Meet Herman.** The assistant has a face: an old man drawn in a single line, who keeps a corner of the window. Ask him about a page or about your day. Now and then he says one short thing he noticed, written in advance and chosen on your computer, with no AI involved. Settings → Herman quiets him or sends him away.
+**Meet Herman.** The assistant has a face: an old man in 64 pixels, who keeps a corner of the window and has twelve outfits to choose from in Settings → Herman. Ask him about a page or about your day. Now and then he says one short thing he noticed, written in advance and chosen on your computer, with no AI involved. Settings → Herman quiets him or sends him away.
 
 **Let him build.** Herman reads more than the page in front of him: where it sits, what else you keep, your databases and how they are shaped, your day, and the pages that seem to bear on the question. Ask him for a page, a plan, a table or more rows and he proposes it; nothing is created until you press Apply.
 
@@ -99,9 +103,9 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Sync.** Keep the same notes on several computers through a git repository you choose. With a password, everything is encrypted before it leaves; your calendars only ever travel encrypted. The look, your home and the sidebar's layout come along.
 
-**Say what's wrong.** Report a bug or suggest a feature from the sidebar, the Help menu or `Ctrl+K`. It is kept as a file on your computer, where you can follow it as it is taken up, reviewed and done, or withdraw it. The app sends nothing; a nightly development run reads the folder and opens a pull request for what it can fix.
+**Say what's wrong.** Report a bug or suggest a feature from the sidebar, the Help menu or `Ctrl+K`. It is kept as a file on your computer, where you can follow it as it is taken up, reviewed and done, or withdraw it. You can attach the last lines of sel's own log, after seeing them. The app sends nothing; a nightly development run reads the folder and opens a pull request for what it can fix.
 
-**Make it yours.** Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance.
+**Make it yours.** Zen is the default look: square corners, a printed frame on menus and dialogs, Newsreader for your words and IBM Plex Mono for the app's, both shipped with it. Every colour, font and size can be changed in Settings → Appearance. Everything can be reached from the keyboard, and the zoom you choose is kept.
 
 | | |
 |---|---|
@@ -144,9 +148,10 @@ npm run pack
 ```bash
 npm test
 npm run typecheck
+npm run lint
 ```
 
-CI runs both on every pull request.
+CI runs all three on every pull request, and audits what ships.
 
 The code is in `src/`:
 
@@ -155,7 +160,11 @@ The code is in `src/`:
 - `renderer/` — the interface: editor, databases, shell, appearance, and a folder per screen.
 - `shared/` — types and pure logic both sides agree on.
 
-All style values live in one file, `src/renderer/src/styles/tokens.css`. Components only refer to them.
+Colours, fonts, shadows and radii live in one file, `src/renderer/src/styles/tokens.css`; layout keeps its own measures.
+
+A feature lives in its own folder and adds one line to each feature list; "Adicionar uma feature" in `docs/codebase-knowledge/50-conventions.md` says how.
+
+The installer has Electron's fuses set (see `electron-builder.yml`); the interface runs sandboxed. When something fails, sel says so and writes it to `logs/sel.log` in its data folder (the Data settings open its folder); the log keeps the shape of the failure, never your text.
 
 Plans for each release are in `docs/plans/`.
 
@@ -165,12 +174,12 @@ To try the update flow in development, serve a folder with a `latest.yml` on `ht
 
 ## Releasing
 
-A tag publishes a release. For version `0.6.3`:
+A tag publishes a release. For version `0.7.0`:
 
-1. Raise `version` in `package.json` to `0.6.3`, update this README with what changed, commit and merge it.
-2. Tag that commit `v0.6.3` (a `v`, then the version exactly) and push the tag: `git tag v0.6.3 && git push origin v0.6.3`.
+1. Raise `version` in `package.json` to `0.7.0`, update this README with what changed, commit and merge it.
+2. Tag that commit `v0.7.0` (a `v`, then the version exactly) and push the tag: `git tag v0.7.0 && git push origin v0.7.0`.
 
-The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.6.3-setup.exe`, `sel-0.6.3-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
+The Release workflow (`.github/workflows/release.yml`) checks that the tag and the version agree, runs the typecheck and the tests, builds the installer and publishes the release with `sel-0.7.0-setup.exe`, `sel-0.7.0-setup.exe.blockmap` and `latest.yml` attached. The in-app update check reads that last file, and only from the latest full release.
 
 To build by hand, `npm run dist` writes the same three files into `release/` and uploads nothing.
 

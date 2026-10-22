@@ -1,6 +1,6 @@
 # Release 0.7.0 — consolidação
 
-Status: **decidido** · 2026-10-19 — o Érik aprovou as seis recomendações (formatar tudo de uma vez; item 2 nesta release; sem assinatura de código; happy-dom + axe-core em dev; medir o backup antes de mover; mínimos de texto 10/12px ajustados na leitura) · branch `release/0.7.0` (de main @ dbe8df5, v0.6.3)
+Status: **integrada** · itens 1–7, 9 (9a #65, 9b #71, 9c #74) e 10 (#73) em release/0.7.0; item 8 com README e versão 0.7.0 · antes: **decidido** · 2026-10-19 — o Érik aprovou as seis recomendações (formatar tudo de uma vez; item 2 nesta release; sem assinatura de código; happy-dom + axe-core em dev; medir o backup antes de mover; mínimos de texto 10/12px ajustados na leitura) · branch `release/0.7.0` (de main @ dbe8df5, v0.6.3)
 
 Nenhuma feature nova. Em seis dias o sel foi da 0.3 à 0.6.3; esta release paga o que ficou para trás:
 desempenho com workspaces grandes, teclado e leitor de tela, falhas que hoje somem no console,
