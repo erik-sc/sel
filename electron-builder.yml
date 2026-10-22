@@ -28,15 +28,17 @@ asarUnpack:
 # Electron fuses: switches written into sel.exe at packaging time, which nothing at run time can
 # flip back (release 0.7.0, item 6). Check them with `npx @electron/fuses read --app release/win-unpacked/sel.exe`.
 electronFuses:
-  # On: the app starts its own executable as Node for the AI program's tools (src/main/ai/toolhost.ts),
-  # a dev or test AI program (src/main/ai/command.ts), the transcription program when it is a script
-  # (src/main/meetings/whisper/run.ts) and the MCP server other apps connect to (src/main/external/snippets.ts).
-  # None of those children receives NODE_OPTIONS or --inspect: their environments are allow-lists.
+  # On: sel runs its own executable as Node for the tools script mcp.js, which serves Herman's tools
+  # (src/main/ai/toolhost.ts) and the apps the user connects (src/main/external/snippets.ts); in
+  # development also for a script AI program or transcription program (src/main/ai/command.ts,
+  # src/main/meetings/whisper/run.ts). Those children get allow-listed environments, without
+  # NODE_OPTIONS, and no --inspect. Anyone who can start sel.exe as Node can run any script with it,
+  # and Node's --inspect flags still work in that mode: that is what keeping this fuse costs.
   runAsNode: true
-  # Cookies and other Chromium storage are encrypted with the OS key store.
+  # The cookie store is encrypted with the OS key store.
   enableCookieEncryption: true
-  # NODE_OPTIONS and --inspect / --inspect-brk / --remote-debugging-port style Node flags are ignored,
-  # so no variable or argument can inject code into sel or its Node children.
+  # The app ignores NODE_OPTIONS and Node's --inspect / --inspect-brk flags (NODE_OPTIONS also in the
+  # Node children). Chromium's --remote-debugging-port is a different switch and still works.
   enableNodeOptionsEnvironmentVariable: false
   enableNodeCliInspectArguments: false
   # app.asar must match the hash electron-builder embeds in sel.exe, and the app is loaded only from it.
