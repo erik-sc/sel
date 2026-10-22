@@ -1,8 +1,0 @@
-/* Window styles; see skins.ts. Each file is scoped to `:root[data-skin='<id>']`. */
-@import './aero.css';
-@import './win98.css';
-@import './luna.css';
-@import './aqua.css';
-@import './platinum.css';
-@import './liquid.css';
-@import './terminal.css';
