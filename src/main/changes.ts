@@ -13,6 +13,7 @@ import type { ChangeEvent } from '../shared/types'
 export class ChangeFeed {
   private readonly pending = new Map<string, Set<string>>()
   private readonly resets = new Map<string, Set<string>>()
+  private readonly links = new Map<string, Set<string>>()
   private scheduled = false
 
   constructor(
@@ -22,9 +23,10 @@ export class ChangeFeed {
 
   /**
    * Queues `ids` as changed by the client `origin`. Reads and failed mutations pass an empty list.
-   * `reset` names the pages among them whose content was replaced by restoring a version.
+   * `reset` names the pages among them whose content was replaced by restoring a version, and
+   * `links` the blocks among them whose text holds or held a link to a page.
    */
-  add(origin: string, ids: readonly string[], reset: readonly string[] = []): void {
+  add(origin: string, ids: readonly string[], reset: readonly string[] = [], links: readonly string[] = []): void {
     if (!ids.length && !reset.length) return
     let set = this.pending.get(origin)
     if (!set) this.pending.set(origin, (set = new Set()))
@@ -33,6 +35,11 @@ export class ChangeFeed {
       let pages = this.resets.get(origin)
       if (!pages) this.resets.set(origin, (pages = new Set()))
       for (const id of reset) pages.add(id)
+    }
+    if (links.length) {
+      let blocks = this.links.get(origin)
+      if (!blocks) this.links.set(origin, (blocks = new Set()))
+      for (const id of links) blocks.add(id)
     }
     if (this.scheduled) return
     this.scheduled = true
@@ -44,12 +51,18 @@ export class ChangeFeed {
     this.scheduled = false
     const batches = [...this.pending]
     const resets = new Map(this.resets)
+    const links = new Map(this.links)
     this.pending.clear()
     this.resets.clear()
+    this.links.clear()
     for (const [origin, ids] of batches) {
       try {
+        const change: ChangeEvent = { ids: [...ids], origin }
         const reset = resets.get(origin)
-        this.deliver(reset ? { ids: [...ids], origin, reset: [...reset] } : { ids: [...ids], origin })
+        if (reset) change.reset = [...reset]
+        const linked = links.get(origin)
+        if (linked) change.links = [...linked]
+        this.deliver(change)
       } catch (err) {
         // One window that cannot be reached must not keep the others from hearing about the change.
         console.error('[ipc] could not deliver a change event', err)

@@ -83,7 +83,12 @@ export default defineConfig(({ command }) => {
         target: NODE_TARGET,
         rollupOptions: {
           // mcp.js: the workspace tools' server, started by the Claude Code program (see src/main/mcp.ts).
-          input: { index: resolve(__dirname, 'src/main/index.ts'), mcp: resolve(__dirname, 'src/main/mcp.ts') }
+          // backup.js: the copy and check of a backup, in a utility process (see src/main/data/backupWorker.ts).
+          input: {
+            index: resolve(__dirname, 'src/main/index.ts'),
+            mcp: resolve(__dirname, 'src/main/mcp.ts'),
+            backup: resolve(__dirname, 'src/main/data/backupWorker.ts')
+          }
         }
       }
     },

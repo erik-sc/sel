@@ -48,6 +48,7 @@ import {
   mergeSidebar,
   mergeCalendars,
   noCalendars,
+  outlineFromRows,
   pagesOf,
   pageTree,
   parseAppearance,
@@ -60,6 +61,7 @@ import {
   PATHS,
   README_MARK,
   README_TEXT,
+  rootTextFromRows,
   serializeAppearance,
   serializeHome,
   serializeSidebar,
@@ -341,6 +343,12 @@ export class SyncEngine {
   private disposed = false
   /** Parsed page files by blob id: a tree that shares blobs with the previous one is not read twice. */
   private blobs = new Map<string, ParsedPage>()
+  /**
+   * The repository's sync generation when a cycle last found every page and the root as they
+   * were uploaded (see Repository.syncGeneration), or null: the next cycle reads the rows. Set
+   * by `upload` only; anything else that writes the export state forgets it.
+   */
+  private cleanAt: number | null = null
 
   constructor(private readonly options: SyncEngineOptions) {
     this.repo = options.repo
@@ -886,6 +894,7 @@ export class SyncEngine {
    * made meanwhile can fall between the two.
    */
   private async download(git: Git, config: Config, base: string | null, remoteHead: string): Promise<Outcome> {
+    this.cleanAt = null
     const outcome: Outcome = { sent: 0, received: 0, conflicts: [], appearance: false }
     const remote = await this.readTree(git, remoteHead)
     if (!remote) throw new SyncFailure('failed', SYNC_MESSAGES.failed, true)
@@ -1075,28 +1084,14 @@ export class SyncEngine {
     // The calendars are looked at only when the repository is (or is about to be) encrypted.
     const hook = this.setting(KEYS.encrypted) === true || this.secrets().pending ? await this.calendarHook() : null
     // ---- one consistent look at the database, nothing awaited
-    const rows = this.repo.syncRows()
-    const prints = fingerprintPages(rows)
+    const generation = this.repo.syncGeneration()
     const states = this.repo.syncStates()
-    const ws = workspaceFromRows(rows, this.repo.rootOrder())
-    const pages = pagesOf(ws)
-    const rootText = serializeRoot(ws)
     const appearance = this.appearanceNow()
     const appearanceText = serializeAppearance(appearance)
     const home = this.homeNow()
     const homeText = serializeHome(home)
     const sidebar = this.sidebarNow()
     const sidebarText = serializeSidebar(sidebar)
-    const changed = new Map<string, string>()
-    const removed: string[] = []
-    for (const [pageId, print] of prints) {
-      if (states.get(pageId) === print) continue
-      const blocks = pages.get(pageId)
-      if (blocks) changed.set(pageId, serializePage(pageId, blocks))
-      else if (states.has(pageId)) removed.push(pageId)
-    }
-    for (const pageId of states.keys()) if (!pageId.startsWith('~') && !prints.has(pageId)) removed.push(pageId)
-    const rootDirty = states.get(STATE_ROOT) !== sha1(rootText)
     const appearanceDirty =
       states.get(STATE_APPEARANCE) !== sha1(appearanceText) && (appearance.value != null || states.has(STATE_APPEARANCE))
     // A home that was set and then cleared is written too, so that the other devices clear theirs.
@@ -1111,6 +1106,37 @@ export class SyncEngine {
       states.get(STATE_CALENDARS) !== sha1(calendarsText) &&
       (!noCalendars(calendars) || states.has(STATE_CALENDARS))
     const first = !states.has(STATE_META)
+    const settingsClean =
+      !appearanceDirty && !homeDirty && !sidebarDirty && !calendarsDirty && !first && (remoteHead !== null || base === null)
+    // No block written since a cycle found the pages and the root as they were uploaded: an idle
+    // cycle stops here, without reading a row.
+    if (settingsClean && this.cleanAt === generation) return { sent: 0, rejected: false }
+
+    // Which pages differ from what was uploaded: fingerprints of the raw rows, nothing parsed.
+    const rows = this.repo.syncRows()
+    const prints = fingerprintPages(rows)
+    const rootOrder = this.repo.rootOrder()
+    const rootText = rootTextFromRows(rows, rootOrder)
+    const rootDirty = states.get(STATE_ROOT) !== sha1(rootText)
+    const differ: string[] = []
+    for (const [pageId, print] of prints) if (states.get(pageId) !== print) differ.push(pageId)
+    const removed: string[] = []
+    for (const pageId of states.keys()) if (!pageId.startsWith('~') && !prints.has(pageId)) removed.push(pageId)
+    if (settingsClean && !differ.length && !removed.length && !rootDirty) {
+      this.cleanAt = generation
+      return { sent: 0, rejected: false }
+    }
+    // Where every block belongs takes the child lists of all; the props are read only for the pages written.
+    const outline = outlineFromRows(rows, rootOrder)
+    const pages = pagesOf(outline.ws)
+    const changed = new Map<string, string>()
+    for (const pageId of differ) {
+      const blocks = pages.get(pageId)
+      if (blocks) {
+        outline.withProps(blocks)
+        changed.set(pageId, serializePage(pageId, blocks))
+      } else if (states.has(pageId)) removed.push(pageId)
+    }
     this.pending = changed.size + removed.length
     const recorded = (): Map<string, string> => {
       const next = new Map<string, string>(prints)
@@ -1123,18 +1149,10 @@ export class SyncEngine {
       next.set(STATE_META, 'written')
       return next
     }
-    if (
-      !changed.size &&
-      !removed.length &&
-      !rootDirty &&
-      !appearanceDirty &&
-      !homeDirty &&
-      !sidebarDirty &&
-      !calendarsDirty &&
-      !first &&
-      (remoteHead !== null || base === null)
-    )
+    if (settingsClean && !changed.size && !removed.length && !rootDirty) {
+      this.cleanAt = generation
       return { sent: 0, rejected: false }
+    }
 
     await this.step('write')
     await this.prepareTree(git, config.branch, base)
@@ -1239,6 +1257,8 @@ export class SyncEngine {
     const settings: Record<string, unknown> = { [KEYS.lastSyncAt]: this.clock(), [KEYS.encrypted]: codec.encrypted ? true : null }
     if (head !== null) settings[KEYS.lastCommit] = head
     this.repo.setSyncStates(recorded(), settings)
+    // What was just recorded is the database as it was read above (edits made since show in the generation).
+    this.cleanAt = generation
     if (this.secrets().pending) {
       const secrets = this.secrets()
       this.options.secrets.save(JSON.stringify({ keys: secrets.keys }))
@@ -1433,6 +1453,7 @@ export class SyncEngine {
       // ---- from here on this device is connected
       if (!current) {
         this.repo.transaction(() => {
+          this.cleanAt = null
           this.repo.clearSyncStates()
           this.repo.setSetting(KEYS.url, config.url)
           this.repo.setSetting(KEYS.lastCommit, null)
@@ -1633,6 +1654,7 @@ export class SyncEngine {
         states.set(STATE_SIDEBAR, sha1(sidebarText))
         if (codec.encrypted && calendars) states.set(STATE_CALENDARS, sha1(serializeCalendars(calendars)))
         states.set(STATE_META, 'written')
+        this.cleanAt = null
         this.repo.setSyncStates(states, {
           [KEYS.lastCommit]: head,
           [KEYS.lastSyncAt]: this.clock(),
@@ -1656,6 +1678,7 @@ export class SyncEngine {
   disconnect(): Promise<SyncStatus> {
     this.cancel()
     return this.exclusive(async () => {
+      this.cleanAt = null
       this.repo.transaction(() => {
         this.repo.clearSyncStates()
         for (const key of [
