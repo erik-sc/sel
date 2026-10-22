@@ -961,10 +961,6 @@ export const FIGURE_SEQUENCE: readonly string[] = Object.freeze([
 
 const BY_ID = new Map(SKY_FIGURES.map((f) => [f.id, f]))
 
-export function figureById(id: string): SkyFigure | undefined {
-  return BY_ID.get(id)
-}
-
 /** The figure a month draws; `month` is 'YYYY-MM'. */
 export function figureOfMonth(month: string): SkyFigure {
   const y = Number(month.slice(0, 4))

@@ -93,11 +93,16 @@ export class AlarmsService {
     return readAlarmSettings((key) => this.deps.getSetting(key))
   }
 
-  private fired(): Fired {
+  /**
+   * What has rung lately; null when the setting could not be read. Unreadable is not "nothing
+   * rang": taking it for empty would ring every alarm and reminder of the last days again.
+   */
+  private fired(): Fired | null {
     try {
       return readFired(this.deps.getSetting(ALARMS_FIRED_KEY), this.deps.now())
-    } catch {
-      return {}
+    } catch (err) {
+      this.deps.log('could not read what rang', err)
+      return null
     }
   }
 
@@ -120,11 +125,13 @@ export class AlarmsService {
     }
   }
 
-  private snoozed(): Snoozed[] {
+  /** What was snoozed; null when the setting could not be read (and must not be overwritten). */
+  private snoozed(): Snoozed[] | null {
     try {
       return readSnoozed(this.deps.getSetting(ALARMS_SNOOZED_KEY), this.deps.now())
-    } catch {
-      return []
+    } catch (err) {
+      this.deps.log('could not read what was snoozed', err)
+      return null
     }
   }
 
@@ -169,19 +176,24 @@ export class AlarmsService {
     this.timer = null
     const now = this.deps.now()
     const settings = this.settings()
-    let fired = this.fired()
+    const stored = this.fired()
+    let fired = stored ?? {}
     let wait: number | null = null
 
     const reminders = this.reminders(settings)
     const events = this.eventAlarms(settings, now)
-    const snoozed = this.snoozed()
+    const storedSnoozed = this.snoozed()
+    const snoozed = storedSnoozed ?? []
     const due = dueAlarm(settings.times, fired, now)
     const ringing =
       due !== null ||
       dueReminders(reminders, fired, now).length > 0 ||
       dueEventAlarms(events, fired, now).length > 0 ||
       takeDueSnoozed(snoozed, now).due.length > 0
-    if (ringing && this.deps.recording()) {
+    if (stored === null || storedSnoozed === null) {
+      // Nothing rings while what already rang cannot be read; the clock looks again in a minute.
+      wait = MINUTE
+    } else if (ringing && this.deps.recording()) {
       wait = RECORDING_RETRY_MS
     } else {
       if (due) {
@@ -387,7 +399,7 @@ export class AlarmsService {
     if (!source) return
     this.said.delete(id)
     if (this.pending?.announcement.id === id) this.pending = null
-    this.keepSnoozed(addSnoozed(this.snoozed(), snoozeOf(source, this.deps.now())))
+    this.keepSnoozed(addSnoozed(this.snoozed() ?? [], snoozeOf(source, this.deps.now())))
     this.plan()
   }
 

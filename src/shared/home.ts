@@ -56,10 +56,6 @@ export function homeTarget(home: Home): string | null {
   return home === null ? null : home.kind === 'page' ? home.id : home.route
 }
 
-export function sameHome(a: Home, b: Home): boolean {
-  return homeTarget(a) === homeTarget(b) && (a?.kind ?? null) === (b?.kind ?? null)
-}
-
 /**
  * The home syncs to every device, so it is exactly a page id or one of the screens. What start-up
  * does on this device is one of the modes.

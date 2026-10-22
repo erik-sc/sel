@@ -28,7 +28,7 @@ import { Close, Plus } from '@/ui/icons'
 import { MOD_KEY } from '@/ui/platform'
 import { notifyError, toast } from '@/ui/toast'
 import { createdTitles, describeAction, summarizeActions } from './actions'
-import { applyActions } from './applyActions'
+import { applyActions, undoApplied } from './applyActions'
 import { startRun, type RunHandle } from './client'
 import { aiReady, openAiSetup, toggleAssistant, useAiGate } from './gate'
 import { errorLines, statusText } from './labels'
@@ -339,7 +339,22 @@ export function AssistantPanel(): JSX.Element {
       setChat(key, (list) => list.map((message) => (message.id === id ? { ...message, proposal } : message)))
     set({ state: 'applying' })
     applyActions(actions, pageId).then(
-      (plan) => set({ state: 'applied', done: plan.done, skipped: plan.skipped, open: plan.open }),
+      (plan) => {
+        set({ state: 'applied', done: plan.done, skipped: plan.skipped, open: plan.open })
+        const { undo } = plan
+        if (!undo) return
+        // The card goes back to the proposal once undone: it can be applied again.
+        toast('Applied', {
+          action: {
+            label: 'Undo',
+            run: () =>
+              void undoApplied(undo).then(
+                () => set(undefined),
+                (error: unknown) => notifyError('That could not be undone. Each page keeps a version from before, in its history.', error)
+              )
+          }
+        })
+      },
       (error: unknown) => {
         set(undefined)
         notifyError('That could not be applied.', error)
@@ -545,6 +560,11 @@ export function AssistantPanel(): JSX.Element {
                       )
                     }
                   />
+                )}
+                {!working && run.status === 'done' && parsed.rejected > 0 && (
+                  <p className="ai-status" role="status">
+                    Herman proposed changes I couldn't read ({parsed.rejected})
+                  </p>
                 )}
                 {(working || run.status === 'cancelled') && (
                   <p className="ai-status" role="status" aria-live="polite">

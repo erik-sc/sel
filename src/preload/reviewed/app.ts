@@ -4,6 +4,7 @@ export const REVIEWED = [
   'app:getSetting',
   'app:getTheme',
   'app:newWindow',
+  'app:notices',
   'app:openExternal',
   'app:setSetting',
   'app:setTheme',

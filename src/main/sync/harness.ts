@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, describe, expect, vi } from 'vitest'
+import { afterAll, expect, vi } from 'vitest'
 import type { SyncStatus } from '../../shared/sync'
 import type { Block, RichText } from '../../shared/types'
 import type { Repository } from '../db/repository'
@@ -15,13 +15,13 @@ import { calendarSync, CalendarStore, type Cipher } from '../briefing/secrets'
 import { openTestRepository } from '../db/testing'
 import { SyncEngine, type SecretStore, type SyncStep } from './engine'
 import { locateGit } from './git'
+import { gitSuite } from './gitSuite'
 
 export const GIT = locateGit()
-if (!GIT) console.warn('[sync.test] git was not found on this computer: the sync integration tests are skipped')
-/** `describe`, or a skipped one on a computer without git. */
+if (!GIT && !process.env['CI']) console.warn('[sync.test] git was not found on this computer: the sync integration tests are skipped')
+/** `describe`; without git, skipped here and failed on CI (./gitSuite.ts). */
 export function suite(name: string, fn: () => void): void {
-  if (GIT) describe(name, fn)
-  else describe.skip(name, fn)
+  gitSuite(GIT, name, fn)
 }
 // Every cycle starts git a dozen times, and starting a program is slow on Windows.
 vi.setConfig({ testTimeout: 180_000 })

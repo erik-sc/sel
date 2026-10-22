@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { bootMark } from '@/boot'
+import { RootBoundary } from '@/failures/RootBoundary'
 import { Shell } from '@/shell/Shell'
 import { initTabs, initialPageId } from '@/store/tabs'
 import { initTree } from '@/store/tree'
@@ -12,7 +13,11 @@ export function App() {
     void initTabs(initialPageId())
   }, [])
 
-  return <Shell />
+  return (
+    <RootBoundary>
+      <Shell />
+    </RootBoundary>
+  )
 }
 
 export default App

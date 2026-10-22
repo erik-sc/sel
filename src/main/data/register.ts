@@ -9,6 +9,7 @@ import type { Repository } from '../db/repository'
 import { filesDir } from '../files'
 import type { Handlers } from '../invoke'
 import { DB_FILE } from '../legacy'
+import { LOGS_DIR } from '../log'
 import {
   BackupError,
   BACKUPS_DIR,
@@ -188,6 +189,12 @@ export function registerDataIpc({ repo, busy }: DataContext): { handlers: Handle
     'data:showBackups': async () => {
       mkdirSync(backupsDir(), { recursive: true })
       const failed = await shell.openPath(backupsDir())
+      if (failed) throw new Error(failed)
+    },
+    'data:openLogs': async () => {
+      const dir = join(app.getPath('userData'), LOGS_DIR)
+      mkdirSync(dir, { recursive: true })
+      const failed = await shell.openPath(dir)
       if (failed) throw new Error(failed)
     },
     'data:exportMarkdown': (_args, event) => exportMarkdown(ownerOf(event.sender))

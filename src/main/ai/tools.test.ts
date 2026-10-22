@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { until } from '../../shared/testing'
 import type { Block, BlockProps, BlockType, SearchResult } from '../../shared/types'
 import { BASE_ARGS, buildArgs, buildSpawn, SYSTEM_PROMPT_TOOLS, toolArgs } from './command'
 import { ToolHost, toolScript } from './toolhost'
@@ -195,8 +196,7 @@ describe('the tool host', () => {
     expect(host.answer(JSON.stringify({ token: 'f'.repeat(48), id: 3, name: 'audit' }))).toEqual({ id: 3, error: 'This request is over.' })
     expect(host.answer('not json')).toEqual({ id: null, error: 'Not understood.' })
     grant.release()
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    expect(existsSync(grant.configPath)).toBe(false)
+    await until(() => !existsSync(grant.configPath), { what: 'the grant file to go' })
     expect(host.answer(JSON.stringify({ token, id: 4, name: 'audit' }))).toEqual({ id: 4, error: 'This request is over.' })
   })
 
@@ -227,14 +227,8 @@ describe('the tool host', () => {
     const send = (message: unknown): void => {
       child.stdin.write(`${JSON.stringify(message)}\n`)
     }
-    const reply = async (id: number): Promise<Record<string, unknown>> => {
-      for (let wait = 0; wait < 100; wait++) {
-        const found = replies.find((entry) => entry['id'] === id)
-        if (found) return found
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-      throw new Error(`no reply ${id}`)
-    }
+    const reply = (id: number): Promise<Record<string, unknown>> =>
+      until(() => replies.find((entry) => entry['id'] === id), { what: `reply ${id}` })
     send({
       jsonrpc: '2.0',
       id: 1,

@@ -45,6 +45,7 @@ import {
   parseGitVersion,
   pinnedRepository
 } from './git'
+import { gitSuite } from './gitSuite'
 
 const ROOT = mkdtempSync(join(tmpdir(), 'sel-sync-sec-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }))
@@ -437,7 +438,7 @@ describe('what a failure says', () => {
 })
 
 const GIT = locateGit()
-const withGit = GIT ? describe : describe.skip
+const withGit = (name: string, fn: () => void): void => gitSuite(GIT, name, fn)
 
 withGit('every git command that is actually run', () => {
   it('has no user text in option position, a pinned repository and no way to prompt', async () => {

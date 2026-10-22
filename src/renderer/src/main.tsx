@@ -15,7 +15,9 @@ import { getBlock, prefetchTree } from './store/blocks'
 import { activeTab, initTabs, initialPageId, tabPage } from './store/tabs'
 import { initTree } from './store/tree'
 import { bootUi, initUi, resolveTheme } from './store/ui'
-import { notifyError } from './ui/toast'
+import { listenForNotices, watchFailures } from './failures/global'
+import { followLocale } from './failures/notify'
+import { useHome } from './home/store'
 import { openTodayOnLaunch } from './briefing/route'
 import { idleFeatures, initFeatures } from './features'
 import { routeTitle } from './screens'
@@ -23,10 +25,9 @@ import { isQuickAddWindow } from './tasks/gate'
 
 bootMark('start')
 
-// A rejection nobody handled is most often a write that did not reach the database.
-window.addEventListener('unhandledrejection', (event) => {
-  notifyError('Something went wrong. Your last change may not have been saved.', event.reason)
-})
+// Failures nobody caught are said, in the language the window speaks (failures/).
+followLocale(() => useHome.getState().locale)
+watchFailures()
 
 // The first frame is painted from the synchronous mirror of the settings (theme, sidebar
 // geometry, appearance overrides: see boot.ts), so it does not wait for the main process.
@@ -46,6 +47,7 @@ if (isQuickAddWindow()) void settings.finally(() => void import('./tasks/QuickAd
 else bootWorkspace()
 
 function bootWorkspace(): void {
+  listenForNotices()
   void initTree()
   // Each feature's start-up (features.ts): what it asks the main process for, what it listens to.
   initFeatures()

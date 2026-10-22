@@ -2,7 +2,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanFeedbackInput, newFeedbackId, parseFeedbackItem } from '../../shared/feedback'
+import { cleanFeedbackInput, FEEDBACK_LIMITS, newFeedbackId, parseFeedbackItem } from '../../shared/feedback'
 import { FeedbackStore } from './store'
 
 let dir: string
@@ -20,17 +20,20 @@ afterEach(async () => {
 
 describe('cleanFeedbackInput', () => {
   it('keeps a valid input and collapses the title to one line', () => {
-    expect(cleanFeedbackInput({ kind: 'bug', title: '  Table\n  breaks ', description: ' a\nb ', screen: 'page' })).toEqual({
+    expect(
+      cleanFeedbackInput({ kind: 'bug', title: '  Table\n  breaks ', description: ' a\nb ', screen: 'page', attachLog: false })
+    ).toEqual({
       kind: 'bug',
       title: 'Table breaks',
       description: 'a\nb',
-      screen: 'page'
+      screen: 'page',
+      attachLog: false
     })
   })
 
   it('rejects a missing title, an unknown kind and other shapes', () => {
-    expect(() => cleanFeedbackInput({ kind: 'bug', title: '   ', description: '', screen: 'page' })).toThrow()
-    expect(() => cleanFeedbackInput({ kind: 'idea', title: 'x', description: '', screen: 'page' })).toThrow()
+    expect(() => cleanFeedbackInput({ kind: 'bug', title: '   ', description: '', screen: 'page', attachLog: false })).toThrow()
+    expect(() => cleanFeedbackInput({ kind: 'idea', title: 'x', description: '', screen: 'page', attachLog: false })).toThrow()
     expect(() => cleanFeedbackInput(['bug'])).toThrow()
     expect(() => cleanFeedbackInput(null)).toThrow()
   })
@@ -76,16 +79,16 @@ describe('FeedbackStore', () => {
   })
 
   it('writes one file per item with a README beside them, newest first', async () => {
-    const first = await store.create({ kind: 'bug', title: 'First', description: 'steps', screen: 'today' })
-    const second = await store.create({ kind: 'suggestion', title: 'Second', description: '', screen: 'page' })
+    const first = await store.create({ kind: 'bug', title: 'First', description: 'steps', screen: 'today', attachLog: false })
+    const second = await store.create({ kind: 'suggestion', title: 'Second', description: '', screen: 'page', attachLog: false })
     expect((await readdir(dir)).sort()).toEqual(['README.md', `${first.id}.json`, `${second.id}.json`].sort())
     expect((await store.list()).map((item) => item.title)).toEqual(['Second', 'First'])
     const onDisk = JSON.parse(await readFile(join(dir, `${first.id}.json`), 'utf8'))
-    expect(onDisk).toMatchObject({ status: 'open', context: { appVersion: '0.2.0', platform: 'win32', screen: 'today' } })
+    expect(onDisk).toMatchObject({ status: 'open', context: { appVersion: '0.2.0', platform: 'win32', screen: 'today' }, log: null })
   })
 
   it('reads what the agent changed and skips files it cannot read', async () => {
-    const item = await store.create({ kind: 'bug', title: 'Crash', description: '', screen: 'page' })
+    const item = await store.create({ kind: 'bug', title: 'Crash', description: '', screen: 'page', attachLog: false })
     const file = join(dir, `${item.id}.json`)
     const edited = {
       ...item,
@@ -100,12 +103,27 @@ describe('FeedbackStore', () => {
     expect(await store.list()).toHaveLength(1)
   })
 
+  it('attaches the last lines of the log only when asked, within the limits', async () => {
+    const lines = Array.from({ length: 150 }, (_, index) => `2026-01-01T00:00:00.000Z error line ${index}`)
+    const withLog = new FeedbackStore(dir, { appVersion: '0.2.0', platform: 'win32', logTail: () => lines })
+    const without = await withLog.create({ kind: 'bug', title: 'No log', description: '', screen: 'page', attachLog: false })
+    expect(without.log).toBeNull()
+    const attached = await withLog.create({ kind: 'bug', title: 'With log', description: '', screen: 'page', attachLog: true })
+    expect(attached.log).toHaveLength(FEEDBACK_LIMITS.logLines)
+    expect(attached.log?.at(-1)).toBe('2026-01-01T00:00:00.000Z error line 149')
+    // What the dialog shows before saving is what is attached.
+    expect(withLog.logTail()).toEqual(attached.log)
+    const read = (await withLog.list()).find((item) => item.id === attached.id)
+    expect(read?.log).toEqual(attached.log)
+    expect(cleanFeedbackInput({ kind: 'bug', title: 'x', description: '', screen: 'page', attachLog: 'yes' }).attachLog).toBe(false)
+  })
+
   it('withdraws only open items', async () => {
-    const open = await store.create({ kind: 'bug', title: 'Open', description: '', screen: 'none' })
+    const open = await store.create({ kind: 'bug', title: 'Open', description: '', screen: 'none', attachLog: false })
     await store.withdraw(open.id)
     expect(await store.list()).toEqual([])
 
-    const taken = await store.create({ kind: 'bug', title: 'Taken', description: '', screen: 'none' })
+    const taken = await store.create({ kind: 'bug', title: 'Taken', description: '', screen: 'none', attachLog: false })
     const file = join(dir, `${taken.id}.json`)
     await writeFile(file, JSON.stringify({ ...taken, status: 'in-progress' }))
     await expect(store.withdraw(taken.id)).rejects.toThrow()

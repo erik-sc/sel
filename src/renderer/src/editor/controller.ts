@@ -11,8 +11,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import type { BlockProps, BlockType, Mark, Op, RichText } from '@shared/types'
 import { applyOps, getBlock, loadTree, newId } from '@/store/blocks'
-import { createThrottle } from '@/ui/throttle'
-import { notifyError } from '@/ui/toast'
+import { notifyWriteFailed } from '@/failures/notify'
 import { a11yCopy, announce } from '@/a11y/announce'
 import { isPlainTextType, isTextType, type SlashItem } from './blockTypes'
 import { History } from './history'
@@ -55,10 +54,6 @@ import {
 
 export { MIME_BLOCKS, MIME_DRAG, MIME_RICHTEXT } from './clipboard'
 export type { DropPos, DropTarget, Focusable, PropsPatch, Sel, SlashState, TextRange, UIState } from './types'
-
-/** At most one write-failure toast per this many milliseconds, across every open editor. */
-const WRITE_FAILURE_NOTICE_MS = 5000
-const writeFailureNotice = createThrottle(WRITE_FAILURE_NOTICE_MS)
 
 export class EditorController {
   readonly history = new History<Sel>()
@@ -211,7 +206,7 @@ export class EditorController {
     const after = opts.after !== undefined ? opts.after : before
     const { inverse, restore } = invertOps(ops, getBlock)
     this.history.commit(ops, inverse, before, after, { key: opts.key, restore })
-    void applyOps(ops).catch((err: unknown) => this.onApplyFailed("Couldn't save that change. It was undone.", err))
+    void applyOps(ops).catch((err: unknown) => this.onApplyFailed(err))
     if (!opts.silent) this.restoreSel(after)
   }
 
@@ -220,12 +215,11 @@ export class EditorController {
    * recorded inverses no longer describe the document, so replaying any of them
    * could corrupt it: drop the history. The rejection is caught here, so the
    * global unhandled-rejection toast never sees it: tell the user, at most once
-   * per `WRITE_FAILURE_NOTICE_MS` (a failing disk fails every keystroke).
+   * every few seconds across the window (see failures/notify.ts).
    */
-  private onApplyFailed(message: string, err: unknown): void {
+  private onApplyFailed(err: unknown, what: 'change' | 'undo' | 'redo' = 'change'): void {
     this.history.clear()
-    if (writeFailureNotice(Date.now())) notifyError(message, err)
-    else console.error(`[editor] ${message}`, err)
+    notifyWriteFailed(err, what)
   }
 
   private enqueue(task: () => Promise<void>): Promise<void> {
@@ -250,7 +244,7 @@ export class EditorController {
         await this.restorePages(e.restore ?? [])
         if (e.inverse.length) await applyOps(e.inverse)
       } catch (err) {
-        this.onApplyFailed("Couldn't undo that change.", err)
+        this.onApplyFailed(err, 'undo')
       }
       this.restoreSel(e.before)
     })
@@ -267,7 +261,7 @@ export class EditorController {
         await this.restorePages(plan.restore)
         if (plan.ops.length) await applyOps(plan.ops)
       } catch (err) {
-        this.onApplyFailed("Couldn't redo that change.", err)
+        this.onApplyFailed(err, 'redo')
       }
       this.restoreSel(e.after)
     })

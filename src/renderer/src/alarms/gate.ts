@@ -40,8 +40,11 @@ export function initAlarms(): void {
 function receive(announcement: Announcement): void {
   const { current } = useAlarms.getState()
   if (current?.id === announcement.id || waiting.some((item) => item.id === announcement.id)) return
-  // Taken: no other window needs to say it.
-  void window.api.alarms.heard(announcement.id).catch(() => undefined)
+  // Taken: no other window needs to say it. When main cannot be told, a window opened later
+  // may say it again: written down, so that a repeat has an explanation.
+  void window.api.alarms
+    .heard(announcement.id)
+    .catch((error: unknown) => console.error('[alarms] could not say the announcement was taken', error))
   if (current && useHerman.getState().on) waiting.push(announcement)
   else void present(announcement)
 }
