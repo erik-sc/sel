@@ -5,7 +5,7 @@
 // keys are pure (./refineWalk.ts); the fields open the editors a row's chips open (./TaskEditors.tsx).
 // At the end: "Inbox em dia." when nothing is left, and no score either way.
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import type { JSX, KeyboardEvent as ReactKeyboardEvent } from 'react'
+import type { JSX } from 'react'
 import { ruleText } from '@shared/rrule'
 import { needsRefining } from '@shared/tasks/refine'
 import { useHome } from '@/home/store'
@@ -18,7 +18,7 @@ import type { RefineFrom } from './gate'
 import { TaskFieldPopover } from './lazy'
 import { dueLabel, type TaskItem } from './lists'
 import { nextPriority } from './model'
-import { currentTask, refineKeyAction, refineQueue, refineStep, startRefineState, type RefineState } from './refineWalk'
+import { currentTask, refineKeyAction, refineQueue, refineStep, startRefineState, type RefineCommand, type RefineState } from './refineWalk'
 import { TitleEditor } from './TitleEditor'
 import './refine.css'
 
@@ -32,6 +32,11 @@ const FIELDS: readonly { field: TaskField; key: string }[] = [
 ]
 
 const KEYS = 'Enter S Delete Escape ArrowLeft ArrowRight F2 D R 1 2 3 4 # @'
+
+/** Where a key belongs to what has the focus, not to the walk: typing, and controls outside the card. */
+const TYPING =
+  'input, textarea, select, [contenteditable=""], [contenteditable="true"], [role="textbox"], [role="dialog"], [role="menu"], [role="listbox"]'
+const CONTROL = 'button, a[href], [role="button"], [role="tab"], [role="treeitem"], [role="option"]'
 
 export interface RefineProps {
   /** The tasks as the screen reads them, kept current. */
@@ -49,6 +54,8 @@ export function Refine({ tasks, from, today, onExit }: RefineProps): JSX.Element
   const [editing, setEditing] = useState<{ field: TaskField; anchor: PopoverAnchor } | null>(null)
   const [renaming, setRenaming] = useState(false)
   const card = useRef<HTMLDivElement>(null)
+  const section = useRef<HTMLElement>(null)
+  const onKeyRef = useRef<((event: KeyboardEvent) => void) | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const fieldRefs = useRef<Partial<Record<TaskField, HTMLButtonElement | null>>>({})
   const headId = useId()
@@ -68,12 +75,23 @@ export function Refine({ tasks, from, today, onExit }: RefineProps): JSX.Element
     else if (!renaming && !editing) card.current?.focus({ preventScroll: true })
   }, [state.done, state.index, id, renaming, editing])
 
+  // The walk's keys are read from the whole window while a card shows, so they keep working when
+  // the focus has left the card (a click beside it, a chip clicked, an editor closed by a click).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (!event.defaultPrevented && !event.isComposing) onKeyRef.current?.(event)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const nothingLeft = state.queue.every((each) => {
     const item = byId.get(each)
     return !item || !needsRefining(item)
   })
 
   if (state.done || !task) {
+    onKeyRef.current = null
     return (
       <section className="refine is-done" aria-labelledby={headId}>
         <h1 id={headId} className="tasks-heading">
@@ -123,13 +141,7 @@ export function Refine({ tasks, from, today, onExit }: RefineProps): JSX.Element
   const edit = (field: TaskField): void => setEditing({ field, anchor: fieldRefs.current[field] ?? card.current })
   const progress = words.progress(state.index + 1, state.queue.length)
 
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>): void => {
-    // Keys in the name being edited, or in an editor drawn from the card, are theirs.
-    if (event.target !== event.currentTarget || event.nativeEvent.isComposing) return
-    const command = refineKeyAction(event)
-    if (!command) return
-    event.preventDefault()
-    event.stopPropagation()
+  const run = (command: RefineCommand): void => {
     switch (command.kind) {
       case 'exit':
         onExit()
@@ -157,8 +169,23 @@ export function Refine({ tasks, from, today, onExit }: RefineProps): JSX.Element
     if (nextTask) announce(`${words.progress(next.index + 1, next.queue.length)}: ${nextTask.title || words.untitled}`)
   }
 
+  onKeyRef.current =
+    renaming || editing
+      ? null
+      : (event) => {
+          // Keys in the name being edited, in an editor, or on a control outside the card are theirs.
+          const target = event.target instanceof Element ? event.target : null
+          if (target?.closest(TYPING)) return
+          if (target && !section.current?.contains(target) && target.closest(CONTROL)) return
+          const command = refineKeyAction(event)
+          if (!command) return
+          event.preventDefault()
+          event.stopPropagation()
+          run(command)
+        }
+
   return (
-    <section className="refine" aria-labelledby={headId}>
+    <section ref={section} className="refine" aria-labelledby={headId}>
       <div className="refine-head">
         <h1 id={headId} className="tasks-heading">
           {words.refining}
@@ -176,7 +203,6 @@ export function Refine({ tasks, from, today, onExit }: RefineProps): JSX.Element
           FIELDS.map(({ field }) => words.change(words.field[field], value(field) || words.none))
         )}
         aria-keyshortcuts={KEYS}
-        onKeyDown={onKeyDown}
       >
         {renaming ? (
           <TitleEditor
@@ -220,6 +246,17 @@ export function Refine({ tasks, from, today, onExit }: RefineProps): JSX.Element
           })}
         </dl>
       </div>
+      <div className="refine-walk">
+        <Button variant="ghost" disabled={state.index === 0} onClick={() => run({ kind: 'back' })}>
+          {words.refineBack}
+        </Button>
+        <Button variant="ghost" onClick={() => run({ kind: 'skip' })}>
+          {words.refineSkip}
+        </Button>
+        <Button variant="primary" onClick={() => run({ kind: 'next' })}>
+          {words.refineNext}
+        </Button>
+      </div>
       <p className="refine-keys">{words.refineKeys}</p>
       {editing && (
         <TaskFieldPopover
@@ -228,7 +265,8 @@ export function Refine({ tasks, from, today, onExit }: RefineProps): JSX.Element
           anchor={editing.anchor}
           onClose={() => {
             setEditing(null)
-            card.current?.focus({ preventScroll: true })
+            // after the click that closed it has moved the focus, not before
+            requestAnimationFrame(() => card.current?.focus({ preventScroll: true }))
           }}
         />
       )}
