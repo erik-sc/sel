@@ -2,7 +2,15 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, safeStorage } from 'electron'
-import { cleanBranch, isPassphrase, SYNC_CHANNEL, SYNC_LIMITS, type SyncErrorCode, type SyncSetup, type SyncStatus } from '../../shared/sync'
+import {
+  cleanBranch,
+  isPassphrase,
+  SYNC_CHANNEL,
+  SYNC_LIMITS,
+  type SyncErrorCode,
+  type SyncSetup,
+  type SyncStatus
+} from '../../shared/sync'
 import type { Repository } from '../db/repository'
 import { filesDir, sniffImage } from '../files'
 import { SyncEngine, type SecretStore } from './engine'
@@ -24,7 +32,14 @@ const QUIT_BUDGET_MS = 4000
 /** Waits between automatic attempts after consecutive failures. */
 const BACKOFF_MS = [60_000, 2 * 60_000, 5 * 60_000, 15 * 60_000]
 /** Failures no retry can fix: automatic attempts stop until something changes. */
-const NEEDS_A_PERSON: ReadonlySet<SyncErrorCode> = new Set(['git-not-found', 'not-sel-repo', 'passphrase-required', 'wrong-passphrase', 'unsupported-format', 'repo-not-found'])
+const NEEDS_A_PERSON: ReadonlySet<SyncErrorCode> = new Set([
+  'git-not-found',
+  'not-sel-repo',
+  'passphrase-required',
+  'wrong-passphrase',
+  'unsupported-format',
+  'repo-not-found'
+])
 
 /**
  * Whether a folder on this computer may be used as the remote: for development and automated
@@ -85,7 +100,8 @@ export function syncSetup(value: unknown): SyncSetup {
     out.mode = raw['mode']
   }
   if (raw['passphrase'] !== undefined && raw['passphrase'] !== null) {
-    if (!isPassphrase(raw['passphrase'])) throw new Error(`A passphrase has between ${SYNC_LIMITS.passphraseMin} and ${SYNC_LIMITS.passphraseMax} characters`)
+    if (!isPassphrase(raw['passphrase']))
+      throw new Error(`A passphrase has between ${SYNC_LIMITS.passphraseMin} and ${SYNC_LIMITS.passphraseMax} characters`)
     out.passphrase = raw['passphrase']
   }
   if (raw['useAnyway'] !== undefined && raw['useAnyway'] !== null) {
@@ -270,7 +286,8 @@ export class SyncBridge {
   }
 
   async setEncryption(passphrase: unknown): Promise<SyncStatus> {
-    if (passphrase !== null && !isPassphrase(passphrase)) throw new Error(`A passphrase has between ${SYNC_LIMITS.passphraseMin} and ${SYNC_LIMITS.passphraseMax} characters`)
+    if (passphrase !== null && !isPassphrase(passphrase))
+      throw new Error(`A passphrase has between ${SYNC_LIMITS.passphraseMin} and ${SYNC_LIMITS.passphraseMax} characters`)
     if (passphrase !== null && !safeStorage.isEncryptionAvailable()) throw new Error('This computer has no secure place to keep the key')
     this.reset()
     return this.engine.setEncryption(passphrase)

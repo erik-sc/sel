@@ -19,6 +19,9 @@
 
 import { localDay } from './briefing'
 import type { BlockProps, RichText } from './types'
+import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
 
 /** The notebook page. Never changes: every device must make the same block. */
 export const NOTEBOOK_ID = 'sel-notebook'
@@ -122,7 +125,6 @@ export function cleanLine(value: unknown): string {
   return (
     value
       .replace(/\r\n?/g, '\n')
-      // eslint-disable-next-line no-control-regex
       .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ')
       // Paragraph breaks fold into one: it is a line, a short paragraph at most.
       .replace(/\s*\n\s*/g, '\n')
@@ -140,7 +142,6 @@ export function cleanPlans(value: unknown): string[] {
   for (const item of value.slice(0, 20) as unknown[]) {
     if (typeof item !== 'string') continue
     const text = item
-      // eslint-disable-next-line no-control-regex
       .replace(/[\u0000-\u001f\u007f]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
@@ -282,3 +283,57 @@ export function cleanNotebookSetting(key: string, value: unknown): unknown {
 export function bellOn(stored: unknown): boolean {
   return cleanNotebookSetting(NOTEBOOK_BELL_KEY, stored) !== false
 }
+
+/** Whether closing the day rings a bell: a boolean. */
+export const NOTEBOOK_SETTINGS: SettingsSpec = { keys: NOTEBOOK_KEYS, clean: cleanNotebookSetting }
+
+/** The invoke channels of `api.notebook` (see `INVOKE` in ./api.ts): every method of NotebookApi that returns a promise, and no other. */
+export const NOTEBOOK_INVOKE = {
+  'notebook:get': true,
+  'notebook:write': true,
+  'notebook:plan': true,
+  'notebook:dismissPlans': true,
+  'notebook:review': true
+} as const satisfies Record<InvokeChannels<{ notebook: NotebookApi }>, true>
+
+/** The ways to Meditations and to the closing of the day (see ./commands.ts). */
+export const NOTEBOOK_COMMANDS = [
+  {
+    id: 'open-notebook',
+    // N for notebook. Ctrl+N is a new page, Ctrl+Shift+N a new window.
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+N', key: 'n', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Meditations', order: 250 },
+    palette: {
+      title: 'Meditations',
+      keywords: [
+        'meditações',
+        'journal',
+        'diary',
+        'line a day',
+        'on this day',
+        'notebook',
+        'ink',
+        'ink notebook',
+        'caderno',
+        'caderno de tinta',
+        'diário'
+      ],
+      order: 100
+    },
+    catalog: {
+      group: 'navigation',
+      label: 'Meditations',
+      keywords: ['meditações', 'journal', 'diary', 'notebook', 'ink', 'caderno'],
+      order: 170
+    }
+  },
+  {
+    id: 'close-day',
+    menu: { submenu: 'view', label: 'Close the Day', order: 270 },
+    palette: {
+      title: 'Close the day',
+      keywords: ['evening', 'end', 'review', 'tomorrow', 'shutdown', 'fechar o dia', 'até amanhã'],
+      order: 120
+    }
+  }
+] as const satisfies readonly CommandSpec[]

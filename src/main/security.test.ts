@@ -342,7 +342,17 @@ describe('ipc argument validation', () => {
   })
 
   it('lets the renderer write only its own settings', () => {
-    for (const key of ['theme', 'appearance', 'shell.tabs', 'shell.sidebar', 'shell.expanded', 'shell.wordCount','database.activeView.abc-123', 'editor.x', 'ui.y']) {
+    for (const key of [
+      'theme',
+      'appearance',
+      'shell.tabs',
+      'shell.sidebar',
+      'shell.expanded',
+      'shell.wordCount',
+      'database.activeView.abc-123',
+      'editor.x',
+      'ui.y'
+    ]) {
       expect(arg.writableSettingKey(key)).toBe(key)
     }
     for (const key of ['rootOrder', 'seeded', 'windowBounds', 'shell', 'other.key', 'themes', 'appearancex']) {
@@ -396,9 +406,15 @@ describe('ipc argument validation', () => {
   it('takes the sidebar layout only as two lists of item ids', () => {
     expect(arg.writableSettingKey('sidebar')).toBe('sidebar')
     for (const key of ['sidebar.order', 'sidebars']) expect(() => arg.writableSettingKey(key)).toThrow('read-only')
-    expect(arg.settingValueFor('sidebar', { order: ['pages', 'search'], hidden: ['trash'] })).toEqual({ order: ['pages', 'search'], hidden: ['trash'] })
+    expect(arg.settingValueFor('sidebar', { order: ['pages', 'search'], hidden: ['trash'] })).toEqual({
+      order: ['pages', 'search'],
+      hidden: ['trash']
+    })
     // Ids of a later version are kept, repeats count once, a missing list is empty.
-    expect(arg.settingValueFor('sidebar', { order: ['search', 'garden-2', 'search'] })).toEqual({ order: ['search', 'garden-2'], hidden: [] })
+    expect(arg.settingValueFor('sidebar', { order: ['search', 'garden-2', 'search'] })).toEqual({
+      order: ['search', 'garden-2'],
+      hidden: []
+    })
     expect(arg.settingValueFor('sidebar', null)).toBeNull()
     expect(arg.settingValueFor('sidebar', undefined)).toBeNull()
     for (const bad of [
@@ -505,7 +521,17 @@ describe('fitBounds', () => {
   })
 
   it('ignores anything that is not four finite numbers', () => {
-    for (const bad of [null, undefined, 'x', 5, [], {}, { x: 0, y: 0, width: '800', height: 600 }, { x: 0, y: 0, width: Number.NaN, height: 600 }, { x: 0, y: 0, width: Number.POSITIVE_INFINITY, height: 600 }]) {
+    for (const bad of [
+      null,
+      undefined,
+      'x',
+      5,
+      [],
+      {},
+      { x: 0, y: 0, width: '800', height: 600 },
+      { x: 0, y: 0, width: Number.NaN, height: 600 },
+      { x: 0, y: 0, width: Number.POSITIVE_INFINITY, height: 600 }
+    ]) {
       expect(fitBounds(bad, displays)).toEqual({})
     }
   })

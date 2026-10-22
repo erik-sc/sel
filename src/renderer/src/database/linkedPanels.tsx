@@ -31,10 +31,7 @@ interface PickItem {
 }
 
 function fold(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
+  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 }
 
 function titleOr(block: Block | undefined | null, fallback = 'Untitled'): string {
@@ -58,9 +55,12 @@ async function loadPaths(ids: readonly string[]): Promise<Map<string, string>> {
 }
 
 function ItemGlyph({ item }: { item: PickItem }): JSX.Element {
-  if (item.icon) return <span className="db-pick-icon is-emoji">
+  if (item.icon)
+    return (
+      <span className="db-pick-icon is-emoji">
         <IconGlyph icon={item.icon} />
       </span>
+    )
   return (
     <span className="db-pick-icon">
       {item.kind === 'page' ? <Page size={14} /> : item.kind === 'linked' ? <ArrowUpRight size={14} /> : <Database size={14} />}
@@ -107,11 +107,10 @@ function PickList(props: {
     return items.filter((item) => fold(item.title).includes(needle) || fold(item.path).includes(needle))
   }, [items, trimmed])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `onQuery` is the caller's latest closure; only a new query is a reason to call it.
   useEffect(() => {
     onQuery?.(trimmed)
     setActive(0)
-    // `onQuery` is the caller's latest closure; only a new query is a reason to call it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trimmed])
 
   useEffect(() => {
@@ -408,10 +407,7 @@ export function LocationsPanel(props: {
   useEffect(() => {
     let alive = true
     const load = async (): Promise<void> => {
-      const [sources, locations] = await Promise.all([
-        window.api.blocks.getMany([sourceId]),
-        window.api.databases.locations(sourceId)
-      ])
+      const [sources, locations] = await Promise.all([window.api.blocks.getMany([sourceId]), window.api.databases.locations(sourceId)])
       const source = sources[0]
       const [above, paths] = await Promise.all([
         window.api.pages.ancestors(sourceId).catch(() => [] as Block[]),

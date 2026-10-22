@@ -36,17 +36,44 @@ describe('normalize', () => {
   })
 
   it('orders marks canonically so equal sets merge', () => {
-    expect(normalize([['a', [['i'], ['b']]], ['b', [['b'], ['i']]]])).toEqual([['ab', [['b'], ['i']]]])
+    expect(
+      normalize([
+        ['a', [['i'], ['b']]],
+        ['b', [['b'], ['i']]]
+      ])
+    ).toEqual([['ab', [['b'], ['i']]]])
   })
 
   it('keeps one mark per kind, last wins; text and background colours coexist', () => {
-    expect(normalize([['x', [['h', 'red'], ['h', 'blue'], ['h', 'green_background']]]])).toEqual([
-      ['x', [['h', 'blue'], ['h', 'green_background']]]
+    expect(
+      normalize([
+        [
+          'x',
+          [
+            ['h', 'red'],
+            ['h', 'blue'],
+            ['h', 'green_background']
+          ]
+        ]
+      ])
+    ).toEqual([
+      [
+        'x',
+        [
+          ['h', 'blue'],
+          ['h', 'green_background']
+        ]
+      ]
     ])
   })
 
   it('does not merge different links', () => {
-    expect(normalize([['a', [['a', 'https://a.com']]], ['b', [['a', 'https://b.com']]]])).toHaveLength(2)
+    expect(
+      normalize([
+        ['a', [['a', 'https://a.com']]],
+        ['b', [['a', 'https://b.com']]]
+      ])
+    ).toHaveLength(2)
   })
 
   it('does not mutate its input', () => {
@@ -122,9 +149,7 @@ describe('marks over a range', () => {
   })
 
   it('addMark replaces a mark of the same kind', () => {
-    expect(addMark([['ab', [['a', 'https://old.com']]]], 0, 2, ['a', 'https://new.com'])).toEqual([
-      ['ab', [['a', 'https://new.com']]]
-    ])
+    expect(addMark([['ab', [['a', 'https://old.com']]]], 0, 2, ['a', 'https://new.com'])).toEqual([['ab', [['a', 'https://new.com']]]])
   })
 
   it('removeMark only touches the range and re-merges', () => {
@@ -151,7 +176,15 @@ describe('marks over a range', () => {
 
   it('background colour does not replace text colour', () => {
     const rt = addMark(addMark([['abc']], 0, 3, ['h', 'red']), 0, 3, ['h', 'blue_background'])
-    expect(rt).toEqual([['abc', [['h', 'red'], ['h', 'blue_background']]]])
+    expect(rt).toEqual([
+      [
+        'abc',
+        [
+          ['h', 'red'],
+          ['h', 'blue_background']
+        ]
+      ]
+    ])
     expect(removeMark(rt, 0, 3, 'hb')).toEqual([['abc', [['h', 'red']]]])
   })
 
@@ -205,7 +238,15 @@ describe('serialising and validating', () => {
   })
 
   it('parseMarks only keeps palette colours', () => {
-    expect(parseMarks([['h', 'blue'], ['h', 'red_background']])).toEqual([['h', 'blue'], ['h', 'red_background']])
+    expect(
+      parseMarks([
+        ['h', 'blue'],
+        ['h', 'red_background']
+      ])
+    ).toEqual([
+      ['h', 'blue'],
+      ['h', 'red_background']
+    ])
     expect(parseMarks([['h', 'x" onload="y']])).toEqual([])
     expect(parseMarks([['h', 'url(https://evil.example/x)']])).toEqual([])
     expect(parseMarks([['h', '_background']])).toEqual([])
@@ -216,7 +257,17 @@ describe('serialising and validating', () => {
   })
 
   it('parseRichText is idempotent on clean rich text', () => {
-    const clean: RichText = [['a ', [['b']]], ['link', [['a', 'https://x.dev'], ['h', 'red']]], [' z']]
+    const clean: RichText = [
+      ['a ', [['b']]],
+      [
+        'link',
+        [
+          ['a', 'https://x.dev'],
+          ['h', 'red']
+        ]
+      ],
+      [' z']
+    ]
     expect(parseRichText(clean)).toEqual(normalize(clean))
     expect(parseRichText(parseRichText(clean))).toEqual(parseRichText(clean))
   })

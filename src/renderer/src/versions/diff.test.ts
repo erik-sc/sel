@@ -4,7 +4,9 @@ import type { SnapshotBlock, SnapshotContent, SnapshotRow } from '@shared/versio
 import { diffSnapshots, summarize, tokenize, wordDiff, WORD_DIFF_LIMITS, type WordOp } from './diff'
 
 const compact = (ops: WordOp[] | null): string | null =>
-  ops === null ? null : ops.map((op) => (op.kind === 'equal' ? op.text : op.kind === 'insert' ? `{+${op.text}+}` : `[-${op.text}-]`)).join('')
+  ops === null
+    ? null
+    : ops.map((op) => (op.kind === 'equal' ? op.text : op.kind === 'insert' ? `{+${op.text}+}` : `[-${op.text}-]`)).join('')
 const side = (ops: WordOp[], drop: WordOp['kind']): string =>
   ops
     .filter((op) => op.kind !== drop)
@@ -128,7 +130,12 @@ describe('wordDiff', () => {
 
 // ---- tree diff
 
-const blk = (id: string, title: string, content: string[] = [], extra: Partial<SnapshotBlock> & { p?: BlockProps } = {}): SnapshotBlock => ({
+const blk = (
+  id: string,
+  title: string,
+  content: string[] = [],
+  extra: Partial<SnapshotBlock> & { p?: BlockProps } = {}
+): SnapshotBlock => ({
   id,
   type: (extra.type ?? 'text') as BlockType,
   parentId: null,
@@ -139,7 +146,12 @@ const blk = (id: string, title: string, content: string[] = [], extra: Partial<S
 
 function snap(blocks: SnapshotBlock[], more: Partial<SnapshotContent> = {}): SnapshotContent {
   const [root, ...rest] = blocks
-  return { rootId: root.id, blocks: [{ ...root, type: more.rows ? 'database' : root.type === 'text' ? 'page' : root.type }, ...rest], refs: [], ...more }
+  return {
+    rootId: root.id,
+    blocks: [{ ...root, type: more.rows ? 'database' : root.type === 'text' ? 'page' : root.type }, ...rest],
+    refs: [],
+    ...more
+  }
 }
 
 describe('diffSnapshots', () => {
@@ -154,7 +166,13 @@ describe('diffSnapshots', () => {
   })
 
   it('finds added, removed and changed blocks by id, and shows removed ones in place', () => {
-    const current = snap([blk('p', 'Page', ['a', 'gone1', 'b', 'gone2']), blk('a', 'hello world'), blk('gone1', 'x'), blk('b', 'same'), blk('gone2', 'y')])
+    const current = snap([
+      blk('p', 'Page', ['a', 'gone1', 'b', 'gone2']),
+      blk('a', 'hello world'),
+      blk('gone1', 'x'),
+      blk('b', 'same'),
+      blk('gone2', 'y')
+    ])
     const version = snap([blk('p', 'Page', ['new', 'a', 'b']), blk('new', 'fresh'), blk('a', 'hello there world'), blk('b', 'same')])
     const d = diffSnapshots(current, version)
     expect(d.counts).toEqual({ added: 1, removed: 2, changed: 1, moved: 0 })
@@ -168,7 +186,14 @@ describe('diffSnapshots', () => {
   })
 
   it('keeps the children of a removed block under it, and puts a removed first child first', () => {
-    const current = snap([blk('p', 'P', ['first', 'a', 't']), blk('first', 'f'), blk('a', 'a'), blk('t', 'toggle', ['k1', 'k2'], { type: 'toggle' }), blk('k1', '1'), blk('k2', '2')])
+    const current = snap([
+      blk('p', 'P', ['first', 'a', 't']),
+      blk('first', 'f'),
+      blk('a', 'a'),
+      blk('t', 'toggle', ['k1', 'k2'], { type: 'toggle' }),
+      blk('k1', '1'),
+      blk('k2', '2')
+    ])
     const version = snap([blk('p', 'P', ['a']), blk('a', 'a')])
     const d = diffSnapshots(current, version)
     expect(d.children.get('p')).toEqual(['first', 'a', 't'])
@@ -177,8 +202,22 @@ describe('diffSnapshots', () => {
   })
 
   it('marks blocks that moved to another parent or another place', () => {
-    const current = snap([blk('p', 'P', ['a', 'b', 'c', 't']), blk('a', 'a'), blk('b', 'b'), blk('c', 'c'), blk('t', 't', ['d'], { type: 'toggle' }), blk('d', 'd')])
-    const version = snap([blk('p', 'P', ['c', 'a', 'b', 't', 'd']), blk('c', 'c'), blk('a', 'a'), blk('b', 'b'), blk('t', 't', [], { type: 'toggle' }), blk('d', 'd')])
+    const current = snap([
+      blk('p', 'P', ['a', 'b', 'c', 't']),
+      blk('a', 'a'),
+      blk('b', 'b'),
+      blk('c', 'c'),
+      blk('t', 't', ['d'], { type: 'toggle' }),
+      blk('d', 'd')
+    ])
+    const version = snap([
+      blk('p', 'P', ['c', 'a', 'b', 't', 'd']),
+      blk('c', 'c'),
+      blk('a', 'a'),
+      blk('b', 'b'),
+      blk('t', 't', [], { type: 'toggle' }),
+      blk('d', 'd')
+    ])
     const d = diffSnapshots(current, version)
     // One block jumped over two: only that one is marked, not the two it passed.
     expect(d.blocks.get('c')).toMatchObject({ status: 'same', moved: true })
@@ -220,7 +259,10 @@ describe('diffSnapshots', () => {
   })
 
   it('says when a database block moved beside the one before it', () => {
-    const view = (sourceId: string, beside?: true) => ({ type: 'database' as const, p: { sourceId, views: [], ...(beside ? { beside } : {}) } })
+    const view = (sourceId: string, beside?: true) => ({
+      type: 'database' as const,
+      p: { sourceId, views: [], ...(beside ? { beside } : {}) }
+    })
     const current = snap([blk('p', 'P', ['a', 'b']), blk('a', '', [], view('s')), blk('b', '', [], view('s', true))])
     const version = snap([blk('p', 'P', ['a', 'b']), blk('a', '', [], view('s')), blk('b', '', [], view('s'))])
     const d = diffSnapshots(current, version)
@@ -235,7 +277,9 @@ describe('diffSnapshots', () => {
   })
 
   it('compares the page itself: title, icon, cover', () => {
-    const current = snap([{ ...blk('p', 'New title'), type: 'page', props: { title: [['New title']], icon: '🔥', cover: 'var(--c-red-bg)' } }])
+    const current = snap([
+      { ...blk('p', 'New title'), type: 'page', props: { title: [['New title']], icon: '🔥', cover: 'var(--c-red-bg)' } }
+    ])
     const version = snap([{ ...blk('p', 'Old title'), type: 'page', props: { title: [['Old title']] } }])
     const root = diffSnapshots(current, version).blocks.get('p')!
     expect(root.status).toBe('changed')
@@ -258,7 +302,13 @@ describe('diffSnapshots', () => {
   })
 
   it('compares the rows of a database cell by cell, and its schema and views', () => {
-    const row = (id: string, title: string, values: SnapshotRow['values'], icon?: string): SnapshotRow => ({ id, title: [[title]], values, createdAt: 1, ...(icon ? { icon } : {}) })
+    const row = (id: string, title: string, values: SnapshotRow['values'], icon?: string): SnapshotRow => ({
+      id,
+      title: [[title]],
+      values,
+      createdAt: 1,
+      ...(icon ? { icon } : {})
+    })
     const schema = (extra: object = {}): BlockProps['schema'] =>
       ({
         title: { id: 'title', name: 'Name', type: 'title' },
@@ -267,12 +317,37 @@ describe('diffSnapshots', () => {
         ...extra
       }) as BlockProps['schema']
     const view = (name: string) => ({ id: 'v', name, type: 'table' as const, visibleProperties: ['title'], filters: [], sorts: [] })
-    const current = snap([{ ...blk('d', 'Tasks'), type: 'database', content: ['r3', 'r1', 'r2', 'new'], props: { title: [['Tasks']], schema: schema({ x: { id: 'x', name: 'Extra', type: 'text' } }), views: [view('Board')] } }], {
-      rows: [row('r3', 'three', { n: 3 }), row('r1', 'one!', { n: 10, s: 'o1' }, '🔥'), row('r2', 'two', { n: 2, s: '' }), row('new', 'made later', {})]
-    })
-    const version = snap([{ ...blk('d', 'Tasks'), type: 'database', content: ['r1', 'r2', 'r3', 'r4'], props: { title: [['Tasks']], schema: schema(), views: [view('Table')] } }], {
-      rows: [row('r1', 'one', { n: 1, s: 'o1' }), row('r2', 'two', { n: 2 }), row('r3', 'three', { n: 3 }), row('r4', 'four', { n: 4 })]
-    })
+    const current = snap(
+      [
+        {
+          ...blk('d', 'Tasks'),
+          type: 'database',
+          content: ['r3', 'r1', 'r2', 'new'],
+          props: { title: [['Tasks']], schema: schema({ x: { id: 'x', name: 'Extra', type: 'text' } }), views: [view('Board')] }
+        }
+      ],
+      {
+        rows: [
+          row('r3', 'three', { n: 3 }),
+          row('r1', 'one!', { n: 10, s: 'o1' }, '🔥'),
+          row('r2', 'two', { n: 2, s: '' }),
+          row('new', 'made later', {})
+        ]
+      }
+    )
+    const version = snap(
+      [
+        {
+          ...blk('d', 'Tasks'),
+          type: 'database',
+          content: ['r1', 'r2', 'r3', 'r4'],
+          props: { title: [['Tasks']], schema: schema(), views: [view('Table')] }
+        }
+      ],
+      {
+        rows: [row('r1', 'one', { n: 1, s: 'o1' }), row('r2', 'two', { n: 2 }), row('r3', 'three', { n: 3 }), row('r4', 'four', { n: 4 })]
+      }
+    )
     const d = diffSnapshots(current, version)
     const r1 = d.rows.get('r1')!
     expect(r1.status).toBe('changed')

@@ -1,0 +1,5 @@
+# Commits that only reformat code. `git blame` skips them when run with
+# `git config blame.ignoreRevsFile .git-blame-ignore-revs` (GitHub reads this file by itself).
+
+# Format the code with Biome
+83cbfa458f93c078106591fa212cca51ee11ca9e

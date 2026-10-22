@@ -17,8 +17,7 @@ vi.mock('../store/blocks', async () => {
   type Map = Parameters<typeof applyOpsToMap>[0]
   return {
     newId: () => `new-${++store.seq}`,
-    getBlock: (id: string | null | undefined) =>
-      id && Object.hasOwn(store.blocks, id) ? (store.blocks[id] as Block) : undefined,
+    getBlock: (id: string | null | undefined) => (id && Object.hasOwn(store.blocks, id) ? (store.blocks[id] as Block) : undefined),
     useBlockStore: { getState: () => ({ missing: {} }) },
     applyOps: (ops: Op[]) => {
       store.batches.push(ops)
@@ -45,7 +44,11 @@ function database(id: string, title: string, schema: L.Schema, content: string[]
     type: 'database',
     parentId: null,
     content,
-    props: { title: [[title]], schema, views: [{ id: `${id}-table`, name: 'Table', type: 'table', visibleProperties: Object.keys(schema), filters: [], sorts: [] }] },
+    props: {
+      title: [[title]],
+      schema,
+      views: [{ id: `${id}-table`, name: 'Table', type: 'table', visibleProperties: Object.keys(schema), filters: [], sorts: [] }]
+    },
     createdAt: 1,
     updatedAt: 1,
     trashedAt: null
@@ -63,9 +66,21 @@ const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 
 
 /** Tasks (one-way "Project" relation to Projects) and Projects. */
 function seed(projectRelation: PropertySchema['relation'] = { databaseId: 'projects' }): void {
-  const tasks = database('tasks', 'Tasks', { title: TITLE, project: { id: 'project', name: 'Project', type: 'relation', relation: projectRelation } }, ['t1', 't2'])
+  const tasks = database(
+    'tasks',
+    'Tasks',
+    { title: TITLE, project: { id: 'project', name: 'Project', type: 'relation', relation: projectRelation } },
+    ['t1', 't2']
+  )
   const projects = database('projects', 'Projects', { title: TITLE }, ['p1', 'p2'])
-  const blocks = [tasks, projects, row('t1', 'tasks', 'Write', { project: ['p1'] }), row('t2', 'tasks', 'Test'), row('p1', 'projects', 'Alpha'), row('p2', 'projects', 'Beta')]
+  const blocks = [
+    tasks,
+    projects,
+    row('t1', 'tasks', 'Write', { project: ['p1'] }),
+    row('t2', 'tasks', 'Test'),
+    row('p1', 'projects', 'Alpha'),
+    row('p2', 'projects', 'Beta')
+  ]
   store.blocks = Object.fromEntries(blocks.map((b) => [b.id, b]))
 }
 
@@ -92,7 +107,11 @@ describe('relation properties', () => {
     const project = schemaOf('tasks').project
     const partnerId = project.relation?.syncedPropertyId as string
     expect(partnerId).toBeDefined()
-    expect(schemaOf('projects')[partnerId]).toMatchObject({ name: 'Tasks', type: 'relation', relation: { databaseId: 'tasks', syncedPropertyId: 'project' } })
+    expect(schemaOf('projects')[partnerId]).toMatchObject({
+      name: 'Tasks',
+      type: 'relation',
+      relation: { databaseId: 'tasks', syncedPropertyId: 'project' }
+    })
     expect(valuesOf('p1')[partnerId]).toEqual(['t1'])
     expect(L.normalizeDatabase(get('projects')).views[0].visibleProperties).toContain(partnerId)
     // One batch: both schemas and the backfilled cells land together.
@@ -124,7 +143,15 @@ describe('relation properties', () => {
 
   it('loads the rows of both databases before editing a two-way relation', async () => {
     seed({ databaseId: 'projects', syncedPropertyId: 'tasks' })
-    store.blocks.projects = database('projects', 'Projects', { title: TITLE, tasks: { id: 'tasks', name: 'Tasks', type: 'relation', relation: { databaseId: 'tasks', syncedPropertyId: 'project' } } }, ['p1', 'p2'])
+    store.blocks.projects = database(
+      'projects',
+      'Projects',
+      {
+        title: TITLE,
+        tasks: { id: 'tasks', name: 'Tasks', type: 'relation', relation: { databaseId: 'tasks', syncedPropertyId: 'project' } }
+      },
+      ['p1', 'p2']
+    )
     store.unloaded = [store.blocks.p2]
     delete store.blocks.p2
     actions.updateRelation('t2', schemaOf('tasks').project, (ids) => [...ids, 'p2'])
@@ -192,7 +219,10 @@ describe('relation properties', () => {
     seed()
     actions.setRelationTwoWay('tasks', 'project', true)
     const partnerId = schemaOf('tasks').project.relation?.syncedPropertyId as string
-    const view = { ...L.normalizeDatabase(get('tasks')).views[0], filters: [{ propertyId: 'project', operator: 'contains' as const, value: ['p2'] }] }
+    const view = {
+      ...L.normalizeDatabase(get('tasks')).views[0],
+      filters: [{ propertyId: 'project', operator: 'contains' as const, value: ['p2'] }]
+    }
     const id = actions.createRow('tasks', { view })
     expect(valuesOf(id).project).toEqual(['p2'])
     expect(valuesOf('p2')[partnerId]).toEqual([id])

@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import './styles/global.css'
 import './ui/ui.css'
 import './styles/shell.css'
-import './appearance/skins/index.css'
 import { App } from './App'
 import { bootAppearance, initAppearance } from './appearance/store'
 import { bootMark, whenIdle } from './boot'
@@ -15,26 +14,19 @@ import { getBlock, prefetchTree } from './store/blocks'
 import { activeTab, initTabs, initialPageId, tabPage } from './store/tabs'
 import { initTree } from './store/tree'
 import { bootUi, initUi, resolveTheme } from './store/ui'
-import { notifyError } from './ui/toast'
-import { initAi } from './ai/gate'
-import { initHerman } from './herman/gate'
-import { preloadHerman } from './herman/Host'
-import { initSync } from './sync/store'
-import { initMeetings } from './meetings/gate'
-import { initUpdates } from './updates/store'
-import { initAlarms } from './alarms/gate'
-import { initPomodoro } from './pomodoro/gate'
-import { initSky } from './sky/route'
-import { openTodayOnLaunch, routeTitle } from './briefing/route'
+import { listenForNotices, watchFailures } from './failures/global'
+import { followLocale } from './failures/notify'
+import { useHome } from './home/store'
+import { openTodayOnLaunch } from './briefing/route'
+import { idleFeatures, initFeatures } from './features'
+import { routeTitle } from './screens'
 import { isQuickAddWindow } from './tasks/gate'
-import { initHome } from './home/store'
 
 bootMark('start')
 
-// A rejection nobody handled is most often a write that did not reach the database.
-window.addEventListener('unhandledrejection', (event) => {
-  notifyError('Something went wrong. Your last change may not have been saved.', event.reason)
-})
+// Failures nobody caught are said, in the language the window speaks (failures/).
+followLocale(() => useHome.getState().locale)
+watchFailures()
 
 // The first frame is painted from the synchronous mirror of the settings (theme, sidebar
 // geometry, appearance overrides: see boot.ts), so it does not wait for the main process.
@@ -54,24 +46,10 @@ if (isQuickAddWindow()) void settings.finally(() => void import('./tasks/QuickAd
 else bootWorkspace()
 
 function bootWorkspace(): void {
+  listenForNotices()
   void initTree()
-  // Whether the AI entry points exist at all (`ai.enabled`); they stay hidden until this answers.
-  void initAi()
-  // Whether Herman, the assistant's face, is on (`herman.enabled`); his figure is fetched when the app is idle.
-  const herman = initHerman()
-  // The state of sync, for the indicator in the sidebar (nothing is loaded for it unless this device syncs).
-  void initSync()
-  initMeetings()
-  // What the main process knows about a new version, for the notice and Settings. Reading it asks nothing of the network.
-  initUpdates()
-  // What the alarms' clock in the main process has to say (a briefing at one of its times, a reminder).
-  initAlarms()
-  // The home (synced) and what start-up does on this device, for the Home button and Settings.
-  initHome()
-  // The pomodoro the main process keeps: the widget shows it while one is on (and after a reload).
-  initPomodoro()
-  // Whether the Sky is on: its button, command and shortcut follow.
-  initSky()
+  // Each feature's start-up (features.ts): what it asks the main process for, what it listens to.
+  initFeatures()
   void initTabs(initialPageId()).then(() => {
     // The page about to be shown: fetch its blocks while the editor's code loads.
     const pageId = tabPage(activeTab())
@@ -92,7 +70,7 @@ function bootWorkspace(): void {
       preloadQuickFind()
       preloadPalette()
       preloadShortcuts()
-      void herman.then(preloadHerman)
+      idleFeatures()
     })
   }
 

@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { until } from '../../shared/testing'
 import type { Block, BlockProps, BlockType, SearchResult } from '../../shared/types'
 import { BASE_ARGS, buildArgs, buildSpawn, SYSTEM_PROMPT_TOOLS, toolArgs } from './command'
 import { ToolHost, toolScript } from './toolhost'
@@ -13,7 +14,17 @@ const DAY = 86_400_000
 const NOW = Date.UTC(2026, 9, 14)
 
 function block(id: string, type: BlockType, title: string, extra: Partial<Block> = {}, props: BlockProps = {}): Block {
-  return { id, type, parentId: null, content: [], props: { title: title ? [[title]] : [], ...props }, createdAt: NOW, updatedAt: NOW, trashedAt: null, ...extra }
+  return {
+    id,
+    type,
+    parentId: null,
+    content: [],
+    props: { title: title ? [[title]] : [], ...props },
+    createdAt: NOW,
+    updatedAt: NOW,
+    trashedAt: null,
+    ...extra
+  }
 }
 
 /** A small workspace: two areas, a database of tasks, an empty page, a duplicate and an old page. */
@@ -61,16 +72,29 @@ function workspace(): { source: ToolSource; blocks: Map<string, Block> } {
     },
     listRoot: () => ['projects-1', 'notes-001', 'gone-001'].map((id) => get(id)!),
     listChildren: pagesUnder,
-    listRecent: (limit) => [...blocks.values()].filter((b) => b.type === 'page' || b.type === 'database').sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit),
+    listRecent: (limit) =>
+      [...blocks.values()]
+        .filter((b) => b.type === 'page' || b.type === 'database')
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .slice(0, limit),
     listDatabases: () => [get('tasks-001')!],
     search: (text) =>
       [...blocks.values()]
         .filter((b) => (b.props.title?.[0]?.[0] ?? '').toLowerCase().includes(text.toLowerCase()))
         .map((b): SearchResult => {
           const page = b.type === 'text' ? b.parentId! : b.id
-          return { id: b.id, pageId: page, title: get(page)?.props.title?.[0]?.[0] ?? '', ...(b.type === 'text' ? { snippet: b.props.title?.[0]?.[0] } : {}), path: [] }
+          return {
+            id: b.id,
+            pageId: page,
+            title: get(page)?.props.title?.[0]?.[0] ?? '',
+            ...(b.type === 'text' ? { snippet: b.props.title?.[0]?.[0] } : {}),
+            path: []
+          }
         }),
-    pageToMarkdown: (id) => ({ title: 'x', markdown: `# ${get(id)?.props.title?.[0]?.[0] ?? ''}\n\n${(get(id)?.content ?? []).map((c) => get(c)?.props.title?.[0]?.[0] ?? '').join('\n')}` }),
+    pageToMarkdown: (id) => ({
+      title: 'x',
+      markdown: `# ${get(id)?.props.title?.[0]?.[0] ?? ''}\n\n${(get(id)?.content ?? []).map((c) => get(c)?.props.title?.[0]?.[0] ?? '').join('\n')}`
+    }),
     children: (id) => (get(id)?.content ?? []).flatMap((c) => (get(c) ? [get(c)!] : []))
   }
   return { source, blocks }
@@ -151,21 +175,28 @@ describe('the tool host', () => {
   it('answers only a token it granted, and stops when the grant ends', async () => {
     const seen: string[] = []
     const grant = await host.grant((activity) => seen.push(activity))
-    const config = JSON.parse(readFileSync(grant.configPath, 'utf8')) as { mcpServers: { sel: { command: string; args: string[]; env: Record<string, string> } } }
+    const config = JSON.parse(readFileSync(grant.configPath, 'utf8')) as {
+      mcpServers: { sel: { command: string; args: string[]; env: Record<string, string> } }
+    }
     const server = config.mcpServers.sel
     expect(server.command).toBe(process.execPath)
     expect(server.args).toEqual([join(dir, 'mcp.js')])
     expect(server.env['ELECTRON_RUN_AS_NODE']).toBe('1')
     const token = server.env['SEL_TOOLS_TOKEN']
     expect(token).toMatch(/^[0-9a-f]{48}$/)
-    expect(host.answer(JSON.stringify({ token, id: 1, name: 'read_page', args: { id: 'launch-01' } }))).toMatchObject({ id: 1, text: expect.stringContaining('Ship on Friday') })
+    expect(host.answer(JSON.stringify({ token, id: 1, name: 'read_page', args: { id: 'launch-01' } }))).toMatchObject({
+      id: 1,
+      text: expect.stringContaining('Ship on Friday')
+    })
     expect(seen).toEqual(['reading “Launch”'])
-    expect(host.answer(JSON.stringify({ token, id: 2, name: 'read_page', args: { id: 'nope-0000' } }))).toEqual({ id: 2, error: 'No page or database has that id.' })
+    expect(host.answer(JSON.stringify({ token, id: 2, name: 'read_page', args: { id: 'nope-0000' } }))).toEqual({
+      id: 2,
+      error: 'No page or database has that id.'
+    })
     expect(host.answer(JSON.stringify({ token: 'f'.repeat(48), id: 3, name: 'audit' }))).toEqual({ id: 3, error: 'This request is over.' })
     expect(host.answer('not json')).toEqual({ id: null, error: 'Not understood.' })
     grant.release()
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    expect(existsSync(grant.configPath)).toBe(false)
+    await until(() => !existsSync(grant.configPath), { what: 'the grant file to go' })
     expect(host.answer(JSON.stringify({ token, id: 4, name: 'audit' }))).toEqual({ id: 4, error: 'This request is over.' })
   })
 
@@ -173,9 +204,17 @@ describe('the tool host', () => {
     // The script as built: esbuild (a dependency of the build) bundles it as the app's build does.
     const { build } = await import('esbuild')
     const script = join(dir, 'mcp.js')
-    await build({ entryPoints: [join(__dirname, '..', 'mcp.ts')], bundle: true, platform: 'node', format: 'cjs', outfile: script, logLevel: 'silent' })
+    await build({
+      entryPoints: [join(__dirname, '..', 'mcp.ts')],
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      outfile: script,
+      logLevel: 'silent'
+    })
     const grant = await host.grant()
-    const { env } = (JSON.parse(readFileSync(grant.configPath, 'utf8')) as { mcpServers: { sel: { env: Record<string, string> } } }).mcpServers.sel
+    const { env } = (JSON.parse(readFileSync(grant.configPath, 'utf8')) as { mcpServers: { sel: { env: Record<string, string> } } })
+      .mcpServers.sel
     const child = spawn(process.execPath, [script], { env: { ...process.env, ...env }, stdio: ['pipe', 'pipe', 'pipe'] })
     const replies: Record<string, unknown>[] = []
     let buffer = ''
@@ -188,21 +227,22 @@ describe('the tool host', () => {
     const send = (message: unknown): void => {
       child.stdin.write(`${JSON.stringify(message)}\n`)
     }
-    const reply = async (id: number): Promise<Record<string, unknown>> => {
-      for (let wait = 0; wait < 100; wait++) {
-        const found = replies.find((entry) => entry['id'] === id)
-        if (found) return found
-        await new Promise((resolve) => setTimeout(resolve, 50))
-      }
-      throw new Error(`no reply ${id}`)
-    }
-    send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } })
+    const reply = (id: number): Promise<Record<string, unknown>> =>
+      until(() => replies.find((entry) => entry['id'] === id), { what: `reply ${id}` })
+    send({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } }
+    })
     expect(await reply(1)).toMatchObject({ result: { protocolVersion: '2025-06-18', serverInfo: { name: 'sel' } } })
     send({ jsonrpc: '2.0', method: 'notifications/initialized' })
     send({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     expect(((await reply(2))['result'] as { tools: { name: string }[] }).tools.map((tool) => tool.name)).toEqual(TOOL_NAMES)
     send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'search', arguments: { query: 'launch' } } })
-    expect(await reply(3)).toMatchObject({ result: { content: [{ type: 'text', text: expect.stringContaining('Launch [launch-01]') }], isError: false } })
+    expect(await reply(3)).toMatchObject({
+      result: { content: [{ type: 'text', text: expect.stringContaining('Launch [launch-01]') }], isError: false }
+    })
     send({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'read_page', arguments: { id: 'nope-0000' } } })
     expect(await reply(4)).toMatchObject({ result: { isError: true } })
     grant.release()
@@ -218,7 +258,8 @@ describe('the command line with the tools', () => {
     const args = toolArgs('C:\\Users\\me\\AppData\\Roaming\\sel\\ai-sandbox\\tools-1.json', 14)
     expect(args).not.toContain('--safe-mode')
     expect(args).not.toContain('--setting-sources')
-    for (const flag of ['--print', '--strict-mcp-config', '--disable-slash-commands', '--no-session-persistence', '--restricted']) expect(args).toContain(flag)
+    for (const flag of ['--print', '--strict-mcp-config', '--disable-slash-commands', '--no-session-persistence', '--restricted'])
+      expect(args).toContain(flag)
     expect(args[args.indexOf('--tools') + 1]).toBe('')
     expect(args[args.indexOf('--permission-prompts') + 1]).toBe('none')
     expect(args[args.indexOf('--max-turns') + 1]).toBe('14')

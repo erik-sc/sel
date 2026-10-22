@@ -56,8 +56,18 @@ describe('a line', () => {
   })
 
   it('is read back from a day block, plans and all', () => {
-    const block = { id: entryId('2026-10-15'), props: { title: [['walked ', [['b']]], ['home']], plans: ['call Ana', '', 7, 'tea'], plansDismissed: true }, updatedAt: 5 }
-    expect(readEntry(block as never)).toEqual({ day: '2026-10-15', text: 'walked home', plans: ['call Ana', 'tea'], plansDismissed: true, updatedAt: 5 })
+    const block = {
+      id: entryId('2026-10-15'),
+      props: { title: [['walked ', [['b']]], ['home']], plans: ['call Ana', '', 7, 'tea'], plansDismissed: true },
+      updatedAt: 5
+    }
+    expect(readEntry(block as never)).toEqual({
+      day: '2026-10-15',
+      text: 'walked home',
+      plans: ['call Ana', 'tea'],
+      plansDismissed: true,
+      updatedAt: 5
+    })
     expect(readEntry({ id: 'other', props: {}, updatedAt: 0 })).toBeNull()
   })
 })
@@ -72,7 +82,14 @@ describe('plans for tomorrow', () => {
 })
 
 describe('on this day', () => {
-  const entries = [entry('2026-10-15'), entry('2025-10-15'), entry('2023-10-15'), entry('2025-10-14'), entry('2024-10-15', ''), entry('2027-10-15')]
+  const entries = [
+    entry('2026-10-15'),
+    entry('2025-10-15'),
+    entry('2023-10-15'),
+    entry('2025-10-14'),
+    entry('2024-10-15', ''),
+    entry('2027-10-15')
+  ]
 
   it('finds the same date in earlier years, the most recent first', () => {
     const found = onThisDay(entries, '2026-10-15')

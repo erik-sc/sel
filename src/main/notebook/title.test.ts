@@ -44,7 +44,14 @@ describe('the notebook page renamed to Meditations', () => {
   })
 
   it('leaves a title the user chose as it is', () => {
-    for (const title of [[['My journal']], [['ink notebook']], [['Ink notebook ']], [['Ink notebook', [['b']]]], [['Ink '], ['notebook']], []] as RichText[]) {
+    for (const title of [
+      [['My journal']],
+      [['ink notebook']],
+      [['Ink notebook ']],
+      [['Ink notebook', [['b']]]],
+      [['Ink '], ['notebook']],
+      []
+    ] as RichText[]) {
       const { repo } = open(at(15))
       oldNotebook(repo, title)
       expect(migrateNotebookTitle(repo)).toBe(false)
@@ -86,7 +93,15 @@ describe('the notebook page renamed to Meditations', () => {
     oldNotebook(a.repo, [['Ink notebook']])
     const base = workspaceFromRows(a.repo.syncRows(), a.repo.rootOrder())
     const b = open(at(14))
-    b.repo.applySync({ put: [...base.blocks.values()] as Block[], remove: [], root: { order: base.root, at: base.rootAt ?? 0 }, snapshots: [], foreign: [], resetPages: [], settings: {} })
+    b.repo.applySync({
+      put: [...base.blocks.values()] as Block[],
+      remove: [],
+      root: { order: base.root, at: base.rootAt ?? 0 },
+      snapshots: [],
+      foreign: [],
+      resetPages: [],
+      settings: {}
+    })
     expect(titleOf(b.repo)).toEqual([['Ink notebook']])
 
     // Each one is updated and started on its own, at a different time.

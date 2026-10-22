@@ -3,6 +3,7 @@ import { app, BrowserWindow, dialog, nativeTheme, screen, session, shell, type S
 import { isQuickAddUrl } from './alarms/windows'
 import { APPEARANCE_KEY, windowBackground } from './background'
 import { DEFAULT_SIZE, fitBounds, MIN_SIZE, type SavedBounds } from './bounds'
+import { keepZoomIn, restoreZoom } from './zoom'
 import { applyStagedRestore } from './data/backups'
 import { openDatabase, type Repository } from './db'
 import { isValidId } from './db/blocks'
@@ -12,7 +13,9 @@ import { readTheme, registerIpc, type SyncHooks } from './ipc'
 import { recordingGrants } from './meetings/grant'
 import { handleDisplayMedia } from './meetings/register'
 import { adoptLegacyProfile, DB_FILE } from './legacy'
+import { LOGS_DIR, startLog } from './log'
 import { attachShortcuts, buildMenu } from './menu'
+import { raiseNotice } from './notices'
 import { migrateNotebookTitle } from './notebook/title'
 import { DEV_URL, isAllowedRequest, isAppUrl, isDevServerUrl, RENDERER_FILE, toExternalUrl } from './security'
 import { flushTrace, mark } from './trace'
@@ -136,6 +139,7 @@ function createWindow(pageId?: string): BrowserWindow {
   attachShortcuts(win)
   recoverFromCrashes(win)
   trackBounds(win)
+  restoreZoom(win)
   // Closing the window that records a meeting would cut the recording short: ask first.
   win.on('close', (event) => {
     const meetings = syncHooks?.meetings
@@ -231,7 +235,8 @@ function hardenSession(ses: Session): void {
   ses.setPermissionCheckHandler((contents, permission, requestingOrigin, details) => {
     if (details.isMainFrame === false) return false
     const trusted = isAppUrl(details.requestingUrl ?? requestingOrigin)
-    if (permission === 'media') return recordingGrants.allowCheck({ permission, owner: contents?.id ?? null, trusted, mediaType: details.mediaType })
+    if (permission === 'media')
+      return recordingGrants.allowCheck({ permission, owner: contents?.id ?? null, trusted, mediaType: details.mediaType })
     return ALLOWED_PERMISSIONS.has(permission) && trusted
   })
   ses.setDevicePermissionHandler(() => false)
@@ -364,7 +369,9 @@ async function seedWorkspace(store: Repository): Promise<void> {
       seedIfEmpty(store)
       mark('workspace seeded')
     } catch (err) {
+      // The workspace stays empty this time; the next start tries again (it is still empty then).
       console.error('[main] could not create the welcome page', err)
+      raiseNotice('seed-failed', 'single')
     }
   }
   try {
@@ -380,9 +387,13 @@ async function seedWorkspace(store: Repository): Promise<void> {
 }
 
 function start(store: Repository): void {
-  // A bug must not take the app down with a raw stack-trace dialog; log it and keep the data safe.
+  // A bug must not take the app down with a raw stack-trace dialog: it goes to the log (./log.ts)
+  // and the data stays safe. After an exception nobody caught, the windows ask to save and restart.
   process.on('unhandledRejection', (reason) => console.error('[main] unhandled rejection', reason))
-  process.on('uncaughtException', (err) => console.error('[main] uncaught exception', err))
+  process.on('uncaughtException', (err) => {
+    console.error('[main] uncaught exception', err)
+    raiseNotice('crashed', 'lasting')
+  })
 
   // The second instance's command line and working directory are deliberately ignored:
   // nothing a launcher (or a crafted link) passes is interpreted as a path, url or flag.
@@ -396,6 +407,7 @@ function start(store: Repository): void {
       if (process.platform === 'win32') app.setAppUserModelId('app.sel')
       hardenSession(session.defaultSession)
       nativeTheme.themeSource = readTheme(store)
+      keepZoomIn(store)
       handleFileProtocol()
       const hooks = registerIpc({ repo: store, ready: seedWorkspace(store), createWindow: (pageId) => void createWindow(pageId) })
       syncHooks = hooks
@@ -477,6 +489,8 @@ if (!adoptEarlierNotes()) {
 } else if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
+  // From here this instance owns the profile, and with it the log.
+  startLog(join(app.getPath('userData'), LOGS_DIR))
   repo = openStore()
   if (repo) start(repo)
   else recoverStore()

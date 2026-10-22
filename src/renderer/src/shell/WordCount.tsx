@@ -56,7 +56,8 @@ function Readout({ pageId }: { pageId: string }): JSX.Element | null {
     }
     recount()
     const off = useBlockStore.subscribe((state, previous) => {
-      if (state.blocks !== previous.blocks && timer === null) timer = setTimeout(recount, RECOUNT_MS)
+      if ((state.version !== previous.version || state.blocks !== previous.blocks) && timer === null)
+        timer = setTimeout(recount, RECOUNT_MS)
     })
     return () => {
       off()
@@ -80,7 +81,8 @@ function Readout({ pageId }: { pageId: string }): JSX.Element | null {
     const offBlocks = useBlockSelection.subscribe(schedule)
     // Selected blocks edited or deleted while selected.
     const offCache = useBlockStore.subscribe((state, previous) => {
-      if (state.blocks !== previous.blocks && useBlockSelection.getState().ids.length > 0) schedule()
+      if ((state.version !== previous.version || state.blocks !== previous.blocks) && useBlockSelection.getState().ids.length > 0)
+        schedule()
     })
     return () => {
       document.removeEventListener('selectionchange', schedule)

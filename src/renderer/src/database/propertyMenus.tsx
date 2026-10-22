@@ -67,7 +67,7 @@ export function AddPropertyMenu({
   ]
   const formulaProp = formulaId ? L.propOf(actions.snapshot(databaseId).schema, formulaId) : undefined
   return (
-    <Floating open anchor={anchor} placement={placement} onClose={onClose}>
+    <Floating open anchor={anchor} placement={placement} label="Add a property" onClose={onClose}>
       {formulaProp ? (
         <Suspense fallback={<PartFallback kind="popover" />}>
           <FormulaEditor databaseId={databaseId} prop={formulaProp} onClose={onClose} />
@@ -97,12 +97,7 @@ export function AddPropertyMenu({
 }
 
 /** The menu entries that configure a relation: its database, how many pages it links, and the other side. */
-function relationItems(
-  databaseId: string,
-  prop: PropertySchema,
-  cells: L.CellContext | undefined,
-  onPickTarget: () => void
-): MenuItem[] {
+function relationItems(databaseId: string, prop: PropertySchema, cells: L.CellContext | undefined, onPickTarget: () => void): MenuItem[] {
   const config = L.relationOf(prop)
   const targetTitle = config ? L.titleOf(cells?.get(config.databaseId)) || 'Untitled' : ''
   const state = config && cells ? L.relatedDatabaseState(config.databaseId, cells) : 'loading'
@@ -211,7 +206,8 @@ function rollupRuleText(rule: ViewFilter, schema: L.Schema): string {
   const target = L.propOf(schema, rule.propertyId)
   if (!target) return ''
   if (rule.operator === 'date_is' && L.isRelativeDate(rule.value)) return `${target.name}: ${L.relativeDateLabel(rule.value)}`
-  if (rule.operator === 'checked' || rule.operator === 'unchecked') return `${target.name}: ${rule.operator === 'checked' ? 'checked' : 'unchecked'}`
+  if (rule.operator === 'checked' || rule.operator === 'unchecked')
+    return `${target.name}: ${rule.operator === 'checked' ? 'checked' : 'unchecked'}`
   const option = typeof rule.value === 'string' ? L.optionsOf(target).find((o) => o.id === rule.value) : undefined
   return `${target.name} ${L.operatorLabel(rule.operator, target.type).toLowerCase()} ${option?.name ?? (rule.value === undefined ? '' : String(rule.value))}`.trim()
 }
@@ -234,7 +230,9 @@ function rollupRowsItem(databaseId: string, prop: PropertySchema, targetSchema: 
   })
   const choicesFor = (p: PropertySchema): MenuItem[] => {
     if (L.isDateLikeType(p.type)) {
-      return RELATIVE_DATES.map((span) => choice(`rollup-rows-${p.id}-${span}`, L.relativeDateLabel(span), { propertyId: p.id, operator: 'date_is', value: span }))
+      return RELATIVE_DATES.map((span) =>
+        choice(`rollup-rows-${p.id}-${span}`, L.relativeDateLabel(span), { propertyId: p.id, operator: 'date_is', value: span })
+      )
     }
     if (p.type === 'checkbox') {
       return (['checked', 'unchecked'] as const).map((operator) =>
@@ -242,7 +240,11 @@ function rollupRowsItem(databaseId: string, prop: PropertySchema, targetSchema: 
       )
     }
     return L.optionsOf(p).map((o) =>
-      choice(`rollup-rows-${p.id}-${o.id}`, o.name, { propertyId: p.id, operator: p.type === 'select' ? 'equals' : 'contains', value: o.id })
+      choice(`rollup-rows-${p.id}-${o.id}`, o.name, {
+        propertyId: p.id,
+        operator: p.type === 'select' ? 'equals' : 'contains',
+        value: o.id
+      })
     )
   }
   const keys = sources.filter((p) => L.isDateLikeType(p.type) || p.type === 'checkbox' || p.type === 'select' || p.type === 'multi_select')
@@ -352,7 +354,10 @@ export function PropertyMenu({
   if (prop.type === 'relation') items.push(...relationItems(databaseId, prop, cells, () => pick('target')))
   if (prop.type === 'rollup') items.push(...rollupItems(databaseId, prop, actions.snapshot(databaseId).schema, cells))
   if (prop.type === 'formula') {
-    items.push({ separator: true }, { id: 'formula-edit', label: 'Edit formula…', icon: <Formula size={14} />, onSelect: () => pick('formula') })
+    items.push(
+      { separator: true },
+      { id: 'formula-edit', label: 'Edit formula…', icon: <Formula size={14} />, onSelect: () => pick('formula') }
+    )
   }
   if (view) {
     items.push(
@@ -399,7 +404,7 @@ export function PropertyMenu({
 
   if (picking === 'formula') {
     return (
-      <Floating open anchor={anchor} placement={placement} onClose={close}>
+      <Floating open anchor={anchor} placement={placement} label={prop.name} onClose={close}>
         <Suspense fallback={<PartFallback kind="popover" />}>
           <FormulaEditor databaseId={databaseId} prop={prop} onClose={close} />
         </Suspense>
@@ -409,7 +414,7 @@ export function PropertyMenu({
 
   if (picking) {
     return (
-      <Floating open anchor={anchor} placement={placement} onClose={close}>
+      <Floating open anchor={anchor} placement={placement} label={prop.name} onClose={close}>
         <Suspense fallback={<PartFallback kind="popover" />}>
           <RelationTargetPicker
             databaseId={databaseId}
@@ -425,7 +430,7 @@ export function PropertyMenu({
   }
 
   return (
-    <Floating open anchor={anchor} placement={placement} onClose={close}>
+    <Floating open anchor={anchor} placement={placement} label={prop.name} onClose={close}>
       <div className="db-prop-menu">
         <div className="db-prop-menu-name">
           <input

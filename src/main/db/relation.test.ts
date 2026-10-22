@@ -14,7 +14,10 @@ beforeEach(() => {
 
 const TITLE: PropertySchema = { id: 'title', name: 'Name', type: 'title' }
 
-function tableOf(schema: Record<string, PropertySchema>): { schema: Record<string, PropertySchema>; views: NonNullable<Block['props']['views']> } {
+function tableOf(schema: Record<string, PropertySchema>): {
+  schema: Record<string, PropertySchema>
+  views: NonNullable<Block['props']['views']>
+} {
   return { schema, views: [{ id: 'v', name: 'Table', type: 'table', visibleProperties: Object.keys(schema), filters: [], sorts: [] }] }
 }
 
@@ -112,7 +115,9 @@ describe('Markdown export', () => {
           id: 'summary',
           name: 'Summary',
           type: 'formula',
-          formula: { expression: 'format(length(prop("tasks"))) + " tasks, " + format(prop("total") / 2) + " days | " + upper(prop("Name"))' }
+          formula: {
+            expression: 'format(length(prop("tasks"))) + " tasks, " + format(prop("total") / 2) + " days | " + upper(prop("Name"))'
+          }
         }
       })
     })

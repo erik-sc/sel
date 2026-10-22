@@ -5,7 +5,14 @@ import { ChangeFeed } from './changes'
 function feed(): { feed: ChangeFeed; sent: ChangeEvent[]; turns: (() => void)[] } {
   const sent: ChangeEvent[] = []
   const turns: (() => void)[] = []
-  return { feed: new ChangeFeed((c) => sent.push(c), (flush) => turns.push(flush)), sent, turns }
+  return {
+    feed: new ChangeFeed(
+      (c) => sent.push(c),
+      (flush) => turns.push(flush)
+    ),
+    sent,
+    turns
+  }
 }
 
 describe('ChangeFeed', () => {
@@ -48,6 +55,23 @@ describe('ChangeFeed', () => {
     expect(turns).toHaveLength(2)
     turns[1]()
     expect(sent[2]).toEqual({ origin: 'a', ids: ['4'] })
+  })
+
+  it('says which of the ids hold or held a page link, per origin, only when some do', () => {
+    const turns: (() => void)[] = []
+    const sent: ChangeEvent[] = []
+    const f = new ChangeFeed(
+      (c) => sent.push(c),
+      (flush) => turns.push(flush)
+    )
+    f.add('a', ['1', '2'], [], ['2'])
+    f.add('a', ['3'], [], ['3'])
+    f.add('b', ['4'])
+    turns[0]()
+    expect(sent).toEqual([
+      { origin: 'a', ids: ['1', '2', '3'], links: ['2', '3'] },
+      { origin: 'b', ids: ['4'] }
+    ])
   })
 
   it('sends nothing for reads and survives a failing delivery', () => {

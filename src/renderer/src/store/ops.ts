@@ -3,6 +3,15 @@ import { isTrashable } from '../../../shared/linked'
 
 export type BlockMap = Record<string, Block>
 
+export interface OpsPlan {
+  /** The new version of every block the ops touch; null for a block they remove. */
+  changes: Map<string, Block | null>
+  /** Ids created, updated, moved or trashed, plus parents whose `content` changed. */
+  affected: string[]
+  /** Ids removed from the map (hard-deleted blocks and their descendants). */
+  removed: string[]
+}
+
 export interface ApplyResult {
   /** New map (the input map is never mutated; untouched blocks keep their identity). */
   map: BlockMap
@@ -10,6 +19,17 @@ export interface ApplyResult {
   affected: string[]
   /** Ids removed from the map (hard-deleted blocks and their descendants). */
   removed: string[]
+}
+
+/** `planOps` applied to a copy of `map`. The store applies the plan in place instead (copying a big cache costs more than the edit). */
+export function applyOpsToMap(map: BlockMap, ops: Op[], now: number = Date.now()): ApplyResult {
+  const { changes, affected, removed } = planOps(map, ops, now)
+  const next: BlockMap = { ...map }
+  for (const [id, block] of changes) {
+    if (block) next[id] = block
+    else delete next[id]
+  }
+  return { map: next, affected, removed }
 }
 
 /** Pages and databases, which a delete sends to the trash. A linked view is removed like any other block. */
@@ -26,16 +46,22 @@ function isContainer(block: Block): boolean {
  * - delete: pages/databases are trashed (trashedAt set); other blocks, linked database
  *   views included, are removed together with their descendants (nested pages/databases
  *   are left alone).
- * Parents that are not in the map are simply skipped.
+ * Parents that are not in the map are simply skipped. The map is only read: what changes is
+ * returned as a plan, and untouched blocks keep their identity.
  */
-export function applyOpsToMap(map: BlockMap, ops: Op[], now: number = Date.now()): ApplyResult {
-  const next: BlockMap = { ...map }
+export function planOps(map: BlockMap, ops: Op[], now: number = Date.now()): OpsPlan {
+  // Blocks written so far (null: removed); everything else is read from `map`.
+  const next = new Map<string, Block | null>()
   const cloned = new Set<string>()
   const affected = new Set<string>()
   const removed = new Set<string>()
 
   // Own properties only: an id such as `constructor` must not resolve to Object.prototype's.
-  const at = (id: string): Block | undefined => (Object.hasOwn(next, id) ? next[id] : undefined)
+  const at = (id: string): Block | undefined => {
+    const written = next.get(id)
+    if (written !== undefined) return written ?? undefined
+    return Object.hasOwn(map, id) ? map[id] : undefined
+  }
 
   const edit = (id: string | null | undefined): Block | undefined => {
     if (!id) return undefined
@@ -44,7 +70,7 @@ export function applyOpsToMap(map: BlockMap, ops: Op[], now: number = Date.now()
     affected.add(id)
     if (cloned.has(id)) return current
     const copy: Block = { ...current, content: [...current.content], props: { ...current.props } }
-    next[id] = copy
+    next.set(id, copy)
     cloned.add(id)
     return copy
   }
@@ -91,7 +117,7 @@ export function applyOpsToMap(map: BlockMap, ops: Op[], now: number = Date.now()
         if (!id) throw new Error('applyOpsToMap: create requires a client-generated input.id')
         if (id === '__proto__') throw new Error('applyOpsToMap: invalid block id')
         if (at(id)) throw new Error(`applyOpsToMap: block ${id} already exists`)
-        next[id] = {
+        next.set(id, {
           id,
           type,
           parentId,
@@ -100,7 +126,7 @@ export function applyOpsToMap(map: BlockMap, ops: Op[], now: number = Date.now()
           createdAt: now,
           updatedAt: now,
           trashedAt: null
-        }
+        })
         cloned.add(id)
         affected.add(id)
         removed.delete(id)
@@ -151,7 +177,7 @@ export function applyOpsToMap(map: BlockMap, ops: Op[], now: number = Date.now()
           if (!block) continue
           if (id !== op.id && isContainer(block)) continue
           stack.push(...block.content)
-          delete next[id]
+          next.set(id, null)
           cloned.delete(id)
           affected.delete(id)
           removed.add(id)
@@ -161,5 +187,7 @@ export function applyOpsToMap(map: BlockMap, ops: Op[], now: number = Date.now()
     }
   }
 
-  return { map: next, affected: [...affected], removed: [...removed] }
+  // Blocks created and removed again within the same ops were never in the map.
+  for (const [id, block] of next) if (block === null && !Object.hasOwn(map, id)) next.delete(id)
+  return { changes: next, affected: [...affected], removed: [...removed] }
 }

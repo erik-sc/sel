@@ -39,7 +39,16 @@ export function RestSky({ day }: { day: string }): JSX.Element | null {
   if (!view || !scene) return null
   return (
     <div className="close-rest-sky">
-      <SkyChart scene={scene} copy={COPY[view.locale]} locale={view.locale} play={play} playKey="rest" reduced={reduced} small onPlayed={() => setPlay(null)} />
+      <SkyChart
+        scene={scene}
+        copy={COPY[view.locale]}
+        locale={view.locale}
+        play={play}
+        playKey="rest"
+        reduced={reduced}
+        small
+        onPlayed={() => setPlay(null)}
+      />
     </div>
   )
 }

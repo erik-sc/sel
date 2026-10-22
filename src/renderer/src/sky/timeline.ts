@@ -104,7 +104,8 @@ export function timeline(scene: SkyScene, play: SkyPlay | null): Timeline {
       t.reveal.set(star.day, { w: at, n: 1.5 })
       const month = star.day.slice(0, 7)
       lastOfMonth.set(month, at)
-      for (const s of monthOf.get(month)?.segments ?? []) if (s.at === star.index && !star.loose) t.segments.set(segmentKey(month, s.ia, s.ib), { w: at, n: 1.2, mode: 'dash' })
+      for (const s of monthOf.get(month)?.segments ?? [])
+        if (s.at === star.index && !star.loose) t.segments.set(segmentKey(month, s.ia, s.ib), { w: at, n: 1.2, mode: 'dash' })
     })
     for (const [month, at] of lastOfMonth) if (monthOf.get(month)?.label) t.labels.set(month, { w: at + 1.5, n: 3 })
     for (const g of scene.grains) t.grains.set(g.key, { w: w + 3, n: 3 })
@@ -126,7 +127,8 @@ export function timeline(scene: SkyScene, play: SkyPlay | null): Timeline {
     const before = star.index > 0 ? month.stars[star.index - 1].day : null
     t.stars.set(day, { w: w + 6.6, n: 2, start: w, handoff: before })
     if (!star.loose) {
-      for (const s of month.segments) if (s.at === star.index) t.segments.set(segmentKey(month.month, s.ia, s.ib), { w: w + 0.8, n: 6, mode: 'dash' })
+      for (const s of month.segments)
+        if (s.at === star.index) t.segments.set(segmentKey(month.month, s.ia, s.ib), { w: w + 0.8, n: 6, mode: 'dash' })
     }
     w += STAR_UNITS
   }
@@ -172,4 +174,3 @@ export function timeline(scene: SkyScene, play: SkyPlay | null): Timeline {
   t.end = Math.max(...ends)
   return t
 }
-

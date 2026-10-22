@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { JSX, ReactNode } from 'react'
+import type { JSX, KeyboardEvent, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from 'zustand'
 import type { Mark } from '@shared/types'
@@ -13,6 +13,8 @@ import { AI_LANGUAGES, AI_LANGUAGE_LABELS, AI_TONES, AI_TONE_LABELS, type AiActi
 import { useAiGate } from '@/ai/gate'
 import { AI_GLYPH, aiOnRange, type AiOptions } from '@/ai/session'
 import { preloadInlineAi } from '@/ai/slot'
+import { useA11yCopy } from '@/a11y/announce'
+import { moveFocusAmong } from '@/a11y/keys'
 
 /** Space the toolbar needs above the selection (its height plus a gap), in px. */
 const TOOLBAR_OFFSET = 44
@@ -68,6 +70,11 @@ export function SelectionToolbar(): JSX.Element | null {
   const barRef = useRef<HTMLDivElement>(null)
   const mouseDown = useRef(false)
   const linkRequest = useStore(ctrl.ui, (s) => s.linkRequest)
+  const toolbarRequest = useStore(ctrl.ui, (s) => s.toolbarRequest)
+  const a11y = useA11yCopy()
+  // What the keyboard is to land on once the bar (or a menu of it) is drawn: its first button,
+  // the first item of the menu just opened, or the item a submenu was opened from.
+  const focusNext = useRef<string | null>(null)
   const ai = useAiGate((state) => state.enabled)
   // While an AI preview is open the toolbar stays out of the way.
   const aiBusy = useStore(ctrl.ui, (s) => s.ai !== null)
@@ -145,6 +152,25 @@ export function SelectionToolbar(): JSX.Element | null {
     openLink(t)
   }, [linkRequest, read, openLink])
 
+  // Alt+F10
+  useEffect(() => {
+    if (!toolbarRequest) return
+    const t = read()
+    if (!t) return
+    setTarget(t)
+    focusNext.current = '.pe-tb-row > .pe-tb-btn'
+  }, [toolbarRequest, read])
+
+  useEffect(() => {
+    const selector = focusNext.current
+    const bar = barRef.current
+    if (!selector || !bar) return
+    const el = bar.querySelector<HTMLElement>(selector)
+    if (!el) return
+    focusNext.current = null
+    el.focus({ preventScroll: true })
+  })
+
   if (!target || aiBusy) return null
   const title = getBlock(target.id)?.props.title
   const has = (kind: string): boolean => rangeHasMark(title, target.start, target.end, kind)
@@ -155,6 +181,51 @@ export function SelectionToolbar(): JSX.Element | null {
   const half = ai ? TOOLBAR_HALF_WIDTH_AI : TOOLBAR_HALF_WIDTH
   const left = Math.max(half, Math.min(centre, window.innerWidth - half))
   const aiOpen = panel === 'ai' || panel === 'ai-tone' || panel === 'ai-translate'
+
+  /** Back to the text the bar is for, its selection as it was. */
+  const backToText = (): void => {
+    setPanel(null)
+    ctrl.focusBlock(range.id, range.start, range.end)
+  }
+
+  const openPanel = (next: Panel, focus: string): void => {
+    setPanel(next)
+    focusNext.current = focus
+  }
+
+  const onBarKeyDown = (e: KeyboardEvent<HTMLDivElement>): void => {
+    if (e.nativeEvent.isComposing) return
+    const target = e.target as HTMLElement
+    const menu = target.closest<HTMLElement>('[role="menu"]')
+    let handled = true
+    if (menu) {
+      // Up and Down in a menu; Right opens a second list, Left and Escape come back from it.
+      const sub = panel === 'ai-tone' || panel === 'ai-translate'
+      if (moveFocusAmong(menu, '[role="menuitem"]', e.key, 'vertical')) {
+        /* moved */
+      } else if (e.key === 'ArrowRight' && target.dataset.opens) {
+        openPanel(target.dataset.opens as Panel, '[role="menu"] [role="menuitem"]')
+      } else if ((e.key === 'ArrowLeft' || e.key === 'Escape') && sub) {
+        openPanel('ai', `[data-opens="${panel}"]`)
+      } else if (e.key === 'Escape') {
+        openPanel(null, '.pe-tb-ai')
+      } else handled = false
+    } else if (target.parentElement?.classList.contains('pe-tb-row')) {
+      if (moveFocusAmong(target.parentElement, ':scope > .pe-tb-btn', e.key, 'horizontal')) {
+        /* moved */
+      } else if (e.key === 'ArrowDown' && target.classList.contains('pe-tb-ai')) {
+        openPanel('ai', '[role="menu"] [role="menuitem"]')
+      } else if (e.key === 'Escape') {
+        backToText()
+      } else handled = false
+    } else if (e.key === 'Escape' && panel) {
+      openPanel(null, '.pe-tb-row > .pe-tb-btn')
+    } else handled = false
+    if (handled) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+  }
 
   const runAi = (action: AiAction | null, options?: AiOptions): void => {
     setPanel(null)
@@ -181,9 +252,17 @@ export function SelectionToolbar(): JSX.Element | null {
   }
 
   return createPortal(
-    <div ref={barRef} className="pe-toolbar" style={{ top, left }} role="toolbar" onMouseDown={(e) => {
-      if (!(e.target instanceof HTMLInputElement)) e.preventDefault()
-    }}>
+    <div
+      ref={barRef}
+      className="pe-toolbar"
+      style={{ top, left }}
+      role="toolbar"
+      aria-label={a11y.toolbar}
+      onKeyDown={onBarKeyDown}
+      onMouseDown={(e) => {
+        if (!(e.target instanceof HTMLInputElement)) e.preventDefault()
+      }}
+    >
       <div className="pe-tb-row">
         {ai && (
           <>
@@ -194,7 +273,11 @@ export function SelectionToolbar(): JSX.Element | null {
               aria-expanded={aiOpen}
               className={`pe-tb-btn pe-tb-wide pe-tb-ai${aiOpen ? ' is-active' : ''}`}
               onPointerEnter={preloadInlineAi}
-              onClick={() => setPanel(aiOpen ? null : 'ai')}
+              onClick={(e) => {
+                // From the keyboard (Enter or Space), the menu takes the focus as it opens.
+                if (!aiOpen && e.detail === 0) openPanel('ai', '[role="menu"] [role="menuitem"]')
+                else setPanel(aiOpen ? null : 'ai')
+              }}
             >
               <span aria-hidden="true">{AI_GLYPH}</span> AI
             </button>
@@ -248,7 +331,13 @@ export function SelectionToolbar(): JSX.Element | null {
               A
             </button>
             {COLOR_NAMES.map((name) => (
-              <button key={name} type="button" title={name} className={`pe-swatch rt-fg-${name}`} onClick={() => ctrl.setMark(range, 'h', ['h', name])}>
+              <button
+                key={name}
+                type="button"
+                title={name}
+                className={`pe-swatch rt-fg-${name}`}
+                onClick={() => ctrl.setMark(range, 'h', ['h', name])}
+              >
                 A
               </button>
             ))}
@@ -273,40 +362,63 @@ export function SelectionToolbar(): JSX.Element | null {
         </div>
       )}
       {panel === 'ai' && (
-        <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu">
-          {AI_ITEMS.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              className="pe-tb-turn-item"
-              onClick={() => {
-                if (item.action === 'tone') setPanel('ai-tone')
-                else if (item.action === 'translate') setPanel('ai-translate')
-                else runAi(item.action)
-              }}
-            >
-              <span className="pe-tb-ai-label">{item.label}</span>
-              {(item.action === 'tone' || item.action === 'translate') && <ChevronRight size={12} />}
-            </button>
-          ))}
+        <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu" aria-label="AI">
+          {AI_ITEMS.map((item) => {
+            const opens = item.action === 'tone' ? 'ai-tone' : item.action === 'translate' ? 'ai-translate' : undefined
+            return (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                className="pe-tb-turn-item"
+                data-opens={opens}
+                aria-haspopup={opens ? 'menu' : undefined}
+                onClick={(e) => {
+                  if (opens) openPanel(opens, e.detail === 0 ? '[role="menu"] [role="menuitem"]' : '')
+                  else runAi(item.action)
+                }}
+              >
+                <span className="pe-tb-ai-label">{item.label}</span>
+                {opens && <ChevronRight size={12} />}
+              </button>
+            )
+          })}
         </div>
       )}
       {panel === 'ai-tone' && (
-        <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu">
-          <div className="pe-tb-heading">Change tone</div>
+        <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu" aria-label="Change tone">
+          <div className="pe-tb-heading" aria-hidden="true">
+            Change tone
+          </div>
           {AI_TONES.map((tone) => (
-            <button key={tone} type="button" role="menuitem" className="pe-tb-turn-item" onClick={() => runAi('tone', { tone })}>
+            <button
+              key={tone}
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              className="pe-tb-turn-item"
+              onClick={() => runAi('tone', { tone })}
+            >
               {AI_TONE_LABELS[tone]}
             </button>
           ))}
         </div>
       )}
       {panel === 'ai-translate' && (
-        <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu">
-          <div className="pe-tb-heading">Translate to</div>
+        <div className="pe-tb-panel pe-tb-turn pe-tb-ai-menu" role="menu" aria-label="Translate to">
+          <div className="pe-tb-heading" aria-hidden="true">
+            Translate to
+          </div>
           {AI_LANGUAGES.map((language) => (
-            <button key={language} type="button" role="menuitem" className="pe-tb-turn-item" onClick={() => runAi('translate', { language })}>
+            <button
+              key={language}
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              className="pe-tb-turn-item"
+              onClick={() => runAi('translate', { language })}
+            >
               {AI_LANGUAGE_LABELS[language]}
             </button>
           ))}

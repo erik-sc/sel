@@ -8,7 +8,16 @@ import type { Block } from '@shared/types'
 type TabsModule = typeof import('./tabs')
 
 function page(id: string, trashed = false): Block {
-  return { id, type: 'page', parentId: null, content: [], props: {}, createdAt: 1, updatedAt: 1, trashedAt: trashed ? 2 : null } as unknown as Block
+  return {
+    id,
+    type: 'page',
+    parentId: null,
+    content: [],
+    props: {},
+    createdAt: 1,
+    updatedAt: 1,
+    trashedAt: trashed ? 2 : null
+  } as unknown as Block
 }
 
 let settings: Record<string, unknown>
@@ -111,7 +120,12 @@ describe('start-up', () => {
   })
 
   it('falls back to the tabs when the home is in the Trash, not on this device, or not chosen', async () => {
-    for (const home of [{ kind: 'page', id: 'binned' }, { kind: 'page', id: 'not-here-yet' }, null, { kind: 'screen', route: '_nowhere' }]) {
+    for (const home of [
+      { kind: 'page', id: 'binned' },
+      { kind: 'page', id: 'not-here-yet' },
+      null,
+      { kind: 'screen', route: '_nowhere' }
+    ]) {
       for (const mode of ['home', 'both']) {
         settings['home'] = home
         settings['shell.startup'] = mode

@@ -5,6 +5,8 @@
  * window: files are chosen in native dialogs and named by the main process.
  */
 
+import type { InvokeChannels } from './ipc'
+
 /** `auto`: the daily one. `manual`: "Back up now". `before-restore`: the state replaced by a restore. */
 export type BackupKind = 'auto' | 'manual' | 'before-restore'
 
@@ -54,6 +56,18 @@ export interface DataApi {
   restore(): Promise<RestoreOutcome>
   /** Opens the backups folder in the system's file manager. */
   showBackups(): Promise<void>
+  /** Opens the folder of the local log (src/main/log.ts) in the system's file manager. */
+  openLogs(): Promise<void>
   /** Opens a folder dialog and writes every page there as Markdown, with its images. */
   exportMarkdown(): Promise<ExportResult>
 }
+
+/** The invoke channels of `api.data` (see `INVOKE` in ./api.ts): every method of DataApi that returns a promise, and no other. */
+export const DATA_INVOKE = {
+  'data:status': true,
+  'data:backUp': true,
+  'data:restore': true,
+  'data:showBackups': true,
+  'data:openLogs': true,
+  'data:exportMarkdown': true
+} as const satisfies Record<InvokeChannels<{ data: DataApi }>, true>

@@ -107,7 +107,9 @@ describe('a day of the notebook', () => {
     notebook.ensure()
     expect(() => notebook.write('2026-10-14', 'late')).toThrow(/has ended/)
     expect(() => notebook.write('2026-10-16', 'early')).toThrow(/once it comes/)
-    expect(() => repo.create({ id: entryId('2026-10-14'), type: 'text', parentId: NOTEBOOK_ID, props: { title: [['backdated']] } })).toThrow(/has ended/)
+    expect(() =>
+      repo.create({ id: entryId('2026-10-14'), type: 'text', parentId: NOTEBOOK_ID, props: { title: [['backdated']] } })
+    ).toThrow(/has ended/)
     expect(() => notebook.write('yesterday', 'x')).toThrow(/Invalid day/)
   })
 
@@ -142,7 +144,16 @@ describe('a day of the notebook', () => {
   it('arrives from another device through sync even when its day has ended here', () => {
     notebook.ensure()
     clock.t = at(17)
-    const late: Block = { id: entryId('2026-10-15'), type: 'text', parentId: NOTEBOOK_ID, content: [], props: { title: [['written elsewhere']] }, createdAt: at(15), updatedAt: at(15, 23), trashedAt: null }
+    const late: Block = {
+      id: entryId('2026-10-15'),
+      type: 'text',
+      parentId: NOTEBOOK_ID,
+      content: [],
+      props: { title: [['written elsewhere']] },
+      createdAt: at(15),
+      updatedAt: at(15, 23),
+      trashedAt: null
+    }
     const root = repo.get(NOTEBOOK_ID) as Block
     repo.applySync({ put: [{ ...root, content: [late.id] }, late], remove: [], snapshots: [], foreign: [], resetPages: [], settings: {} })
     expect(notebook.get().entries.map((e) => [e.day, e.text])).toEqual([['2026-10-15', 'written elsewhere']])
@@ -190,7 +201,15 @@ describe('two devices', () => {
     // Device A takes the merged workspace, a day later than both lines.
     a.clock.t = at(17)
     const diff = diffWorkspace(wsA, result)
-    a.repo.applySync({ put: diff.put as Block[], remove: diff.remove, root: { order: result.root, at: result.rootAt ?? 0 }, snapshots: [], foreign: [], resetPages: [], settings: {} })
+    a.repo.applySync({
+      put: diff.put as Block[],
+      remove: diff.remove,
+      root: { order: result.root, at: result.rootAt ?? 0 },
+      snapshots: [],
+      foreign: [],
+      resetPages: [],
+      settings: {}
+    })
     expect(a.notebook.get().entries.map((e) => [e.day, e.text])).toEqual([
       ['2026-10-16', 'from the laptop'],
       ['2026-10-15', 'from the desk']
@@ -257,7 +276,10 @@ describe('the review of the day', () => {
     const db = repo.create({
       type: 'database',
       parentId: null,
-      props: { title: [['Tasks']], schema: { title: { id: 'title', name: 'Name', type: 'title' }, done: { id: 'done', name: 'Done', type: 'checkbox' } } }
+      props: {
+        title: [['Tasks']],
+        schema: { title: { id: 'title', name: 'Name', type: 'title' }, done: { id: 'done', name: 'Done', type: 'checkbox' } }
+      }
     })
     const row = repo.create({ type: 'page', parentId: db.id, props: { title: [['Post the letter']], values: { done: false } } })
     const page = repo.create({ type: 'page', parentId: null, props: { title: [['Garden plan']] } })

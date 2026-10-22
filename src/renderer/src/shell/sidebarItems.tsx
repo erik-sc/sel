@@ -2,6 +2,7 @@
 // default order and the zones). The sidebar draws from here in the order the `sidebar` setting
 // gives, and Settings → Sidebar lists the same entries. A new item adds its id to
 // SIDEBAR_ITEMS at its default place and an entry here.
+import { useEffect } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import type { SidebarItemId } from '@shared/sidebar'
 import { setQuickFindOpen, setSettingsOpen } from '@/store/ui'
@@ -13,6 +14,7 @@ import { openCalendar, openToday } from '@/briefing/route'
 import { openCloseDay, openNotebook } from '@/notebook/route'
 import { openSky, useSkyEnabled } from '@/sky/route'
 import { openTasks, preloadTasks } from '@/tasks/gate'
+import { initRefining, useRefining } from '@/tasks/refining'
 import { newMeeting } from '@/meetings/gate'
 import { MOD_KEY } from '@/ui/platform'
 import { useTree } from '@/store/tree'
@@ -22,7 +24,7 @@ import { ArchiveButton } from '@/archive/ArchiveButton'
 import { HomeButton } from '@/home/HomeButton'
 import { createPage, reportError } from './actions'
 import { NewPageButton } from './NewPageButton'
-import { PageRow, PageTree } from './PageTree'
+import { PageRow, PageTree, useTreeEntry } from './PageTree'
 import { preloadSettings } from './SettingsModal'
 import { preloadTrash } from './TrashPopover'
 import { toggleSidebarPanel, useSidebarPanel } from './sidebarPanels'
@@ -49,6 +51,23 @@ function Action({ id, icon, onClick, preload }: { id: SidebarItemId; icon: React
   )
 }
 
+/** Tasks, with a quiet mark (no number) while tasks wait to be refined and the mark is on. */
+function TasksItem() {
+  const copy = useSidebarCopy()
+  const marked = useRefining((state) => state.mark && state.count > 0)
+  useEffect(() => initRefining(), [])
+  return (
+    <button type="button" className="sidebar-action" onPointerEnter={preloadTasks} onFocus={preloadTasks} onClick={openTasks}>
+      <Check />
+      <span>
+        {copy.items.tasks}
+        {marked && <span className="sr-only">, {copy.toRefine}</span>}
+      </span>
+      {marked && <i className="sidebar-mark" aria-hidden="true" title={copy.toRefine} />}
+    </button>
+  )
+}
+
 function SearchItem() {
   const copy = useSidebarCopy()
   return (
@@ -63,11 +82,12 @@ function SearchItem() {
 function FavoritesItem() {
   const copy = useSidebarCopy()
   const favorites = useTree((state) => state.favorites)
+  const entry = useTreeEntry('flat')
   if (favorites.length === 0) return null
   return (
     <section className="sidebar-section">
       <div className="sidebar-section-title">{copy.items.favorites}</div>
-      <div role="tree">
+      <div role="tree" aria-label={copy.items.favorites} {...entry}>
         {favorites.map((id) => (
           <PageRow key={id} id={id} depth={0} flat />
         ))}
@@ -113,7 +133,13 @@ function TrashItem() {
 function SettingsItem() {
   const copy = useSidebarCopy()
   return (
-    <button type="button" className="sidebar-action" onPointerEnter={preloadSettings} onFocus={preloadSettings} onClick={() => setSettingsOpen(true)}>
+    <button
+      type="button"
+      className="sidebar-action"
+      onPointerEnter={preloadSettings}
+      onFocus={preloadSettings}
+      onClick={() => setSettingsOpen(true)}
+    >
       <Settings />
       <span>{copy.items.settings}</span>
     </button>
@@ -125,18 +151,26 @@ export const SIDEBAR_ITEM_DEFS: Record<SidebarItemId, SidebarItemDef> = {
   home: { id: 'home', icon: <Home />, Render: HomeButton },
   today: { id: 'today', icon: <Clock />, Render: () => <Action id="today" icon={<Clock />} onClick={openToday} /> },
   calendar: { id: 'calendar', icon: <Calendar />, Render: () => <Action id="calendar" icon={<Calendar />} onClick={openCalendar} /> },
-  tasks: { id: 'tasks', icon: <Check />, Render: () => <Action id="tasks" icon={<Check />} onClick={openTasks} preload={preloadTasks} /> },
+  tasks: { id: 'tasks', icon: <Check />, Render: TasksItem },
   meditations: { id: 'meditations', icon: <Pen />, Render: () => <Action id="meditations" icon={<Pen />} onClick={openNotebook} /> },
   // Gone while the Sky is turned off (see useAvailableItem).
   sky: { id: 'sky', icon: <Sky />, Render: () => <Action id="sky" icon={<Sky />} onClick={openSky} /> },
   'close-day': { id: 'close-day', icon: <Moon />, Render: () => <Action id="close-day" icon={<Moon />} onClick={openCloseDay} /> },
   'new-page': { id: 'new-page', icon: <Plus />, Render: NewPageButton },
-  'new-meeting': { id: 'new-meeting', icon: <Mic />, Render: () => <Action id="new-meeting" icon={<Mic />} onClick={() => void newMeeting()} /> },
+  'new-meeting': {
+    id: 'new-meeting',
+    icon: <Mic />,
+    Render: () => <Action id="new-meeting" icon={<Mic />} onClick={() => void newMeeting()} />
+  },
   favorites: { id: 'favorites', icon: <Star />, Render: FavoritesItem },
   pages: { id: 'pages', icon: <Page />, Render: PagesItem },
   trash: { id: 'trash', icon: <Trash />, Render: TrashItem },
   archive: { id: 'archive', icon: <Archive />, Render: ArchiveButton },
-  feedback: { id: 'feedback', icon: <Feedback />, Render: () => <Action id="feedback" icon={<Feedback />} onClick={() => openFeedback()} preload={preloadFeedback} /> },
+  feedback: {
+    id: 'feedback',
+    icon: <Feedback />,
+    Render: () => <Action id="feedback" icon={<Feedback />} onClick={() => openFeedback()} preload={preloadFeedback} />
+  },
   settings: { id: 'settings', icon: <Settings />, Render: SettingsItem },
   // Nothing at all until this device syncs; then a quiet icon that says how it is going.
   sync: { id: 'sync', icon: <SyncDone />, Render: SyncIndicator }

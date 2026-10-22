@@ -4,6 +4,9 @@
  * the window never names a path) and the system-wide quick-add shortcut.
  */
 
+import type { InvokeChannels } from '../ipc'
+import type { CommandSpec } from '../commands'
+
 export interface TodoistImportResult {
   /** False when the dialog was closed without choosing a file. */
   imported: boolean
@@ -29,8 +32,22 @@ export interface GlobalShortcutState extends GlobalShortcutSetting {
 export const GLOBAL_SHORTCUT_KEY = 'tasks.globalShortcut'
 export const DEFAULT_GLOBAL_SHORTCUT: GlobalShortcutSetting = { enabled: false, accelerator: 'CommandOrControl+Alt+Space' }
 
-const MODIFIERS = new Set(['command', 'cmd', 'control', 'ctrl', 'commandorcontrol', 'cmdorctrl', 'alt', 'option', 'altgr', 'shift', 'super', 'meta'])
-const KEY_RE = /^(?:[A-Za-z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|Space|Tab|Backspace|Delete|Insert|Return|Enter|Up|Down|Left|Right|Home|End|PageUp|PageDown|Escape|Esc|Plus|[`~!@#$%^&*()\-_=[\]{};:'",.<>/?\\|])$/
+const MODIFIERS = new Set([
+  'command',
+  'cmd',
+  'control',
+  'ctrl',
+  'commandorcontrol',
+  'cmdorctrl',
+  'alt',
+  'option',
+  'altgr',
+  'shift',
+  'super',
+  'meta'
+])
+const KEY_RE =
+  /^(?:[A-Za-z0-9]|F(?:[1-9]|1[0-9]|2[0-4])|Space|Tab|Backspace|Delete|Insert|Return|Enter|Up|Down|Left|Right|Home|End|PageUp|PageDown|Escape|Esc|Plus|[`~!@#$%^&*()\-_=[\]{};:'",.<>/?\\|])$/
 
 /**
  * A clean accelerator, or null: at least one modifier and exactly one key, as Electron spells them.
@@ -64,4 +81,38 @@ export interface TasksApi {
   globalShortcut(): Promise<GlobalShortcutState>
   /** Stores the setting and (un)registers the keys at once. Fails on a malformed accelerator. */
   setGlobalShortcut(setting: GlobalShortcutSetting): Promise<GlobalShortcutState>
+  /** How many open tasks are still to refine (./refine.ts): the sidebar's mark and the Today line. */
+  refining(): Promise<{ count: number }>
 }
+
+/** The invoke channels of `api.tasks` (see `INVOKE` in ./api.ts): every method of TasksApi that returns a promise, and no other. */
+export const TASKS_INVOKE = {
+  'tasks:importTodoist': true,
+  'tasks:globalShortcut': true,
+  'tasks:setGlobalShortcut': true,
+  'tasks:refining': true
+} as const satisfies Record<InvokeChannels<{ tasks: TasksApi }>, true>
+
+/** The ways to the Tasks screen and its quick add (see ../commands.ts). */
+export const TASKS_COMMANDS = [
+  {
+    id: 'open-tasks',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+K', key: 'k', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Tasks', order: 230 },
+    palette: { title: 'Tasks', keywords: ['todo', 'to-do', 'inbox', 'todoist'], order: 80 },
+    catalog: { group: 'navigation', label: 'Tasks', keywords: ['todo'], order: 140 }
+  },
+  {
+    /** Opens Tasks with the quick-add input focused. */
+    id: 'add-task',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+A', key: 'a', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Add a Task…', order: 240 },
+    palette: { title: 'Add a task…', keywords: ['new task', 'quick add', 'todo'], order: 90 },
+    catalog: { group: 'navigation', label: 'Add a task', keywords: ['quick add', 'todo'], order: 150 }
+  },
+  {
+    /** Opens Tasks and walks the tasks to refine one by one (the refine time's notification sends it too). */
+    id: 'refine-tasks',
+    palette: { title: 'Refine tasks', keywords: ['refinar', 'inbox', 'triage', 'todo'], order: 95 }
+  }
+] as const satisfies readonly CommandSpec[]

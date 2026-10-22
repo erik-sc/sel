@@ -2,7 +2,16 @@ import { randomBytes } from 'node:crypto'
 import { AI_LANGUAGE_LABELS, type AiAction, type AiLanguage, type AiRequest, type AiTone, type AiTurn } from '../../shared/ai'
 import { ACTIONS_FENCE } from '../../shared/actions'
 import type { CouncilMemberId } from '../../shared/council'
-import { COUNCIL_RULE, councilBody, MEMBER_DRAFT_RULE, MEMBER_LANGUAGE_RULE, MEMBER_TASK, memberIntro, memberRules, type CouncilOpinion } from './council'
+import {
+  COUNCIL_RULE,
+  councilBody,
+  MEMBER_DRAFT_RULE,
+  MEMBER_LANGUAGE_RULE,
+  MEMBER_TASK,
+  memberIntro,
+  memberRules,
+  type CouncilOpinion
+} from './council'
 import { TOOL_LIST } from './toolspecs'
 import { PASSAGES_RULE, PERSONA_INTRO, PERSONA_LANGUAGE_RULE, passagesBody, personaRules, type PersonaVoice } from './herman'
 
@@ -100,7 +109,6 @@ export const TOOLS_RULE = `You can read the user's workspace with the sel tools 
 const CONTEXT_RULE =
   'The WORKSPACE section, when present, says what time it is, where the page sits and what else the user keeps in this app; RELATED holds excerpts of other pages that may bear on the question; TODAY holds their agenda and open tasks. Use them when the question reaches beyond the page, and say which page something comes from. Do not recite them.'
 
-
 /** Keeps the first and last part of `text` and says how much was left out in between. */
 export function truncateMiddle(text: string, max: number): string {
   if (text.length <= max) return text
@@ -144,7 +152,8 @@ interface Task {
 
 function taskFor(request: AiRequest, hasFocus: boolean, aboutDay = false, hasPage = true): Task {
   const what = hasFocus ? 'the text in the TEXT section' : 'the page in the PAGE section'
-  const keep = 'Return only the rewritten text, as a replacement for the original. Keep its meaning, its facts and names, its language and its Markdown structure; do not add headings or lists that were not there.'
+  const keep =
+    'Return only the rewritten text, as a replacement for the original. Keep its meaning, its facts and names, its language and its Markdown structure; do not add headings or lists that were not there.'
   switch (request.action) {
     case 'summarize':
       return {
@@ -197,7 +206,10 @@ function taskFor(request: AiRequest, hasFocus: boolean, aboutDay = false, hasPag
     case 'outline':
       return {
         task: `Turn ${what} into a structured outline.`,
-        rules: ['Use headings (##, ###) for the sections and short bulleted lists under them.', 'Keep the order of ideas; do not add content that is not there.']
+        rules: [
+          'Use headings (##, ###) for the sections and short bulleted lists under them.',
+          'Keep the order of ideas; do not add content that is not there.'
+        ]
       }
     case 'actions':
       return {
@@ -221,7 +233,10 @@ function taskFor(request: AiRequest, hasFocus: boolean, aboutDay = false, hasPag
     case 'explain':
       return {
         task: `Explain ${what} in plain language.`,
-        rules: ['Be brief: a short paragraph, plus a short bulleted list only when it helps.', 'Define terms that a general reader would not know.']
+        rules: [
+          'Be brief: a short paragraph, plus a short bulleted list only when it helps.',
+          'Define terms that a general reader would not know.'
+        ]
       }
     case 'custom':
       return {
@@ -233,7 +248,7 @@ function taskFor(request: AiRequest, hasFocus: boolean, aboutDay = false, hasPag
     case 'ask':
       if (aboutDay) {
         return {
-          task: 'Answer the question in the USER REQUEST section about the user\'s day, which the TODAY section describes.',
+          task: "Answer the question in the USER REQUEST section about the user's day, which the TODAY section describes.",
           rules: [
             'Base the answer on the TODAY section: the date and time, the agenda and the open tasks as this app has them. Do not invent events, times, people or tasks.',
             'When the section does not contain the answer, say so plainly.',
@@ -323,7 +338,11 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   // Herman speaks in the conversation only: the tools that rewrite text have no voice of their own.
   const voice = isAsk && !member ? (options.voice ?? null) : null
   const passages = voice ? passagesBody(options.passageIds) : ''
-  const lines: string[] = [member ? memberIntro(member) : voice ? PERSONA_INTRO : 'You are the writing assistant built into sel, a notes app.', '', `Task: ${spec.task}`]
+  const lines: string[] = [
+    member ? memberIntro(member) : voice ? PERSONA_INTRO : 'You are the writing assistant built into sel, a notes app.',
+    '',
+    `Task: ${spec.task}`
+  ]
   if (member) {
     lines.push('', 'Your point of view:')
     for (const rule of memberRules(member)) lines.push(`- ${rule}`)
@@ -361,10 +380,19 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   if (!isMeeting && page !== undefined) {
     const title = context.pageTitle?.trim()
     const note = focus !== undefined || isContinue ? 'the whole page, for context only' : undefined
-    section('PAGE', truncateMiddle(page, PROMPT_CAPS.page), title ? `${note ? `${note}; ` : ''}title: ${scrub(title).replace(/\s+/g, ' ').slice(0, 200)}` : note)
+    section(
+      'PAGE',
+      truncateMiddle(page, PROMPT_CAPS.page),
+      title ? `${note ? `${note}; ` : ''}title: ${scrub(title).replace(/\s+/g, ' ').slice(0, 200)}` : note
+    )
   }
   if (focus !== undefined) section('TEXT', truncateMiddle(focus, PROMPT_CAPS.focus))
-  if (workspace) section('WORKSPACE', workspace, 'what the user keeps in this app: titles of pages and databases, each followed by its id in square brackets')
+  if (workspace)
+    section(
+      'WORKSPACE',
+      workspace,
+      'what the user keeps in this app: titles of pages and databases, each followed by its id in square brackets'
+    )
   if (related) section('RELATED', related, 'excerpts of other pages of the user, found by searching for the words of the question')
   if (day) section('TODAY', dayBody(day), 'titles of calendar events and tasks, written by the user or by people who sent invitations')
   if (isContinue) {
@@ -379,13 +407,22 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
       ['Date', meeting?.date],
       ['Attendees', meeting?.attendees]
     ]
-      // eslint-disable-next-line no-control-regex
-      .map(([label, value]) => [label, value?.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, 400)])
+      .map(([label, value]) => [
+        label,
+        value
+          ?.replace(/[\u0000-\u001f\u007f]+/g, ' ')
+          .trim()
+          .slice(0, 400)
+      ])
       .filter(([, value]) => value)
       .map(([label, value]) => `${label}: ${value}`)
     if (about.length) section('MEETING', about.join('\n'), 'what is known about the meeting')
     const transcript = request.transcript ?? meeting?.transcript ?? ''
-    section('TRANSCRIPT', truncateMiddle(transcript, PROMPT_CAPS.transcript), meeting?.condensed ? 'the meeting was long: these are notes condensed from its transcript, part by part, in order' : undefined)
+    section(
+      'TRANSCRIPT',
+      truncateMiddle(transcript, PROMPT_CAPS.transcript),
+      meeting?.condensed ? 'the meeting was long: these are notes condensed from its transcript, part by part, in order' : undefined
+    )
     const notes = request.notes ?? meeting?.notes
     if (notes?.trim()) section('NOTES', truncateMiddle(notes, PROMPT_CAPS.notes))
   }
@@ -459,8 +496,10 @@ export function buildCondensePrompt(part: string, index: number, total: number, 
 /** The day as one section body: now, the agenda, the tasks. Every line is tidied and capped. */
 function dayBody(data: BriefingPromptData): string {
   const line = (text: string): string => {
-    // eslint-disable-next-line no-control-regex
-    const clean = String(text).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim()
+    const clean = String(text)
+      .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
     return clean.length > BRIEFING_PROMPT_CAPS.line ? `${clean.slice(0, BRIEFING_PROMPT_CAPS.line - 1)}…` : clean
   }
   const list = (items: readonly string[], empty: string): string => {
@@ -501,8 +540,10 @@ export function buildBriefingPrompt(data: BriefingPromptData, options: PromptOpt
   const nonce = options.nonce ?? newNonce()
   const scrub = (text: string): string => text.split(nonce).join('')
   const line = (text: string): string => {
-    // eslint-disable-next-line no-control-regex
-    const clean = scrub(String(text)).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim()
+    const clean = scrub(String(text))
+      .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
     return clean.length > BRIEFING_PROMPT_CAPS.line ? `${clean.slice(0, BRIEFING_PROMPT_CAPS.line - 1)}…` : clean
   }
   const list = (items: readonly string[], empty: string): string => {

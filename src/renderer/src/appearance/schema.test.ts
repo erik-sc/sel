@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest'
 import { PRESETS } from './presets'
 import { cleanValue, parseNumeric } from './sanitize'
 import { GROUPS, TOKENS, TOKEN_MAP } from './schema'
-import { SKINS, isSkin } from './skins'
 
 function parseBlock(css: string, selector: RegExp): Map<string, string> {
   const block = selector.exec(css)
@@ -18,10 +17,7 @@ function parseBlock(css: string, selector: RegExp): Map<string, string> {
   return out
 }
 
-const css = readFileSync(fileURLToPath(new URL('../styles/tokens.css', import.meta.url)), 'utf8').replace(
-  /\/\*[\s\S]*?\*\//g,
-  ''
-)
+const css = readFileSync(fileURLToPath(new URL('../styles/tokens.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 const light = parseBlock(css, /:root\s*\{([^}]*)\}/)
 const dark = parseBlock(css, /:root\[data-theme='dark'\]\s*\{([^}]*)\}/)
 
@@ -102,61 +98,6 @@ describe('presets', () => {
           expect(cleanValue(token, value), `${preset.id}: ${name}`).toBe(value)
         }
       }
-    }
-  })
-
-  it('names only window styles the app ships, and uses each of them', () => {
-    const used = new Set<string>()
-    for (const preset of PRESETS) {
-      if (preset.skin === undefined) continue
-      expect(isSkin(preset.skin), preset.id).toBe(true)
-      used.add(preset.skin)
-    }
-    expect([...used].sort()).toEqual(SKINS.map((skin) => skin.id).sort())
-  })
-})
-
-/** The selectors of the top-level rules of a stylesheet (nested rules are not looked at). */
-function topLevelPreludes(text: string): string[] {
-  const out: string[] = []
-  let depth = 0
-  let start = 0
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '{') {
-      if (depth === 0) out.push(text.slice(start, i).trim())
-      depth += 1
-    } else if (text[i] === '}') {
-      depth -= 1
-      if (depth === 0) start = i + 1
-    }
-  }
-  return out
-}
-
-describe('window styles', () => {
-  const read = (name: string) =>
-    readFileSync(fileURLToPath(new URL(`./skins/${name}`, import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-
-  it('loads one stylesheet per window style', () => {
-    const imports = [...read('index.css').matchAll(/@import '\.\/([\w-]+)\.css';/g)].map((match) => match[1])
-    expect(imports.sort()).toEqual(SKINS.map((skin) => skin.id).sort())
-  })
-
-  it('scopes every rule to its own window style and only sets its own custom properties', () => {
-    for (const { id } of SKINS) {
-      const sheet = read(`${id}.css`)
-      for (const prelude of topLevelPreludes(sheet)) {
-        for (const selector of prelude.split(',').map((part) => part.trim())) {
-          const scoped =
-            selector.startsWith(`:root[data-skin='${id}']`) ||
-            selector.startsWith(`.ap-preset-thumb[data-skin='${id}']`) ||
-            selector === `@keyframes sk-${id}-throb`
-          expect(scoped, `${id}: ${selector}`).toBe(true)
-        }
-      }
-      // Tokens belong to the theme; a skin that set them would hide them from the editor.
-      const declared = [...sheet.matchAll(/(?<![\w-])(--[\w-]+)\s*:/g)].map((match) => match[1])
-      expect(declared.filter((name) => !name.startsWith('--sk-')), id).toEqual([])
     }
   })
 })

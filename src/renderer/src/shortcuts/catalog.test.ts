@@ -33,6 +33,15 @@ describe('the shortcut list', () => {
     expect([...listed].sort()).toEqual([...new Set(APP_SHORTCUTS.map((s) => s.command))].sort())
   })
 
+  it('places each line of a group that lists commands, once', () => {
+    for (const g of SHORTCUT_GROUPS) {
+      if (!g.entries.some((e) => e.command)) continue
+      for (const e of g.entries) expect(e.order, `${g.id}: ${e.id}`).toBeTypeOf('number')
+      const orders = g.entries.map((e) => e.order)
+      expect(new Set(orders).size, g.id).toBe(orders.length)
+    }
+  })
+
   it('gives every entry keys or text to type', () => {
     for (const mac of [false, true]) {
       for (const g of shownShortcuts({ mac, ai: true })) {
@@ -101,9 +110,7 @@ describe('the Markdown group', () => {
 
 // What each editor entry makes the block's key handler (editor/keyboard.ts) do. Every editor entry
 // must be here, so a key added to the list or dropped from the editor shows up as a failure.
-type Expectation =
-  | { calls: string; args?: unknown[]; selection?: 'some' | 'all'; empty?: boolean }
-  | { elsewhere: string }
+type Expectation = { calls: string; args?: unknown[]; selection?: 'some' | 'all'; empty?: boolean } | { elsewhere: string }
 
 const EDITOR: Record<string, Expectation> = {
   'insert-block': { elsewhere: 'typing / opens the slash menu (editor/typingHooks.ts)' },
@@ -115,6 +122,7 @@ const EDITOR: Record<string, Expectation> = {
   strikethrough: { calls: 'toggleMark', args: [['s']] },
   'inline-code': { calls: 'toggleMark', args: [['c']] },
   link: { calls: 'requestLink', selection: 'some' },
+  toolbar: { calls: 'requestToolbar', selection: 'some' },
   indent: { calls: 'indent' },
   outdent: { calls: 'outdent' },
   'move-block': { calls: 'moveBlocks' },
@@ -172,7 +180,11 @@ function press(accelerator: string, text: string, start: number, end: number) {
 
 describe('the Editor group', () => {
   it('has an expectation for every entry', () => {
-    expect(group('editor').map((e) => e.id).sort()).toEqual(Object.keys(EDITOR).sort())
+    expect(
+      group('editor')
+        .map((e) => e.id)
+        .sort()
+    ).toEqual(Object.keys(EDITOR).sort())
   })
 
   for (const entry of group('editor')) {
@@ -182,7 +194,8 @@ describe('the Editor group', () => {
       expect(entry.keys?.length).toBeGreaterThan(0)
       for (const accelerator of entry.keys ?? []) {
         const text = expected.empty ? '' : 'hello'
-        const [start, end] = expected.selection === 'all' ? [0, 5] : expected.selection === 'some' ? [1, 3] : expected.empty ? [0, 0] : [2, 2]
+        const [start, end] =
+          expected.selection === 'all' ? [0, 5] : expected.selection === 'some' ? [1, 3] : expected.empty ? [0, 0] : [2, 2]
         const { calls, prevented } = press(accelerator, text, start, end)
         expect(prevented, accelerator).toBe(true)
         const call = calls.find((c) => c.method === expected.calls)

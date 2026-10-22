@@ -1,14 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import { TRADITIONS, type Tradition } from '../../shared/briefing'
 import type { Block, BlockProps } from '../../shared/types'
-import { fromQuote, ownPhrases, ownShare, PHRASE_RULES, phraseColumns, pickPhrase, readHistory, recentIds, recordPhrase, seeded, seedOf, type PhraseCandidate, type PhraseHistoryEntry } from './phrases'
+import {
+  fromQuote,
+  ownPhrases,
+  ownShare,
+  PHRASE_RULES,
+  phraseColumns,
+  pickPhrase,
+  readHistory,
+  recentIds,
+  recordPhrase,
+  seeded,
+  seedOf,
+  type PhraseCandidate,
+  type PhraseHistoryEntry
+} from './phrases'
 import { QUOTES, quoteById, type Quote } from './quotes'
 
 function bundled(count: number, tradition: Tradition = 'stoic'): PhraseCandidate[] {
-  return Array.from({ length: count }, (_, index) => ({ id: `${tradition}-${index}`, text: `Bundled ${tradition} ${index}`, author: 'Someone', tradition, own: false }))
+  return Array.from({ length: count }, (_, index) => ({
+    id: `${tradition}-${index}`,
+    text: `Bundled ${tradition} ${index}`,
+    author: 'Someone',
+    tradition,
+    own: false
+  }))
 }
 function mine(count: number, favourites: number[] = []): PhraseCandidate[] {
-  return Array.from({ length: count }, (_, index) => ({ id: `own:${index}`, text: `Mine ${index}`, author: 'Me', own: true, rowId: String(index), ...(favourites.includes(index) ? { favourite: true } : {}) }))
+  return Array.from({ length: count }, (_, index) => ({
+    id: `own:${index}`,
+    text: `Mine ${index}`,
+    author: 'Me',
+    own: true,
+    rowId: String(index),
+    ...(favourites.includes(index) ? { favourite: true } : {})
+  }))
 }
 function day(offset: number): string {
   return new Date(Date.UTC(2026, 0, 1) + offset * 86_400_000).toISOString().slice(0, 10)
@@ -47,7 +74,9 @@ describe('the phrase of a day', () => {
     const pool = bundled(200)
     const ids = new Set(Array.from({ length: 30 }, (_, index) => pickPhrase({ date: day(index), bundled: pool, own: [], history: [] })!.id))
     expect(ids.size).toBeGreaterThan(20)
-    const skips = new Set(Array.from({ length: 30 }, (_, skip) => pickPhrase({ date: '2026-10-13', bundled: pool, own: [], history: [], skip })!.id))
+    const skips = new Set(
+      Array.from({ length: 30 }, (_, skip) => pickPhrase({ date: '2026-10-13', bundled: pool, own: [], history: [], skip })!.id)
+    )
     expect(skips.size).toBeGreaterThan(20)
   })
 
@@ -99,7 +128,8 @@ describe('the phrase of a day', () => {
 describe('weighting', () => {
   const share = (own: PhraseCandidate[], mode?: 'balanced' | 'mostly' | 'never', pool = bundled(300)): number => {
     let count = 0
-    for (let index = 0; index < 1000; index++) if (pickPhrase({ date: day(index), bundled: pool, own, history: [], settings: { own: mode } })!.own) count++
+    for (let index = 0; index < 1000; index++)
+      if (pickPhrase({ date: day(index), bundled: pool, own, history: [], settings: { own: mode } })!.own) count++
     return count / 1000
   }
 
@@ -143,7 +173,13 @@ describe('weighting', () => {
 
   it('draws only from the traditions that are on; none chosen means all', () => {
     const pool = [...bundled(50, 'stoic'), ...bundled(50, 'buddhist'), ...bundled(50, 'poetry')]
-    const seen = (traditions: Tradition[] | null): Set<string | undefined> => new Set(Array.from({ length: 200 }, (_, index) => pickPhrase({ date: day(index), bundled: pool, own: [], history: [], settings: { traditions } })!.tradition))
+    const seen = (traditions: Tradition[] | null): Set<string | undefined> =>
+      new Set(
+        Array.from(
+          { length: 200 },
+          (_, index) => pickPhrase({ date: day(index), bundled: pool, own: [], history: [], settings: { traditions } })!.tradition
+        )
+      )
     expect(seen(['buddhist'])).toEqual(new Set(['buddhist']))
     expect(seen(['stoic', 'poetry'])).toEqual(new Set(['stoic', 'poetry']))
     expect(seen([])).toEqual(new Set(['stoic', 'buddhist', 'poetry']))
@@ -172,7 +208,18 @@ describe('history', () => {
   it('reads a stored history as untrusted data', () => {
     expect(readHistory(null)).toEqual([])
     expect(readHistory('nope')).toEqual([])
-    expect(readHistory([null, 5, {}, { date: '2026-10-13' }, { date: 'yesterday', id: 'a' }, { date: '2026-10-13', id: 7 }, { date: '2026-10-13', id: 'x'.repeat(100) }, { date: '2026-10-13', id: 'ok', extra: true }])).toEqual([{ date: '2026-10-13', id: 'ok' }])
+    expect(
+      readHistory([
+        null,
+        5,
+        {},
+        { date: '2026-10-13' },
+        { date: 'yesterday', id: 'a' },
+        { date: '2026-10-13', id: 7 },
+        { date: '2026-10-13', id: 'x'.repeat(100) },
+        { date: '2026-10-13', id: 'ok', extra: true }
+      ])
+    ).toEqual([{ date: '2026-10-13', id: 'ok' }])
     expect(readHistory(Array.from({ length: 5000 }, () => ({ date: '2026-10-13', id: 'a' })))).toHaveLength(PHRASE_RULES.historyEntries)
   })
 })
@@ -182,21 +229,48 @@ describe('the own phrases of a database', () => {
     title: { id: 'title', name: 'Phrase', type: 'title' },
     a: { id: 'a', name: 'Autor', type: 'text' },
     s: { id: 's', name: 'Source', type: 'text' },
-    t: { id: 't', name: 'Tradition', type: 'select', options: [{ id: 'o1', name: 'Stoicism', color: 'blue' }, { id: 'buddhist', name: 'Zen', color: 'green' }, { id: 'o3', name: 'Novels', color: 'gray' }] },
+    t: {
+      id: 't',
+      name: 'Tradition',
+      type: 'select',
+      options: [
+        { id: 'o1', name: 'Stoicism', color: 'blue' },
+        { id: 'buddhist', name: 'Zen', color: 'green' },
+        { id: 'o3', name: 'Novels', color: 'gray' }
+      ]
+    },
     f: { id: 'f', name: 'Favorito', type: 'checkbox' }
   }
-  const row = (id: string, title: unknown, values: unknown = {}, extra: Partial<Block> = {}): Block => ({ id, type: 'page', parentId: 'db', content: [], props: { title, values } as BlockProps, createdAt: 0, updatedAt: 0, trashedAt: null, ...extra })
+  const row = (id: string, title: unknown, values: unknown = {}, extra: Partial<Block> = {}): Block => ({
+    id,
+    type: 'page',
+    parentId: 'db',
+    content: [],
+    props: { title, values } as BlockProps,
+    createdAt: 0,
+    updatedAt: 0,
+    trashedAt: null,
+    ...extra
+  })
 
   it('finds the columns by name, in English or Portuguese', () => {
     const columns = phraseColumns({ schema })
     expect(columns).toMatchObject({ author: 'a', source: 's', tradition: 't', favourite: 'f' })
-    expect([...columns.traditions]).toEqual([['stoic', 'o1'], ['buddhist', 'buddhist']])
+    expect([...columns.traditions]).toEqual([
+      ['stoic', 'o1'],
+      ['buddhist', 'buddhist']
+    ])
     expect(phraseColumns(null)).toEqual({ traditions: new Map() })
   })
 
   it('reads one phrase per titled row', () => {
     const phrases = ownPhrases({ props: { schema } }, [
-      row('r1', [['Within you there is a stillness and a sanctuary.']], { a: '  Hermann   Hesse ', s: 'Siddhartha', t: 'buddhist', f: true }),
+      row('r1', [['Within you there is a stillness and a sanctuary.']], {
+        a: '  Hermann   Hesse ',
+        s: 'Siddhartha',
+        t: 'buddhist',
+        f: true
+      }),
       row('r2', [['Line one\nline two']], { t: 'o3' }),
       row('r3', [['   ']]),
       row('r4', 'not rich text'),
@@ -205,7 +279,16 @@ describe('the own phrases of a database', () => {
       row('r7', [['Odd values']], 'nope')
     ])
     expect(phrases).toEqual([
-      { id: 'own:r1', text: 'Within you there is a stillness and a sanctuary.', author: 'Hermann Hesse', work: 'Siddhartha', tradition: 'buddhist', favourite: true, own: true, rowId: 'r1' },
+      {
+        id: 'own:r1',
+        text: 'Within you there is a stillness and a sanctuary.',
+        author: 'Hermann Hesse',
+        work: 'Siddhartha',
+        tradition: 'buddhist',
+        favourite: true,
+        own: true,
+        rowId: 'r1'
+      },
       { id: 'own:r2', text: 'Line one\nline two', author: '', own: true, rowId: 'r2' },
       { id: 'own:r7', text: 'Odd values', author: '', own: true, rowId: 'r7' }
     ])
@@ -213,7 +296,9 @@ describe('the own phrases of a database', () => {
 
   it('works on a database with none of the columns, or a broken schema', () => {
     for (const props of [{}, { schema: null }, { schema: 'x' }, { schema: { a: null, b: 5, c: { type: 7 } } }] as unknown as BlockProps[]) {
-      expect(ownPhrases({ props }, [row('r', [['Just a line']], { a: 'ignored' })])).toEqual([{ id: 'own:r', text: 'Just a line', author: '', own: true, rowId: 'r' }])
+      expect(ownPhrases({ props }, [row('r', [['Just a line']], { a: 'ignored' })])).toEqual([
+        { id: 'own:r', text: 'Just a line', author: '', own: true, rowId: 'r' }
+      ])
     }
     expect(ownPhrases(null, [])).toEqual([])
   })
@@ -222,9 +307,56 @@ describe('the own phrases of a database', () => {
 describe('the bundled collection', () => {
   /** Authors whose work is still in copyright somewhere it matters, and so is never bundled. */
   const DENY = [
-    'hesse', 'camus', 'jung', 'sartre', 'beauvoir', 'krishnamurti', 'suzuki', 'nhat hanh', 'thich', 'watts', 'dalai', 'tolle', 'chödrön', 'chodron', 'osho', 'merton', 'frankl',
-    'wittgenstein', 'heidegger', 'russell', 'einstein', 'gandhi', 'hemingway', 'borges', 'neruda', 'pessoa', 'saint-exupéry', 'exupery', 'rilke', 'kafka', 'kierkegaard', 'lewis',
-    'tolkien', 'orwell', 'huxley', 'steinbeck', 'eliot', 'frost', 'auden', 'campbell', 'fromm', 'arendt', 'weil', 'cioran', 'coelho', 'gummere', 'hays', 'mitchell', 'easwaran', 'barks'
+    'hesse',
+    'camus',
+    'jung',
+    'sartre',
+    'beauvoir',
+    'krishnamurti',
+    'suzuki',
+    'nhat hanh',
+    'thich',
+    'watts',
+    'dalai',
+    'tolle',
+    'chödrön',
+    'chodron',
+    'osho',
+    'merton',
+    'frankl',
+    'wittgenstein',
+    'heidegger',
+    'russell',
+    'einstein',
+    'gandhi',
+    'hemingway',
+    'borges',
+    'neruda',
+    'pessoa',
+    'saint-exupéry',
+    'exupery',
+    'rilke',
+    'kafka',
+    'kierkegaard',
+    'lewis',
+    'tolkien',
+    'orwell',
+    'huxley',
+    'steinbeck',
+    'eliot',
+    'frost',
+    'auden',
+    'campbell',
+    'fromm',
+    'arendt',
+    'weil',
+    'cioran',
+    'coelho',
+    'gummere',
+    'hays',
+    'mitchell',
+    'easwaran',
+    'barks'
   ]
   const fields: (keyof Quote)[] = ['id', 'text', 'author', 'work', 'locator', 'translator', 'year', 'sourceUrl', 'tradition']
 
@@ -261,7 +393,12 @@ describe('the bundled collection', () => {
 
   it('has no duplicates', () => {
     expect(new Set(QUOTES.map((quote) => quote.id)).size).toBe(QUOTES.length)
-    const texts = QUOTES.map((quote) => quote.text.toLowerCase().replace(/[^a-z]+/g, ' ').trim())
+    const texts = QUOTES.map((quote) =>
+      quote.text
+        .toLowerCase()
+        .replace(/[^a-z]+/g, ' ')
+        .trim()
+    )
     expect(new Set(texts).size).toBe(QUOTES.length)
     // Nor one passage that is the beginning of another.
     const sorted = [...texts].sort()
@@ -278,7 +415,10 @@ describe('the bundled collection', () => {
       expect(quote.text, quote.id).toMatch(/[.!?]["'”’)]*$/)
       // No editorial leftovers: footnote marks, markup, links, underscores for italics, stray whitespace.
       expect(quote.text, quote.id).not.toMatch(/\[\d+\]|\[Footnote|\{\d+\}|<[a-z/]|https?:|_|\t| {2}|\r/i)
-      expect(quote.text.split('\n').every((line) => line === line.trim() && line.length > 0), quote.id).toBe(true)
+      expect(
+        quote.text.split('\n').every((line) => line === line.trim() && line.length > 0),
+        quote.id
+      ).toBe(true)
     }
   })
 
@@ -288,7 +428,9 @@ describe('the bundled collection', () => {
       for (const name of DENY) expect(who.includes(name), `${quote.id}: ${quote.author} / ${quote.translator}`).toBe(false)
     }
     // Hesse in particular: not as an author, not in a title, not in a passage.
-    expect(QUOTES.some((quote) => /hesse|siddhartha|steppenwolf|demian/i.test(`${quote.author} ${quote.work} ${quote.text} ${quote.translator}`))).toBe(false)
+    expect(
+      QUOTES.some((quote) => /hesse|siddhartha|steppenwolf|demian/i.test(`${quote.author} ${quote.work} ${quote.text} ${quote.translator}`))
+    ).toBe(false)
   })
 
   it('takes Buddhist entries from the Dhammapada in Max Müller’s translation only', () => {
@@ -303,7 +445,17 @@ describe('the bundled collection', () => {
     const quote = QUOTES[0]
     expect(quoteById(quote.id)).toBe(quote)
     expect(quoteById('nope')).toBeUndefined()
-    expect(fromQuote(quote)).toEqual({ id: quote.id, text: quote.text, author: quote.author, work: quote.work, locator: quote.locator, translator: quote.translator, year: quote.year, tradition: quote.tradition, own: false })
+    expect(fromQuote(quote)).toEqual({
+      id: quote.id,
+      text: quote.text,
+      author: quote.author,
+      work: quote.work,
+      locator: quote.locator,
+      translator: quote.translator,
+      year: quote.year,
+      tradition: quote.tradition,
+      own: false
+    })
     expect(JSON.stringify(fromQuote(quote))).not.toContain('gutenberg')
   })
 })

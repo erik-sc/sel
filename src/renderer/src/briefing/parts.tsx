@@ -1,10 +1,18 @@
 // What the Today screen and the calendar screen have in common: how they keep what they show
-// current, and the rows an event and a task are drawn as. Styled by today.css.
-import { useCallback, useEffect, useRef, useState } from 'react'
+// current, and the rows an event and a task are drawn as. Styled by today.css; the rows of the
+// built-in Tasks database are the task lists' own (tasks/TaskRow.tsx).
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { localDay, type BriefingCalendar, type BriefingEvent, type BriefingTask } from '@shared/briefing'
+import type { Block } from '@shared/types'
+import { TASKS_DATABASE_ID } from '@shared/tasks'
 import { newMeeting } from '@/meetings/gate'
+import { useBlock, useBlocks } from '@/store/blocks'
 import { openPage } from '@/store/tabs'
+import * as L from '@/database/logic'
+import { emptyChipsOf, readTasks } from '@/tasks/lists'
+import { viewOfBriefing, type TaskView } from '@/tasks/model'
+import { TaskRow as ListTaskRow, type useTaskRows } from '@/tasks/TaskRow'
 import { setSettingsOpen, useUi } from '@/store/ui'
 import { notifyError, toast } from '@/ui/toast'
 import { dueLabel, tickedKey, untilMidnight, type EventMoment } from './format'
@@ -30,7 +38,11 @@ export interface Live<T> {
  * request, and again whenever `read` itself changes. `what` names it in the log.
  */
 export function useLive<T>(read: (force: boolean) => Promise<T>, what: string): Live<T> {
-  const [state, setState] = useState<{ data: T | null; failed: boolean; refreshing: boolean }>({ data: null, failed: false, refreshing: false })
+  const [state, setState] = useState<{ data: T | null; failed: boolean; refreshing: boolean }>({
+    data: null,
+    failed: false,
+    refreshing: false
+  })
   const alive = useRef(true)
   const latest = useRef(0)
   const loadedAt = useRef(0)
@@ -128,11 +140,27 @@ export function openSettings(): void {
 }
 
 /** One event of an agenda (a row of a `today-agenda` list). `time` is how its hours read on the day it is listed under. */
-export function EventRow({ event, calendar, moment, time }: { event: BriefingEvent; calendar: BriefingCalendar | undefined; moment: EventMoment; time: string }): JSX.Element {
+export function EventRow({
+  event,
+  calendar,
+  moment,
+  time
+}: {
+  event: BriefingEvent
+  calendar: BriefingCalendar | undefined
+  moment: EventMoment
+  time: string
+}): JSX.Element {
   return (
     <li className={`today-event is-${moment}`}>
       <span className="today-event-time">{time}</span>
-      <span className="today-dot" style={{ background: `var(--c-${calendar?.color ?? 'gray'})` }} role="img" aria-label={calendar?.label ?? 'Calendar'} title={calendar?.label} />
+      <span
+        className="today-dot"
+        style={{ background: `var(--c-${calendar?.color ?? 'gray'})` }}
+        role="img"
+        aria-label={calendar?.label ?? 'Calendar'}
+        title={calendar?.label}
+      />
       <span className="today-event-body">
         <span className="today-event-title">
           {event.title || 'Untitled'}
@@ -144,7 +172,18 @@ export function EventRow({ event, calendar, moment, time }: { event: BriefingEve
         <button
           type="button"
           className="today-event-notes"
-          onClick={() => void newMeeting({ event: { title: event.title, start: event.start, end: event.end, ...(event.uid ? { uid: event.uid } : {}), ...(event.location ? { location: event.location } : {}), ...(event.description ? { description: event.description } : {}) } })}
+          onClick={() =>
+            void newMeeting({
+              event: {
+                title: event.title,
+                start: event.start,
+                end: event.end,
+                ...(event.uid ? { uid: event.uid } : {}),
+                ...(event.location ? { location: event.location } : {}),
+                ...(event.description ? { description: event.description } : {})
+              }
+            })
+          }
         >
           Take notes
         </button>
@@ -153,14 +192,93 @@ export function EventRow({ event, calendar, moment, time }: { event: BriefingEve
   )
 }
 
+/**
+ * The built-in Tasks database's tasks among `tasks`, as their rows draw them: from the store once
+ * it has them (an edit shows at once), from the briefing until then. Null for one that is gone.
+ * Other tasks are not in the map: they keep their plain row.
+ */
+export function useTaskViews(tasks: readonly BriefingTask[]): ReadonlyMap<string, TaskView | null> {
+  const ids = useMemo(() => tasks.filter((task) => viewOfBriefing(task)).map((task) => task.id), [tasks])
+  const blocks = useBlocks(ids)
+  const database = useBlock(ids.length ? TASKS_DATABASE_ID : null)
+  return useMemo(() => {
+    const schema = L.normalizeDatabase(database).schema
+    const rows = blocks.filter((block): block is Block => !!block && block.parentId === TASKS_DATABASE_ID)
+    const live = new Map(database ? readTasks(rows, schema).map((item) => [item.id, item]) : [])
+    const views = new Map<string, TaskView | null>()
+    for (const task of tasks) {
+      const view = viewOfBriefing(task)
+      if (!view) continue
+      const row = rows.find((block) => block.id === task.id)
+      views.set(task.id, row?.trashedAt || live.get(task.id)?.done ? null : (live.get(task.id) ?? view))
+    }
+    return views
+  }, [tasks, blocks, database])
+}
+
+/**
+ * One open task of a briefing list: a row of the built-in Tasks database with its chips and
+ * editors (`view`), any other as a plain row. `day` is the day it is listed under.
+ */
+export function BriefingTaskItem({
+  task,
+  view,
+  day,
+  today,
+  rows,
+  panel,
+  onComplete,
+  onOpen
+}: {
+  task: BriefingTask
+  view: TaskView | null | undefined
+  day: string
+  today: string
+  rows: ReturnType<typeof useTaskRows>
+  /** The task the panel shows. */
+  panel: string | null
+  onComplete: (task: BriefingTask) => void
+  onOpen: (id: string) => void
+}): JSX.Element | null {
+  if (view === null) return null
+  if (!view) return <TaskRow task={task} day={day} onComplete={onComplete} />
+  return (
+    <ListTaskRow
+      task={view}
+      today={today}
+      heading={day}
+      tabStop={rows.stop === task.id}
+      current={panel === task.id}
+      onToggle={() => onComplete(task)}
+      onOpen={() => onOpen(task.id)}
+      onLeave={rows.leave}
+      emptyChips={emptyChipsOf(view)}
+    />
+  )
+}
+
 /** One open task. `day` is the day it is listed under: a due date is only spelled out when it is another one. */
-export function TaskRow({ task, day, onComplete }: { task: BriefingTask; day: string; onComplete: (task: BriefingTask) => void }): JSX.Element {
+export function TaskRow({
+  task,
+  day,
+  onComplete
+}: {
+  task: BriefingTask
+  day: string
+  onComplete: (task: BriefingTask) => void
+}): JSX.Element {
   return (
     <li className="today-task">
       <button type="button" className="today-check" aria-label={`Mark "${task.title}" as done`} onClick={() => onComplete(task)} />
-      <button type="button" className="today-task-open" onClick={(event) => openPage(task.pageId, { newTab: event.ctrlKey || event.metaKey })}>
+      <button
+        type="button"
+        className="today-task-open"
+        onClick={(event) => openPage(task.pageId, { newTab: event.ctrlKey || event.metaKey })}
+      >
         <span className="today-task-title">{task.title}</span>
-        <span className="today-task-meta">{[task.source, task.due && task.due !== day ? dueLabel(task.due, day) : '', task.priority?.name].filter(Boolean).join(' · ')}</span>
+        <span className="today-task-meta">
+          {[task.source, task.due && task.due !== day ? dueLabel(task.due, day) : '', task.priority?.name].filter(Boolean).join(' · ')}
+        </span>
       </button>
     </li>
   )

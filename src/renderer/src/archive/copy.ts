@@ -78,7 +78,16 @@ export const ARCHIVE_COPY: Record<ArchiveLocale, ArchiveCopy> = {
 }
 
 /** Words the palette finds the archive commands by, in both languages. */
-export const ARCHIVE_KEYWORDS: readonly string[] = ['archive', 'unarchive', 'put away', 'hide', 'arquivar', 'desarquivar', 'arquivo', 'guardar']
+export const ARCHIVE_KEYWORDS: readonly string[] = [
+  'archive',
+  'unarchive',
+  'put away',
+  'hide',
+  'arquivar',
+  'desarquivar',
+  'arquivo',
+  'guardar'
+]
 
 /** The language of the archive's words: the AI answer language when it is one of the two, else the system's. */
 export function archiveLocale(aiLanguage: unknown, systemLocale: string | undefined): ArchiveLocale {

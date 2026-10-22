@@ -61,7 +61,8 @@ describe('the figure', () => {
       seen.set(PATHS[pose], pose)
     }
     /** How far the points of a pose are from where they rest, in total. */
-    const moved = (pose: Pose): number => parse(PATHS[pose]).numbers.reduce((sum, value, index) => sum + Math.abs(value - resting.numbers[index]), 0)
+    const moved = (pose: Pose): number =>
+      parse(PATHS[pose]).numbers.reduce((sum, value, index) => sum + Math.abs(value - resting.numbers[index]), 0)
     // A blink touches the eyes only; a bow or sleep moves the whole of him.
     expect(moved('blink')).toBeGreaterThan(5)
     expect(moved('blink')).toBeLessThan(moved('listening'))
@@ -81,7 +82,10 @@ describe('the figure', () => {
     const lensHeight = (pose: Pose): number => {
       const { numbers } = parse(PATHS[pose])
       // Anchors are the end points of the segments: the start, then every third pair.
-      const anchors = [numbers.slice(0, 2), ...Array.from({ length: 47 }, (_, index) => numbers.slice(2 + index * 6 + 4, 2 + index * 6 + 6))]
+      const anchors = [
+        numbers.slice(0, 2),
+        ...Array.from({ length: 47 }, (_, index) => numbers.slice(2 + index * 6 + 4, 2 + index * 6 + 6))
+      ]
       const ys = anchors.slice(19, 23).map(([, y]) => y)
       return Math.max(...ys) - Math.min(...ys)
     }
@@ -93,10 +97,27 @@ describe('the figure', () => {
   })
 
   it('turns anchors into curves that pass through them, round or cornered as asked', () => {
-    expect(toPath([[0, 0], [10, 0], [20, 0]])).toBe('M0 0C1.7 0 6.7 0 10 0C13.3 0 18.3 0 20 0')
+    expect(
+      toPath([
+        [0, 0],
+        [10, 0],
+        [20, 0]
+      ])
+    ).toBe('M0 0C1.7 0 6.7 0 10 0C13.3 0 18.3 0 20 0')
     // A corner (roundness 0) has no handles: the line arrives and leaves straight.
-    expect(toPath([[0, 0], [10, 10, 0], [20, 0]])).toBe('M0 0C1.7 1.7 10 10 10 10C10 10 18.3 1.7 20 0')
-    expect(toPath([[1.26, 2.34], [3, 4]])).toBe('M1.3 2.3C1.6 2.6 2.7 3.7 3 4')
+    expect(
+      toPath([
+        [0, 0],
+        [10, 10, 0],
+        [20, 0]
+      ])
+    ).toBe('M0 0C1.7 1.7 10 10 10 10C10 10 18.3 1.7 20 0')
+    expect(
+      toPath([
+        [1.26, 2.34],
+        [3, 4]
+      ])
+    ).toBe('M1.3 2.3C1.6 2.6 2.7 3.7 3 4')
   })
 
   it('has its two small marks: a z for sleep, a curl for thought', () => {
@@ -248,7 +269,10 @@ describe('quiet hours as the settings show them', () => {
 
 describe('herman.css', () => {
   const css = readFileSync(fileURLToPath(new URL('./herman.css', import.meta.url)), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-  const declarations = [...css.matchAll(/(?<=[;{])\s*([a-z-]+)\s*:\s*([^;{}]+);/g)].map((match) => ({ property: match[1], value: match[2].trim().replace(/\s+/g, ' ') }))
+  const declarations = [...css.matchAll(/(?<=[;{])\s*([a-z-]+)\s*:\s*([^;{}]+);/g)].map((match) => ({
+    property: match[1],
+    value: match[2].trim().replace(/\s+/g, ' ')
+  }))
 
   it('is read as declarations', () => {
     // Every `property: value;` of the file, and nothing that is not one.
@@ -262,8 +286,10 @@ describe('herman.css', () => {
     const tokenOnly = /^var\(--[a-z0-9-]+\)$/
     for (const { property, value } of declarations) {
       const where = `${property}: ${value}`
-      if (['font-size', 'font-weight', 'font-family', 'border-radius', 'box-shadow'].includes(property)) expect(value, where).toMatch(tokenOnly)
-      if (['color', 'background', 'background-color', 'stroke', 'fill'].includes(property)) expect(value, where).toMatch(/^(var\(--[a-z0-9-]+\)|currentColor|none|transparent)$/)
+      if (['font-size', 'font-weight', 'font-family', 'border-radius', 'box-shadow'].includes(property))
+        expect(value, where).toMatch(tokenOnly)
+      if (['color', 'background', 'background-color', 'stroke', 'fill'].includes(property))
+        expect(value, where).toMatch(/^(var\(--[a-z0-9-]+\)|currentColor|none|transparent)$/)
       if (property === 'outline') expect(value, where).toMatch(/^\d+px solid var\(--focus-ring\)$/)
       expect(property, where).not.toMatch(/^(text-shadow|filter|backdrop-filter|border(-(top|right|bottom|left))?(-color)?)$/)
     }
@@ -277,7 +303,9 @@ describe('herman.css', () => {
       if (!/^(transition|animation)(-duration|-delay)?$/.test(property) || value === 'none') continue
       expect(value, `${property}: ${value}`).toMatch(/var\(--duration(-fast)?\)/)
     }
-    const eases = declarations.filter(({ property }) => property === 'transition' || property === 'animation').flatMap(({ value }) => value.match(/var\(--ease\)|ease-in-out|linear|ease(?![-\w])/g) ?? [])
+    const eases = declarations
+      .filter(({ property }) => property === 'transition' || property === 'animation')
+      .flatMap(({ value }) => value.match(/var\(--ease\)|ease-in-out|linear|ease(?![-\w])/g) ?? [])
     // --ease everywhere, with two stated exceptions: the stroke that draws him, and the turning curl (his, and his council's).
     expect(eases.filter((ease) => ease !== 'var(--ease)').sort()).toEqual(['ease-in-out', 'linear', 'linear'])
     expect(css).toMatch(/\.council-face\.is-thinking \.council-face-thought \{[^}]*linear infinite/)

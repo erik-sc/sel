@@ -9,6 +9,9 @@
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
 
+import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
+
 /** A time of day the briefing is given, on some days of the week. */
 export interface AlarmTime {
   id: string
@@ -85,10 +88,13 @@ export interface AnnouncedEvent {
   ask: boolean
 }
 
-/** Something said at a moment the user chose: the briefing at one of its times, a task's reminder, or an event about to start. */
+/**
+ * Something said at a moment the user chose: the briefing at one of its times, a task's reminder,
+ * an event about to start, or the refine time (tasks still to refine, shared/tasks/refine.ts).
+ */
 export interface Announcement {
   id: string
-  kind: 'briefing' | 'reminder' | 'event'
+  kind: 'briefing' | 'reminder' | 'event' | 'refine'
   /** A short heading for the system's notification ("Reminder", "Meeting in 5 min"). */
   title?: string
   /** What the bubble shows. */
@@ -221,3 +227,14 @@ export function readAlarmSettings(get: (key: string) => unknown): AlarmSettings 
   }
   return out
 }
+
+/** The alarms decide when sel speaks and whether it keeps running: each is typed. */
+export const ALARMS_SETTINGS: SettingsSpec = { keys: ALARMS_KEYS, clean: cleanAlarmsSetting }
+
+/** The invoke channels of `api.alarms` (see `INVOKE` in ./api.ts): every method of AlarmsApi that returns a promise, and no other. */
+export const ALARMS_INVOKE = {
+  'alarms:pending': true,
+  'alarms:heard': true,
+  'alarms:snooze': true,
+  'alarms:test': true
+} as const satisfies Record<InvokeChannels<{ alarms: AlarmsApi }>, true>

@@ -138,15 +138,17 @@ function linkText(rt: unknown, pageId: string): string {
 /**
  * Pages whose text links to `pageId` (`sel://page/<id>`, see shared/pageLink), each once with
  * the text around its first link, the page itself left out, the trash too. Archived pages are
- * listed and say so, as in search.
+ * listed and say so, as in search. The linking blocks come from `page_links` (kept by the
+ * repository as it writes, see ./links.ts); their marks are still checked once read, and they come in the order of the
+ * old scan of every block (the order rows were written in).
  */
 export function backlinksTo(source: SearchSource, pageId: string, limit = 50): SearchResult[] {
   if (typeof pageId !== 'string' || !parsePageLink(pageLink(pageId))) return []
   const n = Math.max(1, Math.min(200, Math.floor(Number(limit)) || 50))
-  // A substring narrows the rows down; the marks themselves decide (an id can begin another one).
   const rows = source.all(
-    'SELECT id FROM blocks WHERE trashed_at IS NULL AND instr(props, ?) > 0 LIMIT ?',
-    pageLink(pageId),
+    `SELECT l.from_block AS id FROM page_links l JOIN blocks b ON b.id = l.from_block
+     WHERE l.to_page = ? AND b.trashed_at IS NULL ORDER BY b.rid LIMIT ?`,
+    pageId,
     n * 20
   ) as { id: string }[]
   if (!rows.length) return []

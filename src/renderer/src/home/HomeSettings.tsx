@@ -64,10 +64,17 @@ export function HomeSettingsRows() {
       <div className="ap-row">
         <div className="ap-row-text">
           <span className="ap-row-label">{copy.homeLabel}</span>
-          <span className={hint ? 'ap-row-help is-error' : 'ap-row-help'}>{hint ?? copy.homeHelp(formatAccelerator(acceleratorOf('go-home', IS_MAC) ?? '', IS_MAC))}</span>
+          <span className={hint ? 'ap-row-help is-error' : 'ap-row-help'}>
+            {hint ?? copy.homeHelp(formatAccelerator(acceleratorOf('go-home', IS_MAC) ?? '', IS_MAC))}
+          </span>
         </div>
         <div className="ap-row-control">
-          <select className="ap-field" aria-label={copy.homeLabel} value={encode(home)} onChange={(event) => void setHome(decode(event.target.value))}>
+          <select
+            className="ap-field"
+            aria-label={copy.homeLabel}
+            value={encode(home)}
+            onChange={(event) => void setHome(decode(event.target.value))}
+          >
             <option value="">{copy.none}</option>
             <optgroup label={copy.screensGroup}>
               {HOME_SCREENS.map((route) => (
@@ -95,7 +102,12 @@ export function HomeSettingsRows() {
           <span className="ap-row-help">{copy.startupHelp}</span>
         </div>
         <div className="ap-row-control">
-          <select className="ap-field" aria-label={copy.startupLabel} value={startup} onChange={(event) => void setStartup(event.target.value as StartupMode)}>
+          <select
+            className="ap-field"
+            aria-label={copy.startupLabel}
+            value={startup}
+            onChange={(event) => void setStartup(event.target.value as StartupMode)}
+          >
             {STARTUP_MODES.map((mode) => (
               <option key={mode} value={mode}>
                 {copy.startup[mode]}

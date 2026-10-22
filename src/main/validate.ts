@@ -1,16 +1,5 @@
-import { AI_KEYS, cleanAiSetting } from '../shared/ai'
-import { ALARMS_KEYS, cleanAlarmsSetting } from '../shared/alarms'
-import { BRIEFING_KEYS, cleanBriefingSetting } from '../shared/briefing'
-import { cleanHermanSetting, HERMAN_KEYS } from '../shared/herman'
-import { cleanHome, HOME_SETTING, STARTUP_MODES, STARTUP_SETTING } from '../shared/home'
-import { cleanMcpSetting, MCP_KEYS } from '../shared/mcp'
-import { cleanMeetingsSetting, MEETINGS_KEYS } from '../shared/meetings'
-import { cleanNotebookSetting, NOTEBOOK_KEYS } from '../shared/notebook'
-import { cleanPomodoroSetting, POMODORO_KEYS } from '../shared/pomodoro'
-import { cleanSidebar, SIDEBAR_SETTING } from '../shared/sidebar'
-import { cleanSkySetting, SKY_KEYS } from '../shared/sky'
-import { cleanUpdatesSetting, UPDATES_KEYS } from '../shared/updates'
-import { cleanHistorySetting, HISTORY_KEYS, MAX_VERSION_LABEL } from '../shared/versions'
+import { cleanSettingValue, SETTINGS, type SettingsSpec, settingsSpecOf } from '../shared/settings'
+import { MAX_VERSION_LABEL } from '../shared/versions'
 import { isValidId, MAX_SETTING_CHARS } from './db/blocks'
 
 /**
@@ -35,16 +24,6 @@ export const LIMITS = {
 
 const CLIENT_ID_RE = /^[A-Za-z0-9_-]+$/
 const SETTING_KEY_RE = /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)*$/
-/**
- * Exact keys the renderer may write. The `history.*` ones are the four the History settings show,
- * the `ai.*` ones the five the AI settings show, the `herman.*` ones those the Herman settings show,
- * the seats of his council among them (what he remembers, `herman.memory`, is not); `updates.check`
- * (not `updates.lastCheck`); `mcp.enabled`; nothing else in those namespaces.
- */
-const WRITABLE_SETTINGS: ReadonlySet<string> = new Set(['theme', 'appearance', HOME_SETTING, ...HISTORY_KEYS, ...AI_KEYS, ...BRIEFING_KEYS, ...MEETINGS_KEYS, ...HERMAN_KEYS, ...UPDATES_KEYS, ...MCP_KEYS, ...NOTEBOOK_KEYS, ...ALARMS_KEYS, ...POMODORO_KEYS, SIDEBAR_SETTING, ...SKY_KEYS])
-/** `<namespace>.<anything>` keys the renderer may write; everything else belongs to the main process. */
-const WRITABLE_NAMESPACES: ReadonlySet<string> = new Set(['shell', 'database', 'editor', 'appearance', 'ui'])
-
 export function id(value: unknown, what = 'id'): string {
   if (!isValidId(value)) throw new Error(`Invalid ${what}`)
   return value
@@ -146,16 +125,15 @@ export function settingKey(value: unknown): string {
   return key
 }
 
-export function isWritableSetting(key: string): boolean {
-  if (WRITABLE_SETTINGS.has(key)) return true
-  const dot = key.indexOf('.')
-  return dot > 0 && WRITABLE_NAMESPACES.has(key.slice(0, dot))
+/** Whether a renderer may write `key`: a feature's spec names it, or owns its namespace (src/shared/settings.ts). */
+export function isWritableSetting(key: string, specs: readonly SettingsSpec[] = SETTINGS): boolean {
+  return settingsSpecOf(key, specs) !== null
 }
 
 /** A settings key the renderer is allowed to write. */
-export function writableSettingKey(value: unknown): string {
+export function writableSettingKey(value: unknown, specs: readonly SettingsSpec[] = SETTINGS): string {
   const key = settingKey(value)
-  if (!isWritableSetting(key)) throw new Error(`Setting "${key}" is read-only`)
+  if (!isWritableSetting(key, specs)) throw new Error(`Setting "${key}" is read-only`)
   return key
 }
 
@@ -164,145 +142,13 @@ export function settingValue(value: unknown): unknown {
 }
 
 /**
- * The value stored for a writable key. The history and AI settings steer the main process, so
- * they are typed; for history: a boolean, or a number brought into its range; null resets one to its default.
+ * The value stored for a writable key. A key whose feature types it (most of them steer the main
+ * process) gets that feature's clean value, null resets it, and anything else throws; every other
+ * key is stored as given, within the size cap. See `SettingsSpec` in src/shared/settings.ts.
  */
-export function settingValueFor(key: string, value: unknown): unknown {
-  if (key.startsWith('ai.')) return aiSettingValue(key, value)
-  if (key.startsWith('briefing.')) return briefingSettingValue(key, value)
-  if (key.startsWith('meetings.')) return meetingsSettingValue(key, value)
-  if (key.startsWith('herman.')) return hermanSettingValue(key, value)
-  if (key.startsWith('updates.')) return updatesSettingValue(key, value)
-  if (key.startsWith('mcp.')) return mcpSettingValue(key, value)
-  if (key.startsWith('notebook.')) return notebookSettingValue(key, value)
-  if (key.startsWith('alarms.')) return alarmsSettingValue(key, value)
-  if (key === HOME_SETTING) return homeSettingValue(value)
-  if (key === STARTUP_SETTING) return startupSettingValue(value)
-  if (key === SIDEBAR_SETTING) return sidebarSettingValue(value)
-  if (key.startsWith('pomodoro.')) return pomodoroSettingValue(key, value)
-  if (key.startsWith('sky.')) return skySettingValue(key, value)
-  if (!key.startsWith('history.')) return settingValue(value)
-  if (value === undefined || value === null) return null
-  const clean = cleanHistorySetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/**
- * The AI settings decide what the main process runs, so each is typed. Null resets one to its
- * default. The program's path is the exception: a renderer can clear it but never name one;
- * a path only comes out of the native file dialog (`ai:pickCli`).
- */
-function aiSettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  if (key === 'ai.cliPath') throw new Error('The program can only be chosen with the file dialog')
-  const clean = cleanAiSetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/** The briefing settings steer what the main process reads and shows, so each is typed. Null resets one. */
-function briefingSettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  const clean = cleanBriefingSetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/**
- * The meetings settings decide what the main process records, keeps and runs, so each is typed.
- * Null resets one. The program and the model file are like `ai.cliPath`: a renderer can clear
- * them but never name one; a path only comes out of a native file dialog.
- */
-function meetingsSettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  if (key === 'meetings.whisperPath' || key === 'meetings.modelPath') throw new Error('The file can only be chosen with the file dialog')
-  const clean = cleanMeetingsSetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/**
- * The Herman settings choose among things the main process holds (a voice, a frequency), so each
- * is one of a fixed set of values: no free text of his persona can be stored. Null resets one.
- */
-function hermanSettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  const clean = cleanHermanSetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/** The alarms decide when sel speaks and whether it keeps running: each is typed. Null resets one to its default. */
-function alarmsSettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  const clean = cleanAlarmsSetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/** The pomodoro's lengths (whole minutes in a range) and whether starting one enters focus mode. Null resets one. */
-function pomodoroSettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  const clean = cleanPomodoroSetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/** Whether sel looks for updates by itself decides whether it goes on the network: a boolean. Null resets it (off). */
-function updatesSettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  const clean = cleanUpdatesSetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/** Whether other apps may connect decides whether sel opens an endpoint for them: a boolean. Null resets it (off). */
-function mcpSettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  const clean = cleanMcpSetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/** Whether closing the day rings a bell: a boolean. Null resets it (on). */
-function notebookSettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  const clean = cleanNotebookSetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/** The Sky's switches and this computer's memory of what it already showed. Null resets one. */
-function skySettingValue(key: string, value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  const clean = cleanSkySetting(key, value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/** The home syncs to every device, so it is exactly a page id or one of the screens. Null clears it. */
-function homeSettingValue(value: unknown): unknown {
-  const clean = cleanHome(value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/**
- * The sidebar's layout syncs to every device: lists of item ids, nothing else. Ids this version
- * does not know are kept for a newer device; the renderer ignores them. Null is the default.
- */
-function sidebarSettingValue(value: unknown): unknown {
-  const clean = cleanSidebar(value)
-  if (clean === undefined) throw new Error('Invalid setting value')
-  return clean
-}
-
-/** What start-up does on this device: one of the modes. Null resets it (restore the tabs). */
-function startupSettingValue(value: unknown): unknown {
-  if (value === undefined || value === null) return null
-  if (!(STARTUP_MODES as readonly unknown[]).includes(value)) throw new Error('Invalid setting value')
-  return value
+export function settingValueFor(key: string, value: unknown, specs: readonly SettingsSpec[] = SETTINGS): unknown {
+  const found = settingsSpecOf(key, specs)
+  return found?.exact && found.spec.clean ? cleanSettingValue(found.spec, key, value) : settingValue(value)
 }
 
 /** The optional name of a version: a short string, or null / undefined for none. */

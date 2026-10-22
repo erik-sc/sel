@@ -150,5 +150,7 @@ export class PomodoroService {
 function isCompleted(value: unknown): value is PomodoroCompleted {
   if (value === null || typeof value !== 'object') return false
   const raw = value as Record<string, unknown>
-  return typeof raw['at'] === 'number' && Number.isFinite(raw['at']) && typeof raw['minutes'] === 'number' && Number.isFinite(raw['minutes'])
+  return (
+    typeof raw['at'] === 'number' && Number.isFinite(raw['at']) && typeof raw['minutes'] === 'number' && Number.isFinite(raw['minutes'])
+  )
 }

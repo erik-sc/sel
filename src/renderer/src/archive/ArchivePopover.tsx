@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { Popover, type PopoverAnchor } from '@/ui/Popover'
+import { useArchiveCopy } from './locale'
 
 const load = (): Promise<typeof import('./ArchiveList')> => import('./ArchiveList')
 const ArchiveList = lazy(() => load().then((module) => ({ default: module.ArchiveList })))
@@ -10,8 +11,9 @@ export function preloadArchive(): void {
 }
 
 export function ArchivePopover({ anchor, open, onClose }: { anchor: PopoverAnchor; open: boolean; onClose: () => void }) {
+  const copy = useArchiveCopy()
   return (
-    <Popover anchor={anchor} open={open} onClose={onClose} placement="right-start" className="trash-popover">
+    <Popover anchor={anchor} open={open} onClose={onClose} placement="right-start" label={copy.section} className="trash-popover">
       <Suspense fallback={<div className="trash archive" aria-busy="true" />}>
         <ArchiveList onClose={onClose} />
       </Suspense>

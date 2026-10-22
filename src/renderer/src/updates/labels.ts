@@ -44,7 +44,11 @@ export function noticeFor(status: UpdateStatus | null): UpdateNotice | null {
       }
     case 'error':
       return downloadFailed(status)
-        ? { ...base, message: status.error ?? 'The download did not finish.', actions: [{ id: 'download', label: 'Try again', primary: true }, LATER] }
+        ? {
+            ...base,
+            message: status.error ?? 'The download did not finish.',
+            actions: [{ id: 'download', label: 'Try again', primary: true }, LATER]
+          }
         : null
     default:
       return null

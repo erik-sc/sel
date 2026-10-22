@@ -67,7 +67,13 @@ export function IconPicker({ current, onPick }: IconPickerProps) {
         <div className="ui-icon-picker-grid" role="tabpanel">
           {kind === 'shapes'
             ? shapes.map((icon, index) => (
-                <button key={icon} type="button" className="ui-icon-picker-cell" aria-label={`Shape ${index + 1}`} onClick={() => onPick(icon)}>
+                <button
+                  key={icon}
+                  type="button"
+                  className="ui-icon-picker-cell"
+                  aria-label={`Shape ${index + 1}`}
+                  onClick={() => onPick(icon)}
+                >
                   <IconGlyph icon={icon} />
                 </button>
               ))

@@ -12,6 +12,8 @@
  */
 
 import { cleanCouncil, COUNCIL_KEY } from './council'
+import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
 
 /** How the assistant speaks. `plain` is the assistant without Herman's voice. */
 export const HERMAN_VOICES = ['plain', 'herman', 'brief'] as const
@@ -32,6 +34,36 @@ export type HermanSize = (typeof HERMAN_SIZES)[number]
 export const HERMAN_CORNERS = ['bottom-right', 'bottom-left', 'top-right', 'top-left'] as const
 export type HermanCorner = (typeof HERMAN_CORNERS)[number]
 
+/**
+ * What Herman 64 wears (renderer/herman/sprites.ts draws each one). The skin changes only how he
+ * looks: the same animations play in every skin. The Stone is three stacked rocks instead of him.
+ */
+export const HERMAN_SKINS = [
+  'classic',
+  'wizard',
+  'monk',
+  'hacker',
+  'gardener',
+  'astronaut',
+  'pirate',
+  'detective',
+  'scribe',
+  'stone',
+  'santa',
+  'pumpkin'
+] as const
+export type HermanSkinId = (typeof HERMAN_SKINS)[number]
+
+/** Skins of a season: offered, and worn, only in their month (1–12), and only when seasonal skins are on. */
+export const HERMAN_SEASONAL_SKINS: Partial<Record<HermanSkinId, number>> = { santa: 12, pumpkin: 10 }
+
+/** The skin he wears today: a seasonal skin out of its month, or with seasonal skins off, falls back to the classic one. */
+export function wornSkin(skin: HermanSkinId, seasonal: boolean, today: Date = new Date()): HermanSkinId {
+  const month = HERMAN_SEASONAL_SKINS[skin]
+  if (month === undefined) return skin
+  return seasonal && today.getMonth() + 1 === month ? skin : 'classic'
+}
+
 /** The hours he keeps silent, as minutes of the local day. They may span midnight; equal ends mean none. */
 export interface HermanQuietHours {
   from: number
@@ -46,6 +78,8 @@ export interface HermanSettings {
   quietHours: HermanQuietHours
   size: HermanSize
   corner: HermanCorner
+  skin: HermanSkinId
+  seasonalSkins: boolean
 }
 
 export const HERMAN_DEFAULTS: HermanSettings = {
@@ -55,7 +89,9 @@ export const HERMAN_DEFAULTS: HermanSettings = {
   frequency: 'sometimes',
   quietHours: { from: 21 * 60, to: 8 * 60 },
   size: 'small',
-  corner: 'bottom-right'
+  corner: 'bottom-right',
+  skin: 'classic',
+  seasonalSkins: false
 }
 
 /** The languages his own lines are written in. */
@@ -64,7 +100,18 @@ export type HermanLocale = 'en' | 'pt-BR'
 // ---- nudges -------------------------------------------------------------------
 
 /** The kinds of thing he may remark on, the most timely first: when several apply, that order decides. */
-export const HERMAN_NUDGE_KINDS = ['streak', 'long-session', 'reopened', 'morning', 'evening', 'free-block', 'overdue', 'today'] as const
+export const HERMAN_NUDGE_KINDS = [
+  'streak',
+  'long-session',
+  'reopened',
+  'morning',
+  'evening',
+  'free-block',
+  'overdue',
+  'today',
+  // Tasks that have sat in the Inbox for days, still to refine (shared/tasks/refine.ts): the least timely of all.
+  'inbox'
+] as const
 export type HermanNudgeKind = (typeof HERMAN_NUDGE_KINDS)[number]
 
 /** What a nudge can offer to do: each is something the app already does when asked. */
@@ -72,6 +119,8 @@ export type HermanCommand =
   | { type: 'open-today' }
   /** The ritual that closes the day (notebook/route.ts). */
   | { type: 'close-day' }
+  /** The Tasks screen's refine mode, over the Inbox (tasks/Refine.tsx). */
+  | { type: 'refine-inbox' }
   | { type: 'open-page'; pageId: string }
   /** A meeting page for a calendar event that is about to start. */
   | { type: 'new-meeting'; event: { title: string; start: number; end: number } }
@@ -143,7 +192,17 @@ export const HERMAN_NUDGE_CHANNEL = 'herman:nudge'
 // ---- settings -----------------------------------------------------------------
 
 /** Preferences: how he behaves. */
-export const HERMAN_PREFERENCE_KEYS = ['herman.enabled', 'herman.voice', 'herman.nudges', 'herman.frequency', 'herman.quietHours', 'herman.size', COUNCIL_KEY] as const
+export const HERMAN_PREFERENCE_KEYS = [
+  'herman.enabled',
+  'herman.voice',
+  'herman.nudges',
+  'herman.frequency',
+  'herman.quietHours',
+  'herman.size',
+  'herman.skin',
+  'herman.seasonalSkins',
+  COUNCIL_KEY
+] as const
 /** Device-local state: where he sits in this window. */
 export const HERMAN_DEVICE_KEYS = ['herman.corner'] as const
 /**
@@ -153,7 +212,8 @@ export const HERMAN_DEVICE_KEYS = ['herman.corner'] as const
 export const HERMAN_KEYS = [...HERMAN_PREFERENCE_KEYS, ...HERMAN_DEVICE_KEYS] as const
 export type HermanKey = (typeof HERMAN_KEYS)[number]
 
-const oneOf = <T extends string>(list: readonly T[], value: unknown): T | undefined => (typeof value === 'string' && (list as readonly string[]).includes(value) ? (value as T) : undefined)
+const oneOf = <T extends string>(list: readonly T[], value: unknown): T | undefined =>
+  typeof value === 'string' && (list as readonly string[]).includes(value) ? (value as T) : undefined
 
 function minuteOfDay(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < 1440 ? value : undefined
@@ -164,7 +224,10 @@ export function cleanHermanSetting(key: string, value: unknown): unknown {
   switch (key) {
     case 'herman.enabled':
     case 'herman.nudges':
+    case 'herman.seasonalSkins':
       return typeof value === 'boolean' ? value : undefined
+    case 'herman.skin':
+      return oneOf(HERMAN_SKINS, value)
     case 'herman.voice':
       return oneOf(HERMAN_VOICES, value)
     case 'herman.frequency':
@@ -200,3 +263,18 @@ export function activeVoice(enabled: unknown, voice: unknown): Exclude<HermanVoi
   const chosen = hermanSetting('voice', voice)
   return chosen === 'plain' ? null : chosen
 }
+
+/**
+ * The Herman settings choose among things the main process holds (a voice, a frequency), so each
+ * is one of a fixed set of values: no free text of his persona can be stored.
+ */
+export const HERMAN_SETTINGS: SettingsSpec = { keys: HERMAN_KEYS, clean: cleanHermanSetting }
+
+/** The invoke channels of `api.herman` (see `INVOKE` in ./api.ts): every method of HermanApi that returns a promise, and no other. */
+export const HERMAN_INVOKE = {
+  'herman:state': true,
+  'herman:nudge.next': true,
+  'herman:nudge.dismiss': true,
+  'herman:met': true,
+  'herman:reset': true
+} as const satisfies Record<InvokeChannels<{ herman: HermanApi }>, true>

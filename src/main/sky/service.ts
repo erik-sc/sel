@@ -251,7 +251,12 @@ export type SkyMomentFacts = { kind: 'named'; month: string; given: string | nul
 export function skyLineMoment(facts: SkyMomentFacts, locale: 'en' | 'pt-BR'): SkyLineMoment | null {
   if (facts.kind === 'named') {
     const fig = figureOfMonth(facts.month)
-    return { kind: 'named', month: monthName(facts.month, locale), name: facts.given ?? (locale === 'pt-BR' ? fig.pt : fig.en), given: facts.given !== null }
+    return {
+      kind: 'named',
+      month: monthName(facts.month, locale),
+      name: facts.given ?? (locale === 'pt-BR' ? fig.pt : fig.en),
+      given: facts.given !== null
+    }
   }
   const e = facts.event
   switch (e.kind) {

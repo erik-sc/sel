@@ -11,8 +11,8 @@
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import type { BlockProps, BlockType, Mark, Op, RichText } from '@shared/types'
 import { applyOps, getBlock, loadTree, newId } from '@/store/blocks'
-import { createThrottle } from '@/ui/throttle'
-import { notifyError } from '@/ui/toast'
+import { notifyWriteFailed } from '@/failures/notify'
+import { a11yCopy, announce } from '@/a11y/announce'
 import { isPlainTextType, isTextType, type SlashItem } from './blockTypes'
 import { History } from './history'
 import { invertOps } from './ops'
@@ -55,10 +55,6 @@ import {
 export { MIME_BLOCKS, MIME_DRAG, MIME_RICHTEXT } from './clipboard'
 export type { DropPos, DropTarget, Focusable, PropsPatch, Sel, SlashState, TextRange, UIState } from './types'
 
-/** At most one write-failure toast per this many milliseconds, across every open editor. */
-const WRITE_FAILURE_NOTICE_MS = 5000
-const writeFailureNotice = createThrottle(WRITE_FAILURE_NOTICE_MS)
-
 export class EditorController {
   readonly history = new History<Sel>()
   readonly ui: StoreApi<UIState> = createStore<UIState>(() => ({
@@ -70,6 +66,7 @@ export class EditorController {
     drop: null,
     menu: null,
     linkRequest: 0,
+    toolbarRequest: 0,
     ai: null
   }))
   readonly tree: Tree
@@ -209,7 +206,7 @@ export class EditorController {
     const after = opts.after !== undefined ? opts.after : before
     const { inverse, restore } = invertOps(ops, getBlock)
     this.history.commit(ops, inverse, before, after, { key: opts.key, restore })
-    void applyOps(ops).catch((err: unknown) => this.onApplyFailed("Couldn't save that change. It was undone.", err))
+    void applyOps(ops).catch((err: unknown) => this.onApplyFailed(err))
     if (!opts.silent) this.restoreSel(after)
   }
 
@@ -218,12 +215,11 @@ export class EditorController {
    * recorded inverses no longer describe the document, so replaying any of them
    * could corrupt it: drop the history. The rejection is caught here, so the
    * global unhandled-rejection toast never sees it: tell the user, at most once
-   * per `WRITE_FAILURE_NOTICE_MS` (a failing disk fails every keystroke).
+   * every few seconds across the window (see failures/notify.ts).
    */
-  private onApplyFailed(message: string, err: unknown): void {
+  private onApplyFailed(err: unknown, what: 'change' | 'undo' | 'redo' = 'change'): void {
     this.history.clear()
-    if (writeFailureNotice(Date.now())) notifyError(message, err)
-    else console.error(`[editor] ${message}`, err)
+    notifyWriteFailed(err, what)
   }
 
   private enqueue(task: () => Promise<void>): Promise<void> {
@@ -248,7 +244,7 @@ export class EditorController {
         await this.restorePages(e.restore ?? [])
         if (e.inverse.length) await applyOps(e.inverse)
       } catch (err) {
-        this.onApplyFailed("Couldn't undo that change.", err)
+        this.onApplyFailed(err, 'undo')
       }
       this.restoreSel(e.before)
     })
@@ -265,7 +261,7 @@ export class EditorController {
         await this.restorePages(plan.restore)
         if (plan.ops.length) await applyOps(plan.ops)
       } catch (err) {
-        this.onApplyFailed("Couldn't redo that change.", err)
+        this.onApplyFailed(err, 'redo')
       }
       this.restoreSel(e.after)
     })
@@ -351,6 +347,14 @@ export class EditorController {
     return true
   }
 
+  /** Alt+F10: the keyboard goes to the toolbar over the selected text, when there is some. */
+  requestToolbar(): boolean {
+    const range = this.focusedRange()
+    if (!range || range.end <= range.start) return false
+    this.ui.setState((s) => ({ toolbarRequest: s.toolbarRequest + 1 }))
+    return true
+  }
+
   requestLink(): void {
     const range = this.focusedRange()
     if (range && range.end > range.start) this.ui.setState((s) => ({ linkRequest: s.linkRequest + 1 }))
@@ -393,17 +397,23 @@ export class EditorController {
 
   indent(ids: string[]): void {
     this.flushAll()
-    this.commit(indentOps(this.tree, ids))
+    const ops = indentOps(this.tree, ids)
+    this.commit(ops)
+    if (ops.length) announce(a11yCopy().indented)
   }
 
   outdent(ids: string[]): void {
     this.flushAll()
-    this.commit(outdentOps(this.tree, ids))
+    const ops = outdentOps(this.tree, ids)
+    this.commit(ops)
+    if (ops.length) announce(a11yCopy().outdented)
   }
 
   moveBlocks(ids: string[], dir: -1 | 1): void {
     this.flushAll()
-    this.commit(moveOps(this.tree, ids, dir))
+    const ops = moveOps(this.tree, ids, dir)
+    this.commit(ops)
+    if (ops.length) announce(dir < 0 ? a11yCopy().movedUp : a11yCopy().movedDown)
   }
 
   duplicate(ids: string[]): void {
@@ -423,6 +433,7 @@ export class EditorController {
       tops.map((id): Op => ({ op: 'delete', id })),
       { before: { kind: 'blocks', ids: tops }, after }
     )
+    announce(a11yCopy().deleted(tops.length))
   }
 
   /** Creates a block after `afterId` (or first in the page when null) and focuses it. */
@@ -430,10 +441,9 @@ export class EditorController {
     const ref = afterId ? getBlock(afterId) : undefined
     const id = newId()
     const editable = isTextType(type) || isPlainTextType(type)
-    this.commit(
-      [{ op: 'create', input: { id, type, parentId: ref?.parentId ?? this.pageId, afterId: ref ? ref.id : null, props } }],
-      { after: editable ? textSel(id, 0) : { kind: 'blocks', ids: [id] } }
-    )
+    this.commit([{ op: 'create', input: { id, type, parentId: ref?.parentId ?? this.pageId, afterId: ref ? ref.id : null, props } }], {
+      after: editable ? textSel(id, 0) : { kind: 'blocks', ids: [id] }
+    })
     return id
   }
 

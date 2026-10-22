@@ -14,7 +14,13 @@ export function UpdateNotice() {
       <div className="updates-notice-body">
         <span className="updates-notice-message">{notice.message}</span>
         {notesUrl && (
-          <button type="button" className="updates-notice-link" onClick={() => void window.api.app.openExternal(notesUrl).catch((error) => console.error('could not open the release notes', error))}>
+          <button
+            type="button"
+            className="updates-notice-link"
+            onClick={() =>
+              void window.api.app.openExternal(notesUrl).catch((error) => console.error('could not open the release notes', error))
+            }
+          >
             Release notes
           </button>
         )}

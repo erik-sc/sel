@@ -1,8 +1,8 @@
 import { sourceIdOf } from '../../shared/linked'
 import type { Block, PropertySchema, PropertyValue, RichText } from '../../shared/types'
 import type { Repository } from '../db/repository'
-import { normalizeDatabase } from '../../renderer/src/database/logic/normalize'
-import { findOption, sanitizeValue } from '../../renderer/src/database/logic/values'
+import { normalizeDatabase } from '../../shared/database/normalize'
+import { findOption, sanitizeValue } from '../../shared/database/values'
 import { label, live, pathOf, titleOf, ToolError } from './tools'
 
 /**
@@ -119,7 +119,8 @@ function storedValue(repo: Repository, property: PropertySchema, value: unknown)
     }
     case 'date': {
       const clean = sanitizeValue(property, value)
-      if (clean === null) throw new ToolError(`${property.name}: a date is "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm", or {"start", "end"} with those.`)
+      if (clean === null)
+        throw new ToolError(`${property.name}: a date is "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm", or {"start", "end"} with those.`)
       return clean
     }
     case 'relation': {
@@ -129,7 +130,9 @@ function storedValue(repo: Repository, property: PropertySchema, value: unknown)
       for (const id of ids) {
         const row = typeof id === 'string' ? repo.get(id) : null
         if (!row || row.type !== 'page' || row.trashedAt !== null || row.parentId !== target) {
-          throw new ToolError(`${property.name}: ${typeof id === 'string' ? `[${id.slice(0, 64)}]` : 'that'} is not a row of the database it links to.`)
+          throw new ToolError(
+            `${property.name}: ${typeof id === 'string' ? `[${id.slice(0, 64)}]` : 'that'} is not a row of the database it links to.`
+          )
         }
       }
       const clean = sanitizeValue(property, ids)
@@ -205,7 +208,11 @@ function addRow({ repo }: WriteTarget, a: Record<string, unknown>): string {
   const database = databaseFor(repo, idArg(a['database'], 'database'))
   const change = rowChange(repo, database, a['values'] ?? {})
   const values = merged(undefined, change.values)
-  const row = repo.create({ type: 'page', parentId: database.id, props: { title: change.title ?? [], ...(Object.keys(values).length ? { values } : {}) } })
+  const row = repo.create({
+    type: 'page',
+    parentId: database.id,
+    props: { title: change.title ?? [], ...(Object.keys(values).length ? { values } : {}) }
+  })
   return `Added the row ${titleOf(row)} [${row.id}] to ${label(database)}.`
 }
 
@@ -213,7 +220,8 @@ function updateRow({ repo }: WriteTarget, a: Record<string, unknown>): string {
   const id = idArg(a['id'], 'row')
   const row = repo.get(id)
   const database = row?.parentId ? repo.get(row.parentId) : null
-  if (!row || row.type !== 'page' || row.trashedAt !== null || !live(database) || database.type !== 'database') throw new ToolError('No row of a database has that id.')
+  if (!row || row.type !== 'page' || row.trashedAt !== null || !live(database) || database.type !== 'database')
+    throw new ToolError('No row of a database has that id.')
   const change = rowChange(repo, database, a['values'])
   if (!change.names.length) throw new ToolError('Give at least one value to set.')
   const props: Record<string, unknown> = {}

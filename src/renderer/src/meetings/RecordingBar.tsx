@@ -1,7 +1,7 @@
 // The bar docked at the top of a meeting page: start, the recording itself (time, levels,
 // pause, stop), then transcription and what follows it. One component for every state, so
 // that the place the user looks at never moves. Loaded on demand (see slot.tsx).
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { clockTime, MEETINGS_DEFAULTS, cleanMic, type MeetingAudioInfo, type MeetingSources } from '@shared/meetings'
 import { requestPageAi, useAiGate } from '@/ai/gate'
@@ -17,7 +17,17 @@ import { notifyError, toast } from '@/ui/toast'
 import { TranscriptFollower } from './follow'
 import { openMeetingSetup, useMeetings } from './gate'
 import { Player, type PlayerHandle } from './Player'
-import { abandonRecording, levels, listenForStop, listMicrophones, pauseRecording, resumeRecording, startRecording, stopRecording, useRecorder } from './recorder'
+import {
+  abandonRecording,
+  levels,
+  listenForStop,
+  listMicrophones,
+  pauseRecording,
+  resumeRecording,
+  startRecording,
+  stopRecording,
+  useRecorder
+} from './recorder'
 import './meetings.css'
 
 type MicChoice = { id: string; label: string }
@@ -72,12 +82,20 @@ function Meters({ system }: { system: boolean }): JSX.Element {
   )
 }
 
-function useSources(): { sources: MeetingSources; mic: MicChoice | null; setMic(mic: MicChoice | null): void; setSystem(on: boolean): void } {
+function useSources(): {
+  sources: MeetingSources
+  mic: MicChoice | null
+  setMic(mic: MicChoice | null): void
+  setSystem(on: boolean): void
+} {
   const [mic, setMicState] = useState<MicChoice | null>(null)
   const [system, setSystemState] = useState<boolean>(MEETINGS_DEFAULTS.defaultSystem)
   useEffect(() => {
     let alive = true
-    void Promise.all([window.api.app.getSetting<unknown>('meetings.defaultMic'), window.api.app.getSetting<unknown>('meetings.defaultSystem')]).then(([storedMic, storedSystem]) => {
+    void Promise.all([
+      window.api.app.getSetting<unknown>('meetings.defaultMic'),
+      window.api.app.getSetting<unknown>('meetings.defaultSystem')
+    ]).then(([storedMic, storedSystem]) => {
       if (!alive) return
       setMicState(cleanMic(storedMic) ?? null)
       if (typeof storedSystem === 'boolean') setSystemState(storedSystem)
@@ -117,11 +135,19 @@ function SourcePicker({ state, systemAudio }: { state: ReturnType<typeof useSour
   const summary = `${state.mic?.label || 'Default microphone'}${state.sources.system && systemAudio ? ' + computer audio' : ''}`
   return (
     <>
-      <button ref={anchor} type="button" className="mt-sources" aria-haspopup="dialog" aria-expanded={open} title="Choose what is recorded" onClick={() => setOpen((value) => !value)}>
+      <button
+        ref={anchor}
+        type="button"
+        className="mt-sources"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title="Choose what is recorded"
+        onClick={() => setOpen((value) => !value)}
+      >
         <span className="mt-sources-text">{summary}</span>
         <ChevronDown size={12} />
       </button>
-      <Popover open={open} anchor={anchor.current} placement="bottom-start" onClose={() => setOpen(false)}>
+      <Popover open={open} anchor={anchor.current} placement="bottom-start" label="What is recorded" onClose={() => setOpen(false)}>
         <div className="mt-picker" role="group" aria-label="What is recorded">
           <div className="mt-picker-title">Microphone</div>
           <label className="mt-option">
@@ -141,11 +167,18 @@ function SourcePicker({ state, systemAudio }: { state: ReturnType<typeof useSour
           )}
           <div className="mt-picker-title">Computer audio</div>
           <label className={systemAudio ? 'mt-option' : 'mt-option is-disabled'}>
-            <input type="checkbox" checked={state.sources.system && systemAudio} disabled={!systemAudio} onChange={(event) => state.setSystem(event.target.checked)} />
+            <input
+              type="checkbox"
+              checked={state.sources.system && systemAudio}
+              disabled={!systemAudio}
+              onChange={(event) => state.setSystem(event.target.checked)}
+            />
             <span>Record what the computer plays</span>
           </label>
           <p className="mt-picker-note">
-            {systemAudio ? 'The other people in a call. It is kept apart from your microphone, so the transcript can tell you from them.' : 'Computer audio is not available on this system. Only the microphone is recorded.'}
+            {systemAudio
+              ? 'The other people in a call. It is kept apart from your microphone, so the transcript can tell you from them.'
+              : 'Computer audio is not available on this system. Only the microphone is recorded.'}
           </p>
         </div>
       </Popover>
@@ -155,9 +188,12 @@ function SourcePicker({ state, systemAudio }: { state: ReturnType<typeof useSour
 
 function Consent({ onStart, onClose }: { onStart(remember: boolean): void; onClose(): void }): JSX.Element {
   const [skip, setSkip] = useState(false)
+  const titleId = useId()
   return (
-    <Modal open onClose={onClose} label="Before you record" className="mt-dialog">
-      <h2 className="mt-dialog-title">Before you record</h2>
+    <Modal open onClose={onClose} labelledBy={titleId} className="mt-dialog">
+      <h2 className="mt-dialog-title" id={titleId}>
+        Before you record
+      </h2>
       <p className="mt-dialog-text">Make sure everyone in the meeting knows it is being recorded.</p>
       <p className="mt-dialog-text is-quiet">The audio stays on this computer. It is transcribed here and is never uploaded or synced.</p>
       <label className="mt-option">
@@ -174,13 +210,24 @@ function Consent({ onStart, onClose }: { onStart(remember: boolean): void; onClo
   )
 }
 
-function Speakers({ info, onSave, onClose }: { info: MeetingAudioInfo; onSave(mic: string, system: string): void; onClose(): void }): JSX.Element {
+function Speakers({
+  info,
+  onSave,
+  onClose
+}: {
+  info: MeetingAudioInfo
+  onSave(mic: string, system: string): void
+  onClose(): void
+}): JSX.Element {
   const [mic, setMic] = useState(info.speakers.mic)
   const [system, setSystem] = useState(info.speakers.system)
   const valid = mic.trim() && system.trim() && mic.trim() !== system.trim()
+  const titleId = useId()
   return (
-    <Modal open onClose={onClose} label="Rename speakers" className="mt-dialog">
-      <h2 className="mt-dialog-title">Rename speakers</h2>
+    <Modal open onClose={onClose} labelledBy={titleId} className="mt-dialog">
+      <h2 className="mt-dialog-title" id={titleId}>
+        Rename speakers
+      </h2>
       <label className="mt-field">
         <span>Microphone</span>
         <input className="mt-input" value={mic} maxLength={40} onChange={(event) => setMic(event.target.value)} />
@@ -199,7 +246,14 @@ function Speakers({ info, onSave, onClose }: { info: MeetingAudioInfo; onSave(mi
   )
 }
 
-const EMPTY: MeetingAudioInfo = { state: 'none', seconds: 0, tracks: [], bytes: 0, transcriptPageId: null, speakers: { mic: 'Me', system: 'Others' } }
+const EMPTY: MeetingAudioInfo = {
+  state: 'none',
+  seconds: 0,
+  tracks: [],
+  bytes: 0,
+  transcriptPageId: null,
+  speakers: { mic: 'Me', system: 'Others' }
+}
 
 export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'meeting' | 'transcript' }): JSX.Element {
   const status = useMeetings((state) => state.status)
@@ -243,13 +297,14 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
   }, [notice])
 
   const [percent, setPercent] = useState(0)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one subscription per transcription, not one per percent.
   useEffect(() => {
     setPercent(transcribing?.percent ?? 0)
     if (!transcribing) return
     return window.api.meetings.onProgress((progress) => {
       if (progress.kind === 'transcribe' && progress.pageId === meetingId) setPercent(progress.percent)
     })
-  }, [meetingId, transcribing === null]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [meetingId, transcribing === null])
 
   // A time in the transcript (`12:34`, written as code) moves the player there. The editor draws a
   // code mark as a span that carries its marks in `data-m`; read-only views draw a <code>.
@@ -290,11 +345,12 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
   // "Record" on an event's alarm opened this page: start as the button would, consent first.
   // A meeting that already has its audio, or a recording going on elsewhere, is left as it is.
   const autoStart = useMeetings((state) => state.autoStart === meetingId)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when the request and the info are both there; the rest is read at that moment.
   useEffect(() => {
     if (!autoStart || !loaded) return
     useMeetings.setState({ autoStart: null })
     if (role === 'meeting' && info.state === 'none' && session === null && recording === null && !busyElsewhere) start()
-  }, [autoStart, loaded]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [autoStart, loaded])
   const stop = (): void => {
     stopRecording()
       .then((result) => {
@@ -314,7 +370,12 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
 
   const menu: MenuItem[] = [
     { id: 'speakers', label: 'Rename speakers…', disabled: info.state === 'none', onSelect: () => setRenaming(true) },
-    { id: 'again', label: 'Transcribe again', disabled: info.state !== 'ready' && info.state !== 'failed', onSelect: () => void transcribe() },
+    {
+      id: 'again',
+      label: 'Transcribe again',
+      disabled: info.state !== 'ready' && info.state !== 'failed',
+      onSelect: () => void transcribe()
+    },
     {
       id: 'delete',
       label: 'Delete audio',
@@ -343,7 +404,11 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
         </div>
         <Meters system={session.system} />
         <div className="mt-actions">
-          <Button icon={paused ? <Play /> : <Pause />} disabled={session.state === 'stopping'} onClick={paused ? resumeRecording : pauseRecording}>
+          <Button
+            icon={paused ? <Play /> : <Pause />}
+            disabled={session.state === 'stopping'}
+            onClick={paused ? resumeRecording : pauseRecording}
+          >
             {paused ? 'Resume' : 'Pause'}
           </Button>
           <Button variant="primary" icon={<Stop />} disabled={session.state === 'stopping'} onClick={stop}>
@@ -372,10 +437,15 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
           <span className="mt-state-text">A recording of this meeting was interrupted ({clockTime(interrupted.seconds)} saved).</span>
         </div>
         <div className="mt-actions">
-          <Button variant="primary" onClick={() => act(window.api.meetings.recording.recover(meetingId), 'The recording could not be recovered.')}>
+          <Button
+            variant="primary"
+            onClick={() => act(window.api.meetings.recording.recover(meetingId), 'The recording could not be recovered.')}
+          >
             Recover
           </Button>
-          <Button onClick={() => act(window.api.meetings.recording.discard(meetingId), 'The recording could not be discarded.')}>Discard</Button>
+          <Button onClick={() => act(window.api.meetings.recording.discard(meetingId), 'The recording could not be discarded.')}>
+            Discard
+          </Button>
         </div>
       </>
     )
@@ -386,11 +456,20 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
           <span className="mt-state-text">Transcribing on this computer…</span>
           <span className="mt-clock">{percent}%</span>
         </div>
-        <div className="mt-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-label="Transcription">
+        <div
+          className="mt-progress"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percent}
+          aria-label="Transcription"
+        >
           <span className="mt-progress-fill" style={{ transform: `scaleX(${percent / 100})` }} />
         </div>
         <div className="mt-actions">
-          <Button onClick={() => act(window.api.meetings.cancelTranscribe(meetingId), 'Transcription could not be cancelled.')}>Cancel</Button>
+          <Button onClick={() => act(window.api.meetings.cancelTranscribe(meetingId), 'Transcription could not be cancelled.')}>
+            Cancel
+          </Button>
         </div>
       </>
     )
@@ -421,7 +500,13 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
     body = (
       <>
         {info.tracks.length > 0 ? (
-          <Player ref={player} tracks={info.tracks} seconds={info.seconds} speakers={info.speakers} onTime={(seconds) => follower.at(seconds)} />
+          <Player
+            ref={player}
+            tracks={info.tracks}
+            seconds={info.seconds}
+            speakers={info.speakers}
+            onTime={(seconds) => follower.at(seconds)}
+          />
         ) : (
           <div className="mt-state">
             <span className="mt-state-text is-quiet">
@@ -441,17 +526,26 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
               Write up notes
             </Button>
           )}
-          {info.state === 'ready' && role === 'meeting' && info.transcriptPageId && <Button onClick={() => info.transcriptPageId && openPage(info.transcriptPageId)}>Transcript</Button>}
+          {info.state === 'ready' && role === 'meeting' && info.transcriptPageId && (
+            <Button onClick={() => info.transcriptPageId && openPage(info.transcriptPageId)}>Transcript</Button>
+          )}
           {role === 'transcript' && <Button onClick={() => openPage(meetingId)}>Back to the meeting</Button>}
           {(info.state === 'recorded' || info.state === 'failed') && (
             <Button variant="primary" onClick={() => void transcribe()}>
               {info.state === 'failed' ? 'Try again' : 'Transcribe'}
             </Button>
           )}
-          <IconButton ref={moreRef} label="More" active={menuOpen} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+          <IconButton
+            ref={moreRef}
+            label="More"
+            active={menuOpen}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
             <MoreHorizontal />
           </IconButton>
-          <Popover open={menuOpen} anchor={moreRef.current} placement="bottom-end" onClose={() => setMenuOpen(false)}>
+          <Popover open={menuOpen} anchor={moreRef.current} placement="bottom-end" role="none" onClose={() => setMenuOpen(false)}>
             <Menu items={menu} onClose={() => setMenuOpen(false)} autoFocus />
           </Popover>
         </div>
@@ -464,10 +558,18 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
     (info.state === 'failed' && !transcribing ? (info.error ?? 'Transcription failed.') : null) ??
     (live && session.systemNote ? session.systemNote : null) ??
     (live && recording?.silent ? 'Nothing has been heard for ten minutes. Stop the recording if the meeting is over.' : null) ??
-    (info.state === 'ready' && role === 'meeting' && !aiOn ? 'Turn on AI in Settings to have the notes written up from the transcript.' : null)
+    (info.state === 'ready' && role === 'meeting' && !aiOn
+      ? 'Turn on AI in Settings to have the notes written up from the transcript.'
+      : null)
 
   return (
-    <div ref={barRef} className={`mt-bar${live && session.state === 'recording' ? ' is-live' : ''}`} role="region" aria-label="Meeting recording" contentEditable={false}>
+    <div
+      ref={barRef}
+      className={`mt-bar${live && session.state === 'recording' ? ' is-live' : ''}`}
+      role="region"
+      aria-label="Meeting recording"
+      contentEditable={false}
+    >
       <div className="mt-row">{body}</div>
       {hint && (
         <p className="mt-hint" role="status">

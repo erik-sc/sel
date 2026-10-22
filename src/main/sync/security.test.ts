@@ -32,7 +32,20 @@ import {
   type CalendarsFile,
   type SyncedCalendar
 } from './format'
-import { classifyGitFailure, configArgs, Git, GIT_FIXED_ENV, gitCandidates, gitEnv, inspectGit, isNonFastForward, locateGit, parseGitVersion, pinnedRepository } from './git'
+import {
+  classifyGitFailure,
+  configArgs,
+  Git,
+  GIT_FIXED_ENV,
+  gitCandidates,
+  gitEnv,
+  inspectGit,
+  isNonFastForward,
+  locateGit,
+  parseGitVersion,
+  pinnedRepository
+} from './git'
+import { gitSuite } from './gitSuite'
 
 const ROOT = mkdtempSync(join(tmpdir(), 'sel-sync-sec-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }))
@@ -54,7 +67,11 @@ describe('remote address', () => {
       expect(checkRemoteUrl(url), url).toMatchObject({ ok: true })
     }
     expect(checkRemoteUrl('git@github.com:owner/notes.git')).toEqual({ ok: true, url: 'git@github.com:owner/notes.git', kind: 'ssh' })
-    expect(checkRemoteUrl('https://github.com/owner/notes.git')).toEqual({ ok: true, url: 'https://github.com/owner/notes.git', kind: 'https' })
+    expect(checkRemoteUrl('https://github.com/owner/notes.git')).toEqual({
+      ok: true,
+      url: 'https://github.com/owner/notes.git',
+      kind: 'https'
+    })
   })
 
   it('refuses credentials inside the address', () => {
@@ -160,14 +177,48 @@ describe('remote address', () => {
     expect(checkRemoteUrl('C:\\Temp\\remote.git').ok).toBe(false)
     expect(checkRemoteUrl('C:\\Temp\\remote.git', true)).toEqual({ ok: true, url: 'C:\\Temp\\remote.git', kind: 'local' })
     expect(checkRemoteUrl('/tmp/remote dir/x.git', true)).toMatchObject({ ok: true, kind: 'local' })
-    for (const url of ['-C:\\x', '--upload-pack=x', 'ext::sh -c x', 'C:\\x::y', 'relative/path', '\\\\server\\share', '//server/share', 'C:\\x\ny', 'file:///C:/x']) {
+    for (const url of [
+      '-C:\\x',
+      '--upload-pack=x',
+      'ext::sh -c x',
+      'C:\\x::y',
+      'relative/path',
+      '\\\\server\\share',
+      '//server/share',
+      'C:\\x\ny',
+      'file:///C:/x'
+    ]) {
       expect(checkRemoteUrl(url, true).ok, url).toBe(false)
     }
   })
 
   it('cleans branch names, device names and passphrases', () => {
     for (const ok of ['main', 'master', 'device/laptop', 'v1.2', 'a_b-c']) expect(cleanBranch(ok)).toBe(ok)
-    for (const bad of ['', '-main', '--force', 'a..b', 'a b', 'main\n', 'a//b', 'a/.b', 'a/', 'a.', 'x.lock', 'a~1', 'a^', 'a:b', 'a?b', 'a*', 'a[b', 'a\\b', '@{-1}', 'HEAD^{commit}', 'a'.repeat(101), 5, null]) {
+    for (const bad of [
+      '',
+      '-main',
+      '--force',
+      'a..b',
+      'a b',
+      'main\n',
+      'a//b',
+      'a/.b',
+      'a/',
+      'a.',
+      'x.lock',
+      'a~1',
+      'a^',
+      'a:b',
+      'a?b',
+      'a*',
+      'a[b',
+      'a\\b',
+      '@{-1}',
+      'HEAD^{commit}',
+      'a'.repeat(101),
+      5,
+      null
+    ]) {
       expect(cleanBranch(bad), String(bad)).toBeNull()
     }
     expect(cleanDeviceName('Erik\u2019s  MacBook Pro (work)')).toBe('Eriks MacBook Pro (work)')
@@ -213,12 +264,35 @@ describe('how git is started', () => {
     })
     expect(env).toMatchObject({ PATH: '/usr/bin', HOME: '/home/me', SSH_AUTH_SOCK: '/tmp/agent', HTTPS_PROXY: 'http://proxy:3128' })
     expect(env).toMatchObject({ GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', SSH_ASKPASS_REQUIRE: 'never', LC_ALL: 'C' })
-    for (const name of ['GITHUB_TOKEN', 'GH_TOKEN', 'ANTHROPIC_API_KEY', 'AWS_SECRET_ACCESS_KEY', 'NPM_TOKEN', 'GIT_DIR', 'GIT_WORK_TREE', 'GIT_CONFIG_GLOBAL', 'GIT_CONFIG_COUNT', 'GIT_CONFIG_KEY_0', 'GIT_CONFIG_VALUE_0', 'GIT_ASKPASS', 'SSH_ASKPASS', 'GIT_SSH_COMMAND', 'GIT_EXEC_PATH', 'LD_PRELOAD', 'NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE']) {
+    for (const name of [
+      'GITHUB_TOKEN',
+      'GH_TOKEN',
+      'ANTHROPIC_API_KEY',
+      'AWS_SECRET_ACCESS_KEY',
+      'NPM_TOKEN',
+      'GIT_DIR',
+      'GIT_WORK_TREE',
+      'GIT_CONFIG_GLOBAL',
+      'GIT_CONFIG_COUNT',
+      'GIT_CONFIG_KEY_0',
+      'GIT_CONFIG_VALUE_0',
+      'GIT_ASKPASS',
+      'SSH_ASKPASS',
+      'GIT_SSH_COMMAND',
+      'GIT_EXEC_PATH',
+      'LD_PRELOAD',
+      'NODE_OPTIONS',
+      'ELECTRON_RUN_AS_NODE'
+    ]) {
       expect(env[name], name).toBeUndefined()
     }
     expect(Object.values(env).join('\n')).not.toContain('secret')
     expect(GIT_FIXED_ENV['GIT_TERMINAL_PROMPT']).toBe('0')
-    expect(pinnedRepository(join(ROOT, 'x', 'repo'))).toEqual({ GIT_DIR: join(ROOT, 'x', 'repo', '.git'), GIT_WORK_TREE: join(ROOT, 'x', 'repo'), GIT_CEILING_DIRECTORIES: join(ROOT, 'x') })
+    expect(pinnedRepository(join(ROOT, 'x', 'repo'))).toEqual({
+      GIT_DIR: join(ROOT, 'x', 'repo', '.git'),
+      GIT_WORK_TREE: join(ROOT, 'x', 'repo'),
+      GIT_CEILING_DIRECTORIES: join(ROOT, 'x')
+    })
   })
 
   it('sets identity and behaviour per command, with helper transports off', () => {
@@ -265,10 +339,20 @@ describe('how git is started', () => {
     // PATH is searched, relative entries are not, and a chosen file is used alone.
     const sep = windows ? ';' : ':'
     expect(locateGit({ env: { PATH: `.${sep}relative${sep}${dir}` }, platform: process.platform })).toBe(real)
-    expect(gitCandidates({ env: { PATH: `.${sep}relative` }, platform: process.platform }).some((path) => path.includes('relative'))).toBe(false)
+    expect(gitCandidates({ env: { PATH: `.${sep}relative` }, platform: process.platform }).some((path) => path.includes('relative'))).toBe(
+      false
+    )
     expect(locateGit({ explicit: join(dir, 'git.cmd'), env: { PATH: dir } })).toBeNull()
-    expect(gitCandidates({ env: { PATH: '', ProgramFiles: 'C:\\Program Files', LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local' }, platform: 'win32' })).toEqual(
-      expect.arrayContaining([join('C:\\Program Files', 'Git', 'cmd', 'git.exe'), join('C:\\Users\\me\\AppData\\Local', 'Programs', 'Git', 'cmd', 'git.exe')])
+    expect(
+      gitCandidates({
+        env: { PATH: '', ProgramFiles: 'C:\\Program Files', LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local' },
+        platform: 'win32'
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        join('C:\\Program Files', 'Git', 'cmd', 'git.exe'),
+        join('C:\\Users\\me\\AppData\\Local', 'Programs', 'Git', 'cmd', 'git.exe')
+      ])
     )
   })
 
@@ -286,20 +370,35 @@ describe('how git is started', () => {
 describe('what a failure says', () => {
   const cases: [string, string][] = [
     ["fatal: unable to access 'https://github.com/o/r.git/': Could not resolve host: github.com", 'offline'],
-    ["fatal: unable to access 'https://github.com/o/r.git/': Failed to connect to github.com port 443 after 21050 ms: Timed out", 'offline'],
+    [
+      "fatal: unable to access 'https://github.com/o/r.git/': Failed to connect to github.com port 443 after 21050 ms: Timed out",
+      'offline'
+    ],
     ['ssh: connect to host github.com port 22: Connection timed out\nfatal: Could not read from remote repository.', 'offline'],
     ["remote: Repository not found.\nfatal: repository 'https://github.com/o/r.git/' not found", 'repo-not-found'],
     ["fatal: '/tmp/x.git' does not appear to be a git repository\nfatal: Could not read from remote repository.", 'repo-not-found'],
     ["fatal: could not read Username for 'https://github.com': terminal prompts disabled", 'auth-failed'],
-    ["remote: Invalid username or token. Password authentication is not supported for Git operations.\nfatal: Authentication failed for 'https://github.com/o/r.git/'", 'auth-failed'],
+    [
+      "remote: Invalid username or token. Password authentication is not supported for Git operations.\nfatal: Authentication failed for 'https://github.com/o/r.git/'",
+      'auth-failed'
+    ],
     ['fatal: Cannot prompt because user interactivity has been disabled.', 'auth-failed'],
     ['git@github.com: Permission denied (publickey).\nfatal: Could not read from remote repository.', 'auth-failed'],
     ["fatal: unable to access 'https://github.com/o/r.git/': The requested URL returned error: 403", 'auth-failed'],
-    ['remote: error: GH006: Protected branch update failed for refs/heads/main.\n ! [remote rejected] main -> main (protected branch hook declined)', 'rejected'],
-    ["remote: Permission to o/r.git denied to someone.\nfatal: unable to access 'https://github.com/o/r.git/': The requested URL returned error: 403", 'rejected'],
+    [
+      'remote: error: GH006: Protected branch update failed for refs/heads/main.\n ! [remote rejected] main -> main (protected branch hook declined)',
+      'rejected'
+    ],
+    [
+      "remote: Permission to o/r.git denied to someone.\nfatal: unable to access 'https://github.com/o/r.git/': The requested URL returned error: 403",
+      'rejected'
+    ],
     [' ! [rejected]        main -> main (fetch first)\nerror: failed to push some refs', 'rejected'],
     ['error: unable to write file pages/x.json: No space left on device\nfatal: unable to checkout working tree', 'disk-full'],
-    ['fatal: something nobody has seen before in C:\\Users\\erik\\secret-project with token ghp_abcdefghijklmnopqrstuvwxyz0123456789', 'failed']
+    [
+      'fatal: something nobody has seen before in C:\\Users\\erik\\secret-project with token ghp_abcdefghijklmnopqrstuvwxyz0123456789',
+      'failed'
+    ]
   ]
 
   it('maps what git prints to a cause, and never repeats git', () => {
@@ -308,7 +407,8 @@ describe('what a failure says', () => {
       expect(failure.code, stderr).toBe(code)
       // The message is one of ours: no address, no path, no token, nothing a server sent.
       const said = JSON.stringify(failure.toError())
-      for (const leak of ['github.com', 'https://', 'ghp_', 'C:\\\\Users', '/tmp/', 'o/r.git', 'GH006', 'someone']) expect(said, `${stderr} leaks ${leak}`).not.toContain(leak)
+      for (const leak of ['github.com', 'https://', 'ghp_', 'C:\\\\Users', '/tmp/', 'o/r.git', 'GH006', 'someone'])
+        expect(said, `${stderr} leaks ${leak}`).not.toContain(leak)
       expect([...Object.values(SYNC_MESSAGES), 'Another device uploaded first.']).toContain(failure.message)
     }
     expect(classifyGitFailure('fatal: not a git repository: C:/x/.git', 128).corrupt).toBe(true)
@@ -322,15 +422,23 @@ describe('what a failure says', () => {
     expect(SYNC_MESSAGES['auth-failed']).toContain('sel stores no token')
   })
 
-  it('keeps every sync setting out of the renderer\'s reach for writing', () => {
-    for (const key of ['sync.remoteUrl', 'sync.branch', 'sync.gitPath', 'sync.encrypted', 'sync.firstMode', 'sync.anything', 'rootOrderAt']) {
+  it("keeps every sync setting out of the renderer's reach for writing", () => {
+    for (const key of [
+      'sync.remoteUrl',
+      'sync.branch',
+      'sync.gitPath',
+      'sync.encrypted',
+      'sync.firstMode',
+      'sync.anything',
+      'rootOrderAt'
+    ]) {
       expect(() => arg.writableSettingKey(key), key).toThrow('read-only')
     }
   })
 })
 
 const GIT = locateGit()
-const withGit = GIT ? describe : describe.skip
+const withGit = (name: string, fn: () => void): void => gitSuite(GIT, name, fn)
 
 withGit('every git command that is actually run', () => {
   it('has no user text in option position, a pinned repository and no way to prompt', async () => {
@@ -367,8 +475,50 @@ withGit('every git command that is actually run', () => {
 
     const device = cleanDeviceName(hostile)
     expect(device).not.toMatch(/^-|[;$`"\n=]/)
-    const OPTIONS = new Set(['-c', '-q', '-r', '-z', '-f', '-d', '-x', '-B', '-A', '-F', '-', '--', '--version', '--quiet', '--no-tags', '--full-tree', '--name-only', '--batch', '--no-verify', '--allow-empty', '--porcelain', '--symref', '--verify', '--get', '--git-dir'])
-    const COMMANDS = new Set(['init', 'remote', 'fetch', 'ls-tree', 'cat-file', 'checkout', 'clean', 'add', 'commit', 'push', 'update-ref', 'symbolic-ref', 'rev-parse', 'ls-remote', 'config'])
+    const OPTIONS = new Set([
+      '-c',
+      '-q',
+      '-r',
+      '-z',
+      '-f',
+      '-d',
+      '-x',
+      '-B',
+      '-A',
+      '-F',
+      '-',
+      '--',
+      '--version',
+      '--quiet',
+      '--no-tags',
+      '--full-tree',
+      '--name-only',
+      '--batch',
+      '--no-verify',
+      '--allow-empty',
+      '--porcelain',
+      '--symref',
+      '--verify',
+      '--get',
+      '--git-dir'
+    ])
+    const COMMANDS = new Set([
+      'init',
+      'remote',
+      'fetch',
+      'ls-tree',
+      'cat-file',
+      'checkout',
+      'clean',
+      'add',
+      'commit',
+      'push',
+      'update-ref',
+      'symbolic-ref',
+      'rev-parse',
+      'ls-remote',
+      'config'
+    ])
     for (const { args, env } of spawns) {
       const line = args.join(' ')
       // The leading settings: `-c key=value` pairs, the only place the device name appears.
@@ -376,7 +526,8 @@ withGit('every git command that is actually run', () => {
       while (args[at] === '-c') {
         const setting = args[at + 1]
         expect(setting, line).toMatch(/^[a-z]+\.[A-Za-z.]+=/)
-        if (!setting.startsWith('user.name=') && !setting.startsWith('core.hooksPath=')) expect(setting, line).toMatch(/^[a-zA-Z.]+=[a-z0-9@.]*$/)
+        if (!setting.startsWith('user.name=') && !setting.startsWith('core.hooksPath='))
+          expect(setting, line).toMatch(/^[a-zA-Z.]+=[a-z0-9@.]*$/)
         at += 2
       }
       expect(at).toBeGreaterThan(20)
@@ -388,24 +539,42 @@ withGit('every git command that is actually run', () => {
         // Whatever starts with a dash is one of the fixed options, never something that was typed.
         if (value.startsWith('-') && (dashes < 0 || index <= dashes)) expect(OPTIONS.has(value), `${value} in: ${line}`).toBe(true)
         if (value === remote) expect(dashes >= 0 && index > dashes, `the address is not after "--": ${line}`).toBe(true)
-        expect(value.includes(device) || value.includes('upload-pack') || value.includes('core.sshCommand'), `device name outside user.name: ${line}`).toBe(false)
+        expect(
+          value.includes(device) || value.includes('upload-pack') || value.includes('core.sshCommand'),
+          `device name outside user.name: ${line}`
+        ).toBe(false)
         // Page titles and block text never reach a command line.
         expect(value.includes('rm -rf') || value.includes('ProxyCommand') || value.includes('quoted'), line).toBe(false)
         expect(value.includes('passphrase'), line).toBe(false)
       })
-      expect(args.filter((value) => value === `user.name=${device}`), line).toHaveLength(1)
-      expect(args.some((value) => value.includes('\n') || value.includes('\0')), line).toBe(false)
+      expect(
+        args.filter((value) => value === `user.name=${device}`),
+        line
+      ).toHaveLength(1)
+      expect(
+        args.some((value) => value.includes('\n') || value.includes('\0')),
+        line
+      ).toBe(false)
       expect(env['GIT_TERMINAL_PROMPT'], line).toBe('0')
       expect(env['GCM_INTERACTIVE'], line).toBe('never')
       expect(env['GIT_DIR'], line).toMatch(/[\\/]sync[\\/]repo[\\/]\.git$/)
       expect(env['GIT_ASKPASS'], line).toBeUndefined()
       // Nothing is forced, and the user's own configuration is never written.
-      if (rest[0] === 'push') expect(rest.some((value) => value.startsWith('+') || value.includes('force') || value === '-f'), line).toBe(false)
+      if (rest[0] === 'push')
+        expect(
+          rest.some((value) => value.startsWith('+') || value.includes('force') || value === '-f'),
+          line
+        ).toBe(false)
       expect(rest.includes('--global') || rest.includes('--system'), line).toBe(false)
     }
     // The commit carries the cleaned name, and the hostile text made nothing happen.
     const author = execFileSync(GIT as string, ['log', '--format=%an', 'main'], { cwd: remote, encoding: 'utf8' })
-    expect(author.split('\n').filter(Boolean).every((name) => name === device)).toBe(true)
+    expect(
+      author
+        .split('\n')
+        .filter(Boolean)
+        .every((name) => name === device)
+    ).toBe(true)
   })
 
   it('stops a git that hangs, and reports a cancelled run as cancelled', async () => {
@@ -415,7 +584,9 @@ withGit('every git command that is actually run', () => {
     await git.run(['init', '-q'])
     // `cat-file --batch` waits on stdin for ever when nothing closes it: the timeout ends it.
     const started = Date.now()
-    await expect(git.run(['cat-file', '--batch-check', '--buffer'], { input: Buffer.alloc(0), timeoutMs: 30_000 })).resolves.toMatchObject({ code: 0 })
+    await expect(git.run(['cat-file', '--batch-check', '--buffer'], { input: Buffer.alloc(0), timeoutMs: 30_000 })).resolves.toMatchObject({
+      code: 0
+    })
     const slow = git.run(['fetch', 'https://192.0.2.1/x.git'], { timeoutMs: 600, network: true })
     await expect(slow).rejects.toMatchObject({ code: 'offline' })
     expect(Date.now() - started).toBeLessThan(20_000)
@@ -475,15 +646,47 @@ describe('encryption', () => {
 })
 
 describe('files read from a repository', () => {
-  const block = (id: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ id, type: 'text', parentId: 'p', content: [], props: {}, createdAt: 1, updatedAt: 2, trashedAt: null, ...extra })
+  const block = (id: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+    id,
+    type: 'text',
+    parentId: 'p',
+    content: [],
+    props: {},
+    createdAt: 1,
+    updatedAt: 2,
+    trashedAt: null,
+    ...extra
+  })
   const page = (blocks: unknown[], head: Record<string, unknown> = {}): string => JSON.stringify({ format: 1, page: 'p', blocks, ...head })
   const root = block('p', { type: 'page', parentId: null })
 
   it('round-trips a page file, including the order of a schema', () => {
-    const schema = { zeta: { id: 'zeta', name: 'Z', type: 'text' }, title: { id: 'title', name: 'Name', type: 'title' }, alpha: { id: 'alpha', name: 'A', type: 'number' } }
+    const schema = {
+      zeta: { id: 'zeta', name: 'Z', type: 'text' },
+      title: { id: 'title', name: 'Name', type: 'title' },
+      alpha: { id: 'alpha', name: 'A', type: 'number' }
+    }
     const text = serializePage('db', [
-      { id: 'db', type: 'database', parentId: null, content: ['r2', 'r1'], props: { schema, views: [] }, createdAt: 5, updatedAt: 6, trashedAt: null },
-      { id: 'a', type: 'text', parentId: 'db', content: [], props: { title: [['x', [['b']]]] }, createdAt: 1, updatedAt: 2, trashedAt: null }
+      {
+        id: 'db',
+        type: 'database',
+        parentId: null,
+        content: ['r2', 'r1'],
+        props: { schema, views: [] },
+        createdAt: 5,
+        updatedAt: 6,
+        trashedAt: null
+      },
+      {
+        id: 'a',
+        type: 'text',
+        parentId: 'db',
+        content: [],
+        props: { title: [['x', [['b']]]] },
+        createdAt: 1,
+        updatedAt: 2,
+        trashedAt: null
+      }
     ])
     expect(text.endsWith(']}\n')).toBe(true)
     expect(text.split('\n')).toHaveLength(5)
@@ -544,9 +747,18 @@ describe('files read from a repository', () => {
 
   it('checks the meta file and bounds the key derivation it may ask for', () => {
     const ok = { v: 1, kdf: 'scrypt', N: 32768, r: 8, p: 1, salt: 'AAAAAAAAAAAAAAAAAAAAAA==', check: 'AAAA' }
-    expect(parseMeta(serializeMeta({ app: 'sel', format: 1, workspaceId: 'w1', createdBy: 'Laptop' }))).toEqual({ app: 'sel', format: 1, workspaceId: 'w1', createdBy: 'Laptop' })
+    expect(parseMeta(serializeMeta({ app: 'sel', format: 1, workspaceId: 'w1', createdBy: 'Laptop' }))).toEqual({
+      app: 'sel',
+      format: 1,
+      workspaceId: 'w1',
+      createdBy: 'Laptop'
+    })
     // An encrypted repository says nothing else in the clear.
-    expect(JSON.parse(serializeMeta({ app: 'sel', format: 1, workspaceId: 'w1', createdBy: 'Laptop', encryption: ok as never }))).toEqual({ app: 'sel', format: 1, encryption: ok })
+    expect(JSON.parse(serializeMeta({ app: 'sel', format: 1, workspaceId: 'w1', createdBy: 'Laptop', encryption: ok as never }))).toEqual({
+      app: 'sel',
+      format: 1,
+      encryption: ok
+    })
     for (const meta of [
       'x',
       '{}',
@@ -575,7 +787,9 @@ describe('files read from a repository', () => {
     expect(mergeAppearance(base, local, null)).toBe(local)
     expect(mergeAppearance(base, local, base)).toBe(local)
     expect(mergeAppearance(base, base, remote)).toBe(remote)
-    expect(mergeAppearance(base, local, remote)).toEqual(file(9, { light: { a: 'R', b: '2', c: '3' }, dark: { d: '4' }, shared: {}, customCss: 'local' }))
+    expect(mergeAppearance(base, local, remote)).toEqual(
+      file(9, { light: { a: 'R', b: '2', c: '3' }, dark: { d: '4' }, shared: {}, customCss: 'local' })
+    )
     expect(mergeAppearance(base, { ...local, updatedAt: 10 }, remote).value).toMatchObject({ light: { a: 'L', c: '3' } })
     expect(mergeAppearance(null, file(1, null), remote)).toBe(remote)
   })
@@ -585,9 +799,18 @@ describe('files read from a repository', () => {
     expect(parseHome(serializeHome({ updatedAt: 7, value: page }))).toEqual({ updatedAt: 7, value: page })
     // Cleared: still a file, so that the other devices clear theirs.
     expect(JSON.parse(serializeHome({ updatedAt: 8, value: null }))).toEqual({ format: 1, updatedAt: 8, value: null })
-    expect(parseHome('{"format":1,"updatedAt":5,"value":{"kind":"screen","route":"_today"}}').value).toEqual({ kind: 'screen', route: '_today' })
+    expect(parseHome('{"format":1,"updatedAt":5,"value":{"kind":"screen","route":"_today"}}').value).toEqual({
+      kind: 'screen',
+      route: '_today'
+    })
     // What this version cannot use counts as no home.
-    for (const value of ['"x"', '[1]', '{"kind":"page","id":"../x"}', '{"kind":"screen","route":"_garden"}', '{"kind":"page","id":"p1","__proto__":{"polluted":true}}']) {
+    for (const value of [
+      '"x"',
+      '[1]',
+      '{"kind":"page","id":"../x"}',
+      '{"kind":"screen","route":"_garden"}',
+      '{"kind":"page","id":"p1","__proto__":{"polluted":true}}'
+    ]) {
       expect(parseHome(`{"format":1,"updatedAt":5,"value":${value}}`).value, value).toBeNull()
     }
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined()
@@ -596,7 +819,10 @@ describe('files read from a repository', () => {
   })
 
   it('merges the home three ways: the later change wins where both devices changed it', () => {
-    const at = (updatedAt: number, id: string | null): { updatedAt: number; value: { kind: 'page'; id: string } | null } => ({ updatedAt, value: id === null ? null : { kind: 'page', id } })
+    const at = (updatedAt: number, id: string | null): { updatedAt: number; value: { kind: 'page'; id: string } | null } => ({
+      updatedAt,
+      value: id === null ? null : { kind: 'page', id }
+    })
     const base = at(1, 'a')
     const local = at(5, 'b')
     const remote = at(9, 'c')
@@ -645,12 +871,19 @@ describe('files read from a repository', () => {
     expect(parsed.removed).toEqual([{ key: 'a'.repeat(64), deletedAt: 9 }])
     // A list with one bad id is not taken at all.
     expect(parsed.databases).toEqual({ updatedAt: 7, value: null })
-    expect(parseCalendars('{"format":1,"databases":{"updatedAt":3,"value":["db1","db1"]}}').databases).toEqual({ updatedAt: 3, value: ['db1'] })
+    expect(parseCalendars('{"format":1,"databases":{"updatedAt":3,"value":["db1","db1"]}}').databases).toEqual({
+      updatedAt: 3,
+      value: ['db1']
+    })
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined()
     for (const entry of parsed.calendars) expect(Object.keys(entry).sort()).toEqual(['color', 'enabled', 'label', 'updatedAt', 'url'])
     // At most eight calendars, the most recently changed.
     const many = Array.from({ length: 12 }, (_, i) => ({ url: `https://example.com/${i}.ics`, label: `c${i}`, updatedAt: i }))
-    expect(parseCalendars(JSON.stringify({ format: 1, calendars: many })).calendars.map((entry) => entry.label).sort()).toEqual(['c10', 'c11', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'])
+    expect(
+      parseCalendars(JSON.stringify({ format: 1, calendars: many }))
+        .calendars.map((entry) => entry.label)
+        .sort()
+    ).toEqual(['c10', 'c11', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'])
     for (const bad of ['x', '[]', '{}', '{"format":"1"}']) expect(() => parseCalendars(bad), bad).toThrow(FormatError)
     expect(() => parseCalendars('{"format":9}')).toThrow(expect.objectContaining({ newer: true }))
     // Round trip, canonical.
@@ -660,9 +893,20 @@ describe('files read from a repository', () => {
 
   it('merges calendars three ways by address', () => {
     const url = (name: string): string => `https://example.com/${name}.ics`
-    const cal = (name: string, updatedAt: number, extra: Partial<SyncedCalendar> = {}): SyncedCalendar => ({ url: url(name), label: name, color: 'blue', enabled: true, updatedAt, ...extra })
+    const cal = (name: string, updatedAt: number, extra: Partial<SyncedCalendar> = {}): SyncedCalendar => ({
+      url: url(name),
+      label: name,
+      color: 'blue',
+      enabled: true,
+      updatedAt,
+      ...extra
+    })
     const gone = (name: string, deletedAt: number): { key: string; deletedAt: number } => ({ key: calendarKey(url(name)), deletedAt })
-    const file = (calendars: SyncedCalendar[], removed: { key: string; deletedAt: number }[] = [], databases: CalendarsFile['databases'] = { updatedAt: 0, value: null }): CalendarsFile => ({
+    const file = (
+      calendars: SyncedCalendar[],
+      removed: { key: string; deletedAt: number }[] = [],
+      databases: CalendarsFile['databases'] = { updatedAt: 0, value: null }
+    ): CalendarsFile => ({
       calendars,
       removed,
       databases
@@ -673,11 +917,19 @@ describe('files read from a repository', () => {
     const here = file([cal('a', 1)])
     expect(mergeCalendars(null, here, null)).toBe(here)
     // No base: the union, the later entry where both have one.
-    expect(labels(mergeCalendars(null, file([cal('a', 1), cal('b', 5, { label: 'mine' })]), file([cal('b', 7, { label: 'theirs' }), cal('c', 2)])))).toEqual(['a', 'theirs', 'c'])
+    expect(
+      labels(
+        mergeCalendars(null, file([cal('a', 1), cal('b', 5, { label: 'mine' })]), file([cal('b', 7, { label: 'theirs' }), cal('c', 2)]))
+      )
+    ).toEqual(['a', 'theirs', 'c'])
     expect(labels(mergeCalendars(null, file([cal('b', 9, { label: 'mine' })]), file([cal('b', 7, { label: 'theirs' })])))).toEqual(['mine'])
     // Each field from the side that changed it.
     const base = file([cal('a', 1)])
-    const merged = mergeCalendars(base, file([cal('a', 5, { label: 'Renamed here' })]), file([cal('a', 3, { color: 'red', enabled: false })]))
+    const merged = mergeCalendars(
+      base,
+      file([cal('a', 5, { label: 'Renamed here' })]),
+      file([cal('a', 3, { color: 'red', enabled: false })])
+    )
     expect(merged.calendars).toEqual([{ url: url('a'), label: 'Renamed here', color: 'red', enabled: false, updatedAt: 5 }])
     // Both changed the same field: the later edit.
     expect(labels(mergeCalendars(base, file([cal('a', 5, { label: 'L' })]), file([cal('a', 8, { label: 'R' })])))).toEqual(['R'])

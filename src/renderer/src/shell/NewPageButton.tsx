@@ -17,9 +17,19 @@ import './newPage.css'
 /** The kinds of page "New page ▸" offers, made under `parentId` (the workspace root when null). */
 export function newPageItems(parentId: string | null): MenuItem[] {
   return [
-    { id: 'new-page-blank', label: 'Page', icon: <Page />, onSelect: () => void createPage(parentId).catch(reportError('create the page')) },
+    {
+      id: 'new-page-blank',
+      label: 'Page',
+      icon: <Page />,
+      onSelect: () => void createPage(parentId).catch(reportError('create the page'))
+    },
     { id: 'new-page-latex', label: latexShellCopy().newDocument, icon: <Sigma />, onSelect: () => newLatexDocument(parentId) },
-    { id: 'new-page-template', label: templatesCopy().open, icon: <Board />, onSelect: () => (parentId ? openTemplates({ pageId: parentId, inside: true }) : openTemplates()) }
+    {
+      id: 'new-page-template',
+      label: templatesCopy().open,
+      icon: <Board />,
+      onSelect: () => (parentId ? openTemplates({ pageId: parentId, inside: true }) : openTemplates())
+    }
   ]
 }
 
@@ -53,7 +63,7 @@ export function NewPageButton(): JSX.Element {
         <ChevronDown size={12} />
       </button>
       {anchor && (
-        <Popover open anchor={anchor} onClose={close}>
+        <Popover open anchor={anchor} role="none" onClose={close}>
           <Menu items={newPageItems(null)} onClose={close} autoFocus />
         </Popover>
       )}

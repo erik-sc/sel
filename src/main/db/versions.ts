@@ -102,6 +102,12 @@ function rootProps(props: BlockProps): BlockProps {
 /**
  * The snapshot of a page from its tree (`getTree`: the root, then its descendants in
  * document order, nested pages and databases included but not descended into).
+ *
+ * A database's own snapshot is its schema and views and which rows it holds, in order (its
+ * child list): not what the rows say. Each row is a page with a history of its own, so that
+ * editing one is not an edit of the database, and capturing a database never reads its rows
+ * (`snapshotTree` hands them over as bare ids). Versions stored before 0.7.0 carry `rows` with
+ * their title, icon and values; `withRows` gives newer ones the rows as they are now.
  */
 export function buildSnapshot(tree: Block[]): SnapshotContent | null {
   const root = tree[0]
@@ -109,41 +115,86 @@ export function buildSnapshot(tree: Block[]): SnapshotContent | null {
   const linkedRoot = sourceIdOf(root) !== null
   const ownsRows = root.type === 'database' && !linkedRoot
   const blocks: SnapshotBlock[] = [
-    { id: root.id, type: root.type, parentId: null, content: linkedRoot ? [] : root.content, props: rootProps(root.props), createdAt: root.createdAt }
+    {
+      id: root.id,
+      type: root.type,
+      parentId: null,
+      content: linkedRoot ? [] : root.content,
+      props: rootProps(root.props),
+      createdAt: root.createdAt
+    }
   ]
   const refs: SnapshotRef[] = []
-  const rows: SnapshotRow[] = []
   const known = new Set<string>([root.id])
   for (let i = 1; i < tree.length && !linkedRoot; i++) {
     const b = tree[i]
     known.add(b.id)
     if (isPageLike(b.type) && sourceIdOf(b) === null) {
-      if (ownsRows && b.type === 'page' && b.parentId === root.id) {
-        const row: SnapshotRow = {
-          id: b.id,
-          title: Array.isArray(b.props.title) ? b.props.title : [],
-          values: isPlain(b.props.values) ? (b.props.values as Record<string, PropertyValue>) : {},
-          createdAt: b.createdAt
-        }
-        if (typeof b.props.icon === 'string') row.icon = b.props.icon
-        rows.push(row)
-      } else {
-        const ref: SnapshotRef = { id: b.id, type: b.type as 'page' | 'database', title: plainText(b.props.title).slice(0, MAX_TITLE_CHARS) }
-        if (typeof b.props.icon === 'string') ref.icon = b.props.icon
-        refs.push(ref)
+      // A row: named by the child list of the database, nothing more.
+      if (ownsRows && b.type === 'page' && b.parentId === root.id) continue
+      const ref: SnapshotRef = {
+        id: b.id,
+        type: b.type as 'page' | 'database',
+        title: plainText(b.props.title).slice(0, MAX_TITLE_CHARS)
       }
+      if (typeof b.props.icon === 'string') ref.icon = b.props.icon
+      refs.push(ref)
       continue
     }
     // A linked view holds nothing below it.
-    blocks.push({ id: b.id, type: b.type, parentId: b.parentId, content: b.type === 'database' ? [] : b.content, props: b.props, createdAt: b.createdAt })
+    blocks.push({
+      id: b.id,
+      type: b.type,
+      parentId: b.parentId,
+      content: b.type === 'database' ? [] : b.content,
+      props: b.props,
+      createdAt: b.createdAt
+    })
   }
   // Child lists only name what the snapshot holds (trashed or unreadable children are not part of the page).
   for (const b of blocks) {
     if (b.content.some((id) => !known.has(id))) b.content = b.content.filter((id) => known.has(id))
   }
-  const out: SnapshotContent = { rootId: root.id, blocks, refs }
-  if (ownsRows) out.rows = rows
-  return out
+  return { rootId: root.id, blocks, refs }
+}
+
+/** True for the snapshot of a database (not a linked view) whose rows are only named: one stored since 0.7.0. */
+function namesRows(snapshot: SnapshotContent): boolean {
+  const root = snapshot.blocks[0]
+  return snapshot.rows === undefined && root?.type === 'database' && sourceIdOf(root) === null
+}
+
+/** Ids the root's child list names that are neither blocks nor nested pages of the snapshot: the rows of a database. */
+function namedRows(snapshot: SnapshotContent): string[] {
+  if (!namesRows(snapshot)) return []
+  const held = new Set<string>(snapshot.blocks.map((b) => b.id))
+  for (const ref of snapshot.refs) held.add(ref.id)
+  return snapshot.blocks[0].content.filter((id) => !held.has(id))
+}
+
+/**
+ * A snapshot that names its rows, given them as they are now (`current`: the stored blocks
+ * by id), so that it reads like any version of a database: a row deleted for good since is
+ * left out. Any other snapshot comes back as it is.
+ */
+export function withRows<T extends SnapshotContent>(snapshot: T, current: (ids: string[]) => Block[]): T {
+  if (!namesRows(snapshot)) return snapshot
+  const ids = namedRows(snapshot)
+  const found = new Map(current(ids).map((b) => [b.id, b]))
+  const rows: SnapshotRow[] = []
+  for (const id of ids) {
+    const b = found.get(id)
+    if (!b || b.type !== 'page') continue
+    const row: SnapshotRow = {
+      id,
+      title: Array.isArray(b.props.title) ? b.props.title : [],
+      values: isPlain(b.props.values) ? (b.props.values as Record<string, PropertyValue>) : {},
+      createdAt: b.createdAt
+    }
+    if (typeof b.props.icon === 'string') row.icon = b.props.icon
+    rows.push(row)
+  }
+  return { ...snapshot, rows }
 }
 
 export function snapshotTextSize(snapshot: SnapshotContent): number {
@@ -155,7 +206,7 @@ export function snapshotTextSize(snapshot: SnapshotContent): number {
 
 /** Blocks below the root, plus rows and nested pages: what the timeline shows as the size of a version. */
 export function snapshotBlockCount(snapshot: SnapshotContent): number {
-  return snapshot.blocks.length - 1 + (snapshot.rows?.length ?? 0) + snapshot.refs.length
+  return snapshot.blocks.length - 1 + (snapshot.rows?.length ?? namedRows(snapshot).length) + snapshot.refs.length
 }
 
 /** The stored form: canonical JSON, with the key order of a database schema kept on the side. */
@@ -240,7 +291,7 @@ export function parseSnapshot(raw: unknown, cleanProps: (props: Record<string, u
     })
   }
   const root = byId.get(rootId)
-  if (!root || !isPageLike(root.type) || list[0] !== undefined && (list[0] as { id?: unknown }).id !== rootId) return bad()
+  if (!root || !isPageLike(root.type) || (list[0] !== undefined && (list[0] as { id?: unknown }).id !== rootId)) return bad()
 
   const refs: SnapshotRef[] = []
   const refIds = new Set<string>()
@@ -295,6 +346,8 @@ export function parseSnapshot(raw: unknown, cleanProps: (props: Record<string, u
   const stack: { block: SnapshotBlock; next: number }[] = [{ block: root, next: 0 }]
   blocks.push(root)
   const keep = new Map<string, string[]>([[rootId, []]])
+  // A database stored since 0.7.0 names its rows in its child list and holds nothing else of them.
+  const namesRows = rows === undefined && root.type === 'database' && sourceIdOf(root) === null
   while (stack.length) {
     const frame = stack[stack.length - 1]
     if (frame.next >= frame.block.content.length) {
@@ -304,7 +357,7 @@ export function parseSnapshot(raw: unknown, cleanProps: (props: Record<string, u
     const id = frame.block.content[frame.next++]
     if (seen.has(id)) continue
     const kept = keep.get(frame.block.id) as string[]
-    if (refIds.has(id) || rowIds.has(id)) {
+    if (refIds.has(id) || rowIds.has(id) || (namesRows && frame.block === root && !byId.has(id))) {
       seen.add(id)
       kept.push(id)
       continue
@@ -442,7 +495,11 @@ export interface VersionHost {
   /** Strictly increasing timestamp, for rows whose order must be deterministic. */
   now(): number
   getSetting(key: string): unknown
-  getTree(rootId: string): Block[]
+  /** What a snapshot of `rootId` is built from: `getTree`, with the rows of a database as bare ids (see buildSnapshot). */
+  snapshotTree(rootId: string): Block[]
+  /** Stored blocks by id (unknown ids are left out). */
+  getMany(ids: string[]): Block[]
+  isDatabase(id: string): boolean
   transaction<T>(fn: () => T): T
   cleanProps(props: Record<string, unknown>): BlockProps
 }
@@ -653,7 +710,9 @@ export class VersionStore {
 
   private latest(pageId: string): (InfoRow & { hash: string }) | undefined {
     return this.host
-      .stmt(`SELECT ${INFO_COLS}, hash FROM page_versions WHERE page_id = ? AND hash <> '${DAMAGED_HASH}' ORDER BY created_at DESC, rowid DESC LIMIT 1`)
+      .stmt(
+        `SELECT ${INFO_COLS}, hash FROM page_versions WHERE page_id = ? AND hash <> '${DAMAGED_HASH}' ORDER BY created_at DESC, rowid DESC LIMIT 1`
+      )
       .get(pageId) as (InfoRow & { hash: string }) | undefined
   }
 
@@ -663,13 +722,16 @@ export class VersionStore {
    * Must run inside a transaction.
    */
   capture(pageId: string, kind: VersionKind, label: string | null, always: boolean): CaptureResult {
-    const snapshot = buildSnapshot(this.host.getTree(pageId))
+    const tree = this.host.snapshotTree(pageId)
+    const snapshot = buildSnapshot(tree)
     if (!snapshot) return { info: null, stored: false, textSize: 0 }
     const textSize = snapshotTextSize(snapshot)
     const blockCount = snapshotBlockCount(snapshot)
-    // A page or database with nothing in it yet is not a state worth keeping on its own
-    // (a linked view never has anything in it: its views are what it is).
-    if (!always && blockCount === 0 && sourceIdOf(snapshot.blocks[0]) === null) return { info: null, stored: false, textSize }
+    // A page or database with nothing in it yet is not a state worth keeping on its own (a
+    // linked view never has anything in it: its views are what it is; nor need a row of a
+    // database: its title and values are what it is, and only its own history keeps them).
+    const isRow = tree[0].parentId !== null && tree[0].type === 'page' && this.host.isDatabase(tree[0].parentId)
+    if (!always && blockCount === 0 && sourceIdOf(snapshot.blocks[0]) === null && !isRow) return { info: null, stored: false, textSize }
     const { json, hash } = serializeSnapshot(snapshot)
     const latest = this.latest(pageId)
     if (latest && latest.hash === hash) return { info: toInfo(latest), stored: false, textSize }
@@ -783,20 +845,18 @@ export class VersionStore {
       this.host.stmt('UPDATE page_versions SET hash = ? WHERE id = ?').run(DAMAGED_HASH, id)
       throw err
     }
-    return { info: toInfo(row), ...content }
+    return withRows({ info: toInfo(row), ...content }, (ids) => this.host.getMany(ids))
   }
 
   /** The live state of a page in the shape of a version, for comparing against one. */
   current(pageId: string): VersionSnapshot | null {
-    const snapshot = buildSnapshot(this.host.getTree(pageId))
-    return snapshot ? { info: null, ...snapshot } : null
+    const snapshot = buildSnapshot(this.host.snapshotTree(pageId))
+    return snapshot ? withRows({ info: null, ...snapshot }, (ids) => this.host.getMany(ids)) : null
   }
 
   stats(pageId?: string): VersionStats {
     const probe = `SELECT kind, hash, typeof(data) AS dtype, length(data) AS bytes FROM page_versions`
-    const rows = (
-      pageId === undefined ? this.host.stmt(probe).all() : this.host.stmt(`${probe} WHERE page_id = ?`).all(pageId)
-    ) as Probe[]
+    const rows = (pageId === undefined ? this.host.stmt(probe).all() : this.host.stmt(`${probe} WHERE page_id = ?`).all(pageId)) as Probe[]
     let bytes = 0
     let damaged = 0
     for (const r of rows) {

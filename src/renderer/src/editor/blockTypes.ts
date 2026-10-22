@@ -62,17 +62,91 @@ export interface SlashItem {
   linked?: boolean
 }
 
+/** The slash menu's list, opened from the block `blockId` (one menu at a time, one block per id). */
+export function slashListId(blockId: string): string {
+  return `pe-slash-${blockId}`
+}
+
+/** The menu's `index`th option (as filterSlashItems lists them). */
+export function slashOptionId(blockId: string, index: number): string {
+  return `pe-slash-${blockId}-${index}`
+}
+
 export const SLASH_ITEMS: SlashItem[] = [
   { id: 'text', label: 'Text', hint: 'Plain paragraph', glyph: 'Aa', keywords: 'text paragraph plain', kind: 'turn', type: 'text' },
-  { id: 'h1', label: 'Heading 1', hint: 'Large section heading', glyph: 'H1', keywords: 'heading1 h1 title #', kind: 'turn', type: 'heading_1' },
-  { id: 'h2', label: 'Heading 2', hint: 'Medium section heading', glyph: 'H2', keywords: 'heading2 h2 subtitle ##', kind: 'turn', type: 'heading_2' },
-  { id: 'h3', label: 'Heading 3', hint: 'Small section heading', glyph: 'H3', keywords: 'heading3 h3 ###', kind: 'turn', type: 'heading_3' },
-  { id: 'bullet', label: 'Bulleted list', hint: 'Simple bulleted list', glyph: '•', keywords: 'bulleted list unordered ul', kind: 'turn', type: 'bulleted_list' },
-  { id: 'number', label: 'Numbered list', hint: 'List with numbering', glyph: '1.', keywords: 'numbered list ordered ol', kind: 'turn', type: 'numbered_list' },
-  { id: 'todo', label: 'To-do list', hint: 'Track tasks with checkboxes', glyph: '☑', keywords: 'todo to-do task checkbox check', kind: 'turn', type: 'to_do' },
-  { id: 'toggle', label: 'Toggle', hint: 'Collapsible content', glyph: '▸', keywords: 'toggle collapse details', kind: 'turn', type: 'toggle' },
+  {
+    id: 'h1',
+    label: 'Heading 1',
+    hint: 'Large section heading',
+    glyph: 'H1',
+    keywords: 'heading1 h1 title #',
+    kind: 'turn',
+    type: 'heading_1'
+  },
+  {
+    id: 'h2',
+    label: 'Heading 2',
+    hint: 'Medium section heading',
+    glyph: 'H2',
+    keywords: 'heading2 h2 subtitle ##',
+    kind: 'turn',
+    type: 'heading_2'
+  },
+  {
+    id: 'h3',
+    label: 'Heading 3',
+    hint: 'Small section heading',
+    glyph: 'H3',
+    keywords: 'heading3 h3 ###',
+    kind: 'turn',
+    type: 'heading_3'
+  },
+  {
+    id: 'bullet',
+    label: 'Bulleted list',
+    hint: 'Simple bulleted list',
+    glyph: '•',
+    keywords: 'bulleted list unordered ul',
+    kind: 'turn',
+    type: 'bulleted_list'
+  },
+  {
+    id: 'number',
+    label: 'Numbered list',
+    hint: 'List with numbering',
+    glyph: '1.',
+    keywords: 'numbered list ordered ol',
+    kind: 'turn',
+    type: 'numbered_list'
+  },
+  {
+    id: 'todo',
+    label: 'To-do list',
+    hint: 'Track tasks with checkboxes',
+    glyph: '☑',
+    keywords: 'todo to-do task checkbox check',
+    kind: 'turn',
+    type: 'to_do'
+  },
+  {
+    id: 'toggle',
+    label: 'Toggle',
+    hint: 'Collapsible content',
+    glyph: '▸',
+    keywords: 'toggle collapse details',
+    kind: 'turn',
+    type: 'toggle'
+  },
   { id: 'quote', label: 'Quote', hint: 'Capture a quote', glyph: '”', keywords: 'quote blockquote citation', kind: 'turn', type: 'quote' },
-  { id: 'callout', label: 'Callout', hint: 'Make text stand out', glyph: '!', keywords: 'callout note info tip', kind: 'turn', type: 'callout' },
+  {
+    id: 'callout',
+    label: 'Callout',
+    hint: 'Make text stand out',
+    glyph: '!',
+    keywords: 'callout note info tip',
+    kind: 'turn',
+    type: 'callout'
+  },
   { id: 'code', label: 'Code', hint: 'Code snippet', glyph: '</>', keywords: 'code snippet pre', kind: 'turn', type: 'code' },
   {
     id: 'equation',
@@ -83,26 +157,151 @@ export const SLASH_ITEMS: SlashItem[] = [
     kind: 'turn',
     type: 'equation'
   },
-  { id: 'divider', label: 'Divider', hint: 'Visually divide blocks', glyph: '—', keywords: 'divider line hr separator ---', kind: 'insert', type: 'divider' },
+  {
+    id: 'divider',
+    label: 'Divider',
+    hint: 'Visually divide blocks',
+    glyph: '—',
+    keywords: 'divider line hr separator ---',
+    kind: 'insert',
+    type: 'divider'
+  },
   { id: 'image', label: 'Image', hint: 'Upload an image', glyph: '▣', keywords: 'image picture photo img', kind: 'insert', type: 'image' },
-  { id: 'bookmark', label: 'Bookmark', hint: 'Save a link as a card', glyph: '↗', keywords: 'bookmark link url web', kind: 'insert', type: 'bookmark' },
+  {
+    id: 'bookmark',
+    label: 'Bookmark',
+    hint: 'Save a link as a card',
+    glyph: '↗',
+    keywords: 'bookmark link url web',
+    kind: 'insert',
+    type: 'bookmark'
+  },
   { id: 'page', label: 'Page', hint: 'Embed a sub-page', glyph: '□', keywords: 'page subpage document', kind: 'insert', type: 'page' },
-  { id: 'meeting', label: 'Meeting notes', hint: 'Record a meeting and take notes', glyph: '●', keywords: 'meeting notes record recording transcript call', kind: 'meeting', type: 'page' },
-  { id: 'db-table', label: 'Database – table', hint: 'Inline table database', glyph: '▦', keywords: 'database table grid', kind: 'insert', type: 'database', view: 'table' },
-  { id: 'db-board', label: 'Database – board', hint: 'Inline kanban board', glyph: '▥', keywords: 'database board kanban', kind: 'insert', type: 'database', view: 'board' },
-  { id: 'db-list', label: 'Database – list', hint: 'Inline list database', glyph: '☰', keywords: 'database list', kind: 'insert', type: 'database', view: 'list' },
-  { id: 'db-linked', label: 'Linked database view', hint: 'Show an existing database here', glyph: '↗', keywords: 'linked source view database', kind: 'insert', type: 'database', linked: true },
-  { id: 'chart', label: 'Chart', hint: 'Chart the rows of an existing database', glyph: '◔', keywords: 'chart graph plot bar line pie', kind: 'insert', type: 'database', linked: true, view: 'chart' },
-  { id: 'calc', label: 'Calculations', hint: 'Figures computed from an existing database', glyph: 'Σ', keywords: 'calculations calc formula sum total average figures', kind: 'insert', type: 'database', linked: true, view: 'calc' }
+  {
+    id: 'meeting',
+    label: 'Meeting notes',
+    hint: 'Record a meeting and take notes',
+    glyph: '●',
+    keywords: 'meeting notes record recording transcript call',
+    kind: 'meeting',
+    type: 'page'
+  },
+  {
+    id: 'db-table',
+    label: 'Database – table',
+    hint: 'Inline table database',
+    glyph: '▦',
+    keywords: 'database table grid',
+    kind: 'insert',
+    type: 'database',
+    view: 'table'
+  },
+  {
+    id: 'db-board',
+    label: 'Database – board',
+    hint: 'Inline kanban board',
+    glyph: '▥',
+    keywords: 'database board kanban',
+    kind: 'insert',
+    type: 'database',
+    view: 'board'
+  },
+  {
+    id: 'db-list',
+    label: 'Database – list',
+    hint: 'Inline list database',
+    glyph: '☰',
+    keywords: 'database list',
+    kind: 'insert',
+    type: 'database',
+    view: 'list'
+  },
+  {
+    id: 'db-linked',
+    label: 'Linked database view',
+    hint: 'Show an existing database here',
+    glyph: '↗',
+    keywords: 'linked source view database',
+    kind: 'insert',
+    type: 'database',
+    linked: true
+  },
+  {
+    id: 'chart',
+    label: 'Chart',
+    hint: 'Chart the rows of an existing database',
+    glyph: '◔',
+    keywords: 'chart graph plot bar line pie',
+    kind: 'insert',
+    type: 'database',
+    linked: true,
+    view: 'chart'
+  },
+  {
+    id: 'calc',
+    label: 'Calculations',
+    hint: 'Figures computed from an existing database',
+    glyph: 'Σ',
+    keywords: 'calculations calc formula sum total average figures',
+    kind: 'insert',
+    type: 'database',
+    linked: true,
+    view: 'calc'
+  }
 ]
 
 /** The "AI" group of the slash menu; offered only while AI is turned on (see ai/gate.ts). */
 export const AI_SLASH_ITEMS: SlashItem[] = [
-  { id: 'ai-continue', label: 'Continue writing', hint: 'Carry on from here in the same voice', glyph: '✦', keywords: 'ai continue writing write more', kind: 'ai', ai: 'continue', type: 'text' },
-  { id: 'ai-summarize', label: 'Summarize page', hint: 'Key points and action items', glyph: '✦', keywords: 'ai summarize summary tldr', kind: 'ai', ai: 'summarize', type: 'text' },
-  { id: 'ai-ask', label: 'Ask AI…', hint: 'Describe what to write', glyph: '✦', keywords: 'ai ask write draft generate prompt', kind: 'ai', ai: 'ask', type: 'text' },
-  { id: 'ai-actions', label: 'Action items', hint: 'Extract tasks as a to-do list', glyph: '✦', keywords: 'ai action items tasks todo', kind: 'ai', ai: 'actions', type: 'text' },
-  { id: 'ai-outline', label: 'Outline', hint: 'Turn the notes into a structured outline', glyph: '✦', keywords: 'ai outline structure', kind: 'ai', ai: 'outline', type: 'text' }
+  {
+    id: 'ai-continue',
+    label: 'Continue writing',
+    hint: 'Carry on from here in the same voice',
+    glyph: '✦',
+    keywords: 'ai continue writing write more',
+    kind: 'ai',
+    ai: 'continue',
+    type: 'text'
+  },
+  {
+    id: 'ai-summarize',
+    label: 'Summarize page',
+    hint: 'Key points and action items',
+    glyph: '✦',
+    keywords: 'ai summarize summary tldr',
+    kind: 'ai',
+    ai: 'summarize',
+    type: 'text'
+  },
+  {
+    id: 'ai-ask',
+    label: 'Ask AI…',
+    hint: 'Describe what to write',
+    glyph: '✦',
+    keywords: 'ai ask write draft generate prompt',
+    kind: 'ai',
+    ai: 'ask',
+    type: 'text'
+  },
+  {
+    id: 'ai-actions',
+    label: 'Action items',
+    hint: 'Extract tasks as a to-do list',
+    glyph: '✦',
+    keywords: 'ai action items tasks todo',
+    kind: 'ai',
+    ai: 'actions',
+    type: 'text'
+  },
+  {
+    id: 'ai-outline',
+    label: 'Outline',
+    hint: 'Turn the notes into a structured outline',
+    glyph: '✦',
+    keywords: 'ai outline structure',
+    kind: 'ai',
+    ai: 'outline',
+    type: 'text'
+  }
 ]
 
 /** Entries offered by "Turn into". */

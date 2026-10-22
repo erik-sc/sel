@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { PropertyValue } from '../types'
 import { TASK_PROPS } from './index'
 import { parseTask } from './parse'
 import { completeTaskOps, completeTaskValues, nextOccurrence, readRecurrence } from './recur'
@@ -26,7 +27,14 @@ describe('the next occurrence', () => {
     ['yearly', 'FREQ=YEARLY', 'due', '2026-10-20', '2026-10-15T10:00', '2027-10-20'],
     ['yearly on the 29th of February', 'FREQ=YEARLY', 'due', '2028-02-29', '2028-02-29T10:00', '2032-02-29'],
     ['the last friday of the month', 'FREQ=MONTHLY;BYDAY=-1FR', 'due', '2026-10-30', '2026-10-30T10:00', '2026-11-27'],
-    ['from completion: counts from the day it was done', 'FREQ=WEEKLY;INTERVAL=3', 'completion', '2026-10-01', '2026-10-15T10:00', '2026-11-05'],
+    [
+      'from completion: counts from the day it was done',
+      'FREQ=WEEKLY;INTERVAL=3',
+      'completion',
+      '2026-10-01',
+      '2026-10-15T10:00',
+      '2026-11-05'
+    ],
     ['from completion keeps the due time', 'FREQ=DAILY', 'completion', '2026-10-01T07:00', '2026-10-15T22:00', '2026-10-16T07:00'],
     ['without a due date, from the completion', 'FREQ=DAILY', 'due', null, '2026-10-15T10:00', '2026-10-16'],
     ['UNTIL ends it', 'FREQ=DAILY;UNTIL=20261015', 'due', '2026-10-15', '2026-10-15T10:00', null],
@@ -44,9 +52,18 @@ describe('the next occurrence', () => {
 
 describe('reading the stored recurrence', () => {
   it('the JSON the quick add writes, or a bare rule', () => {
-    expect(readRecurrence(JSON.stringify({ rule: 'FREQ=DAILY', from: 'completion', text: 'todo! dia' }))).toEqual({ rule: 'FREQ=DAILY', from: 'completion', text: 'todo! dia' })
-    expect(readRecurrence('RRULE:FREQ=WEEKLY;BYDAY=MO')).toEqual({ rule: 'FREQ=WEEKLY;BYDAY=MO', from: 'due', text: 'FREQ=WEEKLY;BYDAY=MO' })
-    for (const bad of [null, '', 'toda segunda', '{not json', JSON.stringify({ rule: 'nope' }), JSON.stringify(['FREQ=DAILY']), 7]) expect(readRecurrence(bad)).toBeNull()
+    expect(readRecurrence(JSON.stringify({ rule: 'FREQ=DAILY', from: 'completion', text: 'todo! dia' }))).toEqual({
+      rule: 'FREQ=DAILY',
+      from: 'completion',
+      text: 'todo! dia'
+    })
+    expect(readRecurrence('RRULE:FREQ=WEEKLY;BYDAY=MO')).toEqual({
+      rule: 'FREQ=WEEKLY;BYDAY=MO',
+      from: 'due',
+      text: 'FREQ=WEEKLY;BYDAY=MO'
+    })
+    for (const bad of [null, '', 'toda segunda', '{not json', JSON.stringify({ rule: 'nope' }), JSON.stringify(['FREQ=DAILY']), 7])
+      expect(readRecurrence(bad)).toBeNull()
   })
 })
 
@@ -56,14 +73,22 @@ describe('completing a task', () => {
   it('without a repeat: done, and dated', () => {
     const result = completeTaskValues({ [TASK_PROPS.due]: { start: '2026-10-15' } }, NOW)
     expect(result).toEqual({
-      values: { [TASK_PROPS.due]: { start: '2026-10-15' }, [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' } },
+      values: {
+        [TASK_PROPS.due]: { start: '2026-10-15' },
+        [TASK_PROPS.done]: true,
+        [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' }
+      },
       previous: { [TASK_PROPS.done]: undefined, [TASK_PROPS.completedAt]: undefined }
     })
   })
 
   it('with a repeat: open, moved on with its reminder, and dated', () => {
     const recurrence = JSON.stringify({ rule: 'FREQ=WEEKLY;BYDAY=MO,TH', from: 'due', text: 'toda seg e qui' })
-    const values = { [TASK_PROPS.due]: { start: '2026-10-15T09:00' }, [TASK_PROPS.remind]: { start: '2026-10-14T20:00' }, [TASK_PROPS.recurrence]: recurrence }
+    const values = {
+      [TASK_PROPS.due]: { start: '2026-10-15T09:00' },
+      [TASK_PROPS.remind]: { start: '2026-10-14T20:00' },
+      [TASK_PROPS.recurrence]: recurrence
+    }
     const result = completeTaskValues(values, NOW)
     expect(result?.next).toBe('2026-10-19T09:00')
     expect(result?.values).toEqual({
@@ -72,11 +97,18 @@ describe('completing a task', () => {
       [TASK_PROPS.recurrence]: recurrence,
       [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' }
     })
-    expect(result?.previous).toEqual({ [TASK_PROPS.due]: values[TASK_PROPS.due], [TASK_PROPS.remind]: values[TASK_PROPS.remind], [TASK_PROPS.completedAt]: undefined })
+    expect(result?.previous).toEqual({
+      [TASK_PROPS.due]: values[TASK_PROPS.due],
+      [TASK_PROPS.remind]: values[TASK_PROPS.remind],
+      [TASK_PROPS.completedAt]: undefined
+    })
   })
 
   it('with a repeat that has ended: done', () => {
-    const values = { [TASK_PROPS.due]: { start: '2026-10-15' }, [TASK_PROPS.recurrence]: JSON.stringify({ rule: 'FREQ=DAILY;UNTIL=20261015', from: 'due', text: '' }) }
+    const values = {
+      [TASK_PROPS.due]: { start: '2026-10-15' },
+      [TASK_PROPS.recurrence]: JSON.stringify({ rule: 'FREQ=DAILY;UNTIL=20261015', from: 'due', text: '' })
+    }
     expect(completeTaskValues(values, NOW)?.values[TASK_PROPS.done]).toBe(true)
   })
 
@@ -87,7 +119,11 @@ describe('completing a task', () => {
 
   it('as one update op', () => {
     expect(completeTaskOps({ id: 'r', props: {} }, NOW)).toEqual([
-      { op: 'update', id: 'r', patch: { props: { values: { [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' } } } } }
+      {
+        op: 'update',
+        id: 'r',
+        patch: { props: { values: { [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-15T18:40' } } } }
+      }
     ])
   })
 
@@ -95,5 +131,26 @@ describe('completing a task', () => {
     const parsed = parseTask('Cortar cabelo todo! mês', { now: new Date(2026, 8, 1, 9, 0) })
     const values = { [TASK_PROPS.due]: { start: parsed.due as string }, [TASK_PROPS.recurrence]: JSON.stringify(parsed.recurrence) }
     expect(completeTaskValues(values, NOW)?.next).toBe('2026-11-15')
+  })
+})
+
+describe('a repeat that ends after N times', () => {
+  const values = (rule: string): Record<string, PropertyValue> => ({
+    [TASK_PROPS.due]: { start: '2026-10-15' },
+    [TASK_PROPS.recurrence]: JSON.stringify({ rule, from: 'due', text: '' })
+  })
+  const now = new Date(2026, 9, 15, 10, 0)
+
+  it('counts down at every completion', () => {
+    const result = completeTaskValues(values('FREQ=DAILY;COUNT=3'), now)
+    expect(result?.next).toBe('2026-10-16')
+    expect(JSON.parse(result?.values[TASK_PROPS.recurrence] as string).rule).toBe('FREQ=DAILY;COUNT=2')
+    expect(result?.previous[TASK_PROPS.recurrence]).toBe(values('FREQ=DAILY;COUNT=3')[TASK_PROPS.recurrence])
+  })
+
+  it('is done on the last one', () => {
+    const result = completeTaskValues(values('FREQ=DAILY;COUNT=1'), now)
+    expect(result?.next).toBeUndefined()
+    expect(result?.values[TASK_PROPS.done]).toBe(true)
   })
 })

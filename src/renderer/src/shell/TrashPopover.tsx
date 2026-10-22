@@ -9,21 +9,12 @@ export function preloadTrash(): void {
   load().catch(() => undefined)
 }
 
-export function TrashPopover({
-  anchor,
-  open,
-  onClose
-}: {
-  anchor: PopoverAnchor
-  open: boolean
-  onClose: () => void
-}) {
+export function TrashPopover({ anchor, open, onClose }: { anchor: PopoverAnchor; open: boolean; onClose: () => void }) {
   return (
-    <Popover anchor={anchor} open={open} onClose={onClose} placement="right-start" className="trash-popover">
+    <Popover anchor={anchor} open={open} onClose={onClose} placement="right-start" label="Trash" className="trash-popover">
       <Suspense fallback={<div className="trash" aria-busy="true" />}>
         <TrashList onClose={onClose} />
       </Suspense>
     </Popover>
   )
 }
-

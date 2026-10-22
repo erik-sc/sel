@@ -17,6 +17,10 @@ const KINDS: { value: FeedbackKind; label: string }[] = [
   { value: 'suggestion', label: 'Suggestion' }
 ]
 
+/** One feedback window per app window: its title names the dialog. */
+const FEEDBACK_TITLE = 'feedback-title'
+const LOG_LINES = 'feedback-log-lines'
+
 const STATUS_LABEL: Record<FeedbackStatus, string> = {
   open: 'Waiting',
   'in-progress': 'In progress',
@@ -54,7 +58,7 @@ type View = 'new' | 'sent'
 export function FeedbackDialog(): JSX.Element {
   const open = useFeedbackGate((state) => state.open)
   return (
-    <Modal open={open} onClose={closeFeedback} label="Feedback" className="fb-dialog">
+    <Modal open={open} onClose={closeFeedback} labelledBy={FEEDBACK_TITLE} className="fb-dialog">
       <FeedbackBody />
     </Modal>
   )
@@ -80,12 +84,24 @@ function FeedbackBody(): JSX.Element {
   return (
     <>
       <header className="fb-head">
-        <h2>Feedback</h2>
+        <h2 id={FEEDBACK_TITLE}>Feedback</h2>
         <div className="fb-tabs" role="tablist" aria-label="Feedback">
-          <button type="button" role="tab" aria-selected={view === 'new'} className={view === 'new' ? 'is-selected' : undefined} onClick={() => setView('new')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'new'}
+            className={view === 'new' ? 'is-selected' : undefined}
+            onClick={() => setView('new')}
+          >
             New
           </button>
-          <button type="button" role="tab" aria-selected={view === 'sent'} className={view === 'sent' ? 'is-selected' : undefined} onClick={() => setView('sent')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'sent'}
+            className={view === 'sent' ? 'is-selected' : undefined}
+            onClick={() => setView('sent')}
+          >
             Sent{pending > 0 && <span className="fb-count">{pending}</span>}
           </button>
         </div>
@@ -113,6 +129,7 @@ function FeedbackForm({ initialKind, onSent }: { initialKind: FeedbackKind; onSe
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [busy, setBusy] = useState(false)
+  const [attachLog, setAttachLog] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -124,11 +141,12 @@ function FeedbackForm({ initialKind, onSent }: { initialKind: FeedbackKind; onSe
   const send = (): void => {
     if (!canSend) return
     setBusy(true)
-    window.api.feedback.create({ kind, title, description, screen: currentScreen() }).then(
+    window.api.feedback.create({ kind, title, description, screen: currentScreen(), attachLog }).then(
       () => {
         setBusy(false)
         setTitle('')
         setDescription('')
+        setAttachLog(false)
         toast(kind === 'bug' ? 'Bug saved. The nightly run will look at it.' : 'Suggestion saved. The nightly run will look at it.')
         onSent()
       },
@@ -190,6 +208,7 @@ function FeedbackForm({ initialKind, onSent }: { initialKind: FeedbackKind; onSe
           onChange={(event) => setDescription(event.target.value)}
         />
       </label>
+      <LogAttachment attach={attachLog} onChange={setAttachLog} />
       <p className="fb-note">Saved on this computer only. The nightly development run reads it and opens a pull request for review.</p>
       <footer className="fb-foot">
         <Button variant="ghost" onClick={closeFeedback}>
@@ -200,6 +219,46 @@ function FeedbackForm({ initialKind, onSent }: { initialKind: FeedbackKind; onSe
         </Button>
       </footer>
     </form>
+  )
+}
+
+/**
+ * Whether the report carries the last lines of sel's log (src/main/log.ts): off unless asked,
+ * and readable before it is saved. The log holds error messages, never what a page says.
+ */
+function LogAttachment({ attach, onChange }: { attach: boolean; onChange: (attach: boolean) => void }): JSX.Element {
+  const [lines, setLines] = useState<string[] | null>(null)
+  const [shown, setShown] = useState(false)
+
+  const toggle = (): void => {
+    const next = !shown
+    setShown(next)
+    if (next) {
+      window.api.feedback.logTail().then(setLines, (error: unknown) => {
+        setLines([])
+        notifyError('The log could not be read.', error)
+      })
+    }
+  }
+
+  return (
+    <div className="fb-log">
+      <div className="fb-log-row">
+        <label className="fb-check">
+          <input type="checkbox" checked={attach} onChange={(event) => onChange(event.target.checked)} />
+          <span>Attach the last lines of sel's log</span>
+        </label>
+        <button type="button" className="fb-link" aria-expanded={shown} aria-controls={LOG_LINES} onClick={toggle}>
+          {shown ? 'Hide' : 'See what goes'}
+        </button>
+      </div>
+      {shown && (
+        // A scrolling box is reached with the keyboard to be read.
+        <pre id={LOG_LINES} className="fb-log-lines" tabIndex={0} aria-label="Log lines" aria-busy={lines === null}>
+          {lines === null ? '' : lines.length ? lines.join('\n') : 'The log is empty: nothing has gone wrong lately.'}
+        </pre>
+      )}
+    </div>
   )
 }
 

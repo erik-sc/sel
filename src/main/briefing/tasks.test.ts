@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BlockProps, PropertySchema } from '../../shared/types'
 import { detectSignal, fold, isOpenRow, planCompletion, planUndo, selectTasks, type TaskBlock } from './tasks'
+import { TASK_PROPS, TASKS_DATABASE_ID, tasksDatabaseProps } from '../../shared/tasks'
 
 const TODAY = '2026-10-13'
 
@@ -33,13 +34,29 @@ const SCHEMA: Record<string, PropertySchema> = {
 }
 
 let stamp = 0
-function block(id: string, type: TaskBlock['type'], parentId: string | null, props: BlockProps = {}, extra: Partial<TaskBlock> = {}): TaskBlock {
+function block(
+  id: string,
+  type: TaskBlock['type'],
+  parentId: string | null,
+  props: BlockProps = {},
+  extra: Partial<TaskBlock> = {}
+): TaskBlock {
   return { id, type, parentId, props, updatedAt: ++stamp, trashedAt: null, ...extra }
 }
-const database = (id: string, schema: unknown = SCHEMA, title = 'Tasks', extra: Partial<TaskBlock> = {}, props: BlockProps = {}): TaskBlock =>
-  block(id, 'database', null, { title: [[title]], schema: schema as BlockProps['schema'], ...props }, extra)
-const row = (id: string, parentId: string, title: string, values: Record<string, unknown> = {}, extra: Partial<TaskBlock> = {}): TaskBlock =>
-  block(id, 'page', parentId, { title: [[title]], values: values as BlockProps['values'] }, extra)
+const database = (
+  id: string,
+  schema: unknown = SCHEMA,
+  title = 'Tasks',
+  extra: Partial<TaskBlock> = {},
+  props: BlockProps = {}
+): TaskBlock => block(id, 'database', null, { title: [[title]], schema: schema as BlockProps['schema'], ...props }, extra)
+const row = (
+  id: string,
+  parentId: string,
+  title: string,
+  values: Record<string, unknown> = {},
+  extra: Partial<TaskBlock> = {}
+): TaskBlock => block(id, 'page', parentId, { title: [[title]], values: values as BlockProps['values'] }, extra)
 
 const titles = (list: { title: string }[]): string[] => list.map((task) => task.title)
 
@@ -72,7 +89,17 @@ describe('finding the done signal', () => {
     ['Stage', 'Finished'],
     ['Status', 'Closed']
   ])('understands %s / %s', (name, done) => {
-    const schema = { s: { id: 's', name, type: 'select', options: [{ id: 'a', name: 'Aberto', color: 'gray' }, { id: 'z', name: done, color: 'green' }] } }
+    const schema = {
+      s: {
+        id: 's',
+        name,
+        type: 'select',
+        options: [
+          { id: 'a', name: 'Aberto', color: 'gray' },
+          { id: 'z', name: done, color: 'green' }
+        ]
+      }
+    }
     expect(detectSignal({ schema: schema as never })?.status?.done).toBe('z')
   })
 
@@ -97,7 +124,12 @@ describe('finding the done signal', () => {
   })
 
   it('prefers a date named like "due"', () => {
-    const schema = { ...SCHEMA, created: { id: 'created', name: 'Started', type: 'date' }, due: undefined, prazo: { id: 'prazo', name: 'Prazo', type: 'date' } }
+    const schema = {
+      ...SCHEMA,
+      created: { id: 'created', name: 'Started', type: 'date' },
+      due: undefined,
+      prazo: { id: 'prazo', name: 'Prazo', type: 'date' }
+    }
     expect(detectSignal({ schema: schema as never })?.date).toBe('prazo')
     const only = { ...SCHEMA, due: { id: 'due', name: 'Whenever', type: 'date' } }
     expect(detectSignal({ schema: only as never })?.date).toBe('due')
@@ -105,7 +137,17 @@ describe('finding the done signal', () => {
 
   it('does not crash on malformed schemas', () => {
     const shapes: unknown[] = [
-      null, 7, 'schema', [], [1, 2], { a: null }, { a: 7 }, { a: [] }, { a: {} }, { a: { type: 5 } }, { a: { type: 'select' } },
+      null,
+      7,
+      'schema',
+      [],
+      [1, 2],
+      { a: null },
+      { a: 7 },
+      { a: [] },
+      { a: {} },
+      { a: { type: 5 } },
+      { a: { type: 'select' } },
       { a: { type: 'select', name: 'Status', options: 'nope' } },
       { a: { type: 'select', name: 'Status', options: [null, 3, {}, { id: 1, name: 2 }, { id: 'x' }, { name: 'Done' }] } },
       { a: { type: 'select', name: { toString: () => 'Status' }, options: [{ id: 'd', name: 'Done' }] } },
@@ -145,9 +187,39 @@ describe('selecting tasks', () => {
     expect(titles(selected.today)).toEqual(['Call the bank', 'Write the report', 'Water the plants'])
     expect(titles(selected.noDate)).toEqual(['Read that book', 'Untitled'])
     const call = selected.today[0]
-    expect(call).toEqual({ id: 'now', kind: 'row', title: 'Call the bank', pageId: 'now', source: 'Tasks', due: '2026-10-13', priority: { name: 'High', color: 'red' } })
+    expect(call).toEqual({
+      id: 'now',
+      kind: 'row',
+      title: 'Call the bank',
+      pageId: 'now',
+      source: 'Tasks',
+      due: '2026-10-13',
+      dateProperty: 'due',
+      priority: { id: 'hi', name: 'High', color: 'red' }
+    })
     expect(selected.today[2].due).toBe('2026-10-13')
     expect(selected.today[1].due).toBe('2026-11-01')
+  })
+
+  it('keeps the hour a task is due at, and the property its date is in', () => {
+    const selected = selectTasks(
+      [
+        database('db'),
+        row('timed', 'db', 'Call', { due: { start: '2026-10-13T15:30' } }),
+        row('plain', 'db', 'Shop', { due: { start: '2026-10-13' } }),
+        row('zoned', 'db', 'Zoned', { due: { start: '2026-10-13T09:00:00Z' } }),
+        row('range', 'db', 'Trip', { due: { start: '2026-10-12T08:00', end: '2026-10-14T18:00' } }),
+        row('bad', 'db', 'Bad hour', { due: { start: '2026-10-13T25:00' } })
+      ],
+      { today: TODAY, range: { from: '2026-10-01', to: '2026-10-31' } }
+    )
+    const byTitle = new Map(selected.dated?.map((task) => [task.title, task]))
+    expect(byTitle.get('Call')).toMatchObject({ due: '2026-10-13', time: '15:30', dateProperty: 'due' })
+    expect(byTitle.get('Shop')?.time).toBeUndefined()
+    // A time with a zone is not a wall-clock time: the day alone, as everywhere else.
+    expect(byTitle.get('Zoned')?.time).toBeUndefined()
+    expect(byTitle.get('Trip')).toMatchObject({ due: '2026-10-14', time: '18:00' })
+    expect(byTitle.get('Bad hour')?.time).toBeUndefined()
   })
 
   it('does not depend on the order blocks arrive in', () => {
@@ -264,7 +336,19 @@ describe('selecting tasks', () => {
   })
 
   it('survives blocks that are not blocks', () => {
-    const junk = [null, undefined, 7, 'x', {}, { id: 5 }, { id: 'a', type: 'page', parentId: 'a', props: null }, { id: 'loop1', type: 'to_do', parentId: 'loop2', props: { title: [['x']] } }, { id: 'loop2', type: 'toggle', parentId: 'loop1', props: {} }, { id: 'r', type: 'page', parentId: 'db', props: { title: 'not rich text', values: 'nope' } }, { id: 'r2', type: 'page', parentId: 'db', props: { title: [[5]], values: [1, 2] } }] as unknown as TaskBlock[]
+    const junk = [
+      null,
+      undefined,
+      7,
+      'x',
+      {},
+      { id: 5 },
+      { id: 'a', type: 'page', parentId: 'a', props: null },
+      { id: 'loop1', type: 'to_do', parentId: 'loop2', props: { title: [['x']] } },
+      { id: 'loop2', type: 'toggle', parentId: 'loop1', props: {} },
+      { id: 'r', type: 'page', parentId: 'db', props: { title: 'not rich text', values: 'nope' } },
+      { id: 'r2', type: 'page', parentId: 'db', props: { title: [[5]], values: [1, 2] } }
+    ] as unknown as TaskBlock[]
     expect(() => selectTasks([database('db'), ...junk], { today: TODAY, includeTodos: true })).not.toThrow()
     expect(() => selectTasks([database('db')], { today: 'not a day' })).not.toThrow()
   })
@@ -276,9 +360,15 @@ describe('selecting tasks', () => {
     for (let p = 0; p < 400; p++) input.push(block(`page${p}`, 'page', null, { title: [[`Page ${p}`]] }, { updatedAt: p }))
     for (let i = 0; input.length < 50_000; i++) {
       if (i % 4 === 0) {
-        const status = ['todo', 'doing', 'done', 'dropped'][i % 7 % 4]
+        const status = ['todo', 'doing', 'done', 'dropped'][(i % 7) % 4]
         const day = String((i % 28) + 1).padStart(2, '0')
-        input.push(row(`row${i}`, `db${i % 12}`, `Row ${i}`, { status, due: i % 5 ? { start: `2026-${i % 2 ? '10' : '09'}-${day}` } : undefined, prio: ['hi', 'mid', 'lo'][i % 3] }))
+        input.push(
+          row(`row${i}`, `db${i % 12}`, `Row ${i}`, {
+            status,
+            due: i % 5 ? { start: `2026-${i % 2 ? '10' : '09'}-${day}` } : undefined,
+            prio: ['hi', 'mid', 'lo'][i % 3]
+          })
+        )
       } else if (i % 4 === 1) input.push(block(`todo${i}`, 'to_do', `page${i % 400}`, { title: [[`To-do ${i}`]], checked: i % 3 === 0 }))
       else input.push(block(`text${i}`, 'text', `page${i % 400}`, { title: [['Some text in a paragraph that is of no interest here.']] }))
     }
@@ -310,7 +400,11 @@ describe('completing and undoing', () => {
     expect(isOpenRow(signal, { values: plan.values })).toBe(false)
     expect(planCompletion(signal, { values: plan.values })).toBeNull()
     // Undo touches only what the completion touched, even if something else changed meanwhile.
-    expect(planUndo({ values: { ...plan.values, other: 'edited since', extra: 1 } }, plan.previous)).toEqual({ status: 'doing', other: 'edited since', extra: 1 })
+    expect(planUndo({ values: { ...plan.values, other: 'edited since', extra: 1 } }, plan.previous)).toEqual({
+      status: 'doing',
+      other: 'edited since',
+      extra: 1
+    })
     expect(props.values).toEqual({ status: 'doing', other: 'kept' })
   })
 
@@ -345,5 +439,80 @@ describe('the tasks of a span of days', () => {
     ])
     // Asked for no span, it answers as before.
     expect(Object.keys(selectTasks(blocks, { today: TODAY })).sort()).toEqual(['noDate', 'overdue', 'today'])
+  })
+})
+
+describe('the built-in Tasks database', () => {
+  const builtIn = (): TaskBlock => {
+    const props = tasksDatabaseProps()
+    const schema = props.schema as Record<string, PropertySchema>
+    schema[TASK_PROPS.project] = { ...schema[TASK_PROPS.project], options: [{ id: 'home', name: 'Home', color: 'green' }] }
+    schema[TASK_PROPS.labels] = {
+      ...schema[TASK_PROPS.labels],
+      options: [
+        { id: 'calls', name: 'calls', color: 'blue' },
+        { id: 'errands', name: 'errands', color: 'pink' }
+      ]
+    }
+    return block(TASKS_DATABASE_ID, 'database', null, props)
+  }
+  const weekly = JSON.stringify({ rule: 'FREQ=WEEKLY;BYDAY=MO', from: 'due', text: 'every monday' })
+
+  it('gives its rows their project, labels and repeat', () => {
+    const selection = selectTasks(
+      [
+        builtIn(),
+        row('a', TASKS_DATABASE_ID, 'Call the bank', {
+          [TASK_PROPS.due]: { start: TODAY },
+          [TASK_PROPS.project]: 'home',
+          [TASK_PROPS.labels]: ['errands', 'gone', 'calls'],
+          [TASK_PROPS.recurrence]: weekly
+        })
+      ],
+      { today: TODAY }
+    )
+    expect(selection.today).toHaveLength(1)
+    const [task] = selection.today
+    expect(task.project).toEqual({ id: 'home', name: 'Home', color: 'green' })
+    expect(task.labels).toEqual([
+      { id: 'errands', name: 'errands', color: 'pink' },
+      { id: 'calls', name: 'calls', color: 'blue' }
+    ])
+    expect(task.recurrence).toEqual({ rule: 'FREQ=WEEKLY;BYDAY=MO', from: 'due', text: 'every monday' })
+  })
+
+  it('marks its rows by their labels, even with none, and leaves out what they lack', () => {
+    const selection = selectTasks(
+      [
+        builtIn(),
+        row('a', TASKS_DATABASE_ID, 'Plain', { [TASK_PROPS.due]: { start: TODAY }, [TASK_PROPS.project]: 'gone' }),
+        row('b', TASKS_DATABASE_ID, 'Broken repeat', { [TASK_PROPS.due]: { start: TODAY }, [TASK_PROPS.recurrence]: '{nope' })
+      ],
+      { today: TODAY }
+    )
+    for (const task of selection.today) {
+      expect(task.labels).toEqual([])
+      expect(task).not.toHaveProperty('project')
+      expect(task).not.toHaveProperty('recurrence')
+    }
+  })
+
+  it('carries them into a span of days too', () => {
+    const selection = selectTasks(
+      [builtIn(), row('a', TASKS_DATABASE_ID, 'Later', { [TASK_PROPS.due]: { start: '2026-10-20' }, [TASK_PROPS.project]: 'home' })],
+      { today: TODAY, range: { from: TODAY, to: '2026-10-31' } }
+    )
+    expect(selection.dated?.[0].project?.name).toBe('Home')
+  })
+
+  it('gives other task databases none of them', () => {
+    const selection = selectTasks(
+      [database('db'), row('a', 'db', 'Other', { due: { start: TODAY }, [TASK_PROPS.project]: 'home', [TASK_PROPS.recurrence]: weekly })],
+      { today: TODAY }
+    )
+    const [task] = selection.today
+    expect(task).not.toHaveProperty('labels')
+    expect(task).not.toHaveProperty('project')
+    expect(task).not.toHaveProperty('recurrence')
   })
 })

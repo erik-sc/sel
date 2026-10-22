@@ -63,7 +63,8 @@ export function lastSynced(status: SyncStatus, now: number): string {
 export function describeActivity(entry: SyncActivity): string {
   const parts: string[] = []
   if (entry.sent > 0) parts.push(`Sent ${plural(entry.sent, 'page')}`)
-  if (entry.received > 0) parts.push(`${parts.length ? 'received' : 'Received'} ${plural(entry.received, 'page')}${entry.from ? ` from ${entry.from}` : ''}`)
+  if (entry.received > 0)
+    parts.push(`${parts.length ? 'received' : 'Received'} ${plural(entry.received, 'page')}${entry.from ? ` from ${entry.from}` : ''}`)
   if (entry.appearance) parts.push(parts.length ? 'appearance updated' : 'Appearance updated')
   if (entry.error) parts.push(parts.length ? 'then stopped with a problem' : 'Could not sync')
   if (!parts.length) return entry.conflicts.length ? 'Merged changes' : 'Nothing to sync'

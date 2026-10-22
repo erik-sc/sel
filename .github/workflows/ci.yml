@@ -1,4 +1,4 @@
-# Typecheck and tests on every pull request and on every push to main.
+# Typecheck, lint, a dependency audit and tests on every pull request and on every push to main.
 #
 # Install: `npm ci --ignore-scripts`. Neither check needs a package's install script:
 # better-sqlite3 13 ships prebuilt binaries and the tests use Node's built-in SQLite anyway
@@ -9,8 +9,10 @@
 # currency differently ("$12.0K", not "$12K") and a chart test fails.
 #
 # Tests run on Windows, the only platform the app ships for. Several tests exercise the
-# Windows code paths with the host's `path` module and do not pass on Linux. Typecheck does
-# not depend on the OS, so it runs once, on the quicker Ubuntu runner.
+# Windows code paths with the host's `path` module and do not pass on Linux. Typecheck and lint
+# do not depend on the OS, so they run once, on the quicker Ubuntu runner.
+#
+# Audit: only what ships (`--omit=dev`), and only high or critical advisories fail the run.
 name: CI
 
 on:
@@ -40,6 +42,19 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run typecheck
+      - run: npm run lint
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm audit --omit=dev --audit-level=high
 
   test:
     runs-on: windows-latest

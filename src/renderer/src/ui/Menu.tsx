@@ -54,13 +54,11 @@ function MenuList({ items, onClose, autoFocus, onBack }: MenuProps & { onBack?: 
     return -1
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only on mount: `autoFocus` describes how the menu was opened, and `move` (new on every render) only reads the items the menu was opened with.
   useEffect(() => {
     if (!autoFocus) return
     rootRef.current?.focus({ preventScroll: true })
     setActive(move(-1, 1))
-    // Only on mount: `autoFocus` describes how the menu was opened, and `move` (new on every
-    // render) only reads the items the menu was opened with.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -174,12 +172,7 @@ function MenuList({ items, onClose, autoFocus, onBack }: MenuProps & { onBack?: 
         )
       })}
       {sub && isAction(subItem) && subItem.submenu && (
-        <Popover
-          open
-          anchor={itemRefs.current[sub.index] ?? null}
-          placement="right-start"
-          onClose={closeSub}
-        >
+        <Popover open anchor={itemRefs.current[sub.index] ?? null} placement="right-start" role="none" onClose={closeSub}>
           <MenuList
             key={subItem.id}
             items={subItem.submenu}

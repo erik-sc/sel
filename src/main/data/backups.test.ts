@@ -13,6 +13,7 @@ import {
   BackupError,
   backupName,
   backupsToKeep,
+  copyAndCheck,
   inspectDatabase,
   isDamageError,
   isNewerError,
@@ -23,6 +24,7 @@ import {
   restoreOverDamaged,
   stageRestore,
   takeBackup,
+  takeBackupApart,
   type ReadOnlyOpener
 } from './backups'
 
@@ -173,6 +175,79 @@ describe('taking a backup', () => {
     expect(() => takeBackup({ source: full, dir, kind: 'auto', now: Date.now(), open, freeBytes: plenty })).toThrow(
       expect.objectContaining({ problem: 'disk-full' })
     )
+  })
+})
+
+describe('taking a backup apart from the main process', () => {
+  // In the app `work` is a utility process running copyAndCheck (./backupWorker.ts); here it runs in place.
+  const work = async (file: string, partial: string) => copyAndCheck(open, file, partial)
+
+  it('makes the same checked, named and pruned copy as takeBackup', async () => {
+    const dir = folder()
+    const file = join(dir, 'sel.db')
+    const repo = openTestRepository(file)
+    repo.create({ type: 'page', parentId: null, props: { title: [['Kept']] } })
+    const backups = join(dir, 'backups')
+    mkdirSync(backups)
+    for (let i = 1; i <= 14; i++) writeFileSync(join(backups, backupName(Date.now() - i * DAY, 'auto')), 'old')
+    const made = await takeBackupApart({ source: repo, file, dir: backups, kind: 'auto', now: Date.now(), work, freeBytes: plenty })
+    repo.close()
+    expect(made.kind).toBe('auto')
+    expect(titlesIn(made.path)).toEqual(['Kept'])
+    expect(inspectDatabase(open, made.path)).toMatchObject({ ok: true, pages: 1 })
+    const left = listBackups(backups)
+    expect(left[0].name).toBe(made.name)
+    expect(left.length).toBeLessThanOrEqual(6)
+    expect(readdirSync(backups).some((name) => name.endsWith('.partial'))).toBe(false)
+  })
+
+  it('copies what is committed while the app goes on writing, without holding it up', () => {
+    const dir = folder()
+    const file = join(dir, 'sel.db')
+    const repo = openTestRepository(file)
+    repo.create({ type: 'page', parentId: null, props: { title: [['Committed']] } })
+    const partial = join(dir, '.copy.partial')
+    // The copy is made on its own connection while the app's write transaction is open.
+    repo.transaction(() => {
+      repo.create({ type: 'page', parentId: null, props: { title: [['Not yet']] } })
+      expect(copyAndCheck(open, file, partial)).toMatchObject({ ok: true, pages: 1 })
+    })
+    expect(repo.listRoot()).toHaveLength(2)
+    repo.close()
+    expect(titlesIn(partial)).toEqual(['Committed'])
+  })
+
+  it('says what went wrong and leaves no partial copy behind', async () => {
+    const dir = folder()
+    const earlier = join(dir, backupName(Date.now() - DAY, 'auto'))
+    writeFileSync(earlier, 'an earlier backup')
+    const source = { byteSize: () => 0 }
+    const attempt = (fail: (partial: string) => Promise<never> | Promise<{ ok: false; problem: 'damaged' }>) =>
+      takeBackupApart({
+        source,
+        file: 'unused',
+        dir,
+        kind: 'auto',
+        now: Date.now(),
+        work: (_file, partial) => fail(partial),
+        freeBytes: plenty
+      })
+    await expect(
+      attempt(async (partial) => {
+        writeFileSync(partial, 'half a copy')
+        throw Object.assign(new Error('database or disk is full'), { code: 'SQLITE_FULL' })
+      })
+    ).rejects.toMatchObject({ problem: 'disk-full' })
+    await expect(attempt(async () => ({ ok: false, problem: 'damaged' }))).rejects.toMatchObject({ problem: 'damaged' })
+    await expect(
+      attempt(async () => {
+        throw new Error('The backup process stopped before answering (1)')
+      })
+    ).rejects.toMatchObject({ problem: 'failed' })
+    await expect(
+      takeBackupApart({ source, file: 'unused', dir, kind: 'auto', now: Date.now(), work, freeBytes: () => 1000 })
+    ).rejects.toBeInstanceOf(BackupError)
+    expect(readdirSync(dir)).toEqual([earlier.slice(dir.length + 1)])
   })
 })
 

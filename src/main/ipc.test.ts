@@ -71,7 +71,9 @@ describe('ipc registration', () => {
   })
 
   it('listens to the fire-and-forget channels only', () => {
-    expect([...electron.on].sort()).toEqual([IPC.windowMinimize, IPC.windowToggleMaximize, IPC.windowClose, MEETINGS_CHANNELS.frames, MEETINGS_CHANNELS.encoded].sort())
+    expect([...electron.on].sort()).toEqual(
+      [IPC.windowMinimize, IPC.windowToggleMaximize, IPC.windowClose, IPC.log, MEETINGS_CHANNELS.frames, MEETINGS_CHANNELS.encoded].sort()
+    )
   })
 
   it('refuses every channel to a sender that is not the app, and to a bad client id, before its handler runs', async () => {
@@ -92,9 +94,15 @@ describe('ipc registration', () => {
 describe('the handler map type', () => {
   it('wants every channel of a namespace, and no channel that is not declared', () => {
     const ok = (): null => null
-    const complete: Handlers<'feedback'> = { 'feedback:list': ok, 'feedback:create': ok, 'feedback:withdraw': ok, 'feedback:openFolder': ok }
+    const complete: Handlers<'feedback'> = {
+      'feedback:list': ok,
+      'feedback:create': ok,
+      'feedback:withdraw': ok,
+      'feedback:openFolder': ok,
+      'feedback:logTail': ok
+    }
     // @ts-expect-error: `feedback:openFolder` has no handler
-    const missing: Handlers<'feedback'> = { 'feedback:list': ok, 'feedback:create': ok, 'feedback:withdraw': ok }
+    const missing: Handlers<'feedback'> = { 'feedback:list': ok, 'feedback:create': ok, 'feedback:withdraw': ok, 'feedback:logTail': ok }
     // @ts-expect-error: no channel `feedback:nope` is declared
     const extra: Handlers<'feedback'> = { ...complete, 'feedback:nope': ok }
     expect(Object.keys({ ...complete, ...missing, ...extra })).toContain('feedback:list')

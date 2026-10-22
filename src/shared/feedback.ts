@@ -7,6 +7,9 @@
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
 
+import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
+
 export type FeedbackKind = 'bug' | 'suggestion'
 
 /**
@@ -31,7 +34,10 @@ export const FEEDBACK_LIMITS = {
   /** Files read from the folder; anything beyond is ignored, oldest first. */
   items: 1_000,
   /** One file on disk. */
-  fileBytes: 256 * 1024
+  fileBytes: 256 * 1024,
+  /** The last lines of the local log a report may carry, and their size together. */
+  logLines: 100,
+  logBytes: 64 * 1024
 } as const
 
 /** Where in the app the user was when they wrote it, and which build they ran. */
@@ -62,6 +68,8 @@ export interface FeedbackItem {
   updatedAt: string
   context: FeedbackContext
   resolution: FeedbackResolution | null
+  /** The last lines of the local log, when the user chose to attach them (src/main/log.ts). */
+  log: string[] | null
 }
 
 /** What the renderer sends to create one. */
@@ -70,6 +78,8 @@ export interface FeedbackInput {
   title: string
   description: string
   screen: string
+  /** Attach the last lines of the local log to the saved item. */
+  attachLog: boolean
 }
 
 export interface FeedbackApi {
@@ -80,6 +90,8 @@ export interface FeedbackApi {
   withdraw(id: string): Promise<void>
   /** Shows the folder in the file manager. */
   openFolder(): Promise<void>
+  /** The lines of the local log a report would carry now, for the user to read before attaching them. */
+  logTail(): Promise<string[]>
 }
 
 const ID_RE = /^fb-\d{8}-\d{6}-[a-z0-9]{4,12}$/
@@ -107,7 +119,7 @@ function line(value: string): string {
 /** Validates what the renderer sent. Throws on anything that is not exactly the expected shape. */
 export function cleanFeedbackInput(raw: unknown): FeedbackInput {
   if (!isPlainObject(raw)) throw new Error('Invalid feedback')
-  const { kind, title, description, screen } = raw
+  const { kind, title, description, screen, attachLog } = raw
   if (!oneOf(kind, FEEDBACK_KINDS)) throw new Error('Invalid feedback kind')
   if (typeof title !== 'string' || title.length > FEEDBACK_LIMITS.title * 2) throw new Error('Invalid feedback title')
   if (typeof description !== 'string' || description.length > FEEDBACK_LIMITS.description) {
@@ -115,9 +127,8 @@ export function cleanFeedbackInput(raw: unknown): FeedbackInput {
   }
   const cleanTitle = line(title).slice(0, FEEDBACK_LIMITS.title)
   if (!cleanTitle) throw new Error('The feedback needs a title')
-  const cleanScreen =
-    typeof screen === 'string' && screen.length <= FEEDBACK_LIMITS.screen && SCREEN_RE.test(screen) ? screen : 'none'
-  return { kind, title: cleanTitle, description: description.trim(), screen: cleanScreen }
+  const cleanScreen = typeof screen === 'string' && screen.length <= FEEDBACK_LIMITS.screen && SCREEN_RE.test(screen) ? screen : 'none'
+  return { kind, title: cleanTitle, description: description.trim(), screen: cleanScreen, attachLog: attachLog === true }
 }
 
 function shortText(value: unknown, max: number): string | null {
@@ -141,7 +152,7 @@ function githubUrl(value: unknown): string | null {
  */
 export function parseFeedbackItem(raw: unknown): FeedbackItem | null {
   if (!isPlainObject(raw)) return null
-  const { id, kind, title, description, status, createdAt, updatedAt, context, resolution, schema } = raw
+  const { id, kind, title, description, status, createdAt, updatedAt, context, resolution, schema, log } = raw
   if (!isFeedbackId(id) || !oneOf(kind, FEEDBACK_KINDS) || !oneOf(status, FEEDBACK_STATUSES)) return null
   const cleanTitle = typeof title === 'string' ? line(title).slice(0, FEEDBACK_LIMITS.title) : ''
   const created = isoDate(createdAt)
@@ -166,8 +177,22 @@ export function parseFeedbackItem(raw: unknown): FeedbackItem | null {
       pr: githubUrl(res.pr),
       branch: shortText(res.branch, 200),
       note: shortText(res.note, FEEDBACK_LIMITS.note)
-    }
+    },
+    log: Array.isArray(log) ? fitLog(log.filter((line): line is string => typeof line === 'string')) : null
   }
+}
+
+/** The last lines that fit the limits, oldest first. */
+export function fitLog(lines: readonly string[]): string[] {
+  const kept: string[] = []
+  let bytes = 0
+  for (let index = lines.length - 1; index >= 0 && kept.length < FEEDBACK_LIMITS.logLines; index--) {
+    const line = lines[index]
+    bytes += line.length + 1
+    if (bytes > FEEDBACK_LIMITS.logBytes) break
+    kept.unshift(line)
+  }
+  return kept
 }
 
 /** `fb-YYYYMMDD-HHMMSS-<random>`, in UTC: file names sort by creation time. */
@@ -175,10 +200,32 @@ export function newFeedbackId(now: Date, random: string): string {
   const two = (n: number): string => String(n).padStart(2, '0')
   const date = `${now.getUTCFullYear()}${two(now.getUTCMonth() + 1)}${two(now.getUTCDate())}`
   const time = `${two(now.getUTCHours())}${two(now.getUTCMinutes())}${two(now.getUTCSeconds())}`
-  return `fb-${date}-${time}-${random.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8).padEnd(4, '0')}`
+  return `fb-${date}-${time}-${random
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 8)
+    .padEnd(4, '0')}`
 }
 
 /** Newest first; ties (same second) by id. */
 export function sortFeedback(items: FeedbackItem[]): FeedbackItem[] {
   return [...items].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id.localeCompare(a.id))
 }
+
+/** The invoke channels of `api.feedback` (see `INVOKE` in ./api.ts): every method of FeedbackApi that returns a promise, and no other. */
+export const FEEDBACK_INVOKE = {
+  'feedback:list': true,
+  'feedback:create': true,
+  'feedback:withdraw': true,
+  'feedback:openFolder': true,
+  'feedback:logTail': true
+} as const satisfies Record<InvokeChannels<{ feedback: FeedbackApi }>, true>
+
+/** Reporting a bug or suggesting a feature (see ./commands.ts). */
+export const FEEDBACK_COMMANDS = [
+  {
+    id: 'send-feedback',
+    menu: { submenu: 'help', label: 'Report a Bug or Suggest a Feature…', order: 110 },
+    palette: { title: 'Report a bug or suggest a feature…', keywords: ['feedback', 'issue', 'help'], order: 910 }
+  }
+] as const satisfies readonly CommandSpec[]

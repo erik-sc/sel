@@ -1,8 +1,9 @@
 // The pure side of the quick-add input: what a parsed line stores, what a list adds by itself,
 // where the `#project` / `@label` being typed is, and which un-recognised spans survive an edit.
+// Renaming a task in a list reads its new name the same way (readName, renamedValues).
 import type { SelectOption } from '@shared/types'
 import { TASK_PROPS } from '@shared/tasks'
-import type { ParsedTask } from '@shared/tasks/parse'
+import { parseTask, type ParsedTask } from '@shared/tasks/parse'
 import * as L from '@/database/logic'
 import type { TaskListKey } from './gate'
 
@@ -51,7 +52,12 @@ export function shiftIgnored(ignored: readonly IgnoredSpan[], before: string, af
   let prefix = 0
   while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) prefix++
   let suffix = 0
-  while (suffix < before.length - prefix && suffix < after.length - prefix && before[before.length - 1 - suffix] === after[after.length - 1 - suffix]) suffix++
+  while (
+    suffix < before.length - prefix &&
+    suffix < after.length - prefix &&
+    before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  )
+    suffix++
   const changedEnd = before.length - suffix
   const delta = after.length - before.length
   const out: IgnoredSpan[] = []
@@ -76,7 +82,11 @@ export function fragmentAt(value: string, caret: number): { sigil: '#' | '@'; st
   return null
 }
 
-const fold = (text: string): string => text.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase()
+const fold = (text: string): string =>
+  text
+    .normalize('NFD')
+    .replace(/\p{M}+/gu, '')
+    .toLowerCase()
 
 /** Options matching what was typed: names that start with it first, then names that contain it. */
 export function suggest(options: readonly SelectOption[], typed: string, limit = 6): SelectOption[] {
@@ -105,4 +115,27 @@ export function localeDayFirst(locale?: string): boolean {
   } catch {
     return true
   }
+}
+
+/** What a typed name means: the title it leaves, and the fields its words set ("Call mum amanhã p1"). */
+export function readName(
+  text: string,
+  names: { projects: readonly string[]; labels: readonly string[] },
+  ignored: readonly IgnoredSpan[] = [],
+  now = new Date()
+): ParsedTask {
+  return parseTask(text, { now, dayFirst: localeDayFirst(), projects: names.projects, labels: names.labels, ignored: [...ignored] })
+}
+
+/**
+ * The title and values a rename leaves, from the values the row has: the fields the words set
+ * replace their old values (labels are added to), the rest stays. Without a title of its own
+ * ("amanhã p1"), the old title stays. `ids` are the option ids of the project and labels named.
+ */
+export function renamedValues(
+  parsed: ParsedTask,
+  ids: { project: string | null; labels: string[] },
+  current: { title: string; values: L.Values }
+): { title: string; values: L.Values } {
+  return { title: parsed.title || current.title, values: taskValues(parsed, ids, current.values) }
 }

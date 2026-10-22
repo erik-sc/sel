@@ -4,17 +4,7 @@ import type { Mark, RichText, Span } from '@shared/types'
 import { parsePageLink } from '@shared/pageLink'
 import { sanitizeLink } from './sanitize'
 
-export const COLOR_NAMES = [
-  'gray',
-  'brown',
-  'orange',
-  'yellow',
-  'green',
-  'blue',
-  'purple',
-  'pink',
-  'red'
-] as const
+export const COLOR_NAMES = ['gray', 'brown', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'red'] as const
 
 const BACKGROUND_SUFFIX = '_background'
 const KIND_ORDER = ['b', 'i', 'u', 's', 'c', 'a', 'h', 'hb']
@@ -28,9 +18,7 @@ export function normalizeMarks(marks: Mark[] | undefined | null): Mark[] {
   if (!marks || marks.length === 0) return []
   const byKind = new Map<string, Mark>()
   for (const m of marks) byKind.set(markKind(m), m)
-  return [...byKind.entries()]
-    .sort((a, b) => KIND_ORDER.indexOf(a[0]) - KIND_ORDER.indexOf(b[0]))
-    .map((e) => e[1])
+  return [...byKind.entries()].sort((a, b) => KIND_ORDER.indexOf(a[0]) - KIND_ORDER.indexOf(b[0])).map((e) => e[1])
 }
 
 function marksKey(marks: Mark[] | undefined | null): string {
@@ -111,12 +99,7 @@ export function concat(...parts: (RichText | undefined | null)[]): RichText {
   return normalize(all)
 }
 
-export function replaceRange(
-  rt: RichText | undefined | null,
-  start: number,
-  end: number,
-  insert: RichText
-): RichText {
+export function replaceRange(rt: RichText | undefined | null, start: number, end: number, insert: RichText): RichText {
   return concat(slice(rt, 0, start), insert, slice(rt, Math.max(start, end)))
 }
 
@@ -132,22 +115,12 @@ export function marksAt(rt: RichText | undefined | null, offset: number): Mark[]
 }
 
 /** Inserts plain text, inheriting the marks at the insertion point unless given. */
-export function insertText(
-  rt: RichText | undefined | null,
-  offset: number,
-  text: string,
-  marks?: Mark[]
-): RichText {
+export function insertText(rt: RichText | undefined | null, offset: number, text: string, marks?: Mark[]): RichText {
   return replaceRange(rt, offset, offset, [mk(text, marks ?? marksAt(rt, offset))])
 }
 
 /** True when every character in [start, end) carries a mark of this kind. */
-export function rangeHasMark(
-  rt: RichText | undefined | null,
-  start: number,
-  end: number,
-  kind: string
-): boolean {
+export function rangeHasMark(rt: RichText | undefined | null, start: number, end: number, kind: string): boolean {
   const part = slice(rt, start, end)
   if (part.length === 0) return false
   return part.every((s) => (s[1] ?? []).some((m) => markKind(m) === kind))
@@ -165,15 +138,19 @@ export function markValueAt(rt: RichText | undefined | null, start: number, end:
 export function addMark(rt: RichText | undefined | null, start: number, end: number, mark: Mark): RichText {
   if (end <= start) return normalize(rt)
   const kind = markKind(mark)
-  const mid = slice(rt, start, end).map(
-    ([t, ms]): Span => [t, [...(ms ?? []).filter((m) => markKind(m) !== kind), mark]]
-  )
+  const mid = slice(rt, start, end).map(([t, ms]): Span => [t, [...(ms ?? []).filter((m) => markKind(m) !== kind), mark]])
   return concat(slice(rt, 0, start), mid, slice(rt, end))
 }
 
 export function removeMark(rt: RichText | undefined | null, start: number, end: number, kind: string): RichText {
   if (end <= start) return normalize(rt)
-  const mid = slice(rt, start, end).map(([t, ms]): Span => mk(t, (ms ?? []).filter((m) => markKind(m) !== kind)))
+  const mid = slice(rt, start, end).map(
+    ([t, ms]): Span =>
+      mk(
+        t,
+        (ms ?? []).filter((m) => markKind(m) !== kind)
+      )
+  )
   return concat(slice(rt, 0, start), mid, slice(rt, end))
 }
 
@@ -184,12 +161,7 @@ export function toggleMark(rt: RichText | undefined | null, start: number, end: 
 }
 
 function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
 /** Escaped HTML for the system clipboard (`text/html`). Never used to build the editor DOM. */

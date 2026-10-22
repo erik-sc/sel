@@ -54,7 +54,12 @@ describe('skyScene', () => {
     const a = skyScene(RICH, 2026, '2026-10-15')
     for (const seed of [1, 7, 42]) {
       const b = skyScene(
-        { ...RICH, meditations: shuffle(RICH.meditations, seed), grains: shuffle(RICH.grains, seed), pomodoros: shuffle(RICH.pomodoros, seed) },
+        {
+          ...RICH,
+          meditations: shuffle(RICH.meditations, seed),
+          grains: shuffle(RICH.grains, seed),
+          pomodoros: shuffle(RICH.pomodoros, seed)
+        },
         2026,
         '2026-10-15'
       )
@@ -131,7 +136,10 @@ describe('skyScene', () => {
   })
 
   it('lists only years with stars as earlier skies', () => {
-    const many = input({ meditations: [line('2023-04-01'), line('2025-12-31'), line('2026-01-02')], grains: [{ key: 'g', day: '2024-05-05', at: 0 }] })
+    const many = input({
+      meditations: [line('2023-04-01'), line('2025-12-31'), line('2026-01-02')],
+      grains: [{ key: 'g', day: '2024-05-05', at: 0 }]
+    })
     expect(yearsWithStars(many)).toEqual([2026, 2025, 2023])
     expect(earlierSkies(many, 2026)).toEqual([2025, 2023])
     expect(earlierSkies(input(), 2026)).toEqual([])
@@ -149,9 +157,17 @@ describe('skyScene', () => {
     const everyDay = input({
       meditations: Array.from({ length: 365 }, (_, i) => line(new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10))),
       grains: Array.from({ length: 2000 }, (_, i) => ({ key: `g${i}`, day: '2026-06-01', at: 0 })),
-      pomodoros: Array.from({ length: 400 }, (_, i) => ({ key: `p${i}`, day: new Date(Date.UTC(2026, 0, 1 + (i % 365))).toISOString().slice(0, 10), at: i }))
+      pomodoros: Array.from({ length: 400 }, (_, i) => ({
+        key: `p${i}`,
+        day: new Date(Date.UTC(2026, 0, 1 + (i % 365))).toISOString().slice(0, 10),
+        at: i
+      }))
     })
-    const scenes: SkyScene[] = [skyScene(everyDay, 2026, '2026-12-31'), skyScene(RICH, 2026, '2026-10-15'), skyScene(RICH, 2025, '2026-10-15')]
+    const scenes: SkyScene[] = [
+      skyScene(everyDay, 2026, '2026-12-31'),
+      skyScene(RICH, 2026, '2026-10-15'),
+      skyScene(RICH, 2025, '2026-10-15')
+    ]
     for (const scene of scenes) {
       const points = [
         ...scene.months.flatMap((m) => [...m.stars, m.centre, ...m.segments.flatMap((s) => [s.a, s.b])]),

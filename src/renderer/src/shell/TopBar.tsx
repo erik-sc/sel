@@ -1,14 +1,6 @@
 import { Fragment, memo, useEffect, useRef, useState } from 'react'
 import { fetchBlocks, useBlock } from '@/store/blocks'
-import {
-  canGoBack,
-  canGoForward,
-  goBack,
-  goForward,
-  openPage,
-  tabPage,
-  useActiveTab
-} from '@/store/tabs'
+import { canGoBack, canGoForward, goBack, goForward, openPage, tabPage, useActiveTab } from '@/store/tabs'
 import { IconButton } from '@/ui/Button'
 import { Menu } from '@/ui/Menu'
 import { Popover } from '@/ui/Popover'
@@ -22,7 +14,7 @@ import { logError, reportError, toggleFavorite } from './actions'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { topBarPageMenu } from './pageMenu'
-import { showOrHideAssistant } from './menuCommands'
+import { showOrHideAssistant } from './panels'
 import { WordCount } from './WordCount'
 
 function Crumb({ id, current }: { id: string; current?: boolean }) {
@@ -97,7 +89,7 @@ function Breadcrumb({ pageId }: { pageId: string }) {
             …
           </button>
           <span className="crumb-sep">/</span>
-          <Popover open={!!hiddenAnchor} anchor={hiddenAnchor} onClose={() => setHiddenAnchor(null)}>
+          <Popover open={!!hiddenAnchor} anchor={hiddenAnchor} label="Pages above" onClose={() => setHiddenAnchor(null)}>
             <div className="crumb-menu" onClick={() => setHiddenAnchor(null)}>
               {hidden.map((id) => (
                 <Crumb key={id} id={id} />
@@ -161,12 +153,7 @@ export const TopBar = memo(function TopBar() {
           >
             <MoreHorizontal />
           </IconButton>
-          <Popover
-            open={menuOpen}
-            anchor={moreRef.current}
-            placement="bottom-end"
-            onClose={() => setMenuOpen(false)}
-          >
+          <Popover open={menuOpen} anchor={moreRef.current} placement="bottom-end" role="none" onClose={() => setMenuOpen(false)}>
             <Menu items={topBarPageMenu(block, ai)} onClose={() => setMenuOpen(false)} autoFocus />
           </Popover>
         </div>

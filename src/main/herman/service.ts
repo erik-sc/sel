@@ -12,10 +12,24 @@ import {
   type HermanSignals,
   type HermanState
 } from '../../shared/herman'
+import { readRefineSettings } from '../../shared/tasks/refine'
 import * as arg from '../validate'
 import { compose, COUNSEL_DEFAULTS, type CounselEvent, type CounselInput, type CounselTask, type CounselThresholds } from './counsel'
 import { PHRASES } from './lines'
-import { decide, feedback, forDay, forget, FREQUENCIES, IDLE_MS, isQuiet, readMemory, record, RETRY_MS, type HermanMemory, type SchedulerConfig } from './scheduler'
+import {
+  decide,
+  feedback,
+  forDay,
+  forget,
+  FREQUENCIES,
+  IDLE_MS,
+  isQuiet,
+  readMemory,
+  record,
+  RETRY_MS,
+  type HermanMemory,
+  type SchedulerConfig
+} from './scheduler'
 
 /**
  * Herman as the app uses him: his settings, what he remembers, and the one question a window
@@ -36,6 +50,8 @@ const STREAK_GAP_MS = 10 * 60_000
 export interface HermanDay {
   tasks: { overdue: readonly CounselTask[]; today: readonly CounselTask[] }
   events: readonly CounselEvent[]
+  /** The Inbox's tasks still to refine after two days or more (shared/tasks/refine.ts). */
+  inbox?: { waiting: number; title: string; days: number } | null
 }
 
 /**
@@ -192,6 +208,8 @@ export class HermanService {
       quietHours,
       size: hermanSetting('size', this.setting('herman.size')),
       corner: hermanSetting('corner', this.setting('herman.corner')),
+      skin: hermanSetting('skin', this.setting('herman.skin')),
+      seasonalSkins: hermanSetting('seasonalSkins', this.setting('herman.seasonalSkins')),
       locale,
       greeting: memory.met ? null : phrases.greeting,
       quiet: !this.deps.fast && isQuiet(quietHours, this.now()),
@@ -264,7 +282,11 @@ export class HermanService {
     this.completions.pop()
   }
 
-  private async offer(moment: { idleMs: number; busy: boolean }, signals: HermanSignals | null, only?: HermanNudgeKind[]): Promise<HermanNudgeReply> {
+  private async offer(
+    moment: { idleMs: number; busy: boolean },
+    signals: HermanSignals | null,
+    only?: HermanNudgeKind[]
+  ): Promise<HermanNudgeReply> {
     const now = this.now()
     const config = this.config()
     const stored = this.memory()
@@ -287,6 +309,8 @@ export class HermanService {
       locale: this.locale(),
       tasks: day.tasks,
       events: day.events,
+      // Settings → Notifications can turn this one off on its own.
+      inbox: readRefineSettings((key) => this.setting(key)).herman ? (day.inbox ?? null) : null,
       firstLaunch: this.firstLaunchDay === localDay(now) && now - this.startedAt < LAUNCH_WINDOW_MS,
       // A streak is of the moment: completions of a while ago no longer count.
       streak: now - (this.completions[this.completions.length - 1] ?? 0) <= STREAK_GAP_MS ? this.completions.length : 0,
@@ -299,11 +323,17 @@ export class HermanService {
       ...(only ? { only } : {})
     }
     if (signals?.editingMs !== undefined) input.editingMs = signals.editingMs * (fast?.editingScale ?? 1)
-    if (signals?.pageId && signals.untouchedDays !== undefined && this.deps.pageExists(signals.pageId)) input.reopened = { pageId: signals.pageId, days: signals.untouchedDays }
+    if (signals?.pageId && signals.untouchedDays !== undefined && this.deps.pageExists(signals.pageId))
+      input.reopened = { pageId: signals.pageId, days: signals.untouchedDays }
     const counsel = compose(input)
     if (!counsel) return { nudge: null, waitMs: fast ? fast.idleMs : RETRY_MS }
 
-    const nudge: HermanNudge = { id: randomUUID(), kind: counsel.kind, text: counsel.text, ...(counsel.action ? { action: counsel.action } : {}) }
+    const nudge: HermanNudge = {
+      id: randomUUID(),
+      kind: counsel.kind,
+      text: counsel.text,
+      ...(counsel.action ? { action: counsel.action } : {})
+    }
     this.remember(record(memory, { id: nudge.id, kind: counsel.kind, variant: counsel.variant }, now))
     return { nudge, waitMs: config.gapMs }
   }

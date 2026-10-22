@@ -78,7 +78,15 @@ function failed(error: unknown): void {
   notifyError('The setting could not be saved.', error)
 }
 
-function ColorDots({ value, label, onChange }: { value: CalendarColor; label: string; onChange: (color: CalendarColor) => void }): JSX.Element {
+function ColorDots({
+  value,
+  label,
+  onChange
+}: {
+  value: CalendarColor
+  label: string
+  onChange: (color: CalendarColor) => void
+}): JSX.Element {
   return (
     <div className="ts-colors" role="radiogroup" aria-label={label}>
       {CALENDAR_COLORS.map((color) => (
@@ -98,7 +106,17 @@ function ColorDots({ value, label, onChange }: { value: CalendarColor; label: st
   )
 }
 
-function Row({ label, help, error, children }: { label: string; help?: string; error?: boolean; children?: JSX.Element | JSX.Element[] | false | null }): JSX.Element {
+function Row({
+  label,
+  help,
+  error,
+  children
+}: {
+  label: string
+  help?: string
+  error?: boolean
+  children?: JSX.Element | JSX.Element[] | false | null
+}): JSX.Element {
   return (
     <div className="ap-row">
       <div className="ap-row-text">
@@ -146,7 +164,12 @@ function Calendars(): JSX.Element {
           setColor(CALENDAR_COLORS[(CALENDAR_COLORS.indexOf(color) + 1) % CALENDAR_COLORS.length])
           reload()
         },
-        (error: unknown) => setProblem(error instanceof Error && error.message ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : 'The calendar could not be added.')
+        (error: unknown) =>
+          setProblem(
+            error instanceof Error && error.message
+              ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+              : 'The calendar could not be added.'
+          )
       )
       .finally(() => setAdding(false))
   }
@@ -177,11 +200,15 @@ function Calendars(): JSX.Element {
   const status = (calendar: BriefingCalendar): { text: string; error: boolean } => {
     const tested = tests[calendar.id]
     if (tested === 'running') return { text: 'Reading the calendar…', error: false }
-    if (tested && tested.ok) return { text: `It works: ${count(tested.today, 'event')} today, ${tested.week} in the next seven days.`, error: false }
+    if (tested && tested.ok)
+      return { text: `It works: ${count(tested.today, 'event')} today, ${tested.week} in the next seven days.`, error: false }
     if (tested && !tested.ok) return { text: CALENDAR_ERROR_TEXT[tested.error], error: true }
     if (!calendar.enabled) return { text: `${calendar.host} · turned off`, error: false }
     if (!calendar.ok) return { text: `${calendar.host} · ${CALENDAR_ERROR_TEXT[calendar.error ?? 'failed']}`, error: true }
-    return { text: calendar.updatedAt ? `${calendar.host} · ${updatedLabel(calendar.updatedAt, Date.now()).replace(/^U/, 'u')}` : calendar.host, error: false }
+    return {
+      text: calendar.updatedAt ? `${calendar.host} · ${updatedLabel(calendar.updatedAt, Date.now()).replace(/^U/, 'u')}` : calendar.host,
+      error: false
+    }
   }
 
   return (
@@ -219,9 +246,18 @@ function Calendars(): JSX.Element {
                   </span>
                 </div>
                 <div className="ap-row-control ts-calendar-controls">
-                  <ColorDots label={`Colour of ${calendar.label}`} value={calendar.color} onChange={(next) => update(calendar.id, { color: next })} />
+                  <ColorDots
+                    label={`Colour of ${calendar.label}`}
+                    value={calendar.color}
+                    onChange={(next) => update(calendar.id, { color: next })}
+                  />
                   <span className="ts-spacer" />
-                  <Segmented label={`Show ${calendar.label}`} value={calendar.enabled ? 'on' : 'off'} options={ON_OFF} onChange={(value) => update(calendar.id, { enabled: value === 'on' })} />
+                  <Segmented
+                    label={`Show ${calendar.label}`}
+                    value={calendar.enabled ? 'on' : 'off'}
+                    options={ON_OFF}
+                    onChange={(value) => update(calendar.id, { enabled: value === 'on' })}
+                  />
                   <Button disabled={tests[calendar.id] === 'running'} onClick={() => test(calendar.id)}>
                     Test
                   </Button>
@@ -245,11 +281,19 @@ function Calendars(): JSX.Element {
             <div className="ap-row-text">
               <span className="ap-row-label">{calendars.length ? 'Add another calendar' : 'Connect a calendar'}</span>
               <span className={problem ? 'ap-row-help is-error' : 'ap-row-help'} role={problem ? 'alert' : undefined}>
-                {problem || 'Paste the secret iCal address of a calendar. It works with Google Calendar, Outlook, iCloud, Fastmail and anything else that publishes an .ics address.'}
+                {problem ||
+                  'Paste the secret iCal address of a calendar. It works with Google Calendar, Outlook, iCloud, Fastmail and anything else that publishes an .ics address.'}
               </span>
             </div>
             <div className="ap-row-control ts-add-fields">
-              <input className="ap-field ts-add-name" aria-label="Name" placeholder="Name" value={label} maxLength={BRIEFING_LIMITS.label} onChange={(event) => setLabel(event.target.value)} />
+              <input
+                className="ap-field ts-add-name"
+                aria-label="Name"
+                placeholder="Name"
+                value={label}
+                maxLength={BRIEFING_LIMITS.label}
+                onChange={(event) => setLabel(event.target.value)}
+              />
               <input
                 className="ap-field ts-add-address"
                 aria-label="Secret address in iCal format"
@@ -282,9 +326,9 @@ function Calendars(): JSX.Element {
           <li>Copy that address and paste it above.</li>
         </ol>
         <p>
-          Outlook calls it “Publish a calendar” (the ICS link); iCloud, “Public Calendar”. Anyone who has the address can read the calendar, so sel keeps it
-          encrypted on this computer and never shows it again. Sync carries it to your other devices only inside a repository encrypted with your passphrase.
-          To take access away, reset the secret address in your calendar’s settings.
+          Outlook calls it “Publish a calendar” (the ICS link); iCloud, “Public Calendar”. Anyone who has the address can read the calendar,
+          so sel keeps it encrypted on this computer and never shows it again. Sync carries it to your other devices only inside a
+          repository encrypted with your passphrase. To take access away, reset the secret address in your calendar’s settings.
         </p>
       </details>
       {sync.configured &&
@@ -299,8 +343,8 @@ function Calendars(): JSX.Element {
           </p>
         ))}
       <p className="ap-note">
-        Connecting a calendar is the one thing that makes sel go online by itself: it reads the address above every 15 minutes or so, over https, and sends
-        nothing else. With no calendar connected, it makes no request at all.
+        Connecting a calendar is the one thing that makes sel go online by itself: it reads the address above every 15 minutes or so, over
+        https, and sends nothing else. With no calendar connected, it makes no request at all.
       </p>
     </section>
   )
@@ -407,7 +451,9 @@ export function TodaySection(): JSX.Element {
 
   const commitMaxItems = (): void => {
     const parsed = Number.parseInt(maxItems, 10)
-    const next = Number.isFinite(parsed) ? Math.min(BRIEFING_LIMITS.maxItems.max, Math.max(BRIEFING_LIMITS.maxItems.min, parsed)) : values.maxItems
+    const next = Number.isFinite(parsed)
+      ? Math.min(BRIEFING_LIMITS.maxItems.max, Math.max(BRIEFING_LIMITS.maxItems.min, parsed))
+      : values.maxItems
     setMaxItems(String(next))
     if (next !== values.maxItems) set('maxItems', next)
   }
@@ -447,7 +493,12 @@ export function TodaySection(): JSX.Element {
         </div>
         <div className="ap-list">
           <Row label="Open at start-up" help="Once a day shows Today the first time you open sel each day.">
-            <Segmented label="Open at start-up" value={values.openOnLaunch} options={LAUNCH} onChange={(value) => set('openOnLaunch', value)} />
+            <Segmented
+              label="Open at start-up"
+              value={values.openOnLaunch}
+              options={LAUNCH}
+              onChange={(value) => set('openOnLaunch', value)}
+            />
           </Row>
           <Row label="Your name" help="For the greeting. Leave empty for none.">
             <input
@@ -477,10 +528,20 @@ export function TodaySection(): JSX.Element {
         </div>
         <div className="ap-list">
           <Row label="Tasks without a date" help="Also list open tasks that have no due date, under “No date”.">
-            <Segmented label="Tasks without a date" value={values.includeNoDate ? 'on' : 'off'} options={ON_OFF} onChange={(value) => set('includeNoDate', value === 'on')} />
+            <Segmented
+              label="Tasks without a date"
+              value={values.includeNoDate ? 'on' : 'off'}
+              options={ON_OFF}
+              onChange={(value) => set('includeNoDate', value === 'on')}
+            />
           </Row>
           <Row label="To-dos from pages" help="Also list unchecked to-dos from pages edited in the last seven days.">
-            <Segmented label="To-dos from pages" value={values.includeTodos ? 'on' : 'off'} options={ON_OFF} onChange={(value) => set('includeTodos', value === 'on')} />
+            <Segmented
+              label="To-dos from pages"
+              value={values.includeTodos ? 'on' : 'off'}
+              options={ON_OFF}
+              onChange={(value) => set('includeTodos', value === 'on')}
+            />
           </Row>
           <Row label="Show at most" help="The rest folds behind “and more…”.">
             <input
@@ -501,7 +562,12 @@ export function TodaySection(): JSX.Element {
           </Row>
         </div>
         <div className="ap-list ts-checks" role="group" aria-label="Databases to draw tasks from">
-          {databases.length === 0 && <Row label="Databases" help="No database yet. A database becomes a task list when it has a Status with a “Done” option, or a “Done” checkbox." />}
+          {databases.length === 0 && (
+            <Row
+              label="Databases"
+              help="No database yet. A database becomes a task list when it has a Status with a “Done” option, or a “Done” checkbox."
+            />
+          )}
           {databases.map((database) => (
             <label className="ap-row ts-check" key={database.id}>
               <input type="checkbox" checked={isChosen(database)} disabled={!database.detected} onChange={() => toggleDatabase(database)} />
@@ -514,14 +580,18 @@ export function TodaySection(): JSX.Element {
                   )}
                   {database.name}
                 </span>
-                {!database.detected && <span className="ap-row-help">No Status with a “Done” option and no “Done” checkbox, so its rows cannot be told open from done.</span>}
+                {!database.detected && (
+                  <span className="ap-row-help">
+                    No Status with a “Done” option and no “Done” checkbox, so its rows cannot be told open from done.
+                  </span>
+                )}
               </span>
             </label>
           ))}
         </div>
         <p className="ap-note">
-          A row is open until its Status says done (or cancelled) or its Done checkbox is ticked. It is overdue when its date is before today, and for today when
-          its date is today or its Status is one like “In progress”.
+          A row is open until its Status says done (or cancelled) or its Done checkbox is ticked. It is overdue when its date is before
+          today, and for today when its date is today or its Status is one like “In progress”.
         </p>
       </section>
 
@@ -540,11 +610,16 @@ export function TodaySection(): JSX.Element {
           ))}
         </div>
         <div className="ap-list ts-own">
-          <Row label="Your own phrases" help="A database with one row per phrase: its author, its source and a Favourite checkbox. Favourites come up more often. Create one called Phrases, or choose a database you already have.">
+          <Row
+            label="Your own phrases"
+            help="A database with one row per phrase: its author, its source and a Favourite checkbox. Favourites come up more often. Create one called Phrases, or choose a database you already have."
+          >
             <select
               className="ap-field ts-select"
               aria-label="Database that holds your phrases"
-              value={values.phrasesDatabaseId && all.some((database) => database.id === values.phrasesDatabaseId) ? values.phrasesDatabaseId : ''}
+              value={
+                values.phrasesDatabaseId && all.some((database) => database.id === values.phrasesDatabaseId) ? values.phrasesDatabaseId : ''
+              }
               onChange={(event) => set('phrasesDatabaseId', event.target.value || null)}
             >
               <option value="">{all.some((database) => database.id === values.phrasesDatabaseId) ? 'None' : 'Not created yet'}</option>
@@ -554,16 +629,23 @@ export function TodaySection(): JSX.Element {
                 </option>
               ))}
             </select>
-            <Button onClick={openPhrases}>{values.phrasesDatabaseId && all.some((database) => database.id === values.phrasesDatabaseId) ? 'Open' : 'Create'}</Button>
+            <Button onClick={openPhrases}>
+              {values.phrasesDatabaseId && all.some((database) => database.id === values.phrasesDatabaseId) ? 'Open' : 'Create'}
+            </Button>
           </Row>
           <Row label="Use your own" help="Balanced: half of the days, once you have ten of your own. Mostly mine: four days in five.">
-            <Segmented label="Use your own phrases" value={values.ownPhrases} options={OWN} onChange={(value) => set('ownPhrases', value)} />
+            <Segmented
+              label="Use your own phrases"
+              value={values.ownPhrases}
+              options={OWN}
+              onChange={(value) => set('ownPhrases', value)}
+            />
           </Row>
         </div>
         <p className="ap-note">
-          The phrases that come with sel are passages from texts in the public domain — Marcus Aurelius, Epictetus, Seneca, the Dhammapada, the Tao Te Ching,
-          Thoreau, Tagore and others — and the same one stays all day. Writers still in copyright, Hermann Hesse among them, cannot be bundled: add the passages
-          you love to your own phrases, where they are yours alone.
+          The phrases that come with sel are passages from texts in the public domain — Marcus Aurelius, Epictetus, Seneca, the Dhammapada,
+          the Tao Te Ching, Thoreau, Tagore and others — and the same one stays all day. Writers still in copyright, Hermann Hesse among
+          them, cannot be bundled: add the passages you love to your own phrases, where they are yours alone.
         </p>
       </section>
 

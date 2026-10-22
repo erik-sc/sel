@@ -27,8 +27,7 @@ let repo: Repository
 let db: SqlDriver
 let t: number
 
-const page = (title: string, parentId: string | null = null): Block =>
-  repo.create({ type: 'page', parentId, props: { title: [[title]] } })
+const page = (title: string, parentId: string | null = null): Block => repo.create({ type: 'page', parentId, props: { title: [[title]] } })
 const text = (title: string, parentId: string, afterId?: string | null): Block =>
   repo.create({ type: 'text', parentId, props: { title: [[title]] }, afterId })
 const retitle = (id: string, title: string): Block => repo.update(id, { props: { title: [[title]] } })
@@ -128,7 +127,7 @@ describe('what a version holds', () => {
     expect(v.rows).toBeUndefined()
   })
 
-  it('holds a database as schema, views and the title, icon, values and order of its rows', () => {
+  it('holds a database as schema, views and the order of its rows, shown with what they say now', () => {
     const d = repo.create({ type: 'database', parentId: null, props: { title: [['D']] } })
     const r1 = repo.create({ type: 'page', parentId: d.id, props: { title: [['one']], icon: '🍎', values: { x: 1 } } })
     const r2 = repo.create({ type: 'page', parentId: d.id, props: { title: [['two']] }, afterId: null })
@@ -227,21 +226,62 @@ describe('capture policy', () => {
     expect(list(p.id)).toHaveLength(1)
   })
 
-  it('counts a row edit as an edit of the database too', () => {
+  it("keeps a row edit in the row's own history, and a new or removed row in the database's", () => {
     const d = repo.create({ type: 'database', parentId: null, props: { title: [['D']] } })
     const row = repo.create({ type: 'page', parentId: d.id, props: { title: [['row']], values: { n: 1 } } })
     later()
     repo.update(row.id, { props: { values: { n: 2 } } })
-    expect(list(d.id)).toHaveLength(1)
-    expect(repo.getVersion(list(d.id)[0].id).rows![0].values).toEqual({ n: 1 })
-    // The row has no content of its own yet: what it shows in the database is in the database's history.
-    expect(list(row.id)).toEqual([])
+    // A row with no content of its own still has a state worth keeping: its title and values.
+    expect(list(row.id)).toHaveLength(1)
+    expect(repo.getVersion(list(row.id)[0].id).blocks[0].props.values).toEqual({ n: 1 })
+    expect(list(d.id)).toEqual([])
     text('notes', row.id)
     later()
     repo.update(row.id, { props: { values: { n: 3 } } })
-    expect(list(row.id)).toHaveLength(1)
+    expect(list(row.id)).toHaveLength(2)
     expect(repo.getVersion(list(row.id)[0].id).blocks[0].props.values).toEqual({ n: 2 })
+    expect(list(d.id)).toEqual([])
+
+    // Which rows the database holds is the database's: a new row is an edit of it.
+    later()
+    const second = repo.create({ type: 'page', parentId: d.id, props: { title: [['second']] } })
+    expect(list(d.id)).toHaveLength(1)
+    const v = repo.getVersion(list(d.id)[0].id)
+    expect(v.blocks[0].content).toEqual([row.id])
+    // The version names the row; what the row says is shown as it is now.
+    expect(v.rows).toEqual([{ id: row.id, title: [['row']], values: { n: 3 }, createdAt: row.createdAt }])
+    later()
+    repo.delete(second.id)
     expect(list(d.id)).toHaveLength(2)
+    expect(repo.getVersion(list(d.id)[0].id).blocks[0].content).toEqual([row.id, second.id])
+  })
+
+  it("never reads a database's rows to edit one, add one or keep a version of it", () => {
+    const d = repo.create({ type: 'database', parentId: null, props: { title: [['D']] } })
+    const rows = Array.from({ length: 50 }, (_, i) =>
+      repo.create({ type: 'page', parentId: d.id, props: { title: [[`row ${i}`]], values: { n: i } } })
+    )
+    const trees = vi.spyOn(repo, 'getTree')
+    const many = vi.spyOn(repo, 'getMany')
+    for (let i = 0; i < 5; i++) {
+      later()
+      repo.update(rows[i * 7].id, { props: { values: { n: -i } } })
+      later()
+      repo.create({ type: 'page', parentId: d.id, props: { title: [[`new ${i}`]] } })
+    }
+    repo.flushVersions()
+    // Each row's own snapshot reads that row; nothing reads the database as a tree, nor its rows in bulk.
+    expect(trees.mock.calls.every(([id]) => id !== d.id)).toBe(true)
+    expect(many.mock.calls.every(([ids]) => ids.length <= 1)).toBe(true)
+    trees.mockRestore()
+    many.mockRestore()
+    expect(list(d.id).length).toBeGreaterThan(0)
+    // Stored, a version of the database holds its schema, views and the ids of its rows, none of their text.
+    const stored = db.prepare('SELECT data FROM page_versions WHERE page_id = ? LIMIT 1').get(d.id) as { data: Uint8Array }
+    const json = decodeSnapshot(stored.data, clean)
+    expect(json.rows).toBeUndefined()
+    expect(json.blocks).toHaveLength(1)
+    expect(json.blocks[0].content.length).toBeGreaterThanOrEqual(50)
   })
 
   it('never stores the same state twice in a row', () => {
@@ -533,7 +573,8 @@ describe('restore: replace', () => {
     expect(result.pageId).toBe(p.id)
     expect(result.notes).toEqual([])
     const after = repo.getTree(p.id)
-    const shape = (blocks: Block[]) => blocks.map((x) => ({ id: x.id, type: x.type, parentId: x.parentId, content: x.content, props: x.props }))
+    const shape = (blocks: Block[]) =>
+      blocks.map((x) => ({ id: x.id, type: x.type, parentId: x.parentId, content: x.content, props: x.props }))
     // Same ids, same order, same content - the deleted toggle is back under its original id.
     expect(shape(after.slice(1))).toEqual(shape(before.slice(1)))
     expect(after[0].content).toEqual(before[0].content)
@@ -659,7 +700,8 @@ describe('restore: replace', () => {
     expect(repo.get(sub.id)).toMatchObject({ parentId: null, content: [p.id] })
   })
 
-  it('restores a database: schema and views, and the title, values and order of its rows', () => {
+  /** A database of four rows (the first with notes inside), its views, and a version of it saved by `save`. */
+  const tasks = (save: (d: Block) => string) => {
     const d = repo.create({
       type: 'database',
       parentId: null,
@@ -668,14 +710,15 @@ describe('restore: replace', () => {
         schema: { title: { id: 'title', name: 'Name', type: 'title' }, n: { id: 'n', name: 'Points', type: 'number' } }
       }
     })
-    const row = (title: string, n: number): Block => repo.create({ type: 'page', parentId: d.id, props: { title: [[title]], values: { n } } })
+    const row = (title: string, n: number): Block =>
+      repo.create({ type: 'page', parentId: d.id, props: { title: [[title]], values: { n } } })
     const r1 = row('one', 1)
     const r2 = row('two', 2)
     const r3 = row('three', 3)
     const r4 = row('four', 4)
     text('notes inside row one', r1.id)
     const views = repo.get(d.id)!.props.views!
-    const v = repo.saveVersion(d.id)
+    const v = save(d)
 
     later()
     repo.update(d.id, {
@@ -692,13 +735,44 @@ describe('restore: replace', () => {
     repo.delete(r4.id)
     repo.deleteForever(r4.id)
     const r5 = row('five', 5)
+    return { d, r1, r2, r3, r5, views, v }
+  }
 
-    const result = repo.restoreVersion(v.id, 'replace')
+  it('restores a database: schema, views and which rows it holds, in order; each row keeps what it says now', () => {
+    const { d, r1, r2, r3, r5, views, v } = tasks((d) => repo.saveVersion(d.id).id)
+    const result = repo.restoreVersion(v, 'replace')
     const now = repo.get(d.id)!
     expect(plainText(now.props.title)).toBe('Tasks')
     expect(Object.keys(now.props.schema!)).toEqual(['title', 'n'])
     expect(now.props.views).toEqual(views)
     // Snapshot order, minus the row that is gone for good, then the row made since.
+    expect(now.content).toEqual([r1.id, r2.id, r3.id, r5.id])
+    expect(repo.get(r2.id)!.trashedAt).toBeNull()
+    // A row's title and values are in its own history, not in the database's.
+    expect(repo.get(r1.id)!.props).toEqual({ title: [['ONE']], values: { n: 100, extra: 'x' }, icon: '🔥', cover: 'var(--c-red-bg)' })
+    expect(titles(r1.id)).toEqual(['notes inside row one', 'more notes'])
+    expect(repo.get(r5.id)!.props.values).toEqual({ n: 5 })
+    // Of the row deleted for good the version knew nothing but its id.
+    expect(result.notes).toEqual(['1 row was deleted forever and could not be brought back.'])
+    expect(repo.drainResets()).toEqual([d.id])
+  })
+
+  it('restores a database version stored before 0.7.0 with the title, values and order of its rows', () => {
+    const { d, r1, r2, r3, r5, views, v } = tasks((d) => {
+      // Such a version carried every row's title, icon and values: what `currentVersion` shows.
+      const { json, hash } = serializeSnapshot(repo.currentVersion(d.id))
+      db.prepare(
+        `INSERT INTO page_versions (id, page_id, created_at, kind, label, block_count, text_size, data, hash)
+         VALUES ('old', ?, ?, 'manual', NULL, 4, 0, ?, ?)`
+      ).run(d.id, t, encodeSnapshot(json), hash)
+      return 'old'
+    })
+    expect(repo.getVersion(v).rows!.map((r) => plainText(r.title))).toEqual(['one', 'two', 'three', 'four'])
+    const result = repo.restoreVersion(v, 'replace')
+    const now = repo.get(d.id)!
+    expect(plainText(now.props.title)).toBe('Tasks')
+    expect(Object.keys(now.props.schema!)).toEqual(['title', 'n'])
+    expect(now.props.views).toEqual(views)
     expect(now.content).toEqual([r1.id, r2.id, r3.id, r5.id])
     expect(repo.get(r2.id)!.trashedAt).toBeNull()
     const one = repo.get(r1.id)!
@@ -716,7 +790,20 @@ describe('restore: replace', () => {
     const view = repo.create({
       type: 'database',
       parentId: p.id,
-      props: { sourceId: d.id, views: [{ id: 'c', name: 'Chart', type: 'chart', visibleProperties: [], filters: [], sorts: [], chart: { kind: 'pie', y: { aggregate: 'count' } } }] }
+      props: {
+        sourceId: d.id,
+        views: [
+          {
+            id: 'c',
+            name: 'Chart',
+            type: 'chart',
+            visibleProperties: [],
+            filters: [],
+            sorts: [],
+            chart: { kind: 'pie', y: { aggregate: 'count' } }
+          }
+        ]
+      }
     })
     const v = repo.saveVersion(p.id)
     const own = repo.saveVersion(view.id)
@@ -789,6 +876,19 @@ describe('restore: copy', () => {
     expect(rows[0].content).toEqual([])
     expect(repo.get(result.pageId)!.props.schema).toEqual(repo.get(d.id)!.props.schema)
     expect(repo.listRoot().map((b) => b.id)).toEqual([d.id, result.pageId])
+  })
+
+  it('copies the rows a database version names as they are now, and says which are gone for good', () => {
+    const d = repo.create({ type: 'database', parentId: null, props: { title: [['D']] } })
+    const kept = repo.create({ type: 'page', parentId: d.id, props: { title: [['kept']], values: { n: 1 } } })
+    const gone = repo.create({ type: 'page', parentId: d.id, props: { title: [['gone']] } })
+    const v = repo.saveVersion(d.id)
+    repo.update(kept.id, { props: { values: { n: 2 } } })
+    repo.delete(gone.id)
+    repo.deleteForever(gone.id)
+    const result = repo.restoreVersion(v.id, 'copy')
+    expect(repo.children(result.pageId).map((r) => r.props)).toEqual([{ title: [['kept']], values: { n: 2 } }])
+    expect(result.notes).toEqual(['1 row was deleted forever and could not be copied.'])
   })
 })
 
@@ -904,7 +1004,11 @@ describe('damaged versions', () => {
     plant('truncated', p.id, whole.subarray(0, whole.length - 6))
     plant('not-json', p.id, deflateSync(Buffer.from('{"v":1,')))
     plant('wrong-shape', p.id, deflateSync(Buffer.from(JSON.stringify({ v: 1, rootId: p.id, blocks: 'nope' }))))
-    plant('other-page', p.id, deflateSync(Buffer.from(JSON.stringify({ v: 1, rootId: 'elsewhere', blocks: [{ id: 'elsewhere', type: 'page', content: [] }] }))))
+    plant(
+      'other-page',
+      p.id,
+      deflateSync(Buffer.from(JSON.stringify({ v: 1, rootId: 'elsewhere', blocks: [{ id: 'elsewhere', type: 'page', content: [] }] })))
+    )
     for (const id of ['truncated', 'not-json', 'wrong-shape', 'other-page']) {
       expect(() => repo.getVersion(id), id).toThrow('This version is damaged and cannot be read')
       expect(() => repo.restoreVersion(id, 'replace'), id).toThrow('This version is damaged and cannot be read')
@@ -951,7 +1055,9 @@ describe('damaged versions', () => {
     expect(() => parseSnapshot([], clean)).toThrow('damaged')
 
     // Hostile keys never reach a props object, and rich text is reduced to spans.
-    const hostile = JSON.parse('{"v":1,"rootId":"d","blocks":[{"id":"d","type":"database","content":["r"],"props":{"__proto__":{"x":1},"title":[["D"]]}}],"rows":[{"id":"r","title":[["ok",[["b"],["a","http://x"],[1,2,3]]],"junk",[5]],"values":{"n":1}}]}')
+    const hostile = JSON.parse(
+      '{"v":1,"rootId":"d","blocks":[{"id":"d","type":"database","content":["r"],"props":{"__proto__":{"x":1},"title":[["D"]]}}],"rows":[{"id":"r","title":[["ok",[["b"],["a","http://x"],[1,2,3]]],"junk",[5]],"values":{"n":1}}]}'
+    )
     const parsed = decodeSnapshot(deflateSync(Buffer.from(JSON.stringify(hostile))), (props) => {
       const out: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(props)) if (k !== '__proto__') out[k] = v
@@ -971,7 +1077,14 @@ describe('damaged versions', () => {
           JSON.stringify({
             v: 1,
             rootId: p.id,
-            blocks: [{ id: p.id, type: 'page', content: [], props: JSON.parse('{"title":[["P"]],"constructor":{"a":1},"__proto__":{"polluted":true}}') }]
+            blocks: [
+              {
+                id: p.id,
+                type: 'page',
+                content: [],
+                props: JSON.parse('{"title":[["P"]],"constructor":{"a":1},"__proto__":{"polluted":true}}')
+              }
+            ]
           })
         )
       ),

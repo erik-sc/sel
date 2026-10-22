@@ -1,7 +1,7 @@
 // Relation properties: the rules both processes need. A relation cell stores the ids of
 // the rows (pages) it links to; a two-way relation has a partner property in the target
 // database that holds the same links seen from the other side. The renderer reads and
-// edits them (database/logic/relation.ts); the main process keeps them right when a
+// edits them (database/relation.ts); the main process keeps them right when a
 // subtree is duplicated (db/repository.ts). Pure: no Electron, no React, no store.
 import type { BlockProps, PropertyValue, RelationConfig } from './types'
 
@@ -119,7 +119,11 @@ type Values = Record<string, PropertyValue>
  *    partner cells of the rows it links to, so the two sides stay in step. Under a partner
  *    that holds one link only, the copy gives that link up instead of stealing it.
  */
-export function relinkDuplicate(copies: DuplicateCopy[], copyOf: ReadonlyMap<string, string>, source: DuplicateSource): Map<string, Values> {
+export function relinkDuplicate(
+  copies: DuplicateCopy[],
+  copyOf: ReadonlyMap<string, string>,
+  source: DuplicateSource
+): Map<string, Values> {
   const byId = new Map(copies.map((copy) => [copy.id, copy]))
   const copied = new Set(copyOf.values())
 

@@ -1,7 +1,7 @@
 // The one place that explains what the AI features need: the Claude Code program on this
 // computer, signed in with the user's own account. Every AI entry point leads here when the
 // program is missing; "How to sign in" leads here when it is there but not signed in.
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { JSX } from 'react'
 import type { AiStatus } from '@shared/ai'
 import { Button, IconButton } from '@/ui/Button'
@@ -42,6 +42,7 @@ export function SetupSheet(): JSX.Element {
   const [busy, setBusy] = useState<'check' | 'pick' | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const signIn = reason === 'not-logged-in'
+  const titleId = useId()
 
   const settle = (next: AiStatus | null): void => {
     setBusy(null)
@@ -49,7 +50,8 @@ export function SetupSheet(): JSX.Element {
     if (next.available && !signIn) {
       closeAiSetup()
       toast(`Claude Code ${next.version ?? ''} is ready.`.replace('  ', ' '), { kind: 'success' })
-    } else if (next.available) setNote(`Claude Code ${next.version ?? ''} is installed. Sign in with the step above, then try again.`.replace('  ', ' '))
+    } else if (next.available)
+      setNote(`Claude Code ${next.version ?? ''} is installed. Sign in with the step above, then try again.`.replace('  ', ' '))
     else setNote(unavailableText(next))
   }
   const fail = (error: unknown): void => {
@@ -71,9 +73,9 @@ export function SetupSheet(): JSX.Element {
   }
 
   return (
-    <Modal open={reason !== null} onClose={closeAiSetup} label={signIn ? 'Sign in to Claude Code' : 'Set up AI'} className="ai-setup">
+    <Modal open={reason !== null} onClose={closeAiSetup} labelledBy={titleId} className="ai-setup">
       <header className="ai-setup-head">
-        <h2>{signIn ? 'Sign in to Claude Code' : 'Set up AI'}</h2>
+        <h2 id={titleId}>{signIn ? 'Sign in to Claude Code' : 'Set up AI'}</h2>
         <IconButton label="Close" tooltip={false} onClick={closeAiSetup}>
           <Close />
         </IconButton>
@@ -87,7 +89,9 @@ export function SetupSheet(): JSX.Element {
             <li>
               <span className="ai-step-title">Open a terminal and run Claude Code once</span>
               <Command text="claude" />
-              <span className="ai-step-help">It asks you to sign in with your Claude account. When it says you are signed in, you can close it.</span>
+              <span className="ai-step-help">
+                It asks you to sign in with your Claude account. When it says you are signed in, you can close it.
+              </span>
             </li>
             <li>
               <span className="ai-step-title">Come back and try again</span>

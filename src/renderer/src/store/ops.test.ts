@@ -60,11 +60,7 @@ describe('applyOpsToMap', () => {
   it('update merges props, removes null keys and changes type', () => {
     const map = fixture()
     map.a = { ...map.a, props: { title: [['hi']], color: 'red' } }
-    const result = applyOpsToMap(
-      map,
-      [{ op: 'update', id: 'a', patch: { type: 'to_do', props: { color: null, checked: true } } }],
-      7
-    )
+    const result = applyOpsToMap(map, [{ op: 'update', id: 'a', patch: { type: 'to_do', props: { color: null, checked: true } } }], 7)
     expect(result.map.a.type).toBe('to_do')
     expect(result.map.a.props).toEqual({ title: [['hi']], checked: true })
     expect(result.map.a.updatedAt).toBe(7)

@@ -13,7 +13,10 @@ import './database.css'
  * Vertical property list (name | editable value) shown at the top of a page
  * that is a database row. Renders nothing for ordinary pages.
  */
-export function RowProperties(props: { pageId: string; onOpenPage?: (id: string, opts?: { newTab?: boolean }) => void }): JSX.Element | null {
+export function RowProperties(props: {
+  pageId: string
+  onOpenPage?: (id: string, opts?: { newTab?: boolean }) => void
+}): JSX.Element | null {
   const { pageId, onOpenPage } = props
   const page = useBlock(pageId)
   const parent = useBlock(page?.parentId ?? null)
@@ -81,15 +84,9 @@ export function RowProperties(props: { pageId: string; onOpenPage?: (id: string,
         <button type="button" className="db-row-property-add" onClick={(event) => setAddAnchor(event.currentTarget)}>
           <Plus size={14} /> Add a property
         </button>
-  
+
         {menu && menuProp && (
-          <PropertyMenu
-            key={menuProp.id}
-            databaseId={databaseId}
-            prop={menuProp}
-            anchor={menu.anchor}
-            onClose={() => setMenu(null)}
-          />
+          <PropertyMenu key={menuProp.id} databaseId={databaseId} prop={menuProp} anchor={menu.anchor} onClose={() => setMenu(null)} />
         )}
         {addAnchor && <AddPropertyMenu databaseId={databaseId} anchor={addAnchor} onClose={() => setAddAnchor(null)} />}
       </div>

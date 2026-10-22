@@ -84,7 +84,12 @@ export class NotebookService {
   ensure(): void {
     if (this.root()) return
     if (this.repo.get(NOTEBOOK_ID)) throw new Error('Meditations could not be opened')
-    this.repo.create({ id: NOTEBOOK_ID, type: 'page', parentId: null, props: { system: 'notebook', title: [[NOTEBOOK_TITLES[this.locale()]]] } })
+    this.repo.create({
+      id: NOTEBOOK_ID,
+      type: 'page',
+      parentId: null,
+      props: { system: 'notebook', title: [[NOTEBOOK_TITLES[this.locale()]]] }
+    })
   }
 
   /** Every day the notebook holds, by day. */
@@ -117,7 +122,12 @@ export class NotebookService {
     const existing = this.repo.get(id)
     const block = existing
       ? this.repo.update(id, { props: props as BlockProps })
-      : this.repo.create({ id, type: NOTEBOOK_ENTRY_TYPE, parentId: NOTEBOOK_ID, props: Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null)) as BlockProps })
+      : this.repo.create({
+          id,
+          type: NOTEBOOK_ENTRY_TYPE,
+          parentId: NOTEBOOK_ID,
+          props: Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null)) as BlockProps
+        })
     const entry = readEntry(block)
     if (!entry) throw new Error('Meditations could not be written')
     return entry
@@ -171,7 +181,7 @@ export class NotebookService {
     }
     // The task databases the Today screen reads, with their rows.
     const stored = this.repo.getSetting('briefing.databases')
-    const chosen = stored === null ? null : (cleanBriefingSetting('briefing.databases', stored) as string[] | undefined) ?? null
+    const chosen = stored === null ? null : ((cleanBriefingSetting('briefing.databases', stored) as string[] | undefined) ?? null)
     const wanted = chosen ? new Set(chosen) : null
     for (const database of this.repo.listDatabases()) {
       if ((wanted && !wanted.has(database.id)) || !detectSignal(database.props)) continue

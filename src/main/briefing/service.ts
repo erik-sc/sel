@@ -187,8 +187,22 @@ export class BriefingService {
     const databases = this.repo.listDatabases()
     const phrasesDb = this.phrasesDatabase(databases)
     const chosen = this.setting<string[] | null>('briefing.databases', null)
-    const selected = selectTasks(this.taskBlocks(databases, phrasesDb, chosen), { today, databases: chosen, exclude: phrasesDb ? [phrasesDb.id] : [], range, cap: AGENDA_CAP })
-    return { ...range, today, events: span.events, tasks: selected.dated ?? [], calendars: calendars.status(), complete: span.complete, updatedAt: nowMs }
+    const selected = selectTasks(this.taskBlocks(databases, phrasesDb, chosen), {
+      today,
+      databases: chosen,
+      exclude: phrasesDb ? [phrasesDb.id] : [],
+      range,
+      cap: AGENDA_CAP
+    })
+    return {
+      ...range,
+      today,
+      events: span.events,
+      tasks: selected.dated ?? [],
+      calendars: calendars.status(),
+      complete: span.complete,
+      updatedAt: nowMs
+    }
   }
 
   /** The task databases the settings allow, each followed by its rows. */
@@ -248,7 +262,11 @@ export class BriefingService {
     const out: BriefingDatabase[] = []
     for (const database of all) {
       if (database.id === phrases?.id || out.length >= BRIEFING_LIMITS.databases) continue
-      const entry: BriefingDatabase = { id: database.id, name: plainText(database.props.title).trim().slice(0, 120) || 'Untitled', detected: detectSignal(database.props) !== null }
+      const entry: BriefingDatabase = {
+        id: database.id,
+        name: plainText(database.props.title).trim().slice(0, 120) || 'Untitled',
+        detected: detectSignal(database.props) !== null
+      }
       if (typeof database.props.icon === 'string') entry.icon = database.props.icon.slice(0, 16)
       out.push(entry)
     }
@@ -269,7 +287,10 @@ export class BriefingService {
   }
 
   private phraseSettings(): { traditions: Tradition[] | null; own: OwnPhrases } {
-    return { traditions: this.setting<Tradition[] | null>('briefing.traditions', null), own: this.setting<OwnPhrases>('briefing.ownPhrases', 'balanced') }
+    return {
+      traditions: this.setting<Tradition[] | null>('briefing.traditions', null),
+      own: this.setting<OwnPhrases>('briefing.ownPhrases', 'balanced')
+    }
   }
 
   private static view(candidate: PhraseCandidate): BriefingPhrase {
@@ -310,7 +331,10 @@ export class BriefingService {
     const { bundled, own } = this.candidates(phrasesDb)
     const stored = this.repo.getSetting<{ date?: unknown; id?: unknown; skip?: unknown }>(PHRASE_DAY_KEY)
     const sameDay = !!stored && stored.date === date
-    const skip = sameDay && typeof stored.skip === 'number' && Number.isFinite(stored.skip) ? Math.min(100_000, Math.max(0, Math.floor(stored.skip))) + 1 : 1
+    const skip =
+      sameDay && typeof stored.skip === 'number' && Number.isFinite(stored.skip)
+        ? Math.min(100_000, Math.max(0, Math.floor(stored.skip))) + 1
+        : 1
     const current = sameDay && typeof stored.id === 'string' ? [stored.id] : []
     const history = readHistory(this.repo.getSetting(PHRASE_HISTORY_KEY))
     const picked = pickPhrase({ date, bundled, own, history, settings: this.phraseSettings(), skip, avoid: current })
@@ -327,7 +351,9 @@ export class BriefingService {
     const databases = this.repo.listDatabases()
     const current = this.phrasesDatabase(databases)
     if (current) return { id: current.id }
-    const named = databases.find((database) => database.parentId === null && plainText(database.props.title).trim().toLowerCase() === PHRASES_TITLE.toLowerCase())
+    const named = databases.find(
+      (database) => database.parentId === null && plainText(database.props.title).trim().toLowerCase() === PHRASES_TITLE.toLowerCase()
+    )
     if (named) {
       this.repo.setSetting('briefing.phrasesDatabaseId', named.id)
       return { id: named.id }
@@ -365,7 +391,8 @@ export class BriefingService {
     const columns = phraseColumns(database.props)
     const values: Record<string, PropertyValue> = {}
     if (columns.author) values[columns.author] = quote.author
-    if (columns.source) values[columns.source] = `${quote.work}, ${quote.locator}${quote.translator ? ` (tr. ${quote.translator})` : ''}`.slice(0, 300)
+    if (columns.source)
+      values[columns.source] = `${quote.work}, ${quote.locator}${quote.translator ? ` (tr. ${quote.translator})` : ''}`.slice(0, 300)
     if (columns.tradition) {
       const option = columns.traditions.get(quote.tradition)
       if (option) values[columns.tradition] = option
@@ -446,7 +473,8 @@ export class BriefingService {
   addCalendar(raw: unknown): BriefingCalendar {
     const input = arg.plainObject(raw, 'calendar')
     for (const key of Object.keys(input)) if (key !== 'label' && key !== 'url' && key !== 'color') throw new Error('Invalid calendar')
-    if (typeof input['url'] !== 'string' || input['url'].length > BRIEFING_LIMITS.url) throw new Error(CALENDAR_ERROR_TEXT['blocked-address'])
+    if (typeof input['url'] !== 'string' || input['url'].length > BRIEFING_LIMITS.url)
+      throw new Error(CALENDAR_ERROR_TEXT['blocked-address'])
     if (typeof input['label'] !== 'string' || input['label'].length > 200) throw new Error('Invalid calendar')
     if (!isCalendarColor(input['color'])) throw new Error('Invalid colour')
     try {
@@ -463,7 +491,8 @@ export class BriefingService {
     const id = arg.id(rawId, 'calendar')
     const patch = arg.plainObject(raw, 'calendar')
     for (const key of Object.keys(patch)) if (key !== 'label' && key !== 'color' && key !== 'enabled') throw new Error('Invalid calendar')
-    if (patch['label'] !== undefined && (typeof patch['label'] !== 'string' || patch['label'].length > 200)) throw new Error('Invalid calendar')
+    if (patch['label'] !== undefined && (typeof patch['label'] !== 'string' || patch['label'].length > 200))
+      throw new Error('Invalid calendar')
     this.deps.store.update(id, patch)
     const status = this.deps.calendars.status().find((entry) => entry.id === id)
     if (!status) throw new Error('That calendar is no longer connected.')
@@ -488,10 +517,15 @@ export class BriefingService {
     const now = new Date(this.now())
     const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' })
     const eventLine = (event: BriefingEvent): string => {
-      const when = event.allDay ? 'All day' : event.end > event.start ? `${time.format(event.start)}–${time.format(event.end)}` : time.format(event.start)
+      const when = event.allDay
+        ? 'All day'
+        : event.end > event.start
+          ? `${time.format(event.start)}–${time.format(event.end)}`
+          : time.format(event.start)
       return `${when}: ${event.title || 'Untitled'}${event.location ? ` (${event.location})` : ''}`
     }
-    const taskLine = (task: BriefingTask): string => `${task.title}${task.due ? ` (due ${task.due})` : ''}${task.priority ? ` [${task.priority.name}]` : ''}`
+    const taskLine = (task: BriefingTask): string =>
+      `${task.title}${task.due ? ` (due ${task.due})` : ''}${task.priority ? ` [${task.priority.name}]` : ''}`
     const data: BriefingPromptData = {
       date: new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now),
       time: time.format(now),

@@ -1,5 +1,5 @@
 // Option picker for select / multi-select cells, and the pane that edits one option.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import type { PropertySchema, SelectOption } from '@shared/types'
 import { Check, ChevronLeft, MoreHorizontal, Trash } from '@/ui/icons'
@@ -119,13 +119,12 @@ export function SelectEditor({
   const [active, setActive] = useState(0)
   const [editingId, setEditingId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listId = useId()
+  const optionId = (index: number): string => `${listId}-${index}`
   const options = L.optionsOf(prop)
 
   const q = L.cleanName(query).toLocaleLowerCase()
-  const filtered = useMemo(
-    () => (q ? options.filter((o) => o.name.toLocaleLowerCase().includes(q)) : options),
-    [options, q]
-  )
+  const filtered = useMemo(() => (q ? options.filter((o) => o.name.toLocaleLowerCase().includes(q)) : options), [options, q])
   const selected = useMemo(() => new Set(value), [value])
   const exact = q ? options.some((o) => L.cleanName(o.name).toLocaleLowerCase() === q) : false
   const canCreate = q !== '' && !exact
@@ -188,6 +187,11 @@ export function SelectEditor({
           maxLength={L.MAX_NAME_LENGTH}
           placeholder={value.length ? '' : 'Search or create an option…'}
           aria-label="Search options"
+          role="combobox"
+          aria-expanded={count > 0}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={count ? optionId(activeIndex) : undefined}
           onChange={(event) => {
             setQuery(event.target.value)
             setActive(0)
@@ -215,13 +219,20 @@ export function SelectEditor({
           }}
         />
       </div>
-      <div className="db-menu-heading">
-        {options.length ? 'Select an option or create one' : 'Type a name to create an option'}
-      </div>
-      <div className="db-select-list">
+      <div className="db-menu-heading">{options.length ? 'Select an option or create one' : 'Type a name to create an option'}</div>
+      <div
+        className="db-select-list"
+        id={listId}
+        role={count ? 'listbox' : undefined}
+        aria-label={count ? prop.name : undefined}
+        aria-multiselectable={count && multiple ? true : undefined}
+      >
         {filtered.map((option, index) => (
           <div
             key={option.id}
+            id={optionId(index)}
+            role="option"
+            aria-selected={selected.has(option.id)}
             className={index === activeIndex ? 'db-select-option is-active' : 'db-select-option'}
             onMouseEnter={() => setActive(index)}
             onMouseDown={(event) => event.preventDefault()}
@@ -230,21 +241,25 @@ export function SelectEditor({
             <OptionTag option={option} />
             <span className="db-spacer" />
             {selected.has(option.id) && <Check size={14} />}
-            <button
-              type="button"
+            {/* For the pointer only: an option is read and chosen whole, so nothing inside it takes the focus. */}
+            <span
               className="db-mini-button"
-              aria-label={`Edit ${option.name}`}
+              aria-hidden="true"
+              title={`Edit ${option.name}`}
               onClick={(event) => {
                 event.stopPropagation()
                 setEditingId(option.id)
               }}
             >
               <MoreHorizontal size={14} />
-            </button>
+            </span>
           </div>
         ))}
         {canCreate && (
           <div
+            id={optionId(filtered.length)}
+            role="option"
+            aria-selected={false}
             className={activeIndex === filtered.length ? 'db-select-option is-active' : 'db-select-option'}
             onMouseEnter={() => setActive(filtered.length)}
             onMouseDown={(event) => event.preventDefault()}

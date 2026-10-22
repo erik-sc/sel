@@ -1,0 +1,30 @@
+# Weekly, grouped updates, so a week brings at most a few pull requests.
+#
+# Electron's major is pinned on purpose: electron.vite.config.ts fails the build unless the installed
+# Electron is the major it names, with the Node and Chrome targets beside it. A new major is done by
+# hand, all three together, so Dependabot only offers minors and patches of it.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: electron
+        update-types: [version-update:semver-major]
+    groups:
+      electron:
+        patterns: [electron, electron-builder, electron-updater, electron-vite, '@electron/*']
+      build-and-test:
+        patterns: [vite, vitest, '@vitejs/*', typescript, '@biomejs/*', '@types/*']
+      react:
+        patterns: [react, react-dom, zustand]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']

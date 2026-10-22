@@ -1,9 +1,17 @@
 // The sheet that sets up transcription: what will be downloaded, from where, how large it is,
 // and that this is the only time the feature goes online. Nothing is fetched before the button
 // is pressed. Loaded on demand (see slot.tsx).
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { JSX } from 'react'
-import { MEETINGS_DEFAULTS, WHISPER_MODEL_LABELS, WHISPER_MODELS, isWhisperModel, type EngineDownload, type EngineStatus, type WhisperModelId } from '@shared/meetings'
+import {
+  MEETINGS_DEFAULTS,
+  WHISPER_MODEL_LABELS,
+  WHISPER_MODELS,
+  isWhisperModel,
+  type EngineDownload,
+  type EngineStatus,
+  type WhisperModelId
+} from '@shared/meetings'
 import { Button, IconButton } from '@/ui/Button'
 import { Modal } from '@/ui/Modal'
 import { Close } from '@/ui/icons'
@@ -31,7 +39,14 @@ function clean(error: unknown): string {
 }
 
 /** The engine's status, kept current while a download runs. Shared by the sheet and the settings section. */
-export function useEngine(): { status: EngineStatus | null; download: EngineDownload | null; message: string | null; set(status: EngineStatus | null): void; say(message: string | null): void; refresh(): void } {
+export function useEngine(): {
+  status: EngineStatus | null
+  download: EngineDownload | null
+  message: string | null
+  set(status: EngineStatus | null): void
+  say(message: string | null): void
+  refresh(): void
+} {
   const [status, setStatus] = useState<EngineStatus | null>(null)
   const [download, setDownload] = useState<EngineDownload | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -44,6 +59,7 @@ export function useEngine(): { status: EngineStatus | null; download: EngineDown
       (error: unknown) => setMessage(clean(error))
     )
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once on mount: `refresh` is new on every render and only calls state setters.
   useEffect(() => {
     refresh()
     return window.api.meetings.onProgress((progress) => {
@@ -54,7 +70,7 @@ export function useEngine(): { status: EngineStatus | null; download: EngineDown
         refresh()
       }
     })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
   return {
     status,
     download,
@@ -76,9 +92,18 @@ export function DownloadProgress({ download, onCancel }: { download: EngineDownl
     <div className="mt-download" role="status">
       <div className="mt-download-text">
         <span>{PHASES[download.phase]}</span>
-        <span className="mt-download-size">{download.phase === 'unpacking' ? '' : `${formatBytes(download.received)} of ${formatBytes(download.total)}`}</span>
+        <span className="mt-download-size">
+          {download.phase === 'unpacking' ? '' : `${formatBytes(download.received)} of ${formatBytes(download.total)}`}
+        </span>
       </div>
-      <div className="mt-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)} aria-label="Download">
+      <div
+        className="mt-progress"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(share * 100)}
+        aria-label="Download"
+      >
         <span className="mt-progress-fill" style={{ transform: `scaleX(${share})` }} />
       </div>
       <Button onClick={onCancel}>Cancel</Button>
@@ -91,13 +116,15 @@ export function EngineSheet(): JSX.Element {
   const engine = useEngine()
   const [model, setModel] = useState<WhisperModelId>(MEETINGS_DEFAULTS.model)
   const { status, download } = engine
+  const titleId = useId()
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only when the sheet opens or closes; `engine` is a new object on every render.
   useEffect(() => {
     if (setup) engine.refresh()
     void window.api.app.getSetting<unknown>('meetings.model').then((value) => {
       if (isWhisperModel(value)) setModel(value)
     })
-  }, [setup !== null]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setup !== null])
 
   const pending = setup?.pageId ?? null
   const ready = status?.state === 'ready'
@@ -118,17 +145,17 @@ export function EngineSheet(): JSX.Element {
   const total = status ? (needsProgram ? status.offer.programBytes : 0) + status.offer.models[model] : 0
 
   return (
-    <Modal open={setup !== null} onClose={closeMeetingSetup} label="Set up transcription" className="mt-sheet">
+    <Modal open={setup !== null} onClose={closeMeetingSetup} labelledBy={titleId} className="mt-sheet">
       <header className="mt-sheet-head">
-        <h2>Set up transcription</h2>
+        <h2 id={titleId}>Set up transcription</h2>
         <IconButton label="Close" tooltip={false} onClick={closeMeetingSetup}>
           <Close />
         </IconButton>
       </header>
       <div className="mt-sheet-body">
         <p className="mt-sheet-lead">
-          Meetings are transcribed on this computer by whisper.cpp, an open-source program. Your audio never leaves the computer. sel needs to download the program and a speech model once; this is the only time
-          this feature goes online.
+          Meetings are transcribed on this computer by whisper.cpp, an open-source program. Your audio never leaves the computer. sel needs
+          to download the program and a speech model once; this is the only time this feature goes online.
         </p>
         {status === null ? (
           <p className="mt-sheet-note">Checking…</p>
@@ -166,7 +193,8 @@ export function EngineSheet(): JSX.Element {
           </>
         ) : (
           <p className="mt-sheet-note">
-            sel cannot download the program for this system. Install whisper.cpp yourself, then choose its <code className="mt-code">whisper-cli</code> program and a model file (ggml-….bin) here.
+            sel cannot download the program for this system. Install whisper.cpp yourself, then choose its{' '}
+            <code className="mt-code">whisper-cli</code> program and a model file (ggml-….bin) here.
           </p>
         )}
         {download && <DownloadProgress download={download} onCancel={() => void window.api.meetings.engine.cancelDownload()} />}

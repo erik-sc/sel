@@ -6,6 +6,7 @@ import type { BriefingPromptData } from '../ai/prompts'
 import type { AiService } from '../ai/service'
 import type { Repository } from '../db/repository'
 import { hermanLocale } from '../herman/service'
+import { sendCommand } from '../menu'
 import { tasksDatabase } from './reminders'
 import { AlarmsService } from './service'
 import { isQuickAddUrl } from './windows'
@@ -110,6 +111,8 @@ export class AlarmsBridge {
       if (win.isMinimized()) win.restore()
       win.show()
       win.focus()
+      // The refine time's notification opens what it is about: the refine mode.
+      if (announcement.kind === 'refine') sendCommand('refine-tasks', undefined, win)
     })
     notification.show()
   }
@@ -158,7 +161,8 @@ export class AlarmsBridge {
     if (!app.isPackaged || process.platform === 'linux') return
     try {
       const want = settings.openAtLogin
-      if (app.getLoginItemSettings({ args: [HIDDEN_FLAG] }).openAtLogin !== want) app.setLoginItemSettings({ openAtLogin: want, args: [HIDDEN_FLAG] })
+      if (app.getLoginItemSettings({ args: [HIDDEN_FLAG] }).openAtLogin !== want)
+        app.setLoginItemSettings({ openAtLogin: want, args: [HIDDEN_FLAG] })
     } catch (err) {
       console.error('[alarms] could not change the login item', err)
     }
@@ -192,6 +196,7 @@ export class AlarmsBridge {
 
 /** The windows that show the workspace, in the order they were opened (not the quick-add window: ./windows.ts). */
 export function appWindows(): BrowserWindow[] {
-  return BrowserWindow.getAllWindows().filter((win) => !win.isDestroyed() && !win.webContents.isDestroyed() && !isQuickAddUrl(win.webContents.getURL()))
+  return BrowserWindow.getAllWindows().filter(
+    (win) => !win.isDestroyed() && !win.webContents.isDestroyed() && !isQuickAddUrl(win.webContents.getURL())
+  )
 }
-

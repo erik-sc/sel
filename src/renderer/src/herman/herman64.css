@@ -1,0 +1,93 @@
+/*
+ * Herman 64. A strip of 84px frames, shown at --herman-size (a whole multiple of 84) with square
+ * pixels, and stepped through by one animation. --frames comes from the component; so does the
+ * duration, which is frames ÷ frames-per-second of that strip (sprites.ts TIMING), not a token.
+ */
+.herman64 {
+  display: block;
+  flex: none;
+  width: calc(var(--herman-size, 84) * 1px);
+  height: calc(var(--herman-size, 84) * 1px);
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: calc(var(--frames) * var(--herman-size, 84) * 1px) calc(var(--herman-size, 84) * 1px);
+  image-rendering: pixelated;
+  animation-name: herman64-play;
+  animation-timing-function: steps(var(--frames));
+  animation-iteration-count: infinite;
+  animation-play-state: paused;
+}
+
+.herman64.is-playing {
+  animation-play-state: running;
+}
+
+/* The entrance plays through once, even with the window behind another, then hands over to his pose. */
+.herman64.is-once {
+  animation-iteration-count: 1;
+  animation-play-state: running;
+}
+
+@keyframes herman64-play {
+  to {
+    background-position: calc(var(--frames) * var(--herman-size, 84) * -1px) 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .herman64,
+  .herman64.is-once {
+    animation: none;
+  }
+}
+
+/* ---- Settings → Herman: the outfits ---- */
+.herman-skins-row {
+  flex-wrap: wrap;
+}
+
+.herman-skins {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.herman-skin {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 4px 4px 8px;
+  border-radius: var(--radius-s);
+  background: var(--bg);
+  box-shadow: var(--shadow-control);
+  color: var(--text);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.herman-skin img {
+  width: 84px;
+  height: 84px;
+  image-rendering: pixelated;
+}
+
+.herman-skin:hover {
+  background: var(--bg-hover);
+}
+
+.herman-skin.is-chosen {
+  background: var(--bg-active);
+  box-shadow: 0 0 0 1px var(--frame);
+}
+
+.herman-skin:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.herman-skin-note {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}

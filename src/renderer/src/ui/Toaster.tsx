@@ -8,11 +8,7 @@ export function Toaster() {
   return createPortal(
     <div className="ui-toasts" role="region" aria-label="Notifications">
       {toasts.map((item) => (
-        <div
-          key={item.id}
-          className={`ui-toast glass-thick is-${item.kind}`}
-          role={item.kind === 'error' ? 'alert' : 'status'}
-        >
+        <div key={item.id} className={`ui-toast glass-thick is-${item.kind}`} role={item.kind === 'error' ? 'alert' : 'status'}>
           <span className="ui-toast-message">{item.message}</span>
           {item.action && (
             <button
@@ -44,12 +40,7 @@ export function Toaster() {
               ))}
             </div>
           )}
-          <button
-            type="button"
-            className="ui-toast-close"
-            aria-label="Dismiss notification"
-            onClick={() => dismissToast(item.id)}
-          >
+          <button type="button" className="ui-toast-close" aria-label="Dismiss notification" onClick={() => dismissToast(item.id)}>
             <Close size={12} />
           </button>
         </div>

@@ -69,13 +69,18 @@ export function parseBackupName(name: string): { at: number; kind: BackupKind } 
   return { at: date.getTime(), kind: (m[7] as BackupKind | undefined) ?? 'auto' }
 }
 
-/** The backups in `dir`, newest first. Files that are not backups are left out (and alone). */
-export function listBackups(dir: string): BackupFile[] {
+/**
+ * The backups in `dir`, newest first. Files that are not backups are left out (and alone).
+ * No folder means no backups yet; a folder that is there and cannot be read throws, since
+ * "unreadable" is not "empty" (see `listBackups` for the callers that only show a list).
+ */
+export function findBackups(dir: string): BackupFile[] {
   let names: string[]
   try {
     names = readdirSync(dir)
-  } catch {
-    return []
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw err
   }
   const found: BackupFile[] = []
   for (const name of names) {
@@ -90,6 +95,16 @@ export function listBackups(dir: string): BackupFile[] {
     }
   }
   return found.sort((a, b) => b.at - a.at || a.name.localeCompare(b.name))
+}
+
+/** `findBackups` for a list on screen or the daily check: an unreadable folder is logged and lists nothing. */
+export function listBackups(dir: string): BackupFile[] {
+  try {
+    return findBackups(dir)
+  } catch (err) {
+    console.error('[data] the backups folder could not be read', (err as NodeJS.ErrnoException).code ?? err)
+    return []
+  }
 }
 
 const localDay = (at: number): string => new Date(at).toDateString()
@@ -135,7 +150,9 @@ export function pruneBackups(dir: string, now: number): void {
   }
 }
 
-export type DatabaseCheck = { ok: true; pages: number; lastEdit: number | null } | { ok: false; problem: Exclude<BackupFileProblem, 'current'> }
+export type DatabaseCheck =
+  | { ok: true; pages: number; lastEdit: number | null }
+  | { ok: false; problem: Exclude<BackupFileProblem, 'current'> }
 
 /** Opens a database file read-only: better-sqlite3 in the app, node:sqlite in tests. */
 export type ReadOnlyOpener = (file: string) => SqlDriver
@@ -221,38 +238,124 @@ function isDiskFull(err: unknown): boolean {
   return /database or disk is full|no space left/i.test(err instanceof Error ? err.message : String(err))
 }
 
+/** Where a backup is being made: its name and the temporary file it is written to first. */
+interface Pending {
+  name: string
+  at: number
+  partial: string
+}
+
+function startBackup(
+  source: Pick<CopySource, 'byteSize'>,
+  dir: string,
+  kind: BackupKind,
+  now: number,
+  freeBytes: (dir: string) => number
+): Pending {
+  mkdirSync(dir, { recursive: true })
+  if (freeBytes(dir) < source.byteSize() + DISK_MARGIN) throw new BackupError('disk-full')
+  let at = Math.floor(now / 1000) * 1000
+  while (existsSync(join(dir, backupName(at, kind)))) at += 1000
+  const name = backupName(at, kind)
+  const partial = join(dir, `.${name}.partial`)
+  rmSync(partial, { force: true })
+  return { name, at, partial }
+}
+
+/** The checked copy takes its real name, and the older backups are pruned. */
+function finishBackup(dir: string, kind: BackupKind, now: number, pending: Pending, check: DatabaseCheck): BackupFile {
+  if (!check.ok) throw new BackupError('damaged')
+  const path = join(dir, pending.name)
+  renameSync(pending.partial, path)
+  pruneBackups(dir, now)
+  return { name: pending.name, path, at: pending.at, kind, size: statSync(path).size }
+}
+
+function failed(err: unknown): BackupError {
+  if (err instanceof BackupError) return err
+  return new BackupError(isDiskFull(err) ? 'disk-full' : 'failed')
+}
+
 /**
  * Makes one backup and prunes the older ones. Throws a BackupError (`disk-full`, `damaged`,
- * `failed`) and leaves nothing behind when no checked copy came of it.
+ * `failed`) and leaves nothing behind when no checked copy came of it. Everything happens in
+ * this process: the app uses `takeBackupApart` instead, which this is the reference for.
  */
 export function takeBackup({ source, dir, kind, now, open, freeBytes = freeBytesOf }: TakeBackupOptions): BackupFile {
-  let partial: string | null = null
+  let pending: Pending | null = null
   try {
-    mkdirSync(dir, { recursive: true })
-    if (freeBytes(dir) < source.byteSize() + DISK_MARGIN) throw new BackupError('disk-full')
-    let at = Math.floor(now / 1000) * 1000
-    while (existsSync(join(dir, backupName(at, kind)))) at += 1000
-    const name = backupName(at, kind)
-    partial = join(dir, `.${name}.partial`)
-    rmSync(partial, { force: true })
-    source.copyTo(partial)
-    const check = inspectDatabase(open, partial)
-    if (!check.ok) throw new BackupError('damaged')
-    const path = join(dir, name)
-    renameSync(partial, path)
-    partial = null
-    pruneBackups(dir, now)
-    return { name, path, at, kind, size: statSync(path).size }
+    pending = startBackup(source, dir, kind, now, freeBytes)
+    source.copyTo(pending.partial)
+    const file = finishBackup(dir, kind, now, pending, inspectDatabase(open, pending.partial))
+    pending = null
+    return file
   } catch (err) {
-    if (partial) rmSync(partial, { force: true })
-    if (err instanceof BackupError) throw err
-    throw new BackupError(isDiskFull(err) ? 'disk-full' : 'failed')
+    if (pending) rmSync(pending.partial, { force: true })
+    throw failed(err)
   }
 }
 
-/** The newest backup that passes its check, for a start-up whose database cannot be opened. */
+/**
+ * The slow part of a backup, `VACUUM INTO` and the check of the copy, done on a connection of
+ * its own: what ./backupWorker.ts runs in a utility process, so that the main process (the IPC
+ * of every window) is not held up by it. On a 200 MB database it takes seconds (release 0.7.0,
+ * decision 5). The copy holds what was committed when it began; writes may go on meanwhile.
+ */
+export function copyAndCheck(open: ReadOnlyOpener, source: string, partial: string): DatabaseCheck {
+  const db = open(source)
+  try {
+    db.prepare('VACUUM INTO ?').run(partial)
+  } finally {
+    try {
+      db.close()
+    } catch {
+      /* closing a read-only handle cannot lose anything */
+    }
+  }
+  return inspectDatabase(open, partial)
+}
+
+export interface TakeBackupApartOptions {
+  /** The database: its size (to check the disk first) and its file, which `work` copies. */
+  source: Pick<CopySource, 'byteSize'>
+  file: string
+  dir: string
+  kind: BackupKind
+  now: number
+  /** Runs `copyAndCheck(file, partial)` somewhere else and says what it found. */
+  work: (file: string, partial: string) => Promise<DatabaseCheck>
+  freeBytes?: (dir: string) => number
+}
+
+/** `takeBackup`, with the copy and its check made by `work`: the same files, names and errors. */
+export async function takeBackupApart({
+  source,
+  file,
+  dir,
+  kind,
+  now,
+  work,
+  freeBytes = freeBytesOf
+}: TakeBackupApartOptions): Promise<BackupFile> {
+  let pending: Pending | null = null
+  try {
+    pending = startBackup(source, dir, kind, now, freeBytes)
+    const check = await work(file, pending.partial)
+    const made = finishBackup(dir, kind, now, pending, check)
+    pending = null
+    return made
+  } catch (err) {
+    if (pending) rmSync(pending.partial, { force: true })
+    throw failed(err)
+  }
+}
+
+/**
+ * The newest backup that passes its check, for a start-up whose database cannot be opened.
+ * Null when there is none; throws when the folder is there but cannot be read.
+ */
 export function newestGoodBackup(dir: string, open: ReadOnlyOpener): { file: BackupFile; pages: number } | null {
-  for (const file of listBackups(dir)) {
+  for (const file of findBackups(dir)) {
     const check = inspectDatabase(open, file.path)
     if (check.ok) return { file, pages: check.pages }
   }

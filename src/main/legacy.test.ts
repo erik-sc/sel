@@ -82,9 +82,12 @@ describe('the data folder of the earlier app', () => {
 
 describe('addresses stored under the earlier name', () => {
   it('are rewritten, and nothing else is', () => {
-    expect(modernizeUrls('{"url":"selida-file://files/a.png","a":"selida://page/x"}')).toBe('{"url":"sel-file://files/a.png","a":"sel://page/x"}')
+    expect(modernizeUrls('{"url":"selida-file://files/a.png","a":"selida://page/x"}')).toBe(
+      '{"url":"sel-file://files/a.png","a":"sel://page/x"}'
+    )
     expect(modernizeUrls('url("SELIDA-FILE://images/a.png")')).toBe('url("sel-file://images/a.png")')
-    for (const same of ['sel-file://files/a.png', 'https://example.com/selida.git', 'Selida is Greek for page', 'selida-file:x']) expect(modernizeUrls(same)).toBe(same)
+    for (const same of ['sel-file://files/a.png', 'https://example.com/selida.git', 'Selida is Greek for page', 'selida-file:x'])
+      expect(modernizeUrls(same)).toBe(same)
   })
 
   it('are rewritten in the database by a migration that leaves the rest of each row as it was', async () => {
@@ -109,7 +112,9 @@ describe('addresses stored under the earlier name', () => {
     `)
     const repo = new Repo(db)
     expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(SCHEMA_VERSION)
-    const rows = (db.prepare('SELECT id, props, updated_at FROM blocks ORDER BY id').all() as { id: string; props: string; updated_at: number }[]).map((r) => ({ ...r }))
+    const rows = (
+      db.prepare('SELECT id, props, updated_at FROM blocks ORDER BY id').all() as { id: string; props: string; updated_at: number }[]
+    ).map((r) => ({ ...r }))
     expect(rows).toEqual([
       { id: 'i', props: '{"url":"sel-file://files/a.png"}', updated_at: 4 },
       { id: 'p', props: '{"title":[["Trip"]],"cover":"sel-file://files/c.png"}', updated_at: 2 },

@@ -20,7 +20,10 @@ describe('the update notice', () => {
   })
 
   it('shows the progress of the download', () => {
-    expect(noticeFor(status({ phase: 'downloading', percent: 42, ...offer }))).toMatchObject({ message: 'Downloading sel 0.3.0…', percent: 42 })
+    expect(noticeFor(status({ phase: 'downloading', percent: 42, ...offer }))).toMatchObject({
+      message: 'Downloading sel 0.3.0…',
+      percent: 42
+    })
   })
 
   it('offers Restart now once downloaded, and says Later installs it on quit', () => {
@@ -31,7 +34,10 @@ describe('the update notice', () => {
 
   it('offers to try a failed download again', () => {
     const notice = noticeFor(status({ phase: 'error', error: 'The download did not finish. Try again later.', ...offer }))
-    expect(notice?.actions.map((action) => [action.id, action.label])).toEqual([['download', 'Try again'], ['later', 'Later']])
+    expect(notice?.actions.map((action) => [action.id, action.label])).toEqual([
+      ['download', 'Try again'],
+      ['later', 'Later']
+    ])
   })
 
   it('goes away after Later', () => {

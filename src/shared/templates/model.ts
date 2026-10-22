@@ -7,6 +7,8 @@
 // Property ids, select option ids and formulas are those of a database and stay as they are:
 // they only have to be unique inside their own database. Pure: no Electron, no React.
 import type { Block, BlockProps, BlockType, DatabaseView, PropertySchema, RichText } from '../types'
+import type { InvokeChannels } from '../ipc'
+import type { CommandSpec } from '../commands'
 
 export const TEMPLATE_LOCALES = ['pt-BR', 'en'] as const
 export type TemplateLocale = (typeof TEMPLATE_LOCALES)[number]
@@ -145,3 +147,45 @@ export interface TemplatesApi {
   /** Makes the template's page and everything in it, in one transaction, and returns the page. */
   create(request: TemplateRequest): Promise<Block>
 }
+
+/** The invoke channels of `api.templates` (see `INVOKE` in ./api.ts): every method of TemplatesApi that returns a promise, and no other. */
+export const TEMPLATES_INVOKE = {
+  'templates:create': true
+} as const satisfies Record<InvokeChannels<{ templates: TemplatesApi }>, true>
+
+/** Words to find the gallery by in the command palette, in both languages. */
+export const TEMPLATE_KEYWORDS = [
+  'template',
+  'templates',
+  'modelo',
+  'modelos',
+  'new page from template',
+  'nova página a partir de template',
+  'finances',
+  'finanças',
+  'budget',
+  'orçamento',
+  'household',
+  'casa',
+  'trip',
+  'viagem',
+  'project',
+  'projeto',
+  'library',
+  'biblioteca',
+  'studies',
+  'estudos',
+  'kitchen',
+  'cozinha',
+  'recipes',
+  'receitas'
+]
+
+/** The gallery's command (see ../commands.ts). */
+export const TEMPLATES_COMMANDS = [
+  {
+    id: 'new-from-template',
+    menu: { submenu: 'file', label: 'New Page from Template…', order: 110 },
+    palette: { title: 'Templates', keywords: TEMPLATE_KEYWORDS, order: 20 }
+  }
+] as const satisfies readonly CommandSpec[]

@@ -120,7 +120,14 @@ export function QuickFindBody() {
           onKeyDown={onKeyDown}
         />
       </div>
-      <div className="quickfind-list" id={listId} ref={listRef} role="listbox" aria-label="Results">
+      {/* A listbox only with options in it: an empty one is a list of nothing to a screen reader. */}
+      <div
+        className="quickfind-list"
+        id={listId}
+        ref={listRef}
+        role={items.length ? 'listbox' : undefined}
+        aria-label={items.length ? 'Results' : undefined}
+      >
         {!trimmed && items.length > 0 && <div className="quickfind-heading">Recent</div>}
         {items.map((item, index) => (
           <div
@@ -150,9 +157,7 @@ export function QuickFindBody() {
           </div>
         ))}
         {items.length === 0 && (
-          <div className="quickfind-empty">
-            {trimmed ? (searching ? 'Searching…' : 'No results') : 'Type to search your pages'}
-          </div>
+          <div className="quickfind-empty">{trimmed ? (searching ? 'Searching…' : 'No results') : 'Type to search your pages'}</div>
         )}
       </div>
       <div className="quickfind-footer">

@@ -25,7 +25,11 @@ suite('sync with real git: the ink notebook', () => {
     await sync(a, b, a)
     expect(a.repo.listRoot().filter((p) => p.id === NOTEBOOK_ID)).toHaveLength(1)
     expect(b.repo.listRoot().filter((p) => p.id === NOTEBOOK_ID)).toHaveLength(1)
-    expect(notebookOf(b).get().entries.map((e) => e.text)).toEqual(['the desk, in the morning'])
+    expect(
+      notebookOf(b)
+        .get()
+        .entries.map((e) => e.text)
+    ).toEqual(['the desk, in the morning'])
 
     // The laptop rewrites the 15th late that evening; the desk is already in the 16th.
     b.clock.t = at(15, 23)
@@ -34,7 +38,11 @@ suite('sync with real git: the ink notebook', () => {
     notebookOf(a).write('2026-10-16', 'the desk, the next day')
     await sync(b, a, b)
     for (const d of [a, b]) {
-      expect(notebookOf(d).get().entries.map((e) => [e.day, e.text])).toEqual([
+      expect(
+        notebookOf(d)
+          .get()
+          .entries.map((e) => [e.day, e.text])
+      ).toEqual([
         ['2026-10-16', 'the desk, the next day'],
         ['2026-10-15', 'the laptop, at night']
       ])

@@ -460,7 +460,14 @@ function merge3(spec: Spec, b: unknown, l: unknown, r: unknown, path: string, ct
       const inB = new Set(bl)
       const inL = new Set(ll)
       const inR = new Set(rl)
-      const merged = mergeLists(bl, ll, rl, ctx.localLater, (id) => (inL.has(id) && inR.has(id)) || (!inB.has(id) && (inL.has(id) || inR.has(id))), tie)
+      const merged = mergeLists(
+        bl,
+        ll,
+        rl,
+        ctx.localLater,
+        (id) => (inL.has(id) && inR.has(id)) || (!inB.has(id) && (inL.has(id) || inR.has(id))),
+        tie
+      )
       return spec.optional && merged.length === 0 ? undefined : merged
     }
   }
@@ -514,11 +521,14 @@ export function mergeWorkspace(base0: Workspace, local0: Workspace, remote0: Wor
     if (l && r) {
       const ctx: FieldContext = {
         localLater: laterLocal(l, r),
-        conflict: (field, winner) => conflicts.push({ blockId: id, field, winner, localPage: pageOf(local, id), remotePage: pageOf(remote, id) }),
+        conflict: (field, winner) =>
+          conflicts.push({ blockId: id, field, winner, localPage: pageOf(local, id), remotePage: pageOf(remote, id) }),
         tie: false
       }
       const type = merge3(ATOM, b?.type, l.type, r.type, 'type', ctx) as string
-      const props = sameProps(l.props, r.props) ? l.props : (merge3(PROPS, b?.props, l.props, r.props, 'props', ctx) as Record<string, unknown>)
+      const props = sameProps(l.props, r.props)
+        ? l.props
+        : (merge3(PROPS, b?.props, l.props, r.props, 'props', ctx) as Record<string, unknown>)
       let trashedAt: number | null
       if (l.trashedAt === r.trashedAt) trashedAt = l.trashedAt
       else if (b && l.trashedAt === b.trashedAt) trashedAt = r.trashedAt
@@ -537,7 +547,15 @@ export function mergeWorkspace(base0: Workspace, local0: Workspace, remote0: Wor
     const only = (l ?? r) as SyncBlock
     if (b && !modified(b, only)) continue
     if (b) stats.kept++
-    drafts.set(id, { id, type: only.type, props: only.props, createdAt: only.createdAt, trashedAt: isPageLike(only.type) ? only.trashedAt : null, l, r })
+    drafts.set(id, {
+      id,
+      type: only.type,
+      props: only.props,
+      createdAt: only.createdAt,
+      trashedAt: isPageLike(only.type) ? only.trashedAt : null,
+      l,
+      r
+    })
   }
 
   const live = (d: Draft | undefined): d is Draft => d !== undefined && d.trashedAt === null
@@ -622,10 +640,13 @@ export function mergeWorkspace(base0: Workspace, local0: Workspace, remote0: Wor
     const d = drafts.get(id) as Draft
     const before = base.blocks.get(id)
     const was: Parent = before && before.trashedAt === null ? before.parentId : UNKNOWN
-    const moves = [d.l, d.r].filter((side): side is SyncBlock => side !== undefined && side.trashedAt === null && side.parentId !== was).map((side) => side.updatedAt)
+    const moves = [d.l, d.r]
+      .filter((side): side is SyncBlock => side !== undefined && side.trashedAt === null && side.parentId !== was)
+      .map((side) => side.updatedAt)
     return moves.length ? Math.max(...moves) : Infinity
   }
-  const oldestMove = (cycle: string[]): Draft => drafts.get([...cycle].sort((a, b) => moveStamp(a) - moveStamp(b) || (a < b ? -1 : 1))[0]) as Draft
+  const oldestMove = (cycle: string[]): Draft =>
+    drafts.get([...cycle].sort((a, b) => moveStamp(a) - moveStamp(b) || (a < b ? -1 : 1))[0]) as Draft
   /** Blocks taken out of a cycle that had no other parent to go back to. */
   const adrift = new Set<string>()
   const above = (id: string): string | null => {
@@ -691,7 +712,14 @@ export function mergeWorkspace(base0: Workspace, local0: Workspace, remote0: Wor
   const rootLater = (local.rootAt ?? 0) === (remote.rootAt ?? 0) ? null : (local.rootAt ?? 0) > (remote.rootAt ?? 0)
   place(
     null,
-    mergeLists(base.root, local.root, remote.root, rootLater, (id) => belongs(id, null), () => tied.add(null))
+    mergeLists(
+      base.root,
+      local.root,
+      remote.root,
+      rootLater,
+      (id) => belongs(id, null),
+      () => tied.add(null)
+    )
   )
   for (const d of drafts.values()) {
     const b = base.blocks.get(d.id)
@@ -704,7 +732,14 @@ export function mergeWorkspace(base0: Workspace, local0: Workspace, remote0: Wor
     const later = d.l && d.r ? laterLocal(d.l, d.r) : null
     place(
       d.id,
-      mergeLists(b?.content ?? [], lc, rc, later, (id) => belongs(id, d), () => tied.add(d.id))
+      mergeLists(
+        b?.content ?? [],
+        lc,
+        rc,
+        later,
+        (id) => belongs(id, d),
+        () => tied.add(d.id)
+      )
     )
   }
 
@@ -739,7 +774,9 @@ export function mergeWorkspace(base0: Workspace, local0: Workspace, remote0: Wor
     }
     return isPageLike(d.type) ? null : undefined
   }
-  const orphans = [...drafts.values()].filter((d) => live(d) && !parentOf.has(d.id)).sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))
+  const orphans = [...drafts.values()]
+    .filter((d) => live(d) && !parentOf.has(d.id))
+    .sort((a, b) => a.createdAt - b.createdAt || (a.id < b.id ? -1 : 1))
   const lost = new Set<string>()
   for (const d of orphans) {
     const was = base.blocks.get(d.id)
@@ -804,7 +841,16 @@ export function mergeWorkspace(base0: Workspace, local0: Workspace, remote0: Wor
       if (parentId !== null && (!drafts.has(parentId) || lost.has(parentId) || parentId === d.id)) parentId = null
     }
     const content = (lists.get(d.id) ?? []).filter((id) => !lost.has(id))
-    const block: SyncBlock = { id: d.id, type: d.type, parentId, content, props: d.props, createdAt: d.createdAt, updatedAt: 0, trashedAt: d.trashedAt }
+    const block: SyncBlock = {
+      id: d.id,
+      type: d.type,
+      parentId,
+      content,
+      props: d.props,
+      createdAt: d.createdAt,
+      updatedAt: 0,
+      trashedAt: d.trashedAt
+    }
     const same = (side: SyncBlock | undefined): boolean =>
       side !== undefined &&
       side.type === block.type &&
@@ -816,7 +862,9 @@ export function mergeWorkspace(base0: Workspace, local0: Workspace, remote0: Wor
     const asRemote = same(d.r)
     const stamps = [d.l?.updatedAt, d.r?.updatedAt].filter((x): x is number => x !== undefined)
     if (tied.has(d.id)) block.updatedAt = Math.max(...stamps) + 1
-    else block.updatedAt = asLocal && !asRemote ? (d.l as SyncBlock).updatedAt : asRemote && !asLocal ? (d.r as SyncBlock).updatedAt : Math.max(...stamps)
+    else
+      block.updatedAt =
+        asLocal && !asRemote ? (d.l as SyncBlock).updatedAt : asRemote && !asLocal ? (d.r as SyncBlock).updatedAt : Math.max(...stamps)
     blocks.set(d.id, block)
   }
   const root = (lists.get(null) ?? []).filter((id) => !lost.has(id))
@@ -851,7 +899,8 @@ export function checkWorkspace(ws: Workspace): string[] {
       if (!child) problems.push(`${parent ?? 'root'} lists the missing block ${id}`)
       else if (seen.has(id) || listedBy.has(id)) problems.push(`${id} is listed more than once`)
       else if (child.trashedAt !== null) problems.push(`${id} is in the trash and still listed`)
-      else if (child.parentId !== parent) problems.push(`${id} is listed by ${parent ?? 'root'} but says its parent is ${child.parentId ?? 'root'}`)
+      else if (child.parentId !== parent)
+        problems.push(`${id} is listed by ${parent ?? 'root'} but says its parent is ${child.parentId ?? 'root'}`)
       seen.add(id)
       listedBy.set(id, parent)
     }

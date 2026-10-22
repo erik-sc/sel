@@ -2,20 +2,15 @@
 // rows and a day in, tasks out. Properties are found by their fixed ids (shared/tasks.ts), so
 // renaming one changes nothing here.
 import type { Block, SelectOption, ViewFilter } from '@shared/types'
-import { TASK_PRIORITIES, TASK_PROPS } from '@shared/tasks'
+import { TASK_PROPS } from '@shared/tasks'
+import { readRecurrence } from '@shared/tasks/recur'
+import { missingFields, needsRefining, refineList, type RefineField } from '@shared/tasks/refine'
 import * as L from '@/database/logic'
+import type { DayWords } from './copy'
 import type { TaskListKey } from './gate'
+import { priorityOf, type TaskView } from './model'
 
-export interface TaskItem {
-  id: string
-  title: string
-  done: boolean
-  /** The stored start of the due date: `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm`. */
-  due: string | null
-  /** 1 (P1, most urgent) to 4 (P4, or no priority). */
-  priority: 1 | 2 | 3 | 4
-  project: SelectOption | null
-  labels: SelectOption[]
+export interface TaskItem extends TaskView {
   completedAt: string | null
   recurring: boolean
   /** The task this is a subtask of, when there is one. */
@@ -23,6 +18,8 @@ export interface TaskItem {
   row: Block
   /** Position in the database: the manual order. */
   order: number
+  /** When the row was made (ms): "A refinar" lists the oldest first. */
+  createdAt: number
 }
 
 export interface TaskGroup {
@@ -43,7 +40,6 @@ function optionMap(schema: L.Schema, propertyId: string): Map<string, SelectOpti
 export function readTasks(rows: readonly Block[], schema: L.Schema): TaskItem[] {
   const projects = optionMap(schema, TASK_PROPS.project)
   const labels = optionMap(schema, TASK_PROPS.labels)
-  const ranks = new Map<string, 1 | 2 | 3 | 4>(TASK_PRIORITIES.map((option, index) => [option.id, (index + 1) as 1 | 2 | 3 | 4]))
   return rows.map((row, order) => {
     const values = L.isPlainObject(row.props.values) ? row.props.values : {}
     const get = (id: string): unknown => (Object.hasOwn(values, id) ? values[id] : undefined)
@@ -52,7 +48,8 @@ export function readTasks(rows: readonly Block[], schema: L.Schema): TaskItem[] 
     const priority = get(TASK_PROPS.priority)
     const project = get(TASK_PROPS.project)
     const tagged = get(TASK_PROPS.labels)
-    const recurrence = get(TASK_PROPS.recurrence)
+    const recurrence = readRecurrence(get(TASK_PROPS.recurrence))
+    const remind = L.normalizeDateValue(get(TASK_PROPS.remind))
     const parent = get(TASK_PROPS.parent)
     const parentId = Array.isArray(parent) && typeof parent[0] === 'string' && parent[0] !== row.id ? parent[0] : null
     return {
@@ -60,24 +57,29 @@ export function readTasks(rows: readonly Block[], schema: L.Schema): TaskItem[] 
       title: L.titleOf(row),
       done: get(TASK_PROPS.done) === true,
       due: due?.start ?? null,
-      priority: (typeof priority === 'string' && ranks.get(priority)) || 4,
+      priority: priorityOf(priority),
       project: (typeof project === 'string' && projects.get(project)) || null,
-      labels: Array.isArray(tagged) ? tagged.map((id) => (typeof id === 'string' ? labels.get(id) : undefined)).filter((option): option is SelectOption => !!option) : [],
+      labels: Array.isArray(tagged)
+        ? tagged.map((id) => (typeof id === 'string' ? labels.get(id) : undefined)).filter((option): option is SelectOption => !!option)
+        : [],
       completedAt: completed?.start ?? null,
-      recurring: typeof recurrence === 'string' && recurrence.trim() !== '',
+      recurring: recurrence !== null,
+      recurrence,
+      remind: remind?.start ?? null,
       parent: parentId,
       row,
-      order
+      order,
+      createdAt: row.createdAt
     }
   })
 }
 
-/** Earliest due first (a day without a time before the timed ones), then priority, then the manual order. */
+/** Earliest due first (a day without a time before the timed ones), then priority (none with P4), then the manual order. */
 function byDue(a: TaskItem, b: TaskItem): number {
   const dueA = a.due ?? '9999'
   const dueB = b.due ?? '9999'
   if (dueA !== dueB) return dueA < dueB ? -1 : 1
-  return a.priority - b.priority || a.order - b.order
+  return (a.priority ?? 4) - (b.priority ?? 4) || a.order - b.order
 }
 
 const byOrder = (a: TaskItem, b: TaskItem): number => a.order - b.order
@@ -148,18 +150,29 @@ export function listTasks(tasks: readonly TaskItem[], schema: L.Schema, key: Tas
   return groupTasks(tasks, schema, key, today).map((group) => ({ ...group, ...nestTasks(group.items) }))
 }
 
-function groupTasks(tasks: readonly TaskItem[], schema: L.Schema, key: TaskListKey, today: string): { id: string; title: string | null; items: TaskItem[] }[] {
+function groupTasks(
+  tasks: readonly TaskItem[],
+  schema: L.Schema,
+  key: TaskListKey,
+  today: string
+): { id: string; title: string | null; items: TaskItem[] }[] {
   const open = tasks.filter((task) => !task.done)
   switch (key.kind) {
     case 'inbox':
       return [{ id: 'all', title: null, items: open.filter((task) => !task.project).sort(byOrder) }]
+    case 'refine':
+      return [{ id: 'all', title: null, items: refineList(open) }]
     case 'today': {
       const due = L.propOf(schema, TASK_PROPS.due)
       const matching = due ? open.filter((task) => L.matchesFilter(task.row, due, BY_TODAY)).sort(byDue) : []
       const overdue = matching.filter((task) => (L.dayKey(task.due) ?? today) < today)
       const groups: { id: string; title: string | null; items: TaskItem[] }[] = []
       if (overdue.length) groups.push({ id: 'overdue', title: 'Overdue', items: overdue })
-      groups.push({ id: today, title: overdue.length ? dayTitle(today, today) : null, items: matching.filter((task) => !overdue.includes(task)) })
+      groups.push({
+        id: today,
+        title: overdue.length ? dayTitle(today, today) : null,
+        items: matching.filter((task) => !overdue.includes(task))
+      })
       return groups
     }
     case 'upcoming': {
@@ -198,6 +211,7 @@ export function listCounts(tasks: readonly TaskItem[], schema: L.Schema): Map<st
   const due = L.propOf(schema, TASK_PROPS.due)
   for (const task of tasks) {
     if (task.done) continue
+    if (needsRefining(task)) add('refine')
     if (!task.project) add('inbox')
     else add(`project:${task.project.id}`)
     for (const label of task.labels) add(`label:${label.id}`)
@@ -206,23 +220,25 @@ export function listCounts(tasks: readonly TaskItem[], schema: L.Schema): Map<st
   return counts
 }
 
-function weekday(day: string, style: 'long' | 'short'): string {
+const ENGLISH_DAYS: DayWords = { today: 'Today', tomorrow: 'Tomorrow', yesterday: 'Yesterday' }
+
+function weekday(day: string, style: 'long' | 'short', locale?: string): string {
   const [year, month, date] = day.split('-').map(Number)
   try {
-    return new Intl.DateTimeFormat(undefined, { weekday: style, timeZone: 'UTC' }).format(Date.UTC(year, month - 1, date))
+    return new Intl.DateTimeFormat(locale, { weekday: style, timeZone: 'UTC' }).format(Date.UTC(year, month - 1, date))
   } catch {
     return ''
   }
 }
 
 /** A day the way the lists name it: "Today", "Tomorrow", "Yesterday", a weekday this week, or the date. */
-export function relativeDay(day: string, today: string): string {
+export function relativeDay(day: string, today: string, words: DayWords = ENGLISH_DAYS): string {
   const diff = L.diffDays(today, day)
-  if (diff === 0) return 'Today'
-  if (diff === 1) return 'Tomorrow'
-  if (diff === -1) return 'Yesterday'
-  if (diff > 1 && diff < 7) return weekday(day, 'long')
-  return L.formatDay(day)
+  if (diff === 0) return words.today
+  if (diff === 1) return words.tomorrow
+  if (diff === -1) return words.yesterday
+  if (diff > 1 && diff < 7) return weekday(day, 'long', words.locale)
+  return L.formatDay(day, { locale: words.locale })
 }
 
 /** The heading of a day in the Upcoming list: "Tomorrow · Oct 16, 2026". */
@@ -236,11 +252,19 @@ function dayTitle(day: string, today: string): string {
  * The due date of a task as a row shows it, and whether it is late. Under the heading of its own
  * day (`heading`) the day goes without saying: only the time is left.
  */
-export function dueLabel(due: string, today: string, heading?: string): { text: string; overdue: boolean } {
+export function dueLabel(due: string, today: string, heading?: string, words?: DayWords): { text: string; overdue: boolean } {
   const day = L.dayKey(due)
   if (!day) return { text: '', overdue: false }
   const clock = L.timeOf(due)
-  const time = clock ? L.formatTime(clock) : ''
-  const text = day === heading ? '' : relativeDay(day, today)
+  const time = clock ? L.formatTime(clock, { locale: words?.locale }) : ''
+  const text = day === heading ? '' : relativeDay(day, today, words)
   return { text: [text, time].filter(Boolean).join(' '), overdue: day < today }
+}
+
+/**
+ * The fields a row offers as empty chips ("+ date"): what a task still to refine lacks. None for
+ * one that is refined, done or a subtask (shared/tasks/refine.ts).
+ */
+export function emptyChipsOf(task: Pick<TaskItem, 'done' | 'due' | 'priority' | 'project' | 'parent'>): RefineField[] | undefined {
+  return needsRefining(task) ? missingFields(task) : undefined
 }

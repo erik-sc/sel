@@ -194,12 +194,7 @@ export function CodeBlock({ block }: { block: Block }): JSX.Element {
             </option>
           ))}
         </select>
-        <button
-          type="button"
-          className="blk-code-copy"
-          title="Copy code"
-          onClick={copy}
-        >
+        <button type="button" className="blk-code-copy" title="Copy code" onClick={copy}>
           {copied ? <Check size={14} /> : <Copy size={14} />}
           <span>{copied ? 'Copied' : 'Copy'}</span>
         </button>
@@ -227,6 +222,15 @@ export function CodeBlock({ block }: { block: Block }): JSX.Element {
   )
 }
 
+/** Longest alternative text kept: a description, not an essay. */
+export const MAX_ALT_LENGTH = 1000
+
+/** What a screen reader says for an image: its alternative text, or its caption when it has none. */
+export function imageAlt(block: Block): string {
+  const alt = typeof block.props.alt === 'string' ? block.props.alt.trim() : ''
+  return alt || textOf(block.props.caption)
+}
+
 export function ImageBlock({ block }: { block: Block }): JSX.Element {
   const { ctrl } = useEditor()
   const id = block.id
@@ -241,13 +245,14 @@ export function ImageBlock({ block }: { block: Block }): JSX.Element {
   }
   return (
     <figure className="blk-figure">
-      <img src={url} alt={textOf(block.props.caption)} draggable={false} onDoubleClick={() => void ctrl.pickImage(id)} />
+      <img src={url} alt={imageAlt(block)} draggable={false} onDoubleClick={() => void ctrl.pickImage(id)} />
       <EditableText
         blockId={id}
         field="caption"
         mode="caption"
         value={block.props.caption}
         placeholder="Add a caption"
+        label="Caption"
         className="blk-caption"
         onKeyDown={captionKeyDown(ctrl, id)}
       />
@@ -258,10 +263,7 @@ export function ImageBlock({ block }: { block: Block }): JSX.Element {
 const captionHandlers = new WeakMap<object, Map<string, (e: KeyboardEvent<HTMLDivElement>) => void>>()
 
 /** Stable per-block handler so the memoised EditableText does not re-render. */
-function captionKeyDown(
-  ctrl: ReturnType<typeof useEditor>['ctrl'],
-  id: string
-): (e: KeyboardEvent<HTMLDivElement>) => void {
+function captionKeyDown(ctrl: ReturnType<typeof useEditor>['ctrl'], id: string): (e: KeyboardEvent<HTMLDivElement>) => void {
   let map = captionHandlers.get(ctrl)
   if (!map) captionHandlers.set(ctrl, (map = new Map()))
   let fn = map.get(id)
@@ -385,7 +387,7 @@ export function CalloutIcon({ block }: { block: Block }): JSX.Element {
       >
         {block.props.icon ?? DEFAULT_CALLOUT_ICON}
       </button>
-      <Popover open={open} anchor={ref.current} onClose={() => setOpen(false)}>
+      <Popover open={open} anchor={ref.current} label="Callout icon" onClose={() => setOpen(false)}>
         <LazyEmojiPicker
           onPick={(emoji) => {
             setOpen(false)

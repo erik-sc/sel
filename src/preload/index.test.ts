@@ -3,6 +3,9 @@
  * channel and no other, the client id on every invoke, and the events and fire-and-forget sends
  * written out by hand. Electron is replaced by a recorder.
  */
+import { readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 const electron = vi.hoisted(() => ({
@@ -24,20 +27,6 @@ vi.mock('electron', () => ({
     removeListener: () => undefined
   }
 }))
-
-// The preload imports shared code through the `@shared` alias, which tests do not resolve.
-vi.mock('@shared/ai', () => import('../shared/ai'))
-vi.mock('@shared/api', () => import('../shared/api'))
-vi.mock('@shared/briefing', () => import('../shared/briefing'))
-vi.mock('@shared/herman', () => import('../shared/herman'))
-vi.mock('@shared/ipc', () => import('../shared/ipc'))
-vi.mock('@shared/meetings', () => import('../shared/meetings'))
-vi.mock('@shared/sync', () => import('../shared/sync'))
-vi.mock('@shared/types', () => import('../shared/types'))
-vi.mock('@shared/updates', () => import('../shared/updates'))
-vi.mock('@shared/alarms', () => import('../shared/alarms'))
-vi.mock('@shared/pomodoro', () => import('../shared/pomodoro'))
-vi.mock('@shared/sky', () => import('../shared/sky'))
 
 import { INVOKE } from '../shared/api'
 
@@ -104,157 +93,31 @@ describe('the preload', () => {
       'pomodoro.onCompleted': 'on pomodoro:completed',
       'sky.onChanged': 'on sky:changed',
       'app.platform': 'string',
+      'app.log': 'send log:error',
       'app.window.minimize': 'send window:minimize',
       'app.window.toggleMaximize': 'send window:toggleMaximize',
       'app.window.close': 'send window:close',
       onChange: 'on event:change',
-      onCommand: 'on event:command'
+      onCommand: 'on event:command',
+      onNotice: 'on event:notice'
     })
-    expect(Object.keys(INVOKE).sort()).toEqual([...INVOKE_CHANNELS].sort())
+  })
+
+  it('exposes only the invoke channels reviewed for each namespace', async () => {
+    // One list per namespace in ./reviewed, written out by hand: a channel added to INVOKE
+    // reaches a renderer only once it is written there too.
+    const reviewed = new Map<string, readonly string[]>()
+    const dir = fileURLToPath(new URL('./reviewed/', import.meta.url))
+    for (const file of readdirSync(dir).filter((name) => name.endsWith('.ts'))) {
+      const module = (await import(pathToFileURL(join(dir, file)).href)) as { REVIEWED: readonly string[] }
+      reviewed.set(file.slice(0, -3), module.REVIEWED)
+    }
+    const declared = new Map<string, string[]>()
+    for (const channel of Object.keys(INVOKE)) {
+      const namespace = channel.slice(0, channel.indexOf(':'))
+      declared.set(namespace, [...(declared.get(namespace) ?? []), channel])
+    }
+    expect([...reviewed.keys()].sort()).toEqual([...declared.keys()].sort())
+    for (const [namespace, channels] of declared) expect([...(reviewed.get(namespace) ?? [])].sort(), namespace).toEqual(channels.sort())
   })
 })
-
-/** The invoke channels, as a list to review: the ones on main before #22, with `window:isMaximized` renamed. */
-const INVOKE_CHANNELS = [
-  'ai:agents.connect',
-  'ai:agents.list',
-  'ai:agents.remove',
-  'ai:cancel',
-  'ai:pickCli',
-  'ai:run',
-  'ai:status',
-  'app:getSetting',
-  'app:getTheme',
-  'alarms:heard',
-  'alarms:pending',
-  'alarms:snooze',
-  'alarms:test',
-  'pomodoro:next',
-  'pomodoro:pause',
-  'pomodoro:resume',
-  'pomodoro:skip',
-  'pomodoro:start',
-  'pomodoro:state',
-  'pomodoro:stop',
-  'sky:moment',
-  'sky:name',
-  'sky:view',
-  'app:newWindow',
-  'app:openExternal',
-  'app:setSetting',
-  'app:setTheme',
-  'app:window.isMaximized',
-  'blocks:apply',
-  'blocks:children',
-  'blocks:create',
-  'blocks:delete',
-  'blocks:get',
-  'blocks:getMany',
-  'blocks:getTree',
-  'blocks:move',
-  'blocks:update',
-  'briefing:addPhrase',
-  'briefing:agenda',
-  'briefing:anotherPhrase',
-  'briefing:brief',
-  'briefing:calendars.add',
-  'briefing:calendars.list',
-  'briefing:calendars.remove',
-  'briefing:calendars.test',
-  'briefing:calendars.update',
-  'briefing:completeTask',
-  'briefing:databases',
-  'briefing:ensurePhrasesDatabase',
-  'briefing:get',
-  'briefing:undoCompleteTask',
-  'databases:list',
-  'databases:locations',
-  'feedback:create',
-  'feedback:list',
-  'feedback:openFolder',
-  'feedback:withdraw',
-  'tasks:globalShortcut',
-  'tasks:importTodoist',
-  'tasks:setGlobalShortcut',
-  'templates:create',
-  'data:status',
-  'data:backUp',
-  'data:restore',
-  'data:showBackups',
-  'data:exportMarkdown',
-  'files:pickImage',
-  'files:saveGeneratedImage',
-  'files:saveImage',
-  'herman:met',
-  'herman:nudge.dismiss',
-  'herman:nudge.next',
-  'herman:reset',
-  'herman:state',
-  'mcp:rotateToken',
-  'mcp:status',
-  'meetings:audio.delete',
-  'meetings:audio.info',
-  'meetings:cancelTranscribe',
-  'meetings:create',
-  'meetings:engine.cancelDownload',
-  'meetings:engine.download',
-  'meetings:engine.pickModel',
-  'meetings:engine.pickProgram',
-  'meetings:engine.remove',
-  'meetings:engine.status',
-  'meetings:openFolder',
-  'meetings:recording.begin',
-  'meetings:recording.discard',
-  'meetings:recording.pause',
-  'meetings:recording.probe',
-  'meetings:recording.recover',
-  'meetings:recording.resume',
-  'meetings:recording.stop',
-  'meetings:setSpeakers',
-  'meetings:status',
-  'meetings:storage',
-  'meetings:transcribe',
-  'notebook:dismissPlans',
-  'notebook:get',
-  'notebook:plan',
-  'notebook:review',
-  'notebook:write',
-  'pages:ancestors',
-  'pages:backlinks',
-  'pages:deleteForever',
-  'pages:duplicate',
-  'pages:exportMarkdown',
-  'pages:exportPdf',
-  'pages:exportTex',
-  'pages:importMarkdown',
-  'pages:listArchived',
-  'pages:listChildren',
-  'pages:listFavorites',
-  'pages:listRecent',
-  'pages:listRoot',
-  'pages:listTrash',
-  'pages:restore',
-  'search:query',
-  'sync:disconnect',
-  'sync:now',
-  'sync:pause',
-  'sync:pickGit',
-  'sync:setEncryption',
-  'sync:setup',
-  'sync:status',
-  'sync:unlock',
-  'updates:check',
-  'updates:dismiss',
-  'updates:download',
-  'updates:restart',
-  'updates:status',
-  'versions:clear',
-  'versions:current',
-  'versions:delete',
-  'versions:get',
-  'versions:list',
-  'versions:rename',
-  'versions:restore',
-  'versions:save',
-  'versions:stats'
-]

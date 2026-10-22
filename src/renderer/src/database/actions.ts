@@ -30,13 +30,18 @@ import { systemKindOf } from '../../../shared/system'
 import { TASK_PROPS } from '../../../shared/tasks'
 import { completeTaskOps } from '../../../shared/tasks/recur'
 import { applyOps, getBlock, loadChildren, loadTree, newId, refreshBlocks, useBlockStore } from '../store/blocks'
+import { notifyWriteFailed } from '../failures/notify'
 import { notifyError, toast } from '../ui/toast'
 import * as L from './logic'
 import { markFreshChart } from './chartFresh'
 
+/**
+ * Every write of this module. A refused write is already rolled back by the store (it reads the
+ * blocks again); the user is told, at most once every few seconds, like the editor does.
+ */
 function run(ops: Op[]): void {
   if (!ops.length) return
-  applyOps(ops).catch((error) => console.error('database: applyOps failed', error))
+  applyOps(ops).catch((error: unknown) => notifyWriteFailed(error))
 }
 
 function toRichText(text: string): RichText {
@@ -223,8 +228,10 @@ export function patchView(
 
 // ---- views ----
 
-export function addView(databaseId: string, type: ViewType): string {
-  const { schema, views } = snapshot(databaseId)
+/** The new view's id, or undefined when nothing could be written (a linked view whose source is away). */
+export function addView(databaseId: string, type: ViewType): string | undefined {
+  const { schema, views, ready } = snapshot(databaseId)
+  if (!ready) return undefined
   const result = L.addView(schema, views, type)
   setSchema(databaseId, result.schema, result.views)
   if (type === 'chart') markFreshChart(result.view.id)
@@ -285,11 +292,7 @@ export function renameProperty(databaseId: string, propertyId: string, name: str
   if (next !== schema) setSchema(databaseId, next)
 }
 
-export function updateProperty(
-  databaseId: string,
-  propertyId: string,
-  patch: Partial<Omit<PropertySchema, 'id' | 'type'>>
-): void {
+export function updateProperty(databaseId: string, propertyId: string, patch: Partial<Omit<PropertySchema, 'id' | 'type'>>): void {
   const { schema } = snapshot(databaseId)
   const next = L.updateProperty(schema, propertyId, patch)
   if (next !== schema) setSchema(databaseId, next)
@@ -328,7 +331,10 @@ export function deleteProperty(databaseId: string, propertyId: string): void {
 // ---- relations ----
 
 /** The partner of a two-way relation, as the store has it (undefined for a one-way relation). */
-function partnerIn(snap: DbSnapshot, prop: PropertySchema | undefined): { targetId: string; id: string; config: RelationConfig } | undefined {
+function partnerIn(
+  snap: DbSnapshot,
+  prop: PropertySchema | undefined
+): { targetId: string; id: string; config: RelationConfig } | undefined {
   const config = L.relationOf(prop)
   if (!prop || !config) return undefined
   const targetSchema = config.databaseId === snap.sourceId ? snap.schema : snapshot(config.databaseId).schema
@@ -347,7 +353,10 @@ function unlinkPartner(snap: DbSnapshot, propertyId: string): { schema: L.Schema
   if (partner.targetId === snap.sourceId) return { schema: L.dropPartnerLink(snap.schema, partner.id), ops: [] }
   const target = snapshot(partner.targetId)
   const schema = L.dropPartnerLink(target.schema, partner.id)
-  return { schema: snap.schema, ops: schema === target.schema ? [] : [{ op: 'update', id: partner.targetId, patch: { props: { schema } } }] }
+  return {
+    schema: snap.schema,
+    ops: schema === target.schema ? [] : [{ op: 'update', id: partner.targetId, patch: { props: { schema } } }]
+  }
 }
 
 /** Runs `task` once the rows of every given database are in the store. */
@@ -457,7 +466,11 @@ export function setRelationTwoWay(databaseId: string, propertyId: string, on: bo
       if (self) {
         setSchema(databaseId, sourceSchema, showPartner(snap.views, sourceSchema), ops)
       } else {
-        ops.unshift({ op: 'update', id: target.sourceId, patch: { props: { schema: targetSchema, views: showPartner(target.views, targetSchema) } } })
+        ops.unshift({
+          op: 'update',
+          id: target.sourceId,
+          patch: { props: { schema: targetSchema, views: showPartner(target.views, targetSchema) } }
+        })
         setSchema(databaseId, sourceSchema, undefined, ops)
       }
       return
@@ -545,12 +558,7 @@ export function addOption(databaseId: string, propertyId: string, name: string):
   return result.option?.id
 }
 
-export function updateOption(
-  databaseId: string,
-  propertyId: string,
-  optionId: string,
-  patch: { name?: string; color?: string }
-): void {
+export function updateOption(databaseId: string, propertyId: string, optionId: string, patch: { name?: string; color?: string }): void {
   const { schema } = snapshot(databaseId)
   const next = L.updateOption(schema, propertyId, optionId, patch)
   if (next !== schema) setSchema(databaseId, next)

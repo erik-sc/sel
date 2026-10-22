@@ -9,14 +9,17 @@ type Busy = 'idle' | 'busy' | 'failed'
 
 /**
  * Rows of Settings → General → Data: the backups sel keeps on this computer, restoring one, and
- * the whole workspace as Markdown. The main process does all of it, with native dialogs.
+ * the whole workspace as Markdown, and the folder of the local log. The main process does all of it, with native dialogs.
  */
 export function DataSettingsRows() {
   const { copy, locale } = useDataCopy()
   const [status, setStatus] = useState<BackupStatus | null>(null)
   const [backing, setBacking] = useState<Busy>('idle')
+  const [logs, setLogs] = useState<'idle' | 'failed'>('idle')
   const [restore, setRestore] = useState<{ state: 'idle' | 'busy' | 'restarting' } | { state: 'error'; message: string }>({ state: 'idle' })
-  const [exported, setExported] = useState<{ state: 'idle' | 'busy' | 'failed' } | { state: 'done'; pages: number; images: number }>({ state: 'idle' })
+  const [exported, setExported] = useState<{ state: 'idle' | 'busy' | 'failed' } | { state: 'done'; pages: number; images: number }>({
+    state: 'idle'
+  })
 
   useEffect(() => {
     let live = true
@@ -60,6 +63,11 @@ export function DataSettingsRows() {
         setExported(result.saved ? { state: 'done', pages: result.pages ?? 0, images: result.images ?? 0 } : { state: 'idle' })
       )
       .catch(() => setExported({ state: 'failed' }))
+  }
+
+  const openLogs = (): void => {
+    setLogs('idle')
+    window.api.data.openLogs().catch(() => setLogs('failed'))
   }
 
   const line = status ? describeBackups(status, Date.now(), locale) : null
@@ -109,6 +117,19 @@ export function DataSettingsRows() {
         <div className="ap-row-control">
           <Button disabled={exported.state === 'busy'} onClick={exportAll}>
             {exported.state === 'busy' ? copy.exporting : copy.chooseFolder}
+          </Button>
+        </div>
+      </div>
+      <div className="ap-row">
+        <div className="ap-row-text">
+          <span className="ap-row-label">{copy.logs}</span>
+          <span className={logs === 'failed' ? 'ap-row-help is-error' : 'ap-row-help'}>
+            {logs === 'failed' ? copy.somethingWrong : copy.logsHelp}
+          </span>
+        </div>
+        <div className="ap-row-control">
+          <Button variant="ghost" onClick={openLogs}>
+            {copy.openLogs}
           </Button>
         </div>
       </div>

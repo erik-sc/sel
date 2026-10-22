@@ -38,7 +38,19 @@ const MODEL_HINT: Record<AgentKind | typeof CLAUDE_AGENT, string> = {
   stdin: 'Not used'
 }
 
-function ModelField({ seat, kind, label, disabled, onChange }: { seat: CouncilSeat; kind: AgentKind | typeof CLAUDE_AGENT; label: string; disabled: boolean; onChange(model: string | null): void }): JSX.Element {
+function ModelField({
+  seat,
+  kind,
+  label,
+  disabled,
+  onChange
+}: {
+  seat: CouncilSeat
+  kind: AgentKind | typeof CLAUDE_AGENT
+  label: string
+  disabled: boolean
+  onChange(model: string | null): void
+}): JSX.Element {
   const [text, setText] = useState(seat.model ?? '')
   useEffect(() => setText(seat.model ?? ''), [seat.model])
   const clean = text.trim()
@@ -130,7 +142,8 @@ export function CouncilSettings({ enabled }: { enabled: boolean }): JSX.Element 
     )
   }
 
-  const kindOf = (seat: CouncilSeat): AgentKind | typeof CLAUDE_AGENT => (seat.agent === CLAUDE_AGENT ? CLAUDE_AGENT : (agents.find((agent) => agent.id === seat.agent)?.kind ?? CLAUDE_AGENT))
+  const kindOf = (seat: CouncilSeat): AgentKind | typeof CLAUDE_AGENT =>
+    seat.agent === CLAUDE_AGENT ? CLAUDE_AGENT : (agents.find((agent) => agent.id === seat.agent)?.kind ?? CLAUDE_AGENT)
 
   return (
     <>
@@ -169,18 +182,30 @@ export function CouncilSettings({ enabled }: { enabled: boolean }): JSX.Element 
                       </option>
                     ))}
                   </select>
-                  <ModelField seat={seat} kind={kindOf(seat)} label={`Model for ${name}`} disabled={!enabled || !seat.enabled} onChange={(model) => change(member, { model })} />
-                  <Segmented label={name} value={seat.enabled ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change(member, { enabled: value === 'on' })} />
+                  <ModelField
+                    seat={seat}
+                    kind={kindOf(seat)}
+                    label={`Model for ${name}`}
+                    disabled={!enabled || !seat.enabled}
+                    onChange={(model) => change(member, { model })}
+                  />
+                  <Segmented
+                    label={name}
+                    value={seat.enabled ? 'on' : 'off'}
+                    options={ON_OFF}
+                    onChange={(value) => change(member, { enabled: value === 'on' })}
+                  />
                 </div>
               </div>
             )
           })}
         </div>
         <p className="ap-note">
-          Press Council in the conversation and Herman asks the seats that are on before he answers. Each member looks at the question from one point of view; a seat answered by
-          Claude can also read your workspace (search, open pages and databases, look for what is stale or duplicated, never change anything) and draft changes. Herman weighs
-          what they said and proposes one plan, which you apply or dismiss. Each seat is one more request, to the program and model chosen for it. An empty model leaves the
-          choice to the program; for Claude, a name such as opus, sonnet or haiku.
+          Press Council in the conversation and Herman asks the seats that are on before he answers. Each member looks at the question from
+          one point of view; a seat answered by Claude can also read your workspace (search, open pages and databases, look for what is
+          stale or duplicated, never change anything) and draft changes. Herman weighs what they said and proposes one plan, which you apply
+          or dismiss. Each seat is one more request, to the program and model chosen for it. An empty model leaves the choice to the
+          program; for Claude, a name such as opus, sonnet or haiku.
         </p>
       </section>
 
@@ -222,9 +247,10 @@ export function CouncilSettings({ enabled }: { enabled: boolean }): JSX.Element 
           ))}
         </div>
         <p className="ap-note">
-          A connected program can answer for a seat of the council. sel starts it on this computer in an empty folder, gives it the question and the same notes Herman is given, and
-          reads what it prints. It signs in as you set it up yourself: sel stores no key for it and passes none along. Unlike Claude as sel starts it, these programs decide for
-          themselves what they may do; Codex is asked for its read-only sandbox.
+          A connected program can answer for a seat of the council. sel starts it on this computer in an empty folder, gives it the question
+          and the same notes Herman is given, and reads what it prints. It signs in as you set it up yourself: sel stores no key for it and
+          passes none along. Unlike Claude as sel starts it, these programs decide for themselves what they may do; Codex is asked for its
+          read-only sandbox.
         </p>
       </section>
     </>

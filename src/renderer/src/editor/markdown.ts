@@ -164,7 +164,8 @@ function parseLines(input: string): ParsedLine[] {
       const body: string[] = []
       const pad = ' '.repeat(indent)
       // The fence's own indentation (a code block inside a list item) is not part of the code.
-      for (i++; i < lines.length && !/^\s*```\s*$/.test(lines[i]); i++) body.push(lines[i].startsWith(pad) ? lines[i].slice(indent) : lines[i].trimStart())
+      for (i++; i < lines.length && !/^\s*```\s*$/.test(lines[i]); i++)
+        body.push(lines[i].startsWith(pad) ? lines[i].slice(indent) : lines[i].trimStart())
       const code = body.join('\n')
       out.push({
         type: 'code',
@@ -180,7 +181,12 @@ function parseLines(input: string): ParsedLine[] {
       let close = -1
       if (!one && line === '$$') for (let j = i + 1; j < lines.length && close < 0; j++) if (lines[j].trim() === '$$') close = j
       if (one || close > 0) {
-        const tex = one ? one[1].trim() : lines.slice(i + 1, close).join('\n').trim()
+        const tex = one
+          ? one[1].trim()
+          : lines
+              .slice(i + 1, close)
+              .join('\n')
+              .trim()
         out.push({ type: 'equation', title: tex ? [[tex]] : [], indent })
         if (close > 0) i = close
         continue

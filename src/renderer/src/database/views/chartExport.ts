@@ -75,7 +75,11 @@ export function serializeChart(
     if (!copy || original.closest('defs') || original.tagName === 'title') return
     const computed = getComputedStyle(original)
     // Hit areas and anything hidden are not part of the picture.
-    if (computed.display === 'none' || computed.visibility === 'hidden' || (computed.fill === 'none' && computed.stroke === 'none' && !copy.children.length && copy.tagName !== 'g')) {
+    if (
+      computed.display === 'none' ||
+      computed.visibility === 'hidden' ||
+      (computed.fill === 'none' && computed.stroke === 'none' && !copy.children.length && copy.tagName !== 'g')
+    ) {
       remove.push(copy)
       return
     }
@@ -148,7 +152,11 @@ export function serializeChart(
   for (const entry of rows) {
     const y = legendTop + entry.row * LEGEND_ROW + LEGEND_ROW / 2
     add('circle', { cx: PADDING + entry.x + 5, cy: y, r: 5, fill: resolveColour(host, entry.item.colour) })
-    add('text', { x: PADDING + entry.x + 16, y, 'dominant-baseline': 'central', style: `${textStyle}fill:${textColour};` }, entry.item.label)
+    add(
+      'text',
+      { x: PADDING + entry.x + 16, y, 'dominant-baseline': 'central', style: `${textStyle}fill:${textColour};` },
+      entry.item.label
+    )
   }
 
   return { markup: new XMLSerializer().serializeToString(out), width, height }

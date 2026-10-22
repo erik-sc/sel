@@ -1,6 +1,7 @@
-import type { BriefingTask } from '../../shared/briefing'
+import type { BriefingTask, BriefingTaskTag } from '../../shared/briefing'
 import { plainText } from '../../shared/richtext'
 import { TASK_PROPS } from '../../shared/tasks'
+import { readRecurrence } from '../../shared/tasks/recur'
 import type { Block, BlockProps, PropertySchema, PropertyValue } from '../../shared/types'
 
 /**
@@ -57,15 +58,64 @@ export function fold(text: unknown): string {
 
 const STATUS_NAMES = new Set(['status', 'state', 'estado', 'situacao', 'stage', 'etapa', 'progress', 'progresso', 'andamento'])
 const DONE_NAMES = new Set([
-  'done', 'complete', 'completed', 'finished', 'closed', 'concluido', 'concluida', 'feito', 'feita', 'pronto', 'pronta',
-  'finalizado', 'finalizada', 'terminado', 'terminada', 'resolved', 'resolvido', 'resolvida', 'shipped', 'entregue', 'ok'
+  'done',
+  'complete',
+  'completed',
+  'finished',
+  'closed',
+  'concluido',
+  'concluida',
+  'feito',
+  'feita',
+  'pronto',
+  'pronta',
+  'finalizado',
+  'finalizada',
+  'terminado',
+  'terminada',
+  'resolved',
+  'resolvido',
+  'resolvida',
+  'shipped',
+  'entregue',
+  'ok'
 ])
 /** Not done, but not open either: nothing to do about them today. */
-const DROPPED_NAMES = new Set(['cancelled', 'canceled', 'cancelado', 'cancelada', 'archived', 'arquivado', 'arquivada', 'wont do', 'won t do', 'dropped', 'abandoned', 'descartado', 'descartada'])
-const ACTIVE_NAMES = new Set(['in progress', 'doing', 'next', 'today', 'em andamento', 'hoje', 'fazendo', 'now', 'agora', 'started', 'ongoing', 'wip', 'working on it', 'em progresso'])
+const DROPPED_NAMES = new Set([
+  'cancelled',
+  'canceled',
+  'cancelado',
+  'cancelada',
+  'archived',
+  'arquivado',
+  'arquivada',
+  'wont do',
+  'won t do',
+  'dropped',
+  'abandoned',
+  'descartado',
+  'descartada'
+])
+const ACTIVE_NAMES = new Set([
+  'in progress',
+  'doing',
+  'next',
+  'today',
+  'em andamento',
+  'hoje',
+  'fazendo',
+  'now',
+  'agora',
+  'started',
+  'ongoing',
+  'wip',
+  'working on it',
+  'em progresso'
+])
 const CHECKBOX_DONE_NAMES = new Set([...DONE_NAMES, 'check', 'checked', 'completo', 'completa', 'is done', 'done?'.replace('?', '')])
 /** Checkboxes that mean something other than "done", even when they are the only one. */
-const CHECKBOX_OTHER = /\b(favou?rite|favorit[oa]|star(red)?|pinned|fixad[oa]|archived?|arquivad[oa]|private|privad[oa]|public[oa]?|important[e]?|urgent[e]?|read|lid[oa]|billable|recurring|recorrente|active|ativ[oa]|enabled|published|publicad[oa]|paid|pag[oa]|flag(ged)?)\b/
+const CHECKBOX_OTHER =
+  /\b(favou?rite|favorit[oa]|star(red)?|pinned|fixad[oa]|archived?|arquivad[oa]|private|privad[oa]|public[oa]?|important[e]?|urgent[e]?|read|lid[oa]|billable|recurring|recorrente|active|ativ[oa]|enabled|published|publicad[oa]|paid|pag[oa]|flag(ged)?)\b/
 const DATE_NAMES = ['due', 'due date', 'deadline', 'prazo', 'vencimento', 'entrega', 'date', 'data', 'when', 'quando', 'dia', 'day']
 const PRIORITY_NAMES = new Set(['priority', 'prioridade', 'importance', 'importancia', 'urgency', 'urgencia'])
 const HIGH = /^(urgent[e]?|critical|critic[oa]|highest|high|alta|alto|p0|p1|1|now|asap)$/
@@ -109,6 +159,8 @@ export interface TaskSignal {
   /** The date property that says when a row is due. */
   date?: string
   priority?: { property: string; options: ReadonlyMap<string, { name: string; color: string; rank: number }> }
+  /** The built-in Tasks database: its projects and labels, read by their fixed property ids. */
+  builtIn?: { projects: ReadonlyMap<string, BriefingTaskTag>; labels: ReadonlyMap<string, BriefingTaskTag> }
 }
 
 /** Reads a database's schema for a done signal. Null when it has none (it is not a task list). */
@@ -159,7 +211,8 @@ export function detectSignal(props: BlockProps | undefined | null): TaskSignal |
   }
 
   const priority =
-    builtIn(TASK_PROPS.priority, 'select') ?? properties.find((property) => property.type === 'select' && PRIORITY_NAMES.has(fold(property.name)))
+    builtIn(TASK_PROPS.priority, 'select') ??
+    properties.find((property) => property.type === 'select' && PRIORITY_NAMES.has(fold(property.name)))
   if (priority) {
     const options = new Map<string, { name: string; color: string; rank: number }>()
     for (const option of optionsOf(priority)) {
@@ -168,7 +221,37 @@ export function detectSignal(props: BlockProps | undefined | null): TaskSignal |
     }
     signal.priority = { property: priority.id, options }
   }
+
+  if (props?.system === 'tasks') {
+    const tags = (id: string, type: string): Map<string, BriefingTaskTag> => {
+      const property = builtIn(id, type)
+      const map = new Map<string, BriefingTaskTag>()
+      for (const option of property ? optionsOf(property) : []) {
+        map.set(option.id, { id: option.id, name: option.name.slice(0, 60), color: option.color })
+      }
+      return map
+    }
+    signal.builtIn = { projects: tags(TASK_PROPS.project, 'select'), labels: tags(TASK_PROPS.labels, 'multi_select') }
+  }
   return signal
+}
+
+/** What a row of the built-in Tasks database adds to its task: project, labels, and how it repeats. */
+function builtInFields(builtIn: NonNullable<TaskSignal['builtIn']>, values: Record<string, PropertyValue>): Partial<BriefingTask> {
+  const out: Partial<BriefingTask> = {}
+  const project = own(values, TASK_PROPS.project)
+  const tag = typeof project === 'string' ? builtIn.projects.get(project) : undefined
+  if (tag) out.project = tag
+  const tagged = own(values, TASK_PROPS.labels)
+  out.labels = Array.isArray(tagged)
+    ? tagged
+        .slice(0, 50)
+        .map((id) => (typeof id === 'string' ? builtIn.labels.get(id) : undefined))
+        .filter((label): label is BriefingTaskTag => !!label)
+    : []
+  const recurrence = readRecurrence(own(values, TASK_PROPS.recurrence))
+  if (recurrence) out.recurrence = recurrence
+  return out
 }
 
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})/
@@ -184,6 +267,13 @@ function dayOf(value: unknown): string | null {
   return match[0]
 }
 
+/** The wall-clock `HH:mm` a stored date carries (`YYYY-MM-DDTHH:mm`), or null. */
+function timeOf(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const match = /^\d{4}-\d{2}-\d{2}[T ](\d{2}):(\d{2})(?::\d{2}(?:\.\d{1,9})?)?$/.exec(value)
+  return match && Number(match[1]) <= 23 && Number(match[2]) <= 59 ? `${match[1]}:${match[2]}` : null
+}
+
 function valuesOf(props: BlockProps | undefined | null): Record<string, PropertyValue> {
   const values: unknown = props?.values
   return isObject(values) ? (values as Record<string, PropertyValue>) : {}
@@ -197,7 +287,10 @@ function titleOf(props: BlockProps | undefined | null): string {
   const title: unknown = props?.title
   if (!Array.isArray(title)) return ''
   try {
-    return plainText(title as BlockProps['title']).replace(/\s+/g, ' ').trim().slice(0, 300)
+    return plainText(title as BlockProps['title'])
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 300)
   } catch {
     return ''
   }
@@ -319,22 +412,37 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
       const picked = own(values, signal.priority.property)
       const option = typeof picked === 'string' ? signal.priority.options.get(picked) : undefined
       if (option) {
-        task.priority = { name: option.name.slice(0, 60), color: option.color }
+        task.priority = { id: picked as string, name: option.name.slice(0, 60), color: option.color }
         rank = option.rank
       }
     }
     let start: string | null = null
     let end: string | null = null
+    let startTime: string | null = null
+    let endTime: string | null = null
     if (signal.date) {
       const value = own(values, signal.date)
       if (isObject(value)) {
         start = dayOf(value['start'])
         end = dayOf(value['end'])
-      } else start = dayOf(value)
+        startTime = timeOf(value['start'])
+        endTime = timeOf(value['end'])
+      } else {
+        start = dayOf(value)
+        startTime = timeOf(value)
+      }
+      task.dateProperty = signal.date
     }
+    if (signal.builtIn) Object.assign(task, builtInFields(signal.builtIn, values))
     const status = signal.status ? own(values, signal.status.property) : undefined
     const active = typeof status === 'string' && !!signal.status?.active.has(status)
-    if (start) task.due = end && end > start ? end : start
+    if (start) {
+      const ranged = !!end && end > start
+      task.due = ranged ? (end as string) : start
+      // The hour it is due at, when it has one: the calendar's week puts it there.
+      const time = ranged ? endTime : startTime
+      if (time) task.time = time
+    }
     const item: Ranked = { task, rank, seen: order }
     if (range && task.due && task.due >= range.from && task.due <= range.to && dated.length < cap) dated.push(item)
     if (start && (end && end >= start ? end : start) < today) {
@@ -371,11 +479,16 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
     now.push({ task: { id: block.id, kind: 'todo', title, pageId, source: page.title || 'Untitled' }, rank: 4, seen: order })
   }
 
-  const byDue = (a: Ranked, b: Ranked): number => ((a.task.due ?? '') !== (b.task.due ?? '') ? ((a.task.due ?? '') < (b.task.due ?? '') ? -1 : 1) : a.rank - b.rank || a.seen - b.seen)
+  const byDue = (a: Ranked, b: Ranked): number =>
+    (a.task.due ?? '') !== (b.task.due ?? '') ? ((a.task.due ?? '') < (b.task.due ?? '') ? -1 : 1) : a.rank - b.rank || a.seen - b.seen
   overdue.sort(byDue)
   now.sort(compare)
   noDate.sort(compare)
-  const selection: TaskSelection = { overdue: overdue.map((item) => item.task), today: now.map((item) => item.task), noDate: noDate.map((item) => item.task) }
+  const selection: TaskSelection = {
+    overdue: overdue.map((item) => item.task),
+    today: now.map((item) => item.task),
+    noDate: noDate.map((item) => item.task)
+  }
   if (range) selection.dated = dated.sort(byDue).map((item) => item.task)
   return selection
 }
@@ -405,7 +518,10 @@ export function planCompletion(signal: TaskSignal, props: BlockProps | undefined
 }
 
 /** The values of a row with a completion taken back: only the properties it touched change. */
-export function planUndo(props: BlockProps | undefined | null, previous: Record<string, PropertyValue | undefined>): Record<string, PropertyValue> {
+export function planUndo(
+  props: BlockProps | undefined | null,
+  previous: Record<string, PropertyValue | undefined>
+): Record<string, PropertyValue> {
   const values = { ...valuesOf(props) }
   for (const [key, value] of Object.entries(previous)) {
     if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue

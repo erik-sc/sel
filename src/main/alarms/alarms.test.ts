@@ -1,14 +1,24 @@
 process.env.TZ = 'America/Sao_Paulo'
 
 import { describe, expect, it, vi } from 'vitest'
-import { ALARMS_FIRED_KEY, ALARMS_SETTING, ALARMS_SNOOZED_KEY, cleanAlarmsSetting, cleanAlarmTimes, readAlarmSettings, SNOOZE_MS, type Announcement } from '../../shared/alarms'
+import {
+  ALARMS_FIRED_KEY,
+  ALARMS_SETTING,
+  ALARMS_SNOOZED_KEY,
+  cleanAlarmsSetting,
+  cleanAlarmTimes,
+  readAlarmSettings,
+  SNOOZE_MS,
+  type Announcement
+} from '../../shared/alarms'
 import type { Briefing, BriefingEvent, BriefingTask } from '../../shared/briefing'
+import { REFINE_DEFAULTS, REFINE_SETTING } from '../../shared/tasks/refine'
 import type { Block, BlockProps } from '../../shared/types'
 import { expandCalendar, parseCalendar } from '../briefing/ical'
 import { composeBriefing, composeEvents, composeReminder } from './compose'
 import { asksToRecord, dueEventAlarms, eventAlarmsOf, nextEventAlarmAt, readSnoozed, snoozeOf } from './events'
 import { dueReminders, momentOf, nextReminderAt, remindersOf, tasksDatabase } from './reminders'
-import { AlarmsService, PREPARE_MS, type AlarmsDeps } from './service'
+import { AlarmsService, PREPARE_MS, REFINE_ALARM_ID, type AlarmsDeps } from './service'
 import { isQuickAddUrl } from './windows'
 
 const MIN = 60_000
@@ -105,8 +115,23 @@ describe('reminders', () => {
 
 // ---- words ----
 
-const event = (title: string, start: number, end: number, allDay = false): BriefingEvent => ({ id: title, calendarId: 'c', title, start, end, allDay, recurring: false })
-const task = (title: string, due?: string): BriefingTask => ({ id: title, kind: 'row', title, pageId: title, source: 'Tasks', ...(due ? { due } : {}) })
+const event = (title: string, start: number, end: number, allDay = false): BriefingEvent => ({
+  id: title,
+  calendarId: 'c',
+  title,
+  start,
+  end,
+  allDay,
+  recurring: false
+})
+const task = (title: string, due?: string): BriefingTask => ({
+  id: title,
+  kind: 'row',
+  title,
+  pageId: title,
+  source: 'Tasks',
+  ...(due ? { due } : {})
+})
 
 describe('his words', () => {
   const now = local(2026, 10, 15, 8, 30)
@@ -116,15 +141,26 @@ describe('his words', () => {
       now,
       locale: 'pt-BR',
       name: 'Érik',
-      events: [event('Daily', local(2026, 10, 15, 10, 0), local(2026, 10, 15, 10, 30)), event('Almoço', local(2026, 10, 15, 12, 0), local(2026, 10, 15, 13, 0))],
+      events: [
+        event('Daily', local(2026, 10, 15, 10, 0), local(2026, 10, 15, 10, 30)),
+        event('Almoço', local(2026, 10, 15, 12, 0), local(2026, 10, 15, 13, 0))
+      ],
       tasks: { overdue: [task('Enviar proposta', '2026-10-13')], today: [task('Revisar plano'), task('Pagar conta')] }
     })
-    expect(text).toBe('Bom dia, Érik. 2 compromissos na agenda; o próximo é Daily, às 10:00. 2 tarefas para hoje e uma atrasada. Eu começaria por Enviar proposta. É isso.')
+    expect(text).toBe(
+      'Bom dia, Érik. 2 compromissos na agenda; o próximo é Daily, às 10:00. 2 tarefas para hoje e uma atrasada. Eu começaria por Enviar proposta. É isso.'
+    )
     expect(speech).toBe(text)
   })
 
   it('brief an empty day in English', () => {
-    const { text } = composeBriefing({ now: local(2026, 10, 15, 19, 0), locale: 'en', name: '', events: [], tasks: { overdue: [], today: [] } })
+    const { text } = composeBriefing({
+      now: local(2026, 10, 15, 19, 0),
+      locale: 'en',
+      name: '',
+      events: [],
+      tasks: { overdue: [], today: [] }
+    })
     expect(text).toBe('Good evening. Nothing on the calendar today. No tasks for today. That is all.')
   })
 
@@ -133,10 +169,15 @@ describe('his words', () => {
       now: local(2026, 10, 15, 18, 0),
       locale: 'en',
       name: 'Ana',
-      events: [event('Standup', local(2026, 10, 15, 9, 0), local(2026, 10, 15, 9, 15)), event('Holiday', local(2026, 10, 15), local(2026, 10, 16), true)],
+      events: [
+        event('Standup', local(2026, 10, 15, 9, 0), local(2026, 10, 15, 9, 15)),
+        event('Holiday', local(2026, 10, 15), local(2026, 10, 16), true)
+      ],
       tasks: { overdue: [task('Old thing')], today: [] }
     })
-    expect(text).toBe('Good evening, Ana. 1 things were on the calendar today; they are behind you. One all-day event. One task overdue. I would begin with Old thing. That is all.')
+    expect(text).toBe(
+      'Good evening, Ana. 1 things were on the calendar today; they are behind you. One all-day event. One task overdue. I would begin with Old thing. That is all.'
+    )
   })
 
   it('remind of a task', () => {
@@ -156,7 +197,16 @@ const settle = async (): Promise<void> => {
 
 function harness(
   settings: Record<string, unknown>,
-  options: { now: number; rows?: Block[]; recording?: boolean; write?: AlarmsDeps['writeBriefing']; events?: BriefingEvent[]; locale?: 'en' | 'pt-BR' }
+  options: {
+    now: number
+    rows?: Block[]
+    recording?: boolean
+    write?: AlarmsDeps['writeBriefing']
+    events?: BriefingEvent[]
+    locale?: 'en' | 'pt-BR'
+    /** Settings whose read throws (a database that cannot be read). */
+    unreadable?: Set<string>
+  }
 ) {
   const store = new Map<string, unknown>(Object.entries(settings))
   let now = options.now
@@ -173,7 +223,10 @@ function harness(
     updatedAt: 0
   }
   const deps: AlarmsDeps = {
-    getSetting: (key) => store.get(key) ?? null,
+    getSetting: (key) => {
+      if (options.unreadable?.has(key)) throw new Error('SQLITE_IOERR')
+      return store.get(key) ?? null
+    },
     setSetting: (key, value) => void store.set(key, value),
     now: () => now,
     id: () => `n${++id}`,
@@ -190,7 +243,9 @@ function harness(
     },
     briefing: async () => day,
     tasks: () => (options.rows ? { database: db, rows: options.rows } : null),
-    ...(options.events ? { calendar: async (from: number, to: number) => options.events!.filter((e) => e.end > from && e.start < to) } : {}),
+    ...(options.events
+      ? { calendar: async (from: number, to: number) => options.events!.filter((e) => e.end > from && e.start < to) }
+      : {}),
     locale: () => options.locale ?? 'en',
     recording: () => options.recording === true,
     deliver: (a) => void said.push(a),
@@ -231,6 +286,36 @@ describe('the clock', () => {
     h.service.heard(h.said[0].id)
     expect(h.service.pendingAnnouncement()).toBeNull()
     await h.advance(local(2026, 10, 15, 12, 0))
+    expect(h.said.length).toBe(1)
+  })
+
+  it('rings nothing again while what already rang cannot be read', async () => {
+    const at = local(2026, 10, 15, 8, 30)
+    const unreadable = new Set<string>()
+    const h = harness({ [ALARMS_SETTING.times]: times }, { now: local(2026, 10, 15, 8, 0), unreadable })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 8, 31))
+    expect(h.said.length).toBe(1)
+    // The setting goes unreadable: taking it for "nothing rang" would ring 8:30 a second time.
+    unreadable.add(ALARMS_FIRED_KEY)
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 8, 40))
+    expect(h.said.length).toBe(1)
+    expect(h.store.get(ALARMS_FIRED_KEY)).toEqual({ 'a:work': at })
+    // Readable again: what was stored still says it rang.
+    unreadable.clear()
+    await h.advance(local(2026, 10, 15, 8, 45))
+    expect(h.said.length).toBe(1)
+  })
+
+  it('does not overwrite or ring snoozes it cannot read', async () => {
+    const unreadable = new Set([ALARMS_SNOOZED_KEY])
+    const h = harness({ [ALARMS_SETTING.times]: times }, { now: local(2026, 10, 15, 8, 30), unreadable })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 8, 31))
+    expect(h.said).toEqual([])
+    unreadable.clear()
+    await h.advance(local(2026, 10, 15, 8, 33))
     expect(h.said.length).toBe(1)
   })
 
@@ -300,6 +385,105 @@ describe('the clock', () => {
     expect(h.said.length).toBe(1)
     expect(h.said[0].sound).toBe(false)
     expect(h.store.get(ALARMS_FIRED_KEY)).toBeUndefined()
+  })
+})
+
+// ---- refining (shared/tasks/refine.ts) ----
+
+describe('refining', () => {
+  const bare = (n: number): Block[] => Array.from({ length: n }, (_, i) => row(`Task ${i + 1}`, {}))
+  const off = { [REFINE_SETTING.time]: { ...REFINE_DEFAULTS.time, enabled: false } }
+
+  it('adds a line to the briefing when tasks wait to be refined', () => {
+    const facts = { now: local(2026, 10, 15, 8, 30), name: '', events: [], tasks: { overdue: [], today: [] } }
+    expect(composeBriefing({ ...facts, locale: 'pt-BR', refine: 4 }).text).toBe(
+      'Bom dia. Nada na agenda hoje. Nenhuma tarefa para hoje. Há 4 tarefas esperando refino. É isso.'
+    )
+    expect(composeBriefing({ ...facts, locale: 'en', refine: 1 }).text).toContain('There is one task waiting to be refined. That is all.')
+    expect(composeBriefing({ ...facts, locale: 'en', refine: 0 }).text).not.toContain('refine')
+  })
+
+  it('says the line at the briefing time, and not when it is turned off', async () => {
+    const on = harness({ [ALARMS_SETTING.times]: times, ...off }, { now: local(2026, 10, 15, 8, 0), rows: bare(3) })
+    on.service.plan()
+    await on.advance(local(2026, 10, 15, 8, 31))
+    expect(on.said[0].text).toContain('There are 3 tasks waiting to be refined.')
+    const quiet = harness(
+      { [ALARMS_SETTING.times]: times, [REFINE_SETTING.briefing]: false, ...off },
+      { now: local(2026, 10, 15, 8, 0), rows: bare(3) }
+    )
+    quiet.service.plan()
+    await quiet.advance(local(2026, 10, 15, 8, 31))
+    expect(quiet.said[0].text).not.toContain('refine')
+  })
+
+  it('adds the line after the AI briefing too', async () => {
+    const write = vi.fn(async () => 'Morning. One report.')
+    const h = harness(
+      { [ALARMS_SETTING.times]: times, [ALARMS_SETTING.ai]: true, ...off },
+      { now: local(2026, 10, 15, 8, 0), rows: bare(2), write }
+    )
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 8, 31))
+    expect(h.said[0]).toMatchObject({ text: 'Morning. One report. There are 2 tasks waiting to be refined.', ai: true })
+  })
+
+  it('rings the refine time on weekdays at 17:00 when there is something to refine', async () => {
+    // Thursday 15 October 2026.
+    const h = harness({}, { now: local(2026, 10, 15, 16, 0), rows: bare(4), locale: 'pt-BR' })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 16, 59))
+    expect(h.said).toEqual([])
+    await h.advance(local(2026, 10, 15, 17, 1))
+    expect(h.said.length).toBe(1)
+    expect(h.said[0]).toMatchObject({
+      kind: 'refine',
+      title: 'Hora de refinar',
+      text: 'Hora de refinar: 4 tarefas estão esperando.',
+      at: local(2026, 10, 15, 17, 0)
+    })
+    expect(h.said[0].snooze).toBeUndefined()
+    expect(h.store.get(ALARMS_FIRED_KEY)).toEqual({ [`a:${REFINE_ALARM_ID}`]: local(2026, 10, 15, 17, 0) })
+    // Once that day; not on the weekend; again on Monday.
+    await h.advance(local(2026, 10, 18, 18, 0))
+    expect(h.said.length).toBe(2)
+    expect(h.said[1].at).toBe(local(2026, 10, 16, 17, 0))
+    await h.advance(local(2026, 10, 19, 17, 5))
+    expect(h.said.map((a) => a.at)).toEqual([local(2026, 10, 15, 17, 0), local(2026, 10, 16, 17, 0), local(2026, 10, 19, 17, 0)])
+  })
+
+  it('passes quietly when there is nothing to refine then', async () => {
+    const rows: Block[] = []
+    const h = harness({}, { now: local(2026, 10, 15, 16, 0), rows })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 17, 1))
+    expect(h.said).toEqual([])
+    // It counted as rung: a task added a minute later does not bring it back that day.
+    rows.push(...bare(1))
+    await h.advance(local(2026, 10, 15, 17, 20))
+    expect(h.said).toEqual([])
+  })
+
+  it('follows its setting: its own time, or none', async () => {
+    const at = { [REFINE_SETTING.time]: { enabled: true, time: '09:15', days: [4] } }
+    const h = harness(at, { now: local(2026, 10, 15, 9, 0), rows: bare(1) })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 9, 16))
+    expect(h.said).toMatchObject([{ kind: 'refine', text: 'Time to refine: one task is waiting.' }])
+    const none = harness(off, { now: local(2026, 10, 15, 16, 0), rows: bare(1) })
+    none.service.plan()
+    await none.advance(local(2026, 10, 15, 18, 0))
+    expect(none.said).toEqual([])
+  })
+
+  it('waits while a meeting is recorded', async () => {
+    const h = harness({}, { now: local(2026, 10, 15, 17, 0), rows: bare(1), recording: true })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 17, 0))
+    expect(h.said).toEqual([])
+    h.setRecording(false)
+    await h.advance(local(2026, 10, 15, 17, 2))
+    expect(h.said.map((a) => a.kind)).toEqual(['refine'])
   })
 })
 
@@ -391,7 +575,16 @@ describe('event alarms', () => {
     expect(composeEvents([{ title: 'Dentist', start: ten, meeting: false }], ten - 10 * MIN, 'en').text).toBe('In 10 min: Dentist.')
     expect(composeEvents([{ title: 'Standup', start: ten, meeting: true }], ten, 'en').text).toBe('Meeting now: Standup.')
     expect(composeEvents([{ title: 'Standup', start: ten, meeting: true }], ten + 3 * MIN, 'pt-BR').text).toBe('Começou há 3 min: Standup.')
-    expect(composeEvents([{ title: 'A', start: ten, meeting: true }, { title: 'B', start: ten, meeting: false }], ten - 5 * MIN, 'en').text).toBe('Meeting in 5 min: A. Also: B.')
+    expect(
+      composeEvents(
+        [
+          { title: 'A', start: ten, meeting: true },
+          { title: 'B', start: ten, meeting: false }
+        ],
+        ten - 5 * MIN,
+        'en'
+      ).text
+    ).toBe('Meeting in 5 min: A. Also: B.')
   })
 
   it('ask to record a meeting, or every event, or none', () => {
@@ -403,9 +596,14 @@ describe('event alarms', () => {
 
   it('read back what was snoozed, and drop what is malformed or long past', () => {
     const now = ten
-    const entry = snoozeOf({ kind: 'event', events: [{ id: 'cal:a:1', title: 'A', start: ten, end: ten + MIN, meeting: true, ask: true }] }, now)
+    const entry = snoozeOf(
+      { kind: 'event', events: [{ id: 'cal:a:1', title: 'A', start: ten, end: ten + MIN, meeting: true, ask: true }] },
+      now
+    )
     expect(entry.at).toBe(now + SNOOZE_MS)
-    expect(readSnoozed([entry, { kind: 'event', at: now, events: [{ title: 'no id' }] }, { kind: 'other', at: now }, 'junk'], now)).toEqual([entry])
+    expect(readSnoozed([entry, { kind: 'event', at: now, events: [{ title: 'no id' }] }, { kind: 'other', at: now }, 'junk'], now)).toEqual(
+      [entry]
+    )
     expect(readSnoozed([entry], now + SNOOZE_MS + 16 * MIN)).toEqual([])
     expect(readSnoozed('junk', now)).toEqual([])
   })
@@ -415,7 +613,14 @@ describe('the clock and the calendar', () => {
   const ten = local(2026, 10, 15, 10, 0)
 
   it('announces an event its lead before, as a meeting that asks to be recorded', async () => {
-    const h = harness({}, { now: ten - 30 * MIN, events: [ev('Standup', ten, { attendees: 3, meetingUrl: 'https://meet.google.com/abc-defg-hij' })], locale: 'pt-BR' })
+    const h = harness(
+      {},
+      {
+        now: ten - 30 * MIN,
+        events: [ev('Standup', ten, { attendees: 3, meetingUrl: 'https://meet.google.com/abc-defg-hij' })],
+        locale: 'pt-BR'
+      }
+    )
     h.service.plan()
     await h.advance(ten - 6 * MIN)
     expect(h.said).toEqual([])
@@ -457,7 +662,13 @@ describe('the clock and the calendar', () => {
     off.service.plan()
     await off.advance(ten + 5 * MIN)
     expect(off.said).toEqual([])
-    const skipped = harness({}, { now: ten - 30 * MIN, events: [ev('Holiday', local(2026, 10, 15), { allDay: true, end: local(2026, 10, 16) }), ev('Focus', ten, { transparent: true })] })
+    const skipped = harness(
+      {},
+      {
+        now: ten - 30 * MIN,
+        events: [ev('Holiday', local(2026, 10, 15), { allDay: true, end: local(2026, 10, 16) }), ev('Focus', ten, { transparent: true })]
+      }
+    )
     skipped.service.plan()
     await skipped.advance(ten + 5 * MIN)
     expect(skipped.said).toEqual([])
@@ -506,7 +717,12 @@ describe('the clock and the calendar', () => {
     h.setRecording(false)
     await h.advance(ten + 13 * MIN)
     expect(h.said.length).toBe(2)
-    expect(h.said[1]).toMatchObject({ kind: 'reminder', text: 'Call the bank: it is 10:00 AM, the time you gave it.', pageId: 'Call the bank', at: ten + 10 * MIN })
+    expect(h.said[1]).toMatchObject({
+      kind: 'reminder',
+      text: 'Call the bank: it is 10:00 AM, the time you gave it.',
+      pageId: 'Call the bank',
+      at: ten + 10 * MIN
+    })
   })
 
   it('does not snooze a briefing', async () => {

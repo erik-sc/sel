@@ -48,7 +48,13 @@ export class TranscriptFollower {
     const root = this.root()
     if (!root || !canHighlight()) return
     const rows = stampedRows(root)
-    const next = rows[paragraphAt(rows.map((entry) => entry.start), time)]?.row ?? null
+    const next =
+      rows[
+        paragraphAt(
+          rows.map((entry) => entry.start),
+          time
+        )
+      ]?.row ?? null
     if (next === this.row && CSS.highlights.has(HIGHLIGHT)) return
     const previous = this.row
     this.row = next

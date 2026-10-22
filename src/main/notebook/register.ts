@@ -2,6 +2,7 @@ import { app } from 'electron'
 import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import type { NotebookService } from './service'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `notebook:*` channels: the ink notebook and the closing of the day. This file is all of
@@ -23,3 +24,9 @@ export function registerNotebookIpc({ repo }: { repo: Repository }): Handlers<'n
     'notebook:review': async () => (await notebook()).review()
   }
 }
+
+/** The ink notebook and the closing of the day. Its days are blocks: the repository keeps a day that ended as it is. */
+export const notebookFeature = defineFeature({
+  namespace: 'notebook',
+  register: (ctx): Registered<'notebook'> => ({ handlers: registerNotebookIpc({ repo: ctx.repo }) })
+})

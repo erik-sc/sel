@@ -1,5 +1,5 @@
 // The version history window itself. Loaded on demand through VersionHistory.tsx.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { JSX, KeyboardEvent, ReactNode } from 'react'
 import { HISTORY_DEFAULTS, MAX_VERSION_LABEL, type VersionInfo, type VersionSnapshot } from '@shared/versions'
 import { useBlock } from '@/store/blocks'
@@ -22,6 +22,9 @@ let showChangesPreference = true
 /** How long a burst of change events is left to settle before the timeline is read again. */
 const RELOAD_DELAY_MS = 250
 
+/** One history window per app window: its title names the dialog. */
+const HISTORY_TITLE = 'version-history-title'
+
 /** The sentence an ipc rejection carries, without Electron's wrapping. */
 function reason(error: unknown): string {
   const message = error instanceof Error ? error.message : ''
@@ -38,7 +41,7 @@ function fail(what: string, error: unknown): void {
 export function VersionHistoryDialog(): JSX.Element {
   const pageId = useUi((state) => state.historyPageId)
   return (
-    <Modal open={!!pageId} onClose={() => setHistoryPage(null)} label="Version history" className="vh">
+    <Modal open={!!pageId} onClose={() => setHistoryPage(null)} labelledBy={HISTORY_TITLE} className="vh">
       {pageId && <HistoryBody key={pageId} pageId={pageId} />}
     </Modal>
   )
@@ -167,7 +170,12 @@ function HistoryBody({ pageId }: { pageId: string }): JSX.Element {
   const move = (delta: number | 'first' | 'last'): void => {
     if (!versions?.length) return
     const index = versions.findIndex((v) => v.id === selectedId)
-    const next = delta === 'first' ? 0 : delta === 'last' ? versions.length - 1 : Math.max(0, Math.min(versions.length - 1, (index < 0 ? 0 : index) + delta))
+    const next =
+      delta === 'first'
+        ? 0
+        : delta === 'last'
+          ? versions.length - 1
+          : Math.max(0, Math.min(versions.length - 1, (index < 0 ? 0 : index) + delta))
     setSelectedId(versions[next].id)
   }
 
@@ -256,7 +264,7 @@ function HistoryBody({ pageId }: { pageId: string }): JSX.Element {
           <Clock />
         </span>
         <div className="vh-header-text">
-          <h2>Version history</h2>
+          <h2 id={HISTORY_TITLE}>Version history</h2>
           <span className="vh-header-page">{title}</span>
         </div>
         <button
@@ -355,7 +363,10 @@ function HistoryBody({ pageId }: { pageId: string }): JSX.Element {
           ) : versions && versions.length === 0 ? (
             <div className="vh-preview-empty">
               <h3>Nothing to compare yet</h3>
-              <p>When this page has versions, pick one on the left to see the page as it was, compare it with the page as it is now, and restore it.</p>
+              <p>
+                When this page has versions, pick one on the left to see the page as it was, compare it with the page as it is now, and
+                restore it.
+              </p>
             </div>
           ) : (
             <div className="vh-preview-empty" aria-busy="true" />
@@ -377,12 +388,7 @@ function HistoryBody({ pageId }: { pageId: string }): JSX.Element {
       </footer>
 
       {sheet?.kind === 'restore' && selected && (
-        <ConfirmSheet
-          title="Restore this version?"
-          confirm="Restore"
-          onCancel={() => setSheet(null)}
-          onConfirm={() => void doRestore()}
-        >
+        <ConfirmSheet title="Restore this version?" confirm="Restore" onCancel={() => setSheet(null)} onConfirm={() => void doRestore()}>
           <p>
             The page goes back to how it was on {stampLabel(selected.createdAt, now)}
             {selected.label ? ` (${selected.label})` : ''}.
@@ -477,7 +483,15 @@ function TimelineItem({
 }
 
 /** Inline name editor: Enter or leaving the field keeps the name, Escape gives it up. */
-function RenameField({ initial, onCommit, onCancel }: { initial: string; onCommit: (label: string) => void; onCancel: () => void }): JSX.Element {
+function RenameField({
+  initial,
+  onCommit,
+  onCancel
+}: {
+  initial: string
+  onCommit: (label: string) => void
+  onCancel: () => void
+}): JSX.Element {
   const [value, setValue] = useState(initial)
   const done = useRef(false)
   const cancel = useRef(onCancel)
@@ -544,9 +558,10 @@ function ConfirmSheet({
   // After the sheet has become the top layer (its own effect ran first): only then does
   // the window underneath stop pulling the focus back to itself.
   useEffect(() => confirmRef.current?.focus({ preventScroll: true }), [])
+  const titleId = useId()
   return (
-    <Modal open onClose={onCancel} label={title} className="vh-sheet">
-      <h3>{title}</h3>
+    <Modal open onClose={onCancel} labelledBy={titleId} className="vh-sheet">
+      <h3 id={titleId}>{title}</h3>
       <div className="vh-sheet-body">{children}</div>
       <div className="vh-sheet-actions">
         <Button onClick={onCancel}>Cancel</Button>
@@ -562,9 +577,10 @@ function SaveSheet({ onCancel, onSave }: { onCancel: () => void; onSave: (label:
   const [label, setLabel] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   useEffect(() => inputRef.current?.focus({ preventScroll: true }), [])
+  const titleId = useId()
   return (
-    <Modal open onClose={onCancel} label="Save current version" className="vh-sheet">
-      <h3>Save current version</h3>
+    <Modal open onClose={onCancel} labelledBy={titleId} className="vh-sheet">
+      <h3 id={titleId}>Save current version</h3>
       <div className="vh-sheet-body">
         <p>The page as it is now is kept as a version that is never cleaned up automatically.</p>
         <input

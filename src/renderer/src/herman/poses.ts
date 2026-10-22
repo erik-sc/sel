@@ -37,7 +37,6 @@ const NAPE = 28
 const SHOULDER = 29
 const HUMP = 30
 const BACK = [31, 32] as const
-const HEM = [33, 34, 35] as const
 const ARM = [36, 37, 38] as const
 const HAND = 39
 const KNOB = [40, 41, 42, 43, 44, 45] as const

@@ -50,7 +50,10 @@ export function placeWidget({ width, height, widget, herman, obstacles }: Corner
   let place: CornerPlace = { right: EDGE.right, bottom: EDGE.bottom }
   if (herman) {
     const beside = width - herman.left + GAP
-    place = width - beside - widget.width >= MARGIN ? { right: beside, bottom: height - herman.bottom + BASELINE } : { right: EDGE.right, bottom: height - herman.top + GAP }
+    place =
+      width - beside - widget.width >= MARGIN
+        ? { right: beside, bottom: height - herman.bottom + BASELINE }
+        : { right: EDGE.right, bottom: height - herman.top + GAP }
   }
   // Each lift can bring it up against another obstacle: look again until nothing is covered.
   for (let round = 0; round <= obstacles.length; round++) {

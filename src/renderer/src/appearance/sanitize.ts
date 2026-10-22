@@ -5,7 +5,6 @@
 import { parseColor } from './color'
 import { TOKENS, TOKEN_MAP, defaultValue } from './schema'
 import type { ThemeName, TokenDef } from './schema'
-import { isSkin } from './skins'
 
 export interface AppearanceData {
   /** Overrides for themed tokens in the light theme. */
@@ -16,8 +15,6 @@ export interface AppearanceData {
   shared: Record<string, string>
   customCss: string
   presetId: string | null
-  /** The window style drawn over the tokens (skins.ts), or null for the plain one. */
-  skin: string | null
 }
 
 export const MAX_VALUE_LENGTH = 2000
@@ -26,7 +23,7 @@ export const MAX_IMAGE_LENGTH = 400_000
 export const MAX_CUSTOM_CSS_LENGTH = 50_000
 
 export function emptyAppearance(): AppearanceData {
-  return { light: {}, dark: {}, shared: {}, customCss: '', presetId: null, skin: null }
+  return { light: {}, dark: {}, shared: {}, customCss: '', presetId: null }
 }
 
 // ---- numeric tokens ----
@@ -127,7 +124,10 @@ export function cleanValue(token: TokenDef, raw: unknown): string | null {
     // Out-of-range numbers (a 0px font, a 9999px blur) could make the app unusable, settings included.
     const n = parseNumeric(token, value)
     if (n === null || !Number.isFinite(n)) return null
-    if (token.min !== undefined && n < token.min) return null
+    if (token.min !== undefined && n < token.min) {
+      // Saved before the floor was raised: read as the floor. The setting keeps what it holds.
+      return token.floorFrom !== undefined && n >= token.floorFrom ? formatNumeric(token, token.min) : null
+    }
     if (token.max !== undefined && n > token.max) return null
     return value
   }
@@ -403,8 +403,7 @@ export function sanitizeAppearance(input: unknown): AppearanceData {
     dark: cleanMap(input.dark, 'dark', true),
     shared: cleanMap(input.shared, 'light', false),
     customCss: sanitizeCustomCss(input.customCss),
-    presetId: typeof presetId === 'string' && /^[\w-]{1,64}$/.test(presetId) ? presetId : null,
-    skin: isSkin(input.skin) ? input.skin : null
+    presetId: typeof presetId === 'string' && /^[\w-]{1,64}$/.test(presetId) ? presetId : null
   }
 }
 

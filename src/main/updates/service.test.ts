@@ -7,7 +7,16 @@ import { UpdatesService, type UpdaterDriver } from './service'
 const START = 1_800_000_000_000
 
 /** A service with a hand-driven clock and timers, and a driver that records what it was asked. */
-function setup(options: { enabled?: unknown; lastCheck?: unknown; supported?: boolean; found?: string | null; failCheck?: boolean; failDownload?: boolean } = {}) {
+function setup(
+  options: {
+    enabled?: unknown
+    lastCheck?: unknown
+    supported?: boolean
+    found?: string | null
+    failCheck?: boolean
+    failDownload?: boolean
+  } = {}
+) {
   const settings: Record<string, unknown> = { [UPDATES_CHECK_KEY]: options.enabled, [UPDATES_LAST_CHECK_KEY]: options.lastCheck }
   const calls: string[] = []
   const published: UpdateStatus[] = []
@@ -163,7 +172,11 @@ describe('with the check on', () => {
     const t = setup({ enabled: true, failCheck: true })
     t.service.plan()
     await t.advance(UPDATE_TIMING.startDelayMs)
-    expect(t.service.status()).toMatchObject({ phase: 'error', version: null, error: 'sel could not reach GitHub to look for a new version.' })
+    expect(t.service.status()).toMatchObject({
+      phase: 'error',
+      version: null,
+      error: 'sel could not reach GitHub to look for a new version.'
+    })
     await t.advance(UPDATE_TIMING.intervalMs - 1)
     expect(t.calls).toEqual(['check'])
   })

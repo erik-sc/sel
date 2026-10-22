@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { NOTEBOOK_ID } from '@shared/notebook'
 import { SKY_ID } from '@shared/sky'
+import { NOTEBOOK_ROUTE, SKY_ROUTE, TODAY_ROUTE } from '../routes'
 import {
   closeOtherTabs,
   closeTab,
@@ -11,15 +12,12 @@ import {
   mergeEarlyTabs,
   moveTab,
   newTab,
-  NOTEBOOK_ROUTE,
   openPage,
   openScreen,
   reopenTab,
   sanitizeTabs,
-  SKY_ROUTE,
   tabKey,
   tabPage,
-  TODAY_ROUTE,
   useTabs
 } from './tabs'
 
@@ -31,7 +29,13 @@ describe('sanitizeTabs', () => {
   })
 
   it('keeps well-formed tabs', () => {
-    const stored = { tabs: [{ id: 't1', history: ['a', 'b'], index: 1 }, { id: 't2', history: [], index: 0 }], activeId: 't2' }
+    const stored = {
+      tabs: [
+        { id: 't1', history: ['a', 'b'], index: 1 },
+        { id: 't2', history: [], index: 0 }
+      ],
+      activeId: 't2'
+    }
     expect(sanitizeTabs(stored)).toEqual(stored)
   })
 
@@ -146,8 +150,21 @@ describe('tabKey', () => {
 describe('mergeEarlyTabs', () => {
   it('adds the tabs opened while restoring after the restored ones, without a page twice', () => {
     const merged = mergeEarlyTabs(
-      { tabs: [{ id: 'r1', history: ['a'], index: 0 }, { id: 'r2', history: ['b'], index: 0 }], activeId: 'r1' },
-      { tabs: [{ id: 'e1', history: ['b'], index: 0 }, { id: 'e2', history: ['c'], index: 0 }, { id: 'e3', history: [], index: 0 }], activeId: 'e1' }
+      {
+        tabs: [
+          { id: 'r1', history: ['a'], index: 0 },
+          { id: 'r2', history: ['b'], index: 0 }
+        ],
+        activeId: 'r1'
+      },
+      {
+        tabs: [
+          { id: 'e1', history: ['b'], index: 0 },
+          { id: 'e2', history: ['c'], index: 0 },
+          { id: 'e3', history: [], index: 0 }
+        ],
+        activeId: 'e1'
+      }
     )
     expect(merged.tabs.map((tab) => tab.id)).toEqual(['r1', 'r2', 'e2', 'e3'])
     // The early tab was in front: the restored tab with its page is now.

@@ -3,6 +3,9 @@
 // The sky grows, never fades, never shows a number.
 
 import type { NotebookLocale } from '../notebook'
+import type { SettingsSpec } from '../settings'
+import type { InvokeChannels } from '../ipc'
+import type { CommandSpec } from '../commands'
 
 export type Hemisphere = 'south' | 'north'
 
@@ -36,15 +39,12 @@ export function isMonth(value: unknown): value is string {
 /** A name given to a month: one line, tidied like a Meditation, 1–40 characters (empty = none). */
 export function cleanSkyName(value: unknown): string {
   if (typeof value !== 'string') return ''
-  return (
-    value
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\u0000-\u001f\u007f]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, SKY_NAME_MAX)
-      .trim()
-  )
+  return value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, SKY_NAME_MAX)
+    .trim()
 }
 
 // ---- what the scene is built from ----------------------------------------------
@@ -200,3 +200,47 @@ export * from './moon'
 export * from './events'
 export * from './layout'
 export * from './words'
+
+/** The Sky's switches and this computer's memory of what it already showed. */
+export const SKY_SETTINGS: SettingsSpec = { keys: SKY_KEYS, clean: cleanSkySetting }
+
+/** The invoke channels of `api.sky` (see `INVOKE` in ./api.ts): every method of SkyApi that returns a promise, and no other. */
+export const SKY_INVOKE = {
+  'sky:view': true,
+  'sky:name': true,
+  'sky:moment': true
+} as const satisfies Record<InvokeChannels<{ sky: SkyApi }>, true>
+
+/** The way to the Sky (see ../commands.ts). Turned off, the shortcut does nothing and the palette leaves it out. */
+export const SKY_COMMANDS = [
+  {
+    id: 'open-sky',
+    // G, kept from when the Sky was going to be a garden.
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+G', key: 'g', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Sky', order: 260 },
+    palette: {
+      title: 'Sky',
+      keywords: [
+        'céu',
+        'sky',
+        'estrelas',
+        'stars',
+        'constelações',
+        'constellations',
+        'jardim',
+        'garden',
+        'carta celeste',
+        'star chart',
+        'moon',
+        'lua'
+      ],
+      order: 110
+    },
+    catalog: {
+      group: 'navigation',
+      label: 'Sky',
+      keywords: ['céu', 'stars', 'estrelas', 'constellations', 'garden', 'jardim'],
+      order: 180
+    }
+  }
+] as const satisfies readonly CommandSpec[]

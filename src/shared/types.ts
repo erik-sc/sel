@@ -48,6 +48,8 @@ export interface BlockProps {
   /** image, bookmark */
   url?: string
   caption?: RichText
+  /** image: what a screen reader says in its place (the block menu's "Alternative text"); the caption is what everyone reads. */
+  alt?: string
   /** toggle: collapsed state */
   collapsed?: boolean
   /** block colour name (text or `<name>_background`) */
@@ -178,7 +180,7 @@ export interface RollupConfig {
 
 /**
  * A formula computes a value for each row from the row's other properties (see
- * renderer/src/database/logic/formula.ts). `expression` names properties by id, as
+ * shared/database/formula.ts). `expression` names properties by id, as
  * `prop("<id>")`; the editor shows (and takes) their names instead, so a rename never
  * has to rewrite a formula. Results are never stored.
  */
@@ -236,7 +238,7 @@ export interface ChartConfig {
   height?: number
 }
 
-/** One figure of a `calc` view: a name and a formula over the view's rows (see database/logic/calc.ts). */
+/** One figure of a `calc` view: a name and a formula over the view's rows (see shared/database/calc.ts). */
 export interface ViewCalc {
   id: string
   name: string
@@ -355,6 +357,11 @@ export interface ChangeEvent {
    * one of them drops its undo history: the recorded steps no longer describe the page.
    */
   reset?: string[]
+  /**
+   * Those of `ids` whose text holds, or held, a link to a page (`sel://page/...`): a "Linked
+   * from" list looks again for these, and for any change from another window, not for the rest.
+   */
+  links?: string[]
 }
 
 /** One place a database appears: a linked view and the page that contains it (null at the workspace root). */

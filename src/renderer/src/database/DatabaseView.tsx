@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { JSX, MouseEvent as ReactMouseEvent } from 'react'
+import type { JSX, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react'
 import type { Block, DatabaseView as DatabaseViewModel, ViewType } from '@shared/types'
 import { useBlocks } from '@/store/blocks'
 import { IconGlyph } from '@/ui/IconGlyph'
@@ -7,6 +7,8 @@ import { IconPicker } from '@/ui/IconPicker'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import { Tooltip } from '@/ui/Tooltip'
 import { notifyError, toast } from '@/ui/toast'
+import type { PopoverAnchor } from '@/ui/Popover'
+import { isMenuKeyEcho, keyboardAnchor } from '@/a11y/keys'
 import { ArrowUpRight, ChartColumn, Close, Copy, Filter, MoreHorizontal, Plus, Search, Sort, Table, Trash, Undo } from '@/ui/icons'
 import * as L from './logic'
 import * as actions from './actions'
@@ -52,6 +54,9 @@ export function chooseView(databaseId: string, viewId: string): void {
 }
 
 type Panel = 'filter' | 'sort' | 'properties' | 'chart'
+
+const PANEL_LABEL: Record<Panel, string> = { filter: 'Filters', sort: 'Sorts', properties: 'Properties', chart: 'Chart settings' }
+
 /** Popovers opened from the database menu ("⋯" in the header). */
 type LinkPanel = 'menu' | 'locations' | 'link'
 
@@ -145,10 +150,7 @@ export function DatabaseView(props: {
   }, [rawContent])
   const rowBlocks = useBlocks(rowIds)
   const allRows = useMemo(
-    () =>
-      rowBlocks.filter(
-        (b): b is Block => !!b && b.type === 'page' && !b.trashedAt && b.parentId === rowsOwnerId
-      ),
+    () => rowBlocks.filter((b): b is Block => !!b && b.type === 'page' && !b.trashedAt && b.parentId === rowsOwnerId),
     [rowBlocks, rowsOwnerId]
   )
 
@@ -187,7 +189,7 @@ export function DatabaseView(props: {
   const [emojiOpen, setEmojiOpen] = useState(false)
   const [addViewOpen, setAddViewOpen] = useState(false)
   const [viewMenu, setViewMenu] = useState<{ viewId: string; anchor: HTMLElement; renaming: boolean } | null>(null)
-  const [rowMenu, setRowMenu] = useState<{ rowId: string; anchor: { x: number; y: number } } | null>(null)
+  const [rowMenu, setRowMenu] = useState<{ rowId: string; anchor: PopoverAnchor } | null>(null)
   const [editingRowId, setEditingRowId] = useState<string | null>(null)
   const [linkPanel, setLinkPanel] = useState<LinkPanel | null>(null)
   const menuRef = useRef<HTMLButtonElement>(null)
@@ -210,7 +212,9 @@ export function DatabaseView(props: {
   // Relations and rollups read the databases this one relates to; a change there re-runs the query.
   const cells = useRelatedCells(schema)
   const related = useMemo(() => ({ cells, openPage: onOpenPage }), [cells, onOpenPage])
-  const rows = useMemo(() => L.queryRows(allRows, schema, view, search, cells), [allRows, schema, view, search, cells])
+  // One query per view and database: an edit to a few rows places only those again.
+  const query = useMemo(() => L.createRowQuery(), [databaseId, view.id])
+  const rows = useMemo(() => query(allRows, schema, view, search, cells), [query, allRows, schema, view, search, cells])
 
   const onOpen = useCallback(
     (rowId: string, event?: OpenModifiers) => {
@@ -220,10 +224,12 @@ export function DatabaseView(props: {
     [onOpenPage]
   )
 
-  const onRowMenu = useCallback((event: ReactMouseEvent, rowId: string) => {
+  const onRowMenu = useCallback((event: ReactMouseEvent | ReactKeyboardEvent, rowId: string, from?: Element) => {
     event.preventDefault()
     event.stopPropagation()
-    setRowMenu({ rowId, anchor: { x: event.clientX, y: event.clientY } })
+    if (!('clientX' in event)) setRowMenu({ rowId, anchor: keyboardAnchor(from ?? (event.currentTarget as Element)) })
+    // The menu the Menu key opened already: Windows follows the key with a contextmenu event.
+    else if (!isMenuKeyEcho()) setRowMenu({ rowId, anchor: { x: event.clientX, y: event.clientY } })
   }, [])
 
   const viewRef = useRef(view)
@@ -257,7 +263,9 @@ export function DatabaseView(props: {
   }
   if (resolved.status === 'loading') return <div className={inline ? 'db-root is-inline is-loading' : 'db-root is-loading'} />
   if (resolved.status !== 'ok') {
-    return <SourceUnavailable databaseId={databaseId} inline={inline} trashedId={resolved.status === 'trashed' ? resolved.trashedId : null} />
+    return (
+      <SourceUnavailable databaseId={databaseId} inline={inline} trashedId={resolved.status === 'trashed' ? resolved.trashedId : null} />
+    )
   }
 
   // A linked view shows its source's title and icon unless it was given its own.
@@ -345,7 +353,10 @@ export function DatabaseView(props: {
       id: type,
       label: L.VIEW_LABELS[type],
       icon: <ViewIcon type={type} />,
-      onSelect: () => selectView(actions.addView(databaseId, type))
+      onSelect: () => {
+        const id = actions.addView(databaseId, type)
+        if (id) selectView(id)
+      }
     }))
   ]
 
@@ -418,7 +429,9 @@ export function DatabaseView(props: {
   // A panel only stays open on a view that has it (the chart panel on charts, sorts and properties on the views that order rows,
   // and the properties panel, which holds "Split by" there, on calculations).
   const openPanel: Panel | null =
-    panel === 'filter' || (panel === 'chart' ? isChart : panel === 'properties' ? ordersRows || view.type === 'calc' : ordersRows) ? panel : null
+    panel === 'filter' || (panel === 'chart' ? isChart : panel === 'properties' ? ordersRows || view.type === 'calc' : ordersRows)
+      ? panel
+      : null
   const panelAnchor =
     openPanel === 'filter'
       ? filterRef.current
@@ -458,13 +471,7 @@ export function DatabaseView(props: {
   const content = (
     <div className={inline ? 'db-root is-inline' : 'db-root'} data-view-type={view.type}>
       <div className="db-header">
-        <button
-          type="button"
-          ref={iconRef}
-          className="db-icon"
-          aria-label="Change icon"
-          onClick={() => setEmojiOpen((open) => !open)}
-        >
+        <button type="button" ref={iconRef} className="db-icon" aria-label="Change icon" onClick={() => setEmojiOpen((open) => !open)}>
           {icon ? <IconGlyph icon={icon} /> : <Table size={inline ? ICON_SIZE_INLINE : ICON_SIZE_PAGE} />}
         </button>
         {linked && (
@@ -519,33 +526,33 @@ export function DatabaseView(props: {
       <div className="db-bar">
         <div className="db-tabs">
           <div className="db-segmented" role="tablist">
-          {views.map((v) => (
-            <button
-              type="button"
-              key={v.id}
-              role="tab"
-              aria-selected={v.id === view.id}
-              className={v.id === view.id ? 'db-tab is-active' : 'db-tab'}
-              onPointerEnter={() => preloadView(v.type)}
-              onFocus={() => preloadView(v.type)}
-              onClick={(event) => {
-                if (v.id === view.id) {
-                  const anchor = event.currentTarget
-                  setViewMenu((prev) => (prev ? null : { viewId: v.id, anchor, renaming: false }))
-                } else {
-                  selectView(v.id)
-                }
-              }}
-              onDoubleClick={(event) => setViewMenu({ viewId: v.id, anchor: event.currentTarget, renaming: true })}
-              onContextMenu={(event) => {
-                event.preventDefault()
-                setViewMenu({ viewId: v.id, anchor: event.currentTarget, renaming: false })
-              }}
-            >
-              <ViewIcon type={v.type} />
-              <span className="db-tab-name">{v.name}</span>
-            </button>
-          ))}
+            {views.map((v) => (
+              <button
+                type="button"
+                key={v.id}
+                role="tab"
+                aria-selected={v.id === view.id}
+                className={v.id === view.id ? 'db-tab is-active' : 'db-tab'}
+                onPointerEnter={() => preloadView(v.type)}
+                onFocus={() => preloadView(v.type)}
+                onClick={(event) => {
+                  if (v.id === view.id) {
+                    const anchor = event.currentTarget
+                    setViewMenu((prev) => (prev ? null : { viewId: v.id, anchor, renaming: false }))
+                  } else {
+                    selectView(v.id)
+                  }
+                }}
+                onDoubleClick={(event) => setViewMenu({ viewId: v.id, anchor: event.currentTarget, renaming: true })}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  setViewMenu({ viewId: v.id, anchor: event.currentTarget, renaming: false })
+                }}
+              >
+                <ViewIcon type={v.type} />
+                <span className="db-tab-name">{v.name}</span>
+              </button>
+            ))}
           </div>
           <button
             type="button"
@@ -667,7 +674,7 @@ export function DatabaseView(props: {
         <Suspense fallback={<PartFallback kind="view" />}>{body}</Suspense>
       </div>
 
-      <Floating open={emojiOpen} anchor={iconRef.current} onClose={() => setEmojiOpen(false)}>
+      <Floating open={emojiOpen} anchor={iconRef.current} label="Database icon" onClose={() => setEmojiOpen(false)}>
         <IconPicker
           current={icon}
           onPick={(shape) => {
@@ -677,7 +684,7 @@ export function DatabaseView(props: {
         />
       </Floating>
 
-      <Floating open={linkPanel === 'menu'} anchor={menuRef.current} placement="bottom-end" onClose={() => setLinkPanel(null)}>
+      <Floating open={linkPanel === 'menu'} anchor={menuRef.current} placement="bottom-end" role="none" onClose={() => setLinkPanel(null)}>
         {/* The items that open another popover replace this one themselves: no close on select. */}
         <Menu items={databaseMenuItems} onClose={() => setLinkPanel((current) => (current === 'menu' ? null : current))} autoFocus />
       </Floating>
@@ -686,6 +693,7 @@ export function DatabaseView(props: {
         open={linkPanel === 'locations' || linkPanel === 'link'}
         anchor={menuRef.current}
         placement="bottom-end"
+        label={linkPanel === 'link' ? 'Link to a database' : 'Where this database appears'}
         onClose={() => setLinkPanel(null)}
       >
         <Suspense fallback={<PartFallback kind="popover" />}>
@@ -703,12 +711,18 @@ export function DatabaseView(props: {
         </Suspense>
       </Floating>
 
-      <Floating open={addViewOpen} anchor={addViewRef.current} onClose={() => setAddViewOpen(false)}>
+      <Floating open={addViewOpen} anchor={addViewRef.current} role="none" onClose={() => setAddViewOpen(false)}>
         <Menu items={addViewItems} onClose={() => setAddViewOpen(false)} autoFocus />
       </Floating>
 
       {viewMenu && menuView && (
-        <Floating open anchor={viewMenu.anchor} onClose={() => setViewMenu(null)}>
+        <Floating
+          open
+          anchor={viewMenu.anchor}
+          role={viewMenu.renaming ? 'dialog' : 'none'}
+          label="View name"
+          onClose={() => setViewMenu(null)}
+        >
           {viewMenu.renaming ? (
             <RenameInput
               value={menuView.name}
@@ -722,7 +736,13 @@ export function DatabaseView(props: {
         </Floating>
       )}
 
-      <Floating open={!!openPanel && !!panelAnchor} anchor={panelAnchor} placement="bottom-end" onClose={() => setPanel(null)}>
+      <Floating
+        open={!!openPanel && !!panelAnchor}
+        anchor={panelAnchor}
+        placement="bottom-end"
+        label={openPanel ? PANEL_LABEL[openPanel] : undefined}
+        onClose={() => setPanel(null)}
+      >
         <Suspense fallback={<PartFallback kind="popover" />}>
           {openPanel === 'filter' && <FilterPanel databaseId={databaseId} schema={schema} view={view} />}
           {openPanel === 'sort' && <SortPanel databaseId={databaseId} schema={schema} view={view} />}
@@ -732,7 +752,7 @@ export function DatabaseView(props: {
       </Floating>
 
       {rowMenu && (
-        <Floating open anchor={rowMenu.anchor} onClose={() => setRowMenu(null)}>
+        <Floating open anchor={rowMenu.anchor} role="none" onClose={() => setRowMenu(null)}>
           <Menu items={rowMenuItems} onClose={() => setRowMenu(null)} autoFocus />
         </Floating>
       )}

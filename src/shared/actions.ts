@@ -46,7 +46,16 @@ export type ActionTarget = string
 export type HermanAction =
   | { do: 'create-page'; title: string; icon?: string; parent?: ActionTarget; markdown?: string; ref?: string }
   | { do: 'append'; page: ActionTarget; markdown: string }
-  | { do: 'create-database'; title: string; icon?: string; parent?: ActionTarget; view?: ActionView; properties: ActionProperty[]; rows: ActionRow[]; ref?: string }
+  | {
+      do: 'create-database'
+      title: string
+      icon?: string
+      parent?: ActionTarget
+      view?: ActionView
+      properties: ActionProperty[]
+      rows: ActionRow[]
+      ref?: string
+    }
   | { do: 'add-rows'; database: ActionTarget; rows: ActionRow[] }
   /** Puts a page or database inside another page, or at the top level (`parent` null). At the end of what is there. */
   | { do: 'move'; page: ActionTarget; parent: ActionTarget | null }
@@ -76,8 +85,14 @@ const REF_RE = /^[A-Za-z0-9_-]{1,32}$/
 
 const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
 
-// eslint-disable-next-line no-control-regex
-const oneLine = (value: unknown, max: number): string => (typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max) : '')
+const oneLine = (value: unknown, max: number): string =>
+  typeof value === 'string'
+    ? value
+        .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, max)
+    : ''
 
 function target(value: unknown): ActionTarget | undefined {
   return typeof value === 'string' && TARGET_RE.test(value) ? value : undefined
@@ -98,7 +113,11 @@ function cell(value: unknown): ActionCell | undefined {
   if (value === null || typeof value === 'boolean') return value
   if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
   if (typeof value === 'string') return value.slice(0, ACTION_LIMITS.cell)
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string').slice(0, ACTION_LIMITS.options).map((item) => item.slice(0, ACTION_LIMITS.name))
+  if (Array.isArray(value))
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .slice(0, ACTION_LIMITS.options)
+      .map((item) => item.slice(0, ACTION_LIMITS.name))
   return undefined
 }
 
@@ -135,7 +154,10 @@ function properties(value: unknown): ActionProperty[] {
     if (!name || typeof type !== 'string' || !(ACTION_PROPERTY_TYPES as readonly string[]).includes(type)) continue
     const property: ActionProperty = { name, type: type as ActionPropertyType }
     if ((type === 'select' || type === 'multi_select') && Array.isArray(item['options'])) {
-      property.options = [...new Set(item['options'].map((option) => oneLine(option, ACTION_LIMITS.name)).filter(Boolean))].slice(0, ACTION_LIMITS.options)
+      property.options = [...new Set(item['options'].map((option) => oneLine(option, ACTION_LIMITS.name)).filter(Boolean))].slice(
+        0,
+        ACTION_LIMITS.options
+      )
     }
     out.push(property)
   }
@@ -179,7 +201,8 @@ export function cleanAction(value: unknown): HermanAction | null {
         if (!parent) return null
         action.parent = parent
       }
-      if (typeof value['view'] === 'string' && (ACTION_VIEWS as readonly string[]).includes(value['view'])) action.view = value['view'] as ActionView
+      if (typeof value['view'] === 'string' && (ACTION_VIEWS as readonly string[]).includes(value['view']))
+        action.view = value['view'] as ActionView
       if (ref) action.ref = ref
       return action
     }
@@ -208,7 +231,9 @@ export function cleanAction(value: unknown): HermanAction | null {
     }
     case 'update-rows': {
       const database = target(value['database'])
-      const list = rows(value['rows'], true).filter((row): row is ActionRow & { id: string } => typeof row['id'] === 'string' && Object.keys(row).length > 1)
+      const list = rows(value['rows'], true).filter(
+        (row): row is ActionRow & { id: string } => typeof row['id'] === 'string' && Object.keys(row).length > 1
+      )
       return database && list.length ? { do: 'update-rows', database, rows: list } : null
     }
     case 'add-properties': {

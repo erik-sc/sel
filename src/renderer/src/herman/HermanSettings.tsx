@@ -5,20 +5,24 @@ import {
   HERMAN_CORNERS,
   HERMAN_DEFAULTS,
   HERMAN_FREQUENCIES,
+  HERMAN_SEASONAL_SKINS,
   HERMAN_SIZES,
+  HERMAN_SKINS,
   HERMAN_VOICES,
   HERMAN_VOICE_LABELS,
   type HermanCorner,
   type HermanFrequency,
   type HermanSettings,
   type HermanSize,
+  type HermanSkinId,
   type HermanVoice
 } from '@shared/herman'
 import { ConfirmButton, Segmented } from '@/appearance/controls'
 import { notifyError, toast } from '@/ui/toast'
 import { AlarmSettings } from '@/alarms/AlarmSettings'
 import { CouncilSettings } from './CouncilSettings'
-import { Figure } from './Figure'
+import { Herman64 } from './Herman64'
+import { spriteUrl } from './sprites'
 import { useHerman } from './gate'
 import { fromClock, toClock } from './mood'
 
@@ -27,7 +31,10 @@ const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'off', label: 'Off' }
 ]
 const VOICES = HERMAN_VOICES.map((value) => ({ value, label: HERMAN_VOICE_LABELS[value] }))
-const SIZES: { value: HermanSize; label: string }[] = HERMAN_SIZES.map((value) => ({ value, label: value === 'small' ? 'Small' : 'Medium' }))
+const SIZES: { value: HermanSize; label: string }[] = HERMAN_SIZES.map((value) => ({
+  value,
+  label: value === 'small' ? 'Small' : 'Medium'
+}))
 const FREQUENCY_LABELS: Record<HermanFrequency, string> = { rare: 'Rare', sometimes: 'Sometimes', often: 'Often' }
 const FREQUENCIES = HERMAN_FREQUENCIES.map((value) => ({ value, label: FREQUENCY_LABELS[value] }))
 const FREQUENCY_HELP: Record<HermanFrequency, string> = {
@@ -41,6 +48,24 @@ const CORNER_LABELS: Record<HermanCorner, string> = {
   'top-right': 'Top right',
   'top-left': 'Top left'
 }
+const SKIN_LABELS: Record<HermanSkinId, string> = {
+  classic: 'Classic',
+  wizard: 'Star wizard',
+  monk: 'Zen monk',
+  hacker: 'Hacker',
+  gardener: 'Gardener',
+  astronaut: 'Astronaut',
+  pirate: 'Pirate',
+  detective: 'Detective',
+  scribe: 'Scribe',
+  stone: 'Stone',
+  santa: 'Santa',
+  pumpkin: 'Pumpkin'
+}
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const EVERYDAY_SKINS = HERMAN_SKINS.filter((skin) => HERMAN_SEASONAL_SKINS[skin] === undefined)
+const SEASON_SKINS = HERMAN_SKINS.filter((skin) => HERMAN_SEASONAL_SKINS[skin] !== undefined)
+
 const VOICE_HELP: Record<HermanVoice, string> = {
   plain: 'The assistant answers without his voice.',
   herman: 'Warm, plain and brief; a question more often than a list of tips.',
@@ -53,8 +78,8 @@ export function HermanSection(): JSX.Element {
   useEffect(() => {
     let alive = true
     window.api.herman.state().then(
-      ({ enabled, voice, nudges, frequency, quietHours, size, corner }) => {
-        if (alive) setValues({ enabled, voice, nudges, frequency, quietHours, size, corner })
+      ({ enabled, voice, nudges, frequency, quietHours, size, corner, skin, seasonalSkins }) => {
+        if (alive) setValues({ enabled, voice, nudges, frequency, quietHours, size, corner, skin, seasonalSkins })
       },
       (error: unknown) => console.error('herman settings failed to load', error)
     )
@@ -68,7 +93,13 @@ export function HermanSection(): JSX.Element {
     const previous = values[name]
     setValues((current) => ({ ...current, [name]: value }))
     window.api.app.setSetting(`herman.${name}`, value).then(
-      () => useHerman.setState((state) => ({ version: state.version + 1, ...(name === 'enabled' ? { on: value === true } : {}) })),
+      () =>
+        useHerman.setState((state) => ({
+          version: state.version + 1,
+          ...(name === 'enabled' ? { on: value === true } : {}),
+          ...(name === 'skin' ? { skin: value as HermanSkinId } : {}),
+          ...(name === 'seasonalSkins' ? { seasonal: value === true } : {})
+        })),
       (error: unknown) => {
         setValues((current) => ({ ...current, [name]: previous }))
         notifyError('The setting could not be saved.', error)
@@ -97,7 +128,7 @@ export function HermanSection(): JSX.Element {
           <h3 className="ap-group-title">Herman</h3>
         </div>
         <div className="herman-settings-figure">
-          <Figure pose={enabled ? 'resting' : 'sleeping'} />
+          <Herman64 pose={enabled ? 'resting' : 'sleeping'} />
           <p>The face and the voice of the assistant: an old man who listens, answers briefly, and otherwise leaves you alone.</p>
         </div>
         <div className="ap-list">
@@ -107,13 +138,62 @@ export function HermanSection(): JSX.Element {
               <span className="ap-row-help">When off, the plain assistant is back and no figure is shown.</span>
             </div>
             <div className="ap-row-control">
-              <Segmented label="Herman" value={enabled ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('enabled', value === 'on')} />
+              <Segmented
+                label="Herman"
+                value={enabled ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => change('enabled', value === 'on')}
+              />
             </div>
+          </div>
+          <div className="ap-row herman-skins-row">
+            <div className="ap-row-text">
+              <span className="ap-row-label">Outfit</span>
+              <span className="ap-row-help">Only how he looks: he moves and speaks the same in every one.</span>
+            </div>
+            <div className="herman-skins" role="group" aria-label="Outfit">
+              {EVERYDAY_SKINS.map((skin) => (
+                <SkinChoice key={skin} skin={skin} chosen={values.skin === skin} onChoose={() => change('skin', skin)} />
+              ))}
+            </div>
+          </div>
+          <div className="ap-row herman-skins-row">
+            <div className="ap-row-text">
+              <span className="ap-row-label">Outfits of the season</span>
+              <span className="ap-row-help">
+                {values.seasonalSkins
+                  ? 'Worn only in their month; the rest of the year he wears the classic one.'
+                  : 'Off: he never wears them.'}
+              </span>
+            </div>
+            <div className="ap-row-control">
+              <Segmented
+                label="Outfits of the season"
+                value={values.seasonalSkins ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => change('seasonalSkins', value === 'on')}
+              />
+            </div>
+            {values.seasonalSkins && (
+              <div className="herman-skins" role="group" aria-label="Outfits of the season">
+                {SEASON_SKINS.map((skin) => (
+                  <SkinChoice
+                    key={skin}
+                    skin={skin}
+                    chosen={values.skin === skin}
+                    note={MONTHS[(HERMAN_SEASONAL_SKINS[skin] ?? 1) - 1]}
+                    onChoose={() => change('skin', skin)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Voice</span>
-              <span className="ap-row-help">{VOICE_HELP[values.voice]} Used in the conversation and on Today; the writing tools are not affected.</span>
+              <span className="ap-row-help">
+                {VOICE_HELP[values.voice]} Used in the conversation and on Today; the writing tools are not affected.
+              </span>
             </div>
             <div className="ap-row-control">
               <Segmented label="Voice" value={values.voice} options={VOICES} onChange={(value) => change('voice', value)} />
@@ -130,10 +210,18 @@ export function HermanSection(): JSX.Element {
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Corner</span>
-              <span className="ap-row-help">Where he sits in the page area. He can also be dragged there, or moved with the arrow keys.</span>
+              <span className="ap-row-help">
+                Where he sits in the page area. He can also be dragged there, or moved with the arrow keys.
+              </span>
             </div>
             <div className="ap-row-control">
-              <select className="ap-field ai-select" value={values.corner} aria-label="Corner" disabled={!enabled} onChange={(event) => change('corner', event.target.value as HermanCorner)}>
+              <select
+                className="ap-field ai-select"
+                value={values.corner}
+                aria-label="Corner"
+                disabled={!enabled}
+                onChange={(event) => change('corner', event.target.value as HermanCorner)}
+              >
                 {HERMAN_CORNERS.map((corner) => (
                   <option key={corner} value={corner}>
                     {CORNER_LABELS[corner]}
@@ -153,10 +241,17 @@ export function HermanSection(): JSX.Element {
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Say what he notices</span>
-              <span className="ap-row-help">Now and then, one short line about your own day: something overdue, a meeting about to start, a long sitting.</span>
+              <span className="ap-row-help">
+                Now and then, one short line about your own day: something overdue, a meeting about to start, a long sitting.
+              </span>
             </div>
             <div className="ap-row-control">
-              <Segmented label="Say what he notices" value={values.nudges ? 'on' : 'off'} options={ON_OFF} onChange={(value) => change('nudges', value === 'on')} />
+              <Segmented
+                label="Say what he notices"
+                value={values.nudges ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => change('nudges', value === 'on')}
+              />
             </div>
           </div>
           <div className="ap-row">
@@ -165,18 +260,39 @@ export function HermanSection(): JSX.Element {
               <span className="ap-row-help">{FREQUENCY_HELP[values.frequency]} Never while you type.</span>
             </div>
             <div className="ap-row-control">
-              <Segmented label="How often" value={values.frequency} options={FREQUENCIES} onChange={(value) => change('frequency', value)} />
+              <Segmented
+                label="How often"
+                value={values.frequency}
+                options={FREQUENCIES}
+                onChange={(value) => change('frequency', value)}
+              />
             </div>
           </div>
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Quiet hours</span>
-              <span className="ap-row-help">{quietOn ? 'He says nothing between these hours, and sleeps.' : 'The same hour twice: no quiet hours.'}</span>
+              <span className="ap-row-help">
+                {quietOn ? 'He says nothing between these hours, and sleeps.' : 'The same hour twice: no quiet hours.'}
+              </span>
             </div>
             <div className="ap-row-control">
-              <input className="ap-field herman-time" type="time" aria-label="Quiet hours start" value={toClock(values.quietHours.from)} disabled={!enabled || !values.nudges} onChange={(event) => setQuiet('from', event.target.value)} />
+              <input
+                className="ap-field herman-time"
+                type="time"
+                aria-label="Quiet hours start"
+                value={toClock(values.quietHours.from)}
+                disabled={!enabled || !values.nudges}
+                onChange={(event) => setQuiet('from', event.target.value)}
+              />
               <span className="ap-unit">to</span>
-              <input className="ap-field herman-time" type="time" aria-label="Quiet hours end" value={toClock(values.quietHours.to)} disabled={!enabled || !values.nudges} onChange={(event) => setQuiet('to', event.target.value)} />
+              <input
+                className="ap-field herman-time"
+                type="time"
+                aria-label="Quiet hours end"
+                value={toClock(values.quietHours.to)}
+                disabled={!enabled || !values.nudges}
+                onChange={(event) => setQuiet('to', event.target.value)}
+              />
             </div>
           </div>
           <div className="ap-row">
@@ -190,8 +306,8 @@ export function HermanSection(): JSX.Element {
           </div>
         </div>
         <p className="ap-note">
-          His remarks are written in advance and chosen on this computer from your own tasks and calendar: no AI is used for them, and nothing is sent anywhere. These settings stay
-          on this device.
+          His remarks are written in advance and chosen on this computer from your own tasks and calendar: no AI is used for them, and
+          nothing is sent anywhere. These settings stay on this device.
         </p>
       </section>
 
@@ -199,5 +315,25 @@ export function HermanSection(): JSX.Element {
 
       <CouncilSettings enabled={enabled} />
     </div>
+  )
+}
+
+function SkinChoice({
+  skin,
+  chosen,
+  note,
+  onChoose
+}: {
+  skin: HermanSkinId
+  chosen: boolean
+  note?: string
+  onChoose: () => void
+}): JSX.Element {
+  return (
+    <button type="button" className={chosen ? 'herman-skin is-chosen' : 'herman-skin'} aria-pressed={chosen} onClick={onChoose}>
+      <img src={spriteUrl(skin, 'still')} alt="" width={84} height={84} />
+      <span className="herman-skin-name">{SKIN_LABELS[skin]}</span>
+      {note && <span className="herman-skin-note">{note}</span>}
+    </button>
   )
 }

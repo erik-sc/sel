@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { BlockProps } from './types'
-import { MAX_RELATION_LINKS, isRelationId, partnerOf, relationIds, relinkDuplicate, sanitizeRelationConfig, type DuplicateCopy } from './relation'
+import {
+  MAX_RELATION_LINKS,
+  isRelationId,
+  partnerOf,
+  relationIds,
+  relinkDuplicate,
+  sanitizeRelationConfig,
+  type DuplicateCopy
+} from './relation'
 
 describe('relation configuration', () => {
   it('keeps a clean configuration by reference', () => {
@@ -124,7 +132,12 @@ describe('relinkDuplicate', () => {
       props: {
         schema: {
           title: TITLE,
-          tasks: { id: 'tasks', name: 'Tasks', type: 'relation', relation: { databaseId: 'tasks', syncedPropertyId: 'project', limit: 'one' } }
+          tasks: {
+            id: 'tasks',
+            name: 'Tasks',
+            type: 'relation',
+            relation: { databaseId: 'tasks', syncedPropertyId: 'project', limit: 'one' }
+          }
         }
       }
     }
@@ -137,7 +150,9 @@ describe('relinkDuplicate', () => {
   it('leaves one-way relations and rows that are not linked back alone', () => {
     const oneWayTasks: Stored = {
       ...tasks,
-      props: { schema: { title: TITLE, project: { id: 'project', name: 'Project', type: 'relation', relation: { databaseId: 'projects' } } } }
+      props: {
+        schema: { title: TITLE, project: { id: 'project', name: 'Project', type: 'relation', relation: { databaseId: 'projects' } } }
+      }
     }
     const copy: DuplicateCopy = { id: 't1-copy', type: 'page', parentId: 'tasks', props: { values: { project: ['p1', 'gone'] } } }
     expect(relinkDuplicate([copy], copyOfAll([['t1', 't1-copy']]), lookup([oneWayTasks, projects, p1, t1])).size).toBe(0)
@@ -185,8 +200,18 @@ describe('relinkDuplicate', () => {
   })
 
   it('keeps both halves of a two-way relation when both databases are copied', () => {
-    const tasksCopy: DuplicateCopy = { id: 'tasks-copy', type: 'database', parentId: 'page-copy', props: JSON.parse(JSON.stringify(tasks.props)) }
-    const projectsCopy: DuplicateCopy = { id: 'projects-copy', type: 'database', parentId: 'page-copy', props: JSON.parse(JSON.stringify(projects.props)) }
+    const tasksCopy: DuplicateCopy = {
+      id: 'tasks-copy',
+      type: 'database',
+      parentId: 'page-copy',
+      props: JSON.parse(JSON.stringify(tasks.props))
+    }
+    const projectsCopy: DuplicateCopy = {
+      id: 'projects-copy',
+      type: 'database',
+      parentId: 'page-copy',
+      props: JSON.parse(JSON.stringify(projects.props))
+    }
     const t1Copy: DuplicateCopy = { id: 't1-copy', type: 'page', parentId: 'tasks-copy', props: { values: { project: ['p1'] } } }
     const p1Copy: DuplicateCopy = { id: 'p1-copy', type: 'page', parentId: 'projects-copy', props: { values: { tasks: ['t1'] } } }
     const updates = relinkDuplicate(
@@ -200,8 +225,14 @@ describe('relinkDuplicate', () => {
       lookup([tasks, projects, p1, t1])
     )
     expect(updates.size).toBe(0)
-    expect((tasksCopy.props.schema as Record<string, { relation: unknown }>).project.relation).toEqual({ databaseId: 'projects-copy', syncedPropertyId: 'tasks' })
-    expect((projectsCopy.props.schema as Record<string, { relation: unknown }>).tasks.relation).toEqual({ databaseId: 'tasks-copy', syncedPropertyId: 'project' })
+    expect((tasksCopy.props.schema as Record<string, { relation: unknown }>).project.relation).toEqual({
+      databaseId: 'projects-copy',
+      syncedPropertyId: 'tasks'
+    })
+    expect((projectsCopy.props.schema as Record<string, { relation: unknown }>).tasks.relation).toEqual({
+      databaseId: 'tasks-copy',
+      syncedPropertyId: 'project'
+    })
     expect(t1Copy.props.values).toEqual({ project: ['p1-copy'] })
     expect(p1Copy.props.values).toEqual({ tasks: ['t1-copy'] })
   })

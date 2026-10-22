@@ -38,6 +38,7 @@ import {
   type TreeInput
 } from './blocks'
 import type { SqlDriver, SqlStatement } from './driver'
+import { linkTargets, mayLink } from './links'
 import { configure, migrate } from './schema'
 import { backlinksTo, searchBlocks, type SearchSource } from './search'
 import { searchText } from './text'
@@ -126,6 +127,15 @@ export class Repository {
   private committed = new Set<string>()
   /** Ids changed inside the currently open transaction. */
   private pending = new Set<string>()
+  /** Of the ids above, those whose text holds or held a page link: committed and not yet drained / in the open transaction. */
+  private committedLinks = new Set<string>()
+  private pendingLinks = new Set<string>()
+  private drainedLinks: string[] = []
+  /**
+   * Bumped by every commit that changed a block and by every change of the root order: sync
+   * compares it with the value it last found nothing to upload at, and skips reading the rows.
+   */
+  private generation = 0
   private touched = new Set<string>()
   /** Child lists read or changed inside the currently open transaction, by parent id. */
   private orders = new Map<string, PendingOrder>()
@@ -145,7 +155,9 @@ export class Repository {
       clock: () => this.clock(),
       now: () => this.now(),
       getSetting: (key) => this.getSetting(key),
-      getTree: (rootId) => this.getTree(rootId),
+      snapshotTree: (rootId) => this.snapshotTree(rootId),
+      getMany: (ids) => this.getMany(ids),
+      isDatabase: (id) => this.head(id)?.type === 'database',
       transaction: (fn) => this.transaction(fn),
       cleanProps: (props) => chartProps(mergeProps({}, props))
     })
@@ -212,6 +224,7 @@ export class Repository {
     this.stmt('BEGIN IMMEDIATE').run()
     this.depth = 1
     this.pending = new Set()
+    this.pendingLinks = new Set()
     this.touched = new Set()
     this.orders = new Map()
     this.containers = new Map()
@@ -226,6 +239,8 @@ export class Repository {
       this.stmt('COMMIT').run()
       this.versions.commit()
       for (const id of this.pending) this.committed.add(id)
+      for (const id of this.pendingLinks) this.committedLinks.add(id)
+      if (this.pending.size) this.generation++
       for (const id of this.pendingResets) this.resets.add(id)
       checked = this.pendingChecked
       return result
@@ -240,6 +255,7 @@ export class Repository {
     } finally {
       this.depth = 0
       this.pending = new Set()
+      this.pendingLinks = new Set()
       this.touched = new Set()
       this.orders = new Map()
       this.containers = new Map()
@@ -275,6 +291,18 @@ export class Repository {
   drainChanges(): string[] {
     const ids = [...this.committed]
     this.committed = new Set()
+    this.drainedLinks = [...this.committedLinks]
+    this.committedLinks = new Set()
+    return ids
+  }
+
+  /**
+   * Of the ids the last drainChanges returned, those whose text holds, or held, a link to a
+   * page: the "Linked from" lists look again only for these.
+   */
+  drainLinks(): string[] {
+    const ids = this.drainedLinks
+    this.drainedLinks = []
     return ids
   }
 
@@ -415,12 +443,11 @@ export class Repository {
     return b.type === 'database' && this.sourceOf(b.rid) !== null
   }
 
-  /** Live linked views that point at `sourceId` (rows of pages and databases only, off the partial index). */
+  /** Live linked views that point at `sourceId` (off blocks_source_idx: only databases carry one). */
   private linkedViewsOf(sourceId: string): Row[] {
     return this.stmt(
       `SELECT ${COLS} FROM blocks
-       WHERE type IN ('page', 'database') AND trashed_at IS NULL
-         AND instr(props, '"sourceId":') > 0 AND json_extract(props, '$.sourceId') = ?
+       WHERE type = 'database' AND trashed_at IS NULL AND json_extract(props, '$.sourceId') = ?
        ORDER BY created_at, rid`
     ).all(sourceId) as Row[]
   }
@@ -493,16 +520,34 @@ export class Repository {
   }
 
   private insertRow(b: Block): void {
+    const props = serializeProps(b.props)
     const r = this.stmt(
       `INSERT INTO blocks (id, type, parent_id, content, props, created_at, updated_at, trashed_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(b.id, b.type, b.parentId, JSON.stringify(b.content), serializeProps(b.props), b.createdAt, b.updatedAt, b.trashedAt)
+    ).run(b.id, b.type, b.parentId, JSON.stringify(b.content), props, b.createdAt, b.updatedAt, b.trashedAt)
     // `rid` is the rowid, which both drivers report for the row just inserted.
     const rid = Number((r as { lastInsertRowid: number | bigint }).lastInsertRowid)
     // A new row has no index entry to replace.
     this.insertFts(rid, b.id, searchText(b.props))
+    this.relink(b.id, null, props)
     this.containers.delete(b.id)
     this.mark(b.id)
+  }
+
+  /**
+   * Keeps `page_links` equal to the links in the text of block `id` after its props went from
+   * `before` to `after` (stored JSON; null when there was no row). Nothing is parsed, read or
+   * written for a block that neither had nor has a link.
+   */
+  private relink(id: string, before: string | null, after: string): void {
+    const had = before !== null && mayLink(before)
+    const has = mayLink(after)
+    if (!had && !has) return
+    if (had) this.stmt('DELETE FROM page_links WHERE from_block = ?').run(id)
+    for (const to of has ? linkTargets(after) : []) {
+      this.stmt('INSERT OR IGNORE INTO page_links (from_block, to_page) VALUES (?, ?)').run(id, to)
+    }
+    this.pendingLinks.add(id)
   }
 
   private insertFts(rid: number, id: string, text: string): void {
@@ -511,6 +556,8 @@ export class Repository {
 
   private deleteRow(id: string, rid: number): void {
     this.stmt('DELETE FROM blocks_fts WHERE rowid = ?').run(rid)
+    const unlinked = this.stmt('DELETE FROM page_links WHERE from_block = ?').run(id) as { changes?: number | bigint }
+    if (Number(unlinked.changes ?? 0) > 0) this.pendingLinks.add(id)
     this.stmt('DELETE FROM blocks WHERE rid = ?').run(rid)
     this.orders.delete(id)
     this.containers.delete(id)
@@ -572,11 +619,7 @@ export class Repository {
     for (const [id, order] of this.orders) {
       if (!order.dirty) continue
       order.dirty = false
-      this.stmt('UPDATE blocks SET content = ?, updated_at = MAX(updated_at, ?) WHERE id = ?').run(
-        JSON.stringify(order.ids),
-        order.at,
-        id
-      )
+      this.stmt('UPDATE blocks SET content = ?, updated_at = MAX(updated_at, ?) WHERE id = ?').run(JSON.stringify(order.ids), order.at, id)
     }
   }
 
@@ -695,6 +738,42 @@ export class Repository {
     return b ? this.getMany(b.content) : []
   }
 
+  /**
+   * What a version of `pageId` is built from (see buildSnapshot in ./versions): its tree, except
+   * that the rows of a database come as bare ids, read off the parent index without their props.
+   */
+  private snapshotTree(pageId: string): Block[] {
+    const h = isValidId(pageId) ? this.head(pageId) : undefined
+    if (!h || h.type !== 'database' || this.sourceOf(h.rid) !== null) return this.getTree(pageId)
+    const kids = this.stmt('SELECT id, type, created_at, trashed_at FROM blocks WHERE parent_id = ?').all(pageId) as {
+      id: string
+      type: string
+      created_at: number
+      trashed_at: number | null
+    }[]
+    // Below a database there are rows; anything else (only a damaged sync could bring it) is read as usual.
+    if (kids.some((k) => k.type !== 'page')) return this.getTree(pageId)
+    const root = this.need(pageId)
+    const live = new Map(kids.filter((k) => k.trashed_at == null).map((k) => [k.id, k]))
+    const out: Block[] = [root]
+    for (const id of root.content) {
+      const k = live.get(id)
+      if (!k) continue
+      live.delete(id)
+      out.push({
+        id,
+        type: 'page',
+        parentId: pageId,
+        content: [],
+        props: {},
+        createdAt: Number(k.created_at),
+        updatedAt: 0,
+        trashedAt: null
+      })
+    }
+    return out
+  }
+
   // -------------------------------------------------------------- mutations
   //
   // Each mutation has a private form that only writes (used by `apply`, which
@@ -777,23 +856,22 @@ export class Repository {
     if (type === 'database' && props.sourceId === undefined && (oldType !== 'database' || linkedBefore !== null)) {
       props = defaultDatabaseProps(props)
     }
-    // History: a page's own props belong to its snapshot; a row's title and values, and a
-    // linked view as a whole, also belong to the snapshot of what holds them.
+    // History: a page's own props belong to its snapshot, and a linked view as a whole also
+    // belongs to the snapshot of the page that holds it. A row of a database is a page with a
+    // history of its own: the database's snapshot names its rows, not what they say (see
+    // ./versions.ts), so editing one costs nothing in proportion to the rows beside it.
     let page: string | null = null
     if (isPageLike(r.type)) {
       this.versions.beforeWrite(id)
-      if (r.parent_id !== null && (linkedBefore !== null || this.head(r.parent_id)?.type === 'database')) this.dirty(r.parent_id)
+      if (r.parent_id !== null && linkedBefore !== null) this.dirty(r.parent_id)
     } else page = this.dirty(r.parent_id)
+    const raw = serializeProps(props)
     if (type === r.type) {
-      this.stmt('UPDATE blocks SET props = ?, updated_at = ? WHERE rid = ?').run(serializeProps(props), this.now(), r.rid)
+      this.stmt('UPDATE blocks SET props = ?, updated_at = ? WHERE rid = ?').run(raw, this.now(), r.rid)
     } else {
-      this.stmt('UPDATE blocks SET type = ?, props = ?, updated_at = ? WHERE rid = ?').run(
-        type,
-        serializeProps(props),
-        this.now(),
-        r.rid
-      )
+      this.stmt('UPDATE blocks SET type = ?, props = ?, updated_at = ? WHERE rid = ?').run(type, raw, this.now(), r.rid)
     }
+    this.relink(id, r.props, raw)
     // The search index is only touched when the indexed text itself changed.
     const text = searchText(props)
     const textBefore = searchText(before)
@@ -955,7 +1033,8 @@ export class Repository {
         if (!parent) throw new Error(`Block not found: ${parentId}`)
         this.assertHoldsChildren(parent)
         // A tree has new ids: it is never a day of the notebook.
-        if (this.isNotebookPage(parentId) || this.isNotebookPage(parent.parent_id)) throw new Error('Nothing can be added to Meditations but the line of a day')
+        if (this.isNotebookPage(parentId) || this.isNotebookPage(parent.parent_id))
+          throw new Error('Nothing can be added to Meditations but the line of a day')
       }
       this.dirty(parentId)
       const rootId = randomUUID()
@@ -1034,11 +1113,7 @@ export class Repository {
       const parentId = parentAlive ? b.parent_id : null
       if (parentId === null && !isPageLike(b.type)) throw new Error('Only pages and databases can be restored to the root')
       this.dirty(parentId)
-      this.stmt('UPDATE blocks SET trashed_at = NULL, parent_id = ?, updated_at = ? WHERE rid = ?').run(
-        parentId,
-        this.now(),
-        b.rid
-      )
+      this.stmt('UPDATE blocks SET trashed_at = NULL, parent_id = ?, updated_at = ? WHERE rid = ?').run(parentId, this.now(), b.rid)
       this.attach(parentId, id, undefined)
       this.mark(id)
     })
@@ -1156,18 +1231,16 @@ export class Repository {
     for (const r of this.stmt(subtreeSql(columns)).all(pageId, 1) as Outline[]) nodes.set(r.id, node(r))
     const root = nodes.get(pageId)
     if (!root) return []
-    const load = (ids: string[]): TreeNode[] =>
-      (this.stmt(byIdsSql(columns)).all(JSON.stringify(ids)) as Outline[]).map(node)
+    const load = (ids: string[]): TreeNode[] => (this.stmt(byIdsSql(columns)).all(JSON.stringify(ids)) as Outline[]).map(node)
     const pages = walk(root, nodes, load).filter((b) => b.id !== pageId && isPageLike(b.type))
     return this.getMany(pages.map((b) => b.id)).filter(notArchived)
   }
 
   listFavorites(): Block[] {
-    // The substring test skips the JSON parser for every page that is not a favourite.
+    // Off blocks_favorite_idx, which holds the favourites only: the WHERE is the index's own.
     const rows = this.stmt(
       `SELECT ${COLS} FROM blocks
-       WHERE type IN ('page', 'database') AND trashed_at IS NULL
-         AND instr(props, '"favorite":') > 0 AND json_extract(props, '$.favorite') = 1
+       WHERE type IN ('page', 'database') AND trashed_at IS NULL AND json_extract(props, '$.favorite') = 1
        ORDER BY created_at, rid`
     ).all() as Row[]
     const links = this.lineage(rows.map((r) => r.id))
@@ -1204,10 +1277,10 @@ export class Repository {
    * one), outside the trash, the most recently archived first.
    */
   listArchived(): Block[] {
+    // Off blocks_archived_idx, already in this order.
     const rows = this.stmt(
       `SELECT ${COLS} FROM blocks
-       WHERE type IN ('page', 'database') AND trashed_at IS NULL
-         AND instr(props, '"archivedAt":') > 0 AND json_type(props, '$.archivedAt') IN ('integer', 'real')
+       WHERE type IN ('page', 'database') AND trashed_at IS NULL AND json_type(props, '$.archivedAt') IN ('integer', 'real')
        ORDER BY json_extract(props, '$.archivedAt') DESC, rid DESC`
     ).all() as Row[]
     const live = liveFilter(this.lineage(rows.map((r) => r.id)))
@@ -1222,9 +1295,7 @@ export class Repository {
   }
 
   listTrash(): Block[] {
-    const rows = this.stmt(
-      `SELECT ${COLS} FROM blocks WHERE trashed_at IS NOT NULL ORDER BY trashed_at DESC, rid DESC`
-    ).all() as Row[]
+    const rows = this.stmt(`SELECT ${COLS} FROM blocks WHERE trashed_at IS NOT NULL ORDER BY trashed_at DESC, rid DESC`).all() as Row[]
     return rows.map(toBlock)
   }
 
@@ -1236,10 +1307,10 @@ export class Repository {
    * not archived either (nor inside an archived page).
    */
   listDatabases(options: { archived?: boolean } = {}): Block[] {
+    // Off blocks_source_idx: the databases without a source, whatever the number of rows.
     const rows = this.stmt(
       `SELECT ${COLS} FROM blocks
-       WHERE type IN ('page', 'database') AND trashed_at IS NULL
-         AND type = 'database' AND json_extract(props, '$.sourceId') IS NULL
+       WHERE type = 'database' AND trashed_at IS NULL AND json_extract(props, '$.sourceId') IS NULL
        ORDER BY updated_at DESC, rid DESC`
     ).all() as Row[]
     const links = this.lineage(rows.map((r) => r.id))
@@ -1381,7 +1452,8 @@ export class Repository {
       if (!root || !isPageLike(root.type)) throw new Error('The page of this version no longer exists')
       if (root.trashedAt !== null) throw new Error('This page is in the Trash. Restore it first.')
       // Going back would rewrite days that have ended; a copy would be an ordinary page.
-      if (mode === 'replace' && this.isNotebookPage(root.id)) throw new Error('Past days of Meditations never change: the page cannot go back to an earlier version')
+      if (mode === 'replace' && this.isNotebookPage(root.id))
+        throw new Error('Past days of Meditations never change: the page cannot go back to an earlier version')
       const was = version.blocks[0]
       if (was.type !== root.type || (sourceIdOf(was) === null) !== (sourceIdOf(root) === null)) {
         throw new Error('This version was saved when the page was a different kind of block')
@@ -1417,14 +1489,16 @@ export class Repository {
     if (same) return
     const h = this.head(cur.id)
     if (!h) return
+    const raw = serializeProps(next.props)
     this.stmt('UPDATE blocks SET type = ?, parent_id = ?, content = ?, props = ?, updated_at = ? WHERE rid = ?').run(
       next.type,
       next.parentId,
       content,
-      serializeProps(next.props),
+      raw,
       now,
       h.rid
     )
+    this.relink(cur.id, serializeProps(cur.props), raw)
     const text = searchText(next.props)
     if (text !== searchText(cur.props)) {
       this.stmt('DELETE FROM blocks_fts WHERE rowid = ?').run(h.rid)
@@ -1502,14 +1576,22 @@ export class Repository {
     }
     for (const ref of version.refs) adopt(ref.id, ref.title || 'Untitled')
     for (const row of version.rows ?? []) adopt(row.id, plainText(row.title) || 'Untitled')
+    // A database version that only names its rows (see buildSnapshot) got the rows that still
+    // exist from what they are now: of one deleted for good, nothing is left but its id.
+    if (version.rows) {
+      const known = new Set<string>([...version.rows.map((r) => r.id), ...version.refs.map((r) => r.id), ...idOf.keys()])
+      for (const id of snapRoot.content) if (!known.has(id)) gone.push('')
+    }
     if (gone.length) {
-      const names = gone
+      const named = gone.filter(Boolean)
+      const names = named
         .slice(0, 5)
         .map((title) => `"${title}"`)
         .join(', ')
       const one = gone.length === 1
       const what = version.rows ? (one ? 'row was' : 'rows were') : one ? 'sub-page was' : 'sub-pages were'
-      notes.push(`${gone.length} ${what} deleted forever and could not be brought back: ${names}${gone.length > 5 ? '…' : ''}.`)
+      const list = named.length ? `: ${names}${named.length > 5 ? '…' : ''}` : ''
+      notes.push(`${gone.length} ${what} deleted forever and could not be brought back${list}.`)
     }
 
     // Nested pages and rows made since: kept, at the end of the page.
@@ -1589,8 +1671,10 @@ export class Repository {
     const notes: string[] = []
     const byId = new Map(version.blocks.map((b) => [b.id, b]))
     const rows = new Map((version.rows ?? []).map((r) => [r.id, r]))
+    const refs = new Set(version.refs.map((r) => r.id))
     let pages = 0
     let views = 0
+    let lost = 0
     const build = (b: SnapshotBlock): TreeInput => {
       const children: TreeInput[] = []
       for (const id of b.content) {
@@ -1603,8 +1687,10 @@ export class Repository {
         }
         const child = byId.get(id)
         if (!child) {
-          // A nested page or database: it exists once, in the original.
-          pages++
+          // A nested page or database: it exists once, in the original. In a database version
+          // that only names its rows (see buildSnapshot), a row deleted for good since.
+          if (version.rows && b === version.blocks[0] && !refs.has(id)) lost++
+          else pages++
           continue
         }
         const source = sourceIdOf(child)
@@ -1626,8 +1712,12 @@ export class Repository {
     delete props.archivedAt
     tree.props = props
     const copy = this.createTree(tree, root.parentId, root.id)
-    if (pages) notes.push(`${pages} ${pages === 1 ? 'sub-page was not copied and stays' : 'sub-pages were not copied and stay'} in the original page.`)
+    if (pages)
+      notes.push(
+        `${pages} ${pages === 1 ? 'sub-page was not copied and stays' : 'sub-pages were not copied and stay'} in the original page.`
+      )
     if (views) notes.push(`${views} linked ${views === 1 ? 'view was' : 'views were'} left out because the database no longer exists.`)
+    if (lost) notes.push(`${lost} ${lost === 1 ? 'row was' : 'rows were'} deleted forever and could not be copied.`)
     return { pageId: copy.id, backupId: null, notes }
   }
 
@@ -1635,6 +1725,15 @@ export class Repository {
   //
   // What ../sync needs from the database: the stored rows as they are, the order of the
   // root, the per-page export state, and one transaction that writes a merged workspace.
+
+  /**
+   * A number that changes whenever a block is written or the root order changes (and only
+   * then, as far as the blocks are concerned): equal values mean equal rows, so sync can tell
+   * an idle cycle without reading them. It starts again from 0 with every run of the app.
+   */
+  syncGeneration(): number {
+    return this.generation
+  }
 
   /** Every stored block row, unparsed. */
   syncRows(): Row[] {
@@ -1651,7 +1750,8 @@ export class Repository {
   /** The fingerprint each page had when it was last uploaded. */
   syncStates(): Map<string, string> {
     const out = new Map<string, string>()
-    for (const r of this.stmt('SELECT page_id, hash FROM sync_state').all() as { page_id: string; hash: string }[]) out.set(r.page_id, r.hash)
+    for (const r of this.stmt('SELECT page_id, hash FROM sync_state').all() as { page_id: string; hash: string }[])
+      out.set(r.page_id, r.hash)
     return out
   }
 
@@ -1724,12 +1824,23 @@ export class Repository {
         latest = Math.max(latest, updatedAt)
         const r = this.stmt('SELECT rid, props FROM blocks WHERE id = ?').get(b.id) as { rid: number; props: string } | undefined
         if (!r) {
-          this.insertRow({ id: b.id, type: b.type, parentId: b.parentId, content, props, createdAt: stamp(b.createdAt), updatedAt, trashedAt })
+          this.insertRow({
+            id: b.id,
+            type: b.type,
+            parentId: b.parentId,
+            content,
+            props,
+            createdAt: stamp(b.createdAt),
+            updatedAt,
+            trashedAt
+          })
           continue
         }
+        const raw = serializeProps(props)
         this.stmt(
           'UPDATE blocks SET type = ?, parent_id = ?, content = ?, props = ?, created_at = ?, updated_at = ?, trashed_at = ? WHERE rid = ?'
-        ).run(b.type, b.parentId, JSON.stringify(content), serializeProps(props), stamp(b.createdAt), updatedAt, trashedAt, r.rid)
+        ).run(b.type, b.parentId, JSON.stringify(content), raw, stamp(b.createdAt), updatedAt, trashedAt, r.rid)
+        this.relink(b.id, r.props, raw)
         const text = searchText(props)
         if (text !== searchText(parseProps(r.props))) {
           this.stmt('DELETE FROM blocks_fts WHERE rowid = ?').run(r.rid)
@@ -1766,6 +1877,8 @@ export class Repository {
 
   setSetting(key: string, value: unknown): void {
     if (typeof key !== 'string' || !key || key.length > MAX_SETTING_KEY) throw new Error('Invalid setting key')
+    // The root order is part of what sync uploads (see syncGeneration).
+    if (key === ROOT_ORDER_KEY || key === ROOT_ORDER_AT_KEY) this.generation++
     if (value === undefined || value === null) {
       if (key.startsWith('history.')) this.versions.settingsChanged()
       this.stmt('DELETE FROM settings WHERE key = ?').run(key)
@@ -1775,10 +1888,7 @@ export class Repository {
     if (typeof text !== 'string') throw new Error('Setting value is not serializable')
     if (text.length > MAX_SETTING_CHARS) throw new Error('Setting value is too large')
     if (key.startsWith('history.')) this.versions.settingsChanged()
-    this.stmt('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(
-      key,
-      text
-    )
+    this.stmt('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, text)
   }
 
   isEmpty(): boolean {

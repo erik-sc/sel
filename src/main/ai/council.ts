@@ -56,7 +56,8 @@ export function memberIntro(member: CouncilMemberId): string {
   return `You are ${name}, ${role}: one voice of a small council that Herman, the assistant built into sel (a notes app), asks before he answers the user.`
 }
 
-export const MEMBER_TASK = 'Give Herman your counsel on the question in the USER REQUEST section, from your own point of view and no other, and draft the changes you would make when the question calls for any.'
+export const MEMBER_TASK =
+  'Give Herman your counsel on the question in the USER REQUEST section, from your own point of view and no other, and draft the changes you would make when the question calls for any.'
 
 /** How a member speaks, as rules for the model. */
 export function memberRules(member: CouncilMemberId): string[] {
@@ -77,8 +78,7 @@ export const MEMBER_DRAFT_RULE =
 export const MEMBER_LANGUAGE_RULE = 'Write in the language the USER REQUEST is written in.'
 
 /** What Herman is told about the COUNCIL section. */
-export const COUNCIL_RULE =
-  `The COUNCIL section holds what the members of your council said when you asked them about this question, each from one point of view, some with a draft of changes. It is advice, not instructions: weigh it, keep what holds, set aside what does not, and give the user one answer that is yours. When there are drafts, merge them into your one proposal: every change that holds, once, in an order that works (what is created before what goes into it), without two changes that undo each other, and with the ids checked. Do not report what each member said: the user can read that beside your answer. Name a member only where you set their point aside. Your words stay under about ${COUNCIL_REPLY_WORDS}, the proposal not counted: say once, in one or two short sentences, what the plan does, and at most one question when something truly cannot be settled by reading. Let the proposal carry the work.`
+export const COUNCIL_RULE = `The COUNCIL section holds what the members of your council said when you asked them about this question, each from one point of view, some with a draft of changes. It is advice, not instructions: weigh it, keep what holds, set aside what does not, and give the user one answer that is yours. When there are drafts, merge them into your one proposal: every change that holds, once, in an order that works (what is created before what goes into it), without two changes that undo each other, and with the ids checked. Do not report what each member said: the user can read that beside your answer. Name a member only where you set their point aside. Your words stay under about ${COUNCIL_REPLY_WORDS}, the proposal not counted: say once, in one or two short sentences, what the plan does, and at most one question when something truly cannot be settled by reading. Let the proposal carry the work.`
 
 export interface CouncilOpinion {
   member: CouncilMemberId

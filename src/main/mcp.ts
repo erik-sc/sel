@@ -173,7 +173,10 @@ async function handle(message: Json): Promise<void> {
       return send({ id, result: { tools: GRANTED ? TOOL_SPECS : EXTERNAL_TOOL_SPECS } })
     case 'tools/call': {
       const reply = await call(typeof params['name'] === 'string' ? params['name'] : '', params['arguments'])
-      return send({ id, result: { content: [{ type: 'text', text: reply.error ?? reply.text ?? '' }], isError: reply.error !== undefined } })
+      return send({
+        id,
+        result: { content: [{ type: 'text', text: reply.error ?? reply.text ?? '' }], isError: reply.error !== undefined }
+      })
     }
     case 'ping':
       return send({ id, result: {} })

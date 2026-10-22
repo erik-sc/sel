@@ -7,6 +7,9 @@
 // the transcription reads) and as Opus in WebM (the browser's recorder: what is kept to listen to).
 import { create } from 'zustand'
 import { PCM, type MeetingAudioInfo, type MeetingSources, type MeetingStream } from '@shared/meetings'
+import { useHome } from '@/home/store'
+import { notifyError } from '@/ui/toast'
+import { RECORDER_COPY, type RecorderCopy } from './copy'
 import workletUrl from './pcm-worklet.js?url&no-inline'
 
 export interface RecorderSession {
@@ -49,11 +52,18 @@ function patch(change: Partial<RecorderSession>): void {
   if (session) useRecorder.setState({ session: { ...session, ...change } })
 }
 
+function copy(): RecorderCopy {
+  return RECORDER_COPY[useHome.getState().locale]
+}
+
 function message(error: unknown): string {
   const text = error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : ''
-  if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError')) return 'The microphone could not be opened. Check that Windows lets desktop apps use it.'
-  if (error instanceof DOMException && (error.name === 'NotFoundError' || error.name === 'OverconstrainedError')) return 'No microphone was found.'
-  if (error instanceof DOMException && error.name === 'NotReadableError') return 'The microphone is in use by another program or could not be read.'
+  if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'SecurityError'))
+    return 'The microphone could not be opened. Check that Windows lets desktop apps use it.'
+  if (error instanceof DOMException && (error.name === 'NotFoundError' || error.name === 'OverconstrainedError'))
+    return 'No microphone was found.'
+  if (error instanceof DOMException && error.name === 'NotReadableError')
+    return 'The microphone is in use by another program or could not be read.'
   return text || 'The recording could not be started.'
 }
 
@@ -102,7 +112,13 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
   try {
     begun = await window.api.meetings.recording.begin(pageId, { sources })
     const mic = await navigator.mediaDevices.getUserMedia({
-      audio: { ...(sources.micId ? { deviceId: { ideal: sources.micId } } : {}), echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+      audio: {
+        ...(sources.micId ? { deviceId: { ideal: sources.micId } } : {}),
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        channelCount: 1
+      },
       video: false
     })
     streams.push(mic)
@@ -111,7 +127,10 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
     let systemNote: string | null = sources.system && !begun.system ? 'Computer audio is not available on this system.' : null
     if (begun.system) {
       try {
-        const display = await navigator.mediaDevices.getDisplayMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: true })
+        const display = await navigator.mediaDevices.getDisplayMedia({
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+          video: true
+        })
         // Only the sound is wanted: the picture is dropped before a frame of it is read.
         for (const track of display.getVideoTracks()) {
           track.stop()
@@ -128,11 +147,27 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
 
     context = new AudioContext({ sampleRate: PCM.sampleRate, latencyHint: 'playback' })
     await context.audioWorklet.addModule(workletUrl)
-    const node = new AudioWorkletNode(context, 'sel-pcm', { numberOfInputs: 2, numberOfOutputs: 0, channelCount: 1, channelCountMode: 'explicit', channelInterpretation: 'speakers' })
+    const node = new AudioWorkletNode(context, 'sel-pcm', {
+      numberOfInputs: 2,
+      numberOfOutputs: 0,
+      channelCount: 1,
+      channelCountMode: 'explicit',
+      channelInterpretation: 'speakers'
+    })
     context.createMediaStreamSource(mic).connect(node, 0, 0)
     if (system) context.createMediaStreamSource(system).connect(node, 0, 1)
 
-    const owner: Capture = { token: begun.token, context, streams, recorders: [], tail: Promise.resolve(), seq: 0, encodedSeq: { mic: 0, system: 0 }, samples: 0, sendsSystem: begun.system }
+    const owner: Capture = {
+      token: begun.token,
+      context,
+      streams,
+      recorders: [],
+      tail: Promise.resolve(),
+      seq: 0,
+      encodedSeq: { mic: 0, system: 0 },
+      samples: 0,
+      sendsSystem: begun.system
+    }
     node.port.onmessage = (event: MessageEvent<{ mic: ArrayBuffer; system: ArrayBuffer; micPeak: number; systemPeak: number }>) => {
       if (capture !== owner) return
       const { session } = useRecorder.getState()
@@ -152,7 +187,7 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
     if (systemRecorder) owner.recorders.push(systemRecorder)
     // The microphone was unplugged: what was recorded is saved.
     mic.getAudioTracks()[0]?.addEventListener('ended', () => {
-      if (capture === owner) void stopRecording().catch(() => undefined)
+      if (capture === owner) void stopRecording().catch((error: unknown) => notifyError(copy().stopFailed, error))
     })
     if (context.state === 'suspended') await context.resume()
     capture = owner
@@ -167,20 +202,42 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
   }
 }
 
+function setRecorders(owner: Capture, state: 'paused' | 'recording'): void {
+  for (const recorder of owner.recorders) {
+    if (state === 'paused' && recorder.state === 'recording') recorder.pause()
+    else if (state === 'recording' && recorder.state === 'paused') recorder.resume()
+  }
+}
+
+/**
+ * Pauses at once (no more frames go out), then asks the main process. When it refuses, the
+ * recording goes on as before and the user is told: the bar never says "paused" while main records.
+ */
 export function pauseRecording(): void {
   const owner = capture
   if (!owner || useRecorder.getState().session?.state !== 'recording') return
   patch({ state: 'paused' })
-  for (const recorder of owner.recorders) if (recorder.state === 'recording') recorder.pause()
-  void window.api.meetings.recording.pause(owner.token).catch(() => undefined)
+  setRecorders(owner, 'paused')
+  window.api.meetings.recording.pause(owner.token).catch((error: unknown) => {
+    if (capture !== owner || useRecorder.getState().session?.state !== 'paused') return
+    setRecorders(owner, 'recording')
+    patch({ state: 'recording' })
+    notifyError(copy().pauseFailed, error)
+  })
 }
 
+/** Resumes, and goes back to paused when the main process refuses (it is not writing). */
 export function resumeRecording(): void {
   const owner = capture
   if (!owner || useRecorder.getState().session?.state !== 'paused') return
-  for (const recorder of owner.recorders) if (recorder.state === 'paused') recorder.resume()
+  setRecorders(owner, 'recording')
   patch({ state: 'recording' })
-  void window.api.meetings.recording.resume(owner.token).catch(() => undefined)
+  window.api.meetings.recording.resume(owner.token).catch((error: unknown) => {
+    if (capture !== owner || useRecorder.getState().session?.state !== 'recording') return
+    setRecorders(owner, 'paused')
+    patch({ state: 'paused' })
+    notifyError(copy().resumeFailed, error)
+  })
 }
 
 /** Stops, lets the last compressed chunks through, and has the main process close the files. */
@@ -226,7 +283,9 @@ export async function listMicrophones(): Promise<{ id: string; label: string }[]
   try {
     const devices = await navigator.mediaDevices.enumerateDevices()
     return devices
-      .filter((device) => device.kind === 'audioinput' && device.deviceId && device.deviceId !== 'default' && device.deviceId !== 'communications')
+      .filter(
+        (device) => device.kind === 'audioinput' && device.deviceId && device.deviceId !== 'default' && device.deviceId !== 'communications'
+      )
       .map((device) => ({ id: device.deviceId, label: device.label || 'Microphone' }))
   } finally {
     for (const track of stream.getTracks()) track.stop()

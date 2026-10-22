@@ -97,3 +97,34 @@ export function formatColor(color: Rgba): string {
   const c = (n: number): number => clamp(Math.round(n), 0, 255)
   return `rgba(${c(color.r)}, ${c(color.g)}, ${c(color.b)}, ${a})`
 }
+
+// ---- contrast (WCAG 2.x) ----
+
+/** `top` painted over `bottom`. Opaque when `bottom` is. */
+export function composite(top: Rgba, bottom: Rgba): Rgba {
+  const a = top.a + bottom.a * (1 - top.a)
+  if (a === 0) return { r: 0, g: 0, b: 0, a: 0 }
+  const mix = (t: number, b: number): number => (t * top.a + b * bottom.a * (1 - top.a)) / a
+  return { r: mix(top.r, bottom.r), g: mix(top.g, bottom.g), b: mix(top.b, bottom.b), a }
+}
+
+/** Relative luminance of a colour, its alpha ignored (0 for black, 1 for white). */
+export function luminance(color: Rgba): number {
+  const linear = (n: number): number => {
+    const c = clamp(n, 0, 255) / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * linear(color.r) + 0.7152 * linear(color.g) + 0.0722 * linear(color.b)
+}
+
+/**
+ * The contrast ratio (1 to 21) of a colour drawn over a background, as WCAG measures it. A
+ * translucent foreground is painted over the background first; the background is taken as it
+ * is, so a translucent one should be composited over what lies under it before.
+ */
+export function contrastRatio(foreground: Rgba, background: Rgba): number {
+  const ground = { ...background, a: 1 }
+  const lf = luminance(composite(foreground, ground))
+  const lb = luminance(ground)
+  return (Math.max(lf, lb) + 0.05) / (Math.min(lf, lb) + 0.05)
+}

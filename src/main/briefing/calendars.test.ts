@@ -60,7 +60,14 @@ describe('the calendar store', () => {
 
   it('refuses addresses the network policy would refuse, without echoing them', () => {
     const store = new CalendarStore(file(), cipher)
-    for (const url of ['http://example.com/x.ics', 'https://localhost/private-SECRETTOKEN', 'https://192.168.0.2/private-SECRETTOKEN', 'file:///c:/x', '', null]) {
+    for (const url of [
+      'http://example.com/x.ics',
+      'https://localhost/private-SECRETTOKEN',
+      'https://192.168.0.2/private-SECRETTOKEN',
+      'file:///c:/x',
+      '',
+      null
+    ]) {
       let message = ''
       try {
         store.add({ label: 'x', url, color: 'blue' })
@@ -87,7 +94,11 @@ describe('the calendar store', () => {
     expect(b.label).toBe('outlook.office365.com')
     expect(b.color).toBe('blue')
     expect(() => store.add({ label: 'again', url: SECRET, color: 'blue' })).toThrow('already connected')
-    expect(store.update(a.id, { label: 'Renamed', color: 'red', enabled: false })).toMatchObject({ label: 'Renamed', color: 'red', enabled: false })
+    expect(store.update(a.id, { label: 'Renamed', color: 'red', enabled: false })).toMatchObject({
+      label: 'Renamed',
+      color: 'red',
+      enabled: false
+    })
     expect(() => store.update(a.id, { color: 'chartreuse' })).toThrow('Invalid colour')
     expect(() => store.update('missing', { label: 'x' })).toThrow('no longer connected')
     // A patch cannot reach the address.
@@ -116,7 +127,12 @@ describe('the calendar store', () => {
 
   it('hands its calendars to sync, and takes merged ones back keeping the ids it has', () => {
     let now = 1000
-    const store = new CalendarStore(file(), cipher, () => ({}), () => now)
+    const store = new CalendarStore(
+      file(),
+      cipher,
+      () => ({}),
+      () => now
+    )
     const a = store.add({ label: 'A', url: SECRET, color: 'blue' })
     now = 2000
     const b = store.add({ label: 'B', url: 'https://example.com/b.ics', color: 'green' })
@@ -156,7 +172,9 @@ describe('the calendar store', () => {
   it('stays out of sync without a key store', () => {
     const store = new CalendarStore(file(), { ...cipher, isAvailable: () => false })
     expect(store.exportForSync()).toBeNull()
-    expect(store.importFromSync({ calendars: [{ url: SECRET, label: 'x', color: 'blue', enabled: true, updatedAt: 1 }], removed: [] })).toBeNull()
+    expect(
+      store.importFromSync({ calendars: [{ url: SECRET, label: 'x', color: 'blue', enabled: true, updatedAt: 1 }], removed: [] })
+    ).toBeNull()
     expect(existsSync(file())).toBe(false)
   })
 
@@ -187,7 +205,21 @@ describe('the calendar store', () => {
 })
 
 const ICS = (title: string, day = '20261013'): string =>
-  ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:a', `SUMMARY:${title}`, `DTSTART:${day}T120000Z`, `DTEND:${day}T130000Z`, 'END:VEVENT', 'BEGIN:VEVENT', 'UID:b', 'SUMMARY:All day', `DTSTART;VALUE=DATE:${day}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
+  [
+    'BEGIN:VCALENDAR',
+    'BEGIN:VEVENT',
+    'UID:a',
+    `SUMMARY:${title}`,
+    `DTSTART:${day}T120000Z`,
+    `DTEND:${day}T130000Z`,
+    'END:VEVENT',
+    'BEGIN:VEVENT',
+    'UID:b',
+    'SUMMARY:All day',
+    `DTSTART;VALUE=DATE:${day}`,
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].join('\r\n')
 
 describe('the calendar service', () => {
   const NOW = new Date(2026, 9, 13, 8, 5).getTime()
@@ -250,7 +282,12 @@ describe('the calendar service', () => {
     const offline = setup(() => {
       throw new CalendarError('offline')
     })
-    const again = new CalendarService({ store: new CalendarStore(file(), cipher), cacheFile: join(dir, 'briefing', 'calendar-cache.json'), now: () => NOW + 60_000, fetch: () => Promise.reject(new CalendarError('offline')) })
+    const again = new CalendarService({
+      store: new CalendarStore(file(), cipher),
+      cacheFile: join(dir, 'briefing', 'calendar-cache.json'),
+      now: () => NOW + 60_000,
+      fetch: () => Promise.reject(new CalendarError('offline'))
+    })
     expect(again.events(day(0), day(1)).map((event) => event.title)).toEqual(['All day', 'Standup'])
     expect(offline.calls()).toBe(0)
   })
@@ -290,7 +327,11 @@ describe('the calendar service', () => {
   })
 
   it('sends the validators of the last answer and keeps the events when nothing changed', async () => {
-    const t = setup((_url, _options, call) => (call === 0 ? { status: 'ok', text: ICS('Standup'), etag: '"v1"', lastModified: 'Tue, 13 Oct 2026 08:00:00 GMT' } : { status: 'not-modified' }))
+    const t = setup((_url, _options, call) =>
+      call === 0
+        ? { status: 'ok', text: ICS('Standup'), etag: '"v1"', lastModified: 'Tue, 13 Oct 2026 08:00:00 GMT' }
+        : { status: 'not-modified' }
+    )
     t.store.add({ label: 'Work', url: SECRET, color: 'blue' })
     const service = t.make()
     await service.refresh()
@@ -346,7 +387,14 @@ describe('the calendar service', () => {
 
   it('tests a calendar: counts today and the week, whatever its age', async () => {
     const week = ['BEGIN:VCALENDAR']
-    for (const [uid, date] of [['a', '20261013'], ['b', '20261013'], ['c', '20261016'], ['d', '20261019'], ['e', '20261020'], ['f', '20261012']]) {
+    for (const [uid, date] of [
+      ['a', '20261013'],
+      ['b', '20261013'],
+      ['c', '20261016'],
+      ['d', '20261019'],
+      ['e', '20261020'],
+      ['f', '20261012']
+    ]) {
       week.push('BEGIN:VEVENT', `UID:${uid}`, `SUMMARY:${uid}`, `DTSTART;VALUE=DATE:${date}`, 'END:VEVENT')
     }
     week.push('END:VCALENDAR')
@@ -377,7 +425,17 @@ describe('the calendar service', () => {
   })
 
   describe('days beyond the cached fortnight', () => {
-    const WEEKLY = ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:w', 'SUMMARY:Weekly', 'DTSTART:20261013T120000Z', 'DTEND:20261013T130000Z', 'RRULE:FREQ=WEEKLY', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
+    const WEEKLY = [
+      'BEGIN:VCALENDAR',
+      'BEGIN:VEVENT',
+      'UID:w',
+      'SUMMARY:Weekly',
+      'DTSTART:20261013T120000Z',
+      'DTEND:20261013T130000Z',
+      'RRULE:FREQ=WEEKLY',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n')
     const december = new Date(2026, 11, 1).getTime()
     const january = new Date(2027, 0, 1).getTime()
 
@@ -393,7 +451,10 @@ describe('the calendar service', () => {
       expect(month.complete).toBe(true)
       expect(month.events.map((event) => new Date(event.start).getDate())).toEqual([1, 8, 15, 22, 29])
       // Any other month comes from the same copy; days the cache holds come from the cache.
-      expect(service.span(new Date(2027, 2, 1).getTime(), new Date(2027, 3, 1).getTime())).toMatchObject({ complete: true, events: { length: 5 } })
+      expect(service.span(new Date(2027, 2, 1).getTime(), new Date(2027, 3, 1).getTime())).toMatchObject({
+        complete: true,
+        events: { length: 5 }
+      })
       expect(service.span(day(0), day(1)).events.map((event) => event.title)).toEqual(['Weekly'])
       await service.cover(december, january)
       expect(t.calls()).toBe(1)
@@ -432,13 +493,39 @@ describe('the calendar service', () => {
   })
 
   it('keeps what the alarms need, and reads in full a calendar cached before it did', async () => {
-    const meeting = ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:standup@x', 'SUMMARY:Standup', 'DTSTART:20261013T120000Z', 'DTEND:20261013T130000Z', 'ATTENDEE:mailto:a@x.com', 'ATTENDEE:mailto:b@x.com', 'ORGANIZER:mailto:a@x.com', 'LOCATION:https://meet.google.com/abc-defg-hij', 'TRANSP:TRANSPARENT', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n')
+    const meeting = [
+      'BEGIN:VCALENDAR',
+      'BEGIN:VEVENT',
+      'UID:standup@x',
+      'SUMMARY:Standup',
+      'DTSTART:20261013T120000Z',
+      'DTEND:20261013T130000Z',
+      'ATTENDEE:mailto:a@x.com',
+      'ATTENDEE:mailto:b@x.com',
+      'ORGANIZER:mailto:a@x.com',
+      'LOCATION:https://meet.google.com/abc-defg-hij',
+      'TRANSP:TRANSPARENT',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n')
     const t = setup(() => ({ status: 'ok', text: meeting, etag: '"v2"' }))
     const added = t.store.add({ label: 'A', url: SECRET, color: 'blue' })
     writeFileSync(
       join(dir, 'briefing', 'calendar-cache.json'),
       // Version 2 kept the count of the invited but not their names: it is read again in full too.
-      JSON.stringify({ version: 2, calendars: { [added.id]: { etag: '"v1"', fetchedAt: NOW, checkedAt: NOW, from: day(-1), to: day(15), events: [{ id: 'old', title: 'Standup', start: day(0) + 1000, end: day(0) + 2000, attendees: 1 }] } } })
+      JSON.stringify({
+        version: 2,
+        calendars: {
+          [added.id]: {
+            etag: '"v1"',
+            fetchedAt: NOW,
+            checkedAt: NOW,
+            from: day(-1),
+            to: day(15),
+            events: [{ id: 'old', title: 'Standup', start: day(0) + 1000, end: day(0) + 2000, attendees: 1 }]
+          }
+        }
+      })
     )
     const service = t.make()
     // The old cache still answers at once, and is due for a read that asks for the whole file.
@@ -447,16 +534,47 @@ describe('the calendar service', () => {
     await service.refresh()
     expect(t.seen[0].options.etag).toBeUndefined()
     const [event] = service.events(day(0), day(1))
-    expect(event).toMatchObject({ uid: 'standup@x', attendees: 1, people: ['b@x.com'], meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
+    expect(event).toMatchObject({
+      uid: 'standup@x',
+      attendees: 1,
+      people: ['b@x.com'],
+      meetingUrl: 'https://meet.google.com/abc-defg-hij',
+      transparent: true
+    })
     // And so does the next session, from the file.
-    expect(t.make().events(day(0), day(1))[0]).toMatchObject({ uid: 'standup@x', attendees: 1, people: ['b@x.com'], meetingUrl: 'https://meet.google.com/abc-defg-hij', transparent: true })
+    expect(t.make().events(day(0), day(1))[0]).toMatchObject({
+      uid: 'standup@x',
+      attendees: 1,
+      people: ['b@x.com'],
+      meetingUrl: 'https://meet.google.com/abc-defg-hij',
+      transparent: true
+    })
     expect(JSON.parse(readFileSync(join(dir, 'briefing', 'calendar-cache.json'), 'utf8')).version).toBe(3)
   })
 
   it('reads a damaged cache as empty', () => {
     const t = setup(() => ({ status: 'ok', text: ICS('x') }))
     const added = t.store.add({ label: 'A', url: SECRET, color: 'blue' })
-    writeFileSync(join(dir, 'briefing', 'calendar-cache.json'), JSON.stringify({ version: 1, calendars: { [added.id]: { events: [null, 7, { id: 'x' }, { id: 'ok', title: 't', start: day(0) + 1000, end: day(0) + 2000 }, { id: 'half', title: 'allday', allDay: true, startDay: 'nonsense', endDay: '2026-10-14' }], error: 'made-up', fetchedAt: 'yesterday' }, '../evil': {} } }))
+    writeFileSync(
+      join(dir, 'briefing', 'calendar-cache.json'),
+      JSON.stringify({
+        version: 1,
+        calendars: {
+          [added.id]: {
+            events: [
+              null,
+              7,
+              { id: 'x' },
+              { id: 'ok', title: 't', start: day(0) + 1000, end: day(0) + 2000 },
+              { id: 'half', title: 'allday', allDay: true, startDay: 'nonsense', endDay: '2026-10-14' }
+            ],
+            error: 'made-up',
+            fetchedAt: 'yesterday'
+          },
+          '../evil': {}
+        }
+      })
+    )
     const service = t.make()
     expect(service.events(day(0), day(1)).map((event) => event.id)).toEqual(['ok'])
     expect(service.status()[0]).toEqual({ ...added, ok: true })

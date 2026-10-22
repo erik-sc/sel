@@ -361,19 +361,28 @@ function propChanges(from: SnapshotBlock, to: SnapshotBlock, isRoot: boolean): P
   const b = to.props
   if (from.type !== to.type) out.push({ label: 'Type', from: typeName(from.type), to: typeName(to.type) })
   if (from.type === 'to_do' || to.type === 'to_do') {
-    if (!!a.checked !== !!b.checked) out.push({ label: 'To-do', from: a.checked ? 'Checked' : 'Unchecked', to: b.checked ? 'Checked' : 'Unchecked' })
+    if (!!a.checked !== !!b.checked)
+      out.push({ label: 'To-do', from: a.checked ? 'Checked' : 'Unchecked', to: b.checked ? 'Checked' : 'Unchecked' })
   }
   if (from.type === 'toggle' || to.type === 'toggle') {
-    if (!!a.collapsed !== !!b.collapsed) out.push({ label: 'Toggle', from: a.collapsed ? 'Collapsed' : 'Open', to: b.collapsed ? 'Collapsed' : 'Open' })
+    if (!!a.collapsed !== !!b.collapsed)
+      out.push({ label: 'Toggle', from: a.collapsed ? 'Collapsed' : 'Open', to: b.collapsed ? 'Collapsed' : 'Open' })
   }
   if ((a.color ?? '') !== (b.color ?? '')) out.push({ label: 'Colour', from: colorName(a.color), to: colorName(b.color) })
-  if ((a.language ?? '') !== (b.language ?? '')) out.push({ label: 'Language', from: short(a.language) === 'None' ? 'Plain text' : short(a.language), to: short(b.language) === 'None' ? 'Plain text' : short(b.language) })
+  if ((a.language ?? '') !== (b.language ?? ''))
+    out.push({
+      label: 'Language',
+      from: short(a.language) === 'None' ? 'Plain text' : short(a.language),
+      to: short(b.language) === 'None' ? 'Plain text' : short(b.language)
+    })
   if ((a.icon ?? '') !== (b.icon ?? '')) {
     out.push({ label: 'Icon', from: iconName(a.icon), to: iconName(b.icon) })
   }
   if ((a.url ?? '') !== (b.url ?? '')) out.push({ label: to.type === 'image' ? 'Image' : 'Link', from: short(a.url), to: short(b.url) })
-  if ((a.cover ?? '') !== (b.cover ?? '')) out.push({ label: 'Cover', from: a.cover ? 'Set' : 'None', to: b.cover ? (a.cover ? 'Changed' : 'Set') : 'None' })
-  if (isRoot && !!a.fullWidth !== !!b.fullWidth) out.push({ label: 'Width', from: a.fullWidth ? 'Full width' : 'Default', to: b.fullWidth ? 'Full width' : 'Default' })
+  if ((a.cover ?? '') !== (b.cover ?? ''))
+    out.push({ label: 'Cover', from: a.cover ? 'Set' : 'None', to: b.cover ? (a.cover ? 'Changed' : 'Set') : 'None' })
+  if (isRoot && !!a.fullWidth !== !!b.fullWidth)
+    out.push({ label: 'Width', from: a.fullWidth ? 'Full width' : 'Default', to: b.fullWidth ? 'Full width' : 'Default' })
   const captionFrom = plainText(a.caption)
   const captionTo = plainText(b.caption)
   if (captionFrom !== captionTo) out.push({ label: 'Caption', from: short(captionFrom), to: short(captionTo) })
@@ -381,11 +390,13 @@ function propChanges(from: SnapshotBlock, to: SnapshotBlock, isRoot: boolean): P
     const place = (beside: boolean | undefined): string => (beside ? 'Beside the block before' : 'Below the block before')
     out.push({ label: 'Place', from: place(a.beside), to: place(b.beside) })
   }
-  if ((a.sourceId ?? '') !== (b.sourceId ?? '')) out.push({ label: 'Source database', from: a.sourceId ? 'Another database' : 'None', to: b.sourceId ? 'This database' : 'None' })
+  if ((a.sourceId ?? '') !== (b.sourceId ?? ''))
+    out.push({ label: 'Source database', from: a.sourceId ? 'Another database' : 'None', to: b.sourceId ? 'This database' : 'None' })
   if (plainText(a.title) === plainText(b.title) && !same(a.title ?? [], b.title ?? [])) {
     out.push({ label: 'Formatting', from: 'Current formatting', to: 'Formatting of this version' })
   }
-  if (isRoot && a.values !== undefined && !same(a.values, b.values)) out.push({ label: 'Properties', from: 'Current values', to: 'Values of this version' })
+  if (isRoot && a.values !== undefined && !same(a.values, b.values))
+    out.push({ label: 'Properties', from: 'Current values', to: 'Values of this version' })
   return out
 }
 
@@ -486,7 +497,6 @@ function mergeOrder(to: string[], from: string[], isExtra: (id: string) => boole
 
 export function diffSnapshots(from: SnapshotContent, to: SnapshotContent): TreeDiff {
   const fromBlocks = new Map(from.blocks.map((b) => [b.id, b]))
-  const toBlocks = new Map(to.blocks.map((b) => [b.id, b]))
   const fromRefs = new Set(from.refs.map((r) => r.id))
   const toRefs = new Set(to.refs.map((r) => r.id))
   const fromRoot = from.blocks[0]
@@ -557,7 +567,11 @@ export function diffSnapshots(from: SnapshotContent, to: SnapshotContent): TreeD
   }
   // Children of removed blocks are shown under them, as the page has them.
   for (const b of from.blocks) {
-    if (removed(b.id)) children.set(b.id, b.content.filter((id) => removed(id)))
+    if (removed(b.id))
+      children.set(
+        b.id,
+        b.content.filter((id) => removed(id))
+      )
   }
   for (const change of blocks.values()) {
     if (change.status === 'changed') counts.changed++
@@ -615,7 +629,11 @@ function rowChange(from: SnapshotRow, to: SnapshotRow, properties: Set<string>):
   const change: RowChange = { id: to.id, status: 'same', moved: false, iconChanged: (from.icon ?? '') !== (to.icon ?? ''), cells: [] }
   const titleFrom = plainText(from.title)
   const titleTo = plainText(to.title)
-  if (titleFrom !== titleTo) change.title = wordDiff(titleFrom, titleTo) ?? [{ kind: 'delete', text: titleFrom }, { kind: 'insert', text: titleTo }]
+  if (titleFrom !== titleTo)
+    change.title = wordDiff(titleFrom, titleTo) ?? [
+      { kind: 'delete', text: titleFrom },
+      { kind: 'insert', text: titleTo }
+    ]
   for (const id of properties) {
     const a = Object.hasOwn(from.values, id) ? from.values[id] : undefined
     const b = Object.hasOwn(to.values, id) ? to.values[id] : undefined

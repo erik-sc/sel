@@ -50,10 +50,17 @@ export function UpdatesGroup() {
         <div className="ap-row">
           <div className="ap-row-text">
             <span className="ap-row-label">Check for updates</span>
-            <span className="ap-row-help">Once a day, sel asks GitHub whether there is a new version. Nothing is downloaded until you say so.</span>
+            <span className="ap-row-help">
+              Once a day, sel asks GitHub whether there is a new version. Nothing is downloaded until you say so.
+            </span>
           </div>
           <div className="ap-row-control">
-            <Segmented label="Check for updates" value={enabled ? 'on' : 'off'} options={ON_OFF} onChange={(value) => save(value === 'on')} />
+            <Segmented
+              label="Check for updates"
+              value={enabled ? 'on' : 'off'}
+              options={ON_OFF}
+              onChange={(value) => save(value === 'on')}
+            />
           </div>
         </div>
         <div className="ap-row">

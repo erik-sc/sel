@@ -87,6 +87,13 @@
   letter-spacing: var(--tracking-ui);
 }
 
+/* "4 to refine · Refine": one quiet line under the tasks (tasks/refining.ts). */
+.today-refine {
+  margin: 12px 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
 .today-quiet {
   margin: 0;
   color: var(--text-secondary);
@@ -333,7 +340,7 @@
   height: 18px;
   margin-top: 8px;
   border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-xs);
   transition:
     border-color var(--duration-fast) var(--ease),
     background-color var(--duration-fast) var(--ease);

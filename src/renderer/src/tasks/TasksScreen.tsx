@@ -1,26 +1,30 @@
 // The Tasks screen: the built-in Tasks database as lists, Todoist-style. A column of lists on the
 // left (the fixed ones, then projects and labels from the select options, then the database's
-// own views), the tasks of the chosen one on the right. Rows are pages of the database: a click
-// opens one, the round checkbox completes it through the same path as the Today screen.
+// own views), the tasks of the chosen one in the middle, and the task panel on the right while a
+// task is open in it. Rows are pages of the database, drawn by TaskRow: a click opens the panel,
+// Ctrl+click the page, the round checkbox completes it through the same path as the Today screen.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { CSSProperties, JSX, KeyboardEvent as ReactKeyboardEvent } from 'react'
-import type { Block } from '@shared/types'
+import type { JSX } from 'react'
 import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
-import { getBlock, useBlocks } from '@/store/blocks'
+import { getBlock } from '@/store/blocks'
 import { openPage } from '@/store/tabs'
 import { notifyError, toast } from '@/ui/toast'
 import * as L from '@/database/logic'
 import * as actions from '@/database/actions'
-import { useResolvedDatabase } from '@/database/resolved'
 import { chooseView, DatabaseView } from '@/database/DatabaseView'
-import { tagStyle } from '@/database/common'
-import { focusQuickAdd, showTaskList, useTasksGate, type TaskListKey } from './gate'
-import { dueLabel, listCounts, listTasks, openDescendants, readTasks, type TaskGroup, type TaskItem } from './lists'
+import { useTasksDatabase } from './data'
+import { useHome } from '@/home/store'
+import { Button } from '@/ui/Button'
+import { TASK_COPY } from './copy'
+import { focusQuickAdd, showTaskList, stopRefine, useTasksGate, type RefineFrom, type TaskListKey } from './gate'
+import { dueLabel, emptyChipsOf, listCounts, listTasks, openDescendants, readTasks, type TaskGroup, type TaskItem } from './lists'
+import { Refine } from './Refine'
+import { refineQueue } from './refineWalk'
 import { QuickAdd } from './QuickAdd'
+import { TaskPanel } from './lazy'
+import { TaskRow, useTaskRows } from './TaskRow'
 import { TasksTools } from './TasksTools'
 import './tasks.css'
-
-const EMPTY: string[] = []
 
 /** The local day, kept current across midnight. */
 function useToday(): string {
@@ -32,8 +36,10 @@ function useToday(): string {
   return today
 }
 
-const FIXED: { kind: 'inbox' | 'today' | 'upcoming' | 'completed'; name: string }[] = [
+const FIXED: { kind: 'inbox' | 'refine' | 'today' | 'upcoming' | 'completed'; name: string }[] = [
   { kind: 'inbox', name: 'Inbox' },
+  // Its name is in the home's language (TASK_COPY.refineList).
+  { kind: 'refine', name: 'To refine' },
   { kind: 'today', name: 'Today' },
   { kind: 'upcoming', name: 'Upcoming' },
   { kind: 'completed', name: 'Completed' }
@@ -142,84 +148,11 @@ function setParent(task: TaskItem, parent: TaskItem | null): void {
   actions.runOps([{ op: 'update', id: task.id, patch: { props: { values } } }])
 }
 
-interface RowProps {
-  task: TaskItem
-  today: string
-  heading?: string
-  depth: number
-  onToggle: (task: TaskItem) => void
-  /** Absent when the task cannot go further in (no task above it at its level) or out. */
-  onIndent?: () => void
-  onOutdent?: () => void
-}
-
-function TaskRow(props: RowProps): JSX.Element {
-  const { task, today, heading, depth, onToggle, onIndent, onOutdent } = props
-  const label = task.due ? dueLabel(task.due, today, heading) : null
-  const due = label?.text ? label : null
-  const title = task.title || 'Untitled'
-  const onKeyDown = (event: ReactKeyboardEvent<HTMLLIElement>): void => {
-    if (!(event.ctrlKey || event.metaKey) || event.altKey) return
-    if (event.key === ']' && onIndent) onIndent()
-    else if (event.key === '[' && onOutdent) onOutdent()
-    else return
-    event.preventDefault()
-  }
-  return (
-    <li className={task.done ? 'task-row is-done' : 'task-row'} style={{ '--depth': depth } as CSSProperties} onKeyDown={onKeyDown}>
-      <button
-        type="button"
-        className={`task-check is-p${task.priority}`}
-        role="checkbox"
-        aria-checked={task.done}
-        aria-label={task.done ? `Mark "${title}" as not done` : `Complete "${title}"`}
-        onClick={() => onToggle(task)}
-      />
-      <button type="button" className="task-open" onClick={(event) => openPage(task.id, { newTab: event.ctrlKey || event.metaKey })}>
-        <span className="task-title">{title}</span>
-        {(due || task.recurring) && (
-          <span className="task-meta">
-            {due && <span className={due.overdue && !task.done ? 'task-due is-overdue' : 'task-due'}>{due.text}</span>}
-            {task.recurring && (
-              <span className="task-repeat" title="Repeats" aria-label="Repeats">
-                ↻
-              </span>
-            )}
-          </span>
-        )}
-      </button>
-      <span className="task-side">
-        {(onIndent || onOutdent) && (
-          <span className="task-moves">
-            {onOutdent && (
-              <button type="button" className="task-move" title="Move out of its parent (Ctrl+[)" aria-label={`Move "${title}" out of its parent`} onClick={onOutdent}>
-                ←
-              </button>
-            )}
-            {onIndent && (
-              <button type="button" className="task-move" title="Make it a subtask of the task above (Ctrl+])" aria-label={`Make "${title}" a subtask of the task above`} onClick={onIndent}>
-                →
-              </button>
-            )}
-          </span>
-        )}
-        {(task.project || task.labels.length > 0) && (
-          <span className="task-tags">
-            {task.labels.map((label) => (
-              <span key={label.id} className="task-label" style={tagStyle(label.color)}>
-                @{label.name}
-              </span>
-            ))}
-            {task.project && <span className="task-project">#{task.project.name}</span>}
-          </span>
-        )}
-      </span>
-    </li>
-  )
-}
+type Moves = { onIndent?: () => void; onOutdent?: () => void }
 
 const EMPTY_TEXT: Record<TaskListKey['kind'], string> = {
   inbox: 'Nothing in the inbox. Tasks without a project land here.',
+  refine: '',
   today: 'Nothing due today.',
   upcoming: 'Nothing scheduled after today.',
   completed: 'No completed tasks yet.',
@@ -229,26 +162,29 @@ const EMPTY_TEXT: Record<TaskListKey['kind'], string> = {
 }
 
 export function TasksScreen(): JSX.Element {
-  const resolved = useResolvedDatabase(TASKS_DATABASE_ID, false)
+  const { resolved, schema, views, rows } = useTasksDatabase()
   const db = resolved?.view
-  const { schema, views } = useMemo(() => L.normalizeResolved(resolved), [resolved])
-  const rawContent: unknown = db?.content
-  const rowIds = useMemo(() => {
-    const ids = Array.isArray(rawContent) ? rawContent.filter((id): id is string => typeof id === 'string') : EMPTY
-    return ids.length ? ids : EMPTY
-  }, [rawContent])
-  const rowBlocks = useBlocks(rowIds)
-  const rows = useMemo(
-    () => rowBlocks.filter((b): b is Block => !!b && b.type === 'page' && !b.trashedAt && b.parentId === TASKS_DATABASE_ID),
-    [rowBlocks]
-  )
   const today = useToday()
+  const [panel, setPanel] = useState<string | null>(null)
   const list = useTasksGate((state) => state.list)
   const { pending, complete, reopen } = useCompletion(today)
+  const words = TASK_COPY[useHome((state) => state.locale)]
+  const refining = useTasksGate((state) => state.refining)
 
-  const tasks = useMemo(() => readTasks(rows, schema).filter((task) => task.done || !isPending(pending.get(task.id), task)), [rows, schema, pending])
+  const tasks = useMemo(
+    () => readTasks(rows, schema).filter((task) => task.done || !isPending(pending.get(task.id), task)),
+    [rows, schema, pending]
+  )
   const groups = useMemo(() => listTasks(tasks, schema, list, today), [tasks, schema, list, today])
+  const rowList = useTaskRows(useMemo(() => groups.flatMap((group) => group.items.map((task) => task.id)), [groups]))
+  const toggle = useCallback(
+    (task: TaskItem): void => (task.done ? reopen(task) : complete(task, openDescendants(tasks, task.id))),
+    [complete, reopen, tasks]
+  )
   const counts = useMemo(() => listCounts(tasks, schema), [tasks, schema])
+  // What the refine button would walk, on the Inbox and on "To refine".
+  const refineFrom: RefineFrom | null = list.kind === 'inbox' || list.kind === 'refine' ? list.kind : null
+  const canRefine = useMemo(() => (refineFrom ? refineQueue(tasks, refineFrom).length > 0 : false), [tasks, refineFrom])
   const projects = L.optionsOf(L.propOf(schema, TASK_PROPS.project))
   const labels = L.optionsOf(L.propOf(schema, TASK_PROPS.labels))
 
@@ -273,7 +209,8 @@ export function TasksScreen(): JSX.Element {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key.toLowerCase() !== 'q' || event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return
       const target = event.target
-      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [contenteditable]'))) return
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest('input, textarea, select, [contenteditable]')))
+        return
       event.preventDefault()
       focusQuickAdd()
     }
@@ -297,7 +234,9 @@ export function TasksScreen(): JSX.Element {
         ? `@${labels.find((option) => option.id === list.id)?.name ?? ''}`
         : list.kind === 'view'
           ? (views.find((view) => view.id === list.id)?.name ?? '')
-          : (FIXED.find((item) => item.kind === list.kind)?.name ?? '')
+          : list.kind === 'refine'
+            ? words.refineList
+            : (FIXED.find((item) => item.kind === list.kind)?.name ?? '')
 
   const navItem = (key: TaskListKey, name: string, count: number | undefined, extra?: JSX.Element): JSX.Element => {
     const active = sameList(key, list)
@@ -309,6 +248,7 @@ export function TasksScreen(): JSX.Element {
           aria-current={active ? 'page' : undefined}
           onClick={() => {
             if (key.kind === 'view') chooseView(TASKS_DATABASE_ID, key.id)
+            stopRefine()
             showTaskList(key)
           }}
         >
@@ -323,7 +263,7 @@ export function TasksScreen(): JSX.Element {
   const empty = groups.every((group) => group.items.length === 0)
 
   /** Indent: under the nearest task above at the same level. Outdent: next to its parent. Not for completed tasks. */
-  const moves = (group: TaskGroup, index: number): Pick<RowProps, 'onIndent' | 'onOutdent'> => {
+  const moves = (group: TaskGroup, index: number): Moves => {
     const task = group.items[index]
     if (task.done) return {}
     const level = group.depth.get(task.id) ?? 0
@@ -346,15 +286,28 @@ export function TasksScreen(): JSX.Element {
   }
 
   return (
-    <div className="tasks">
+    <div className={panel ? 'tasks has-panel' : 'tasks'}>
       <nav className="tasks-nav" aria-label="Task lists">
-        <ul className="tasks-nav-list">{FIXED.map((item) => navItem({ kind: item.kind }, item.name, item.kind === 'completed' ? undefined : counts.get(item.kind)))}</ul>
+        <ul className="tasks-nav-list">
+          {FIXED.map((item) =>
+            navItem(
+              { kind: item.kind },
+              item.kind === 'refine' ? words.refineList : item.name,
+              item.kind === 'completed' ? undefined : counts.get(item.kind)
+            )
+          )}
+        </ul>
         {projects.length > 0 && (
           <section className="tasks-nav-section">
             <h3 className="tasks-nav-title">Projects</h3>
             <ul className="tasks-nav-list">
               {projects.map((option) =>
-                navItem({ kind: 'project', id: option.id }, option.name, counts.get(`project:${option.id}`), <span className="tasks-nav-dot" style={{ background: `var(--c-${option.color})` }} aria-hidden="true" />)
+                navItem(
+                  { kind: 'project', id: option.id },
+                  option.name,
+                  counts.get(`project:${option.id}`),
+                  <span className="tasks-nav-dot" style={{ background: `var(--c-${option.color})` }} aria-hidden="true" />
+                )
               )}
             </ul>
           </section>
@@ -364,7 +317,14 @@ export function TasksScreen(): JSX.Element {
             <h3 className="tasks-nav-title">Labels</h3>
             <ul className="tasks-nav-list">
               {labels.map((option) =>
-                navItem({ kind: 'label', id: option.id }, option.name, counts.get(`label:${option.id}`), <span className="tasks-nav-at" style={{ color: `var(--c-${option.color})` }} aria-hidden="true">@</span>)
+                navItem(
+                  { kind: 'label', id: option.id },
+                  option.name,
+                  counts.get(`label:${option.id}`),
+                  <span className="tasks-nav-at" style={{ color: `var(--c-${option.color})` }} aria-hidden="true">
+                    @
+                  </span>
+                )
               )}
             </ul>
           </section>
@@ -377,21 +337,46 @@ export function TasksScreen(): JSX.Element {
       </nav>
 
       <div className="tasks-main">
-        {list.kind === 'view' ? (
+        {refining && refineFrom ? (
+          <Refine
+            key={refineFrom}
+            tasks={tasks}
+            from={refining}
+            today={today}
+            onExit={() => {
+              stopRefine()
+              // Back to the list, at the button that started it (or the list when nothing is left).
+              requestAnimationFrame(() =>
+                document.querySelector<HTMLElement>('.tasks-refine, .tasks-list [data-task-row], .tasks-list .qa-input')?.focus()
+              )
+            }}
+          />
+        ) : list.kind === 'view' ? (
           <div className="tasks-view">
             <DatabaseView key={list.id} databaseId={TASKS_DATABASE_ID} onOpenPage={openPage} />
           </div>
         ) : (
-          <div className="tasks-list">
-            <h1 className="tasks-heading">{heading}</h1>
-            {list.kind !== 'completed' && <QuickAdd key={`${list.kind}:${'id' in list ? list.id : ''}`} list={list} today={today} projects={projects} labels={labels} />}
+          <div className="tasks-list" {...rowList.listProps}>
+            <div className="tasks-heading-row">
+              <h1 className="tasks-heading">{heading}</h1>
+              {refineFrom && canRefine && (
+                <Button className="tasks-refine" onClick={() => useTasksGate.setState({ refining: refineFrom })}>
+                  {words.refine}
+                </Button>
+              )}
+            </div>
+            {list.kind !== 'completed' && (
+              <QuickAdd key={`${list.kind}:${'id' in list ? list.id : ''}`} list={list} today={today} projects={projects} labels={labels} />
+            )}
             {empty ? (
-              <p className="tasks-empty">{EMPTY_TEXT[list.kind]}</p>
+              <p className="tasks-empty">{list.kind === 'refine' ? words.refineEmpty : EMPTY_TEXT[list.kind]}</p>
             ) : (
               groups.map((group) =>
                 group.items.length ? (
                   <section key={group.id} className="tasks-group">
-                    {group.title && <h2 className={group.id === 'overdue' ? 'tasks-group-title is-overdue' : 'tasks-group-title'}>{group.title}</h2>}
+                    {group.title && (
+                      <h2 className={group.id === 'overdue' ? 'tasks-group-title is-overdue' : 'tasks-group-title'}>{group.title}</h2>
+                    )}
                     <ul className="tasks-rows">
                       {group.items.map((task, index) => (
                         <TaskRow
@@ -400,7 +385,12 @@ export function TasksScreen(): JSX.Element {
                           today={today}
                           heading={group.id}
                           depth={group.depth.get(task.id) ?? 0}
-                          onToggle={task.done ? reopen : (item) => complete(item, openDescendants(tasks, item.id))}
+                          tabStop={rowList.stop === task.id}
+                          current={panel === task.id}
+                          onToggle={() => toggle(task)}
+                          onOpen={() => setPanel(task.id)}
+                          onLeave={rowList.leave}
+                          emptyChips={emptyChipsOf(task)}
                           {...moves(group, index)}
                         />
                       ))}
@@ -412,6 +402,9 @@ export function TasksScreen(): JSX.Element {
           </div>
         )}
       </div>
+      {panel && list.kind !== 'view' && (
+        <TaskPanel taskId={panel} today={today} onClose={() => setPanel(null)} onToggle={(task) => toggle(task)} onSelect={setPanel} />
+      )}
     </div>
   )
 }

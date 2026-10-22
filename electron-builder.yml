@@ -1,5 +1,5 @@
 # Packaging (electron-builder). `npm run pack` = unpacked app in release/, `npm run dist` = installer.
-# No code signing, and nothing is uploaded: `npm run dist` passes `--publish never` (see RELEASING in README.md).
+# No code signing (only Electron fuses, below), and nothing is uploaded: `npm run dist` passes `--publish never` (see RELEASING in README.md).
 # The icon is build/icon.ico, rendered from build/icon.svg.
 appId: app.sel
 productName: sel
@@ -24,6 +24,26 @@ asar: true
 # A native module cannot be loaded from inside the archive. Only the binary is unpacked.
 asarUnpack:
   - node_modules/better-sqlite3/prebuilds/*.node
+
+# Electron fuses: switches written into sel.exe at packaging time, which nothing at run time can
+# flip back (release 0.7.0, item 6). Check them with `npx @electron/fuses read --app release/win-unpacked/sel.exe`.
+electronFuses:
+  # On: sel runs its own executable as Node for the tools script mcp.js, which serves Herman's tools
+  # (src/main/ai/toolhost.ts) and the apps the user connects (src/main/external/snippets.ts); in
+  # development also for a script AI program or transcription program (src/main/ai/command.ts,
+  # src/main/meetings/whisper/run.ts). Those children get allow-listed environments, without
+  # NODE_OPTIONS, and no --inspect. Anyone who can start sel.exe as Node can run any script with it,
+  # and Node's --inspect flags still work in that mode: that is what keeping this fuse costs.
+  runAsNode: true
+  # The cookie store is encrypted with the OS key store.
+  enableCookieEncryption: true
+  # The app ignores NODE_OPTIONS and Node's --inspect / --inspect-brk flags (NODE_OPTIONS also in the
+  # Node children). Chromium's --remote-debugging-port is a different switch and still works.
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  # app.asar must match the hash electron-builder embeds in sel.exe, and the app is loaded only from it.
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
 
 compression: maximum
 # Where updates come from (the opt-in check in the app, src/main/updates). With this, a build writes

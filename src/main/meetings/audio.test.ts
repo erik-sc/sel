@@ -126,7 +126,11 @@ describe('the frame gate', () => {
     expect(gate.frames(7, session.token, 0, batch(160), batch(160))).toEqual({ ok: false, reason: 'bad-sequence', fatal: false })
     const gap = gate.frames(7, session.token, 4, batch(160), batch(160))
     expect(gap.ok && gap.skipped).toBe(3)
-    expect(gate.frames(7, session.token, 5 + MEETING_LIMITS.sequenceGap + 1, batch(160), batch(160))).toEqual({ ok: false, reason: 'bad-sequence', fatal: true })
+    expect(gate.frames(7, session.token, 5 + MEETING_LIMITS.sequenceGap + 1, batch(160), batch(160))).toEqual({
+      ok: false,
+      reason: 'bad-sequence',
+      fatal: true
+    })
   })
 
   it.each([
@@ -142,9 +146,14 @@ describe('the frame gate', () => {
   })
 
   it('refuses a stream that was not announced, an oversized batch and more than the maximum length', () => {
-    expect(new FrameGate({ ...session, system: false }).frames(7, session.token, 0, batch(), batch())).toMatchObject({ ok: false, reason: 'unexpected-stream' })
+    expect(new FrameGate({ ...session, system: false }).frames(7, session.token, 0, batch(), batch())).toMatchObject({
+      ok: false,
+      reason: 'unexpected-stream'
+    })
     expect(new FrameGate(session).frames(7, session.token, 0, batch(), null)).toMatchObject({ ok: false, reason: 'unexpected-stream' })
-    expect(new FrameGate(session).frames(7, session.token, 0, batch(MEETING_LIMITS.frameSamples + 1), batch(MEETING_LIMITS.frameSamples + 1))).toMatchObject({ ok: false, reason: 'too-large' })
+    expect(
+      new FrameGate(session).frames(7, session.token, 0, batch(MEETING_LIMITS.frameSamples + 1), batch(MEETING_LIMITS.frameSamples + 1))
+    ).toMatchObject({ ok: false, reason: 'too-large' })
     const gate = new FrameGate(session)
     for (let seq = 0; seq < 10; seq++) expect(gate.frames(7, session.token, seq, batch(), batch()).ok).toBe(true)
     expect(gate.frames(7, session.token, 10, batch(), batch())).toEqual({ ok: false, reason: 'full', fatal: true })
@@ -163,7 +172,10 @@ describe('the frame gate', () => {
     expect(gate.encoded(7, session.token, 'mic', 2, new ArrayBuffer(10))).toEqual({ ok: false, reason: 'bad-sequence' })
     expect(gate.encoded(7, session.token, 'system', 0, new ArrayBuffer(10))).toEqual({ ok: false, reason: 'unexpected-stream' })
     expect(gate.encoded(7, session.token, '../mic', 1, new ArrayBuffer(10))).toEqual({ ok: false, reason: 'bad-shape' })
-    expect(gate.encoded(7, session.token, 'mic', 1, new ArrayBuffer(MEETING_LIMITS.encodedBytes + 1))).toEqual({ ok: false, reason: 'too-large' })
+    expect(gate.encoded(7, session.token, 'mic', 1, new ArrayBuffer(MEETING_LIMITS.encodedBytes + 1))).toEqual({
+      ok: false,
+      reason: 'too-large'
+    })
     expect(gate.encoded(9, session.token, 'mic', 1, new ArrayBuffer(10))).toEqual({ ok: false, reason: 'wrong-sender' })
   })
 })
@@ -173,7 +185,11 @@ describe('recording grants', () => {
     const clock = { t: 1000 }
     return { grants: new GrantStore(() => clock.t, 8000), clock }
   }
-  const media = (owner: number, mediaTypes: string[], trusted = true): { permission: string; owner: number; trusted: boolean; mediaTypes: string[] } => ({ permission: 'media', owner, trusted, mediaTypes })
+  const media = (
+    owner: number,
+    mediaTypes: string[],
+    trusted = true
+  ): { permission: string; owner: number; trusted: boolean; mediaTypes: string[] } => ({ permission: 'media', owner, trusted, mediaTypes })
 
   it('denies everything without a grant', () => {
     const { grants } = setup()
@@ -263,7 +279,8 @@ describe('serving recordings', () => {
   writeFileSync(join(dir, ID, 'mic.webm'), bytes)
   writeFileSync(join(dir, ID, 'meeting.json'), '{}')
   writeFileSync(join(ROOT, 'secret.wav'), 'secret')
-  const get = (url: string, range?: string): Promise<Response> => serveRecording({ method: 'GET', url, headers: { get: (name) => (name === 'range' ? (range ?? null) : null) } }, dir)
+  const get = (url: string, range?: string): Promise<Response> =>
+    serveRecording({ method: 'GET', url, headers: { get: (name) => (name === 'range' ? (range ?? null) : null) } }, dir)
 
   it('maps only the four file names of a meeting folder', () => {
     expect(resolveRecordingUrl(recordingUrl(ID, 'mic', 'webm'), dir)?.file).toBe(join(dir, ID, 'mic.webm'))
@@ -325,7 +342,8 @@ describe('serving recordings', () => {
     expect(parseRange('bytes=10-19', 100)).toEqual({ start: 10, end: 19 })
     expect(parseRange('bytes=10-500', 100)).toEqual({ start: 10, end: 99 })
     expect(parseRange('bytes=-10', 100)).toEqual({ start: 90, end: 99 })
-    for (const bad of ['bytes=100-', 'bytes=20-10', 'bytes=-', 'bytes=a-b', 'items=0-1', 'bytes=0-1,5-6']) expect(parseRange(bad, 100), bad).toBeNull()
+    for (const bad of ['bytes=100-', 'bytes=20-10', 'bytes=-', 'bytes=a-b', 'items=0-1', 'bytes=0-1,5-6'])
+      expect(parseRange(bad, 100), bad).toBeNull()
   })
 })
 

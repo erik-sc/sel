@@ -8,6 +8,7 @@ import type { Handlers } from '../invoke'
 import type { ExternalEndpoint } from './endpoint'
 import { DISCOVERY_FILE } from './protocol'
 import { connectSnippets } from './snippets'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `mcp:*` channels and the endpoint other apps connect to (see ./endpoint.ts). Nothing of
@@ -115,3 +116,20 @@ export function registerExternalIpc({ repo, ready, changed }: { repo: Repository
   }
 }
 
+/**
+ * Other apps connected to the notes over MCP, when the user turned that on. Off by default: until
+ * then no pipe is opened. What a connected app writes reaches the windows from the origin `mcp`.
+ */
+export const mcpFeature = defineFeature({
+  namespace: 'mcp',
+  register: (ctx): Registered<'mcp'> => {
+    const hooks = registerExternalIpc({ repo: ctx.repo, ready: ctx.ready, changed: () => ctx.changes('mcp') })
+    return {
+      handlers: hooks.handlers,
+      // Other apps were let in or shut out: the endpoint for them opens or closes.
+      onSettingChanged: (key) => {
+        if (key.startsWith('mcp.')) hooks.settingChanged()
+      }
+    }
+  }
+})

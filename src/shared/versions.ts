@@ -1,4 +1,5 @@
 import type { BlockProps, BlockType, PropertyValue, RichText } from './types'
+import type { SettingsSpec } from './settings'
 
 /**
  * Version history: the shapes shared by the main process (which captures, stores and
@@ -132,3 +133,6 @@ export function canonicalJson(value: unknown): string {
   }
   return `{${parts.join(',')}}`
 }
+
+/** The four History settings steer the main process: a boolean, or a number brought into its range. */
+export const HISTORY_SETTINGS: SettingsSpec = { keys: HISTORY_KEYS, clean: cleanHistorySetting }

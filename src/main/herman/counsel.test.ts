@@ -11,9 +11,49 @@ const MIN = 60_000
 /** A local time on Wednesday 14 October 2026. */
 const at = (hour: number, minute = 0): number => new Date(2026, 9, 14, hour, minute).getTime()
 const first = (): number => 0
-const base = (patch: Partial<CounselInput> = {}): CounselInput => ({ now: at(10), locale: 'en', tasks: { overdue: [], today: [] }, events: [], random: first, ...patch })
-const task = (title: string, due?: string, pageId = 'page-1'): { title: string; pageId: string; due?: string } => ({ title, pageId, ...(due ? { due } : {}) })
-const event = (title: string, start: number, minutes = 30): { title: string; start: number; end: number; allDay: boolean } => ({ title, start, end: start + minutes * MIN, allDay: false })
+const base = (patch: Partial<CounselInput> = {}): CounselInput => ({
+  now: at(10),
+  locale: 'en',
+  tasks: { overdue: [], today: [] },
+  events: [],
+  random: first,
+  ...patch
+})
+const task = (title: string, due?: string, pageId = 'page-1'): { title: string; pageId: string; due?: string } => ({
+  title,
+  pageId,
+  ...(due ? { due } : {})
+})
+const event = (title: string, start: number, minutes = 30): { title: string; start: number; end: number; allDay: boolean } => ({
+  title,
+  start,
+  end: start + minutes * MIN,
+  allDay: false
+})
+
+describe('the Inbox', () => {
+  it('says when tasks have sat in the Inbox for days, and offers to refine them', () => {
+    const counsel = compose(base({ inbox: { waiting: 3, title: 'Buy bread', days: 3 } }))
+    expect(counsel).toMatchObject({ kind: 'inbox', variant: 'inbox:0' })
+    // Wednesday 14 October: three days back is a Sunday.
+    expect(counsel?.text).toBe('Three things have waited in the Inbox since Sunday. A minute to sort them?')
+    expect(counsel?.action).toEqual({ label: 'Refine now', command: { type: 'refine-inbox' } })
+    const pt = compose(base({ locale: 'pt-BR', inbox: { waiting: 1, title: 'Comprar pão', days: 2 } }))
+    expect(pt?.text).toBe('Uma coisa espera no Inbox desde segunda. Um minuto para pontuar?')
+    expect(pt?.action).toEqual({ label: 'Refinar agora', command: { type: 'refine-inbox' } })
+  })
+
+  it('has nothing to say of an Inbox with nothing waiting, or when told not to', () => {
+    expect(compose(base({ inbox: { waiting: 0, title: '', days: 0 } }))).toBeNull()
+    expect(compose(base({ inbox: null }))).toBeNull()
+  })
+
+  it('comes after everything more timely', () => {
+    const both = base({ tasks: { overdue: [task('Old', '2026-10-01')], today: [] }, inbox: { waiting: 1, title: 'Buy bread', days: 2 } })
+    expect(compose(both)?.kind).toBe('overdue')
+    expect(compose({ ...both, saidToday: ['overdue'] })?.kind).toBe('inbox')
+  })
+})
 
 describe('what he notices', () => {
   it('says nothing when there is nothing to say', () => {
@@ -22,7 +62,18 @@ describe('what he notices', () => {
   })
 
   it('remarks on what is overdue, counting it and naming how long the oldest has waited', () => {
-    const counsel = compose(base({ tasks: { overdue: [task('Send the invoice', '2026-10-12'), task('Call the bank', '2026-10-08', 'page-2'), task('Renew the domain', '2026-10-13')], today: [task('Other')] } }))
+    const counsel = compose(
+      base({
+        tasks: {
+          overdue: [
+            task('Send the invoice', '2026-10-12'),
+            task('Call the bank', '2026-10-08', 'page-2'),
+            task('Renew the domain', '2026-10-13')
+          ],
+          today: [task('Other')]
+        }
+      })
+    )
     expect(counsel).toMatchObject({ kind: 'overdue', variant: 'overdue:0' })
     // The owner's own example, word for word: three things, since Thursday.
     expect(counsel?.text).toBe('Three things have been waiting since Thursday. Which one is actually yours to do?')
@@ -30,7 +81,10 @@ describe('what he notices', () => {
   })
 
   it('names the oldest task in a line that has a title, and offers to open it', () => {
-    const input = base({ tasks: { overdue: [task('Send the invoice', '2026-10-13'), task('Call the bank', '2026-10-01', 'page-2')], today: [] }, recent: ['overdue:0', 'overdue:1'] })
+    const input = base({
+      tasks: { overdue: [task('Send the invoice', '2026-10-13'), task('Call the bank', '2026-10-01', 'page-2')], today: [] },
+      recent: ['overdue:0', 'overdue:1']
+    })
     const counsel = compose(input)
     expect(counsel?.variant).toBe('overdue:2')
     expect(counsel?.text).toBe('“Call the bank” has waited since last week. Do it, or drop it.')
@@ -58,7 +112,9 @@ describe('what he notices', () => {
       'Two hours free. Give it to deep work.'
     )
     // Nothing left today: the rest of the working day is free.
-    expect(compose(base({ now: at(13), events: [event('Standup', at(9))] }))?.text).toBe('Nothing scheduled for the rest of the day. What deserves it?')
+    expect(compose(base({ now: at(13), events: [event('Standup', at(9))] }))?.text).toBe(
+      'Nothing scheduled for the rest of the day. What deserves it?'
+    )
     // Not without a calendar, not in the middle of a meeting, not for a short gap.
     expect(compose(base({ now: at(13) }))).toBeNull()
     expect(compose(base({ now: at(13), events: [event('Workshop', at(12), 120)] }))).toBeNull()
@@ -96,12 +152,13 @@ describe('what he notices', () => {
       editingMs: 60 * MIN,
       reopened: { pageId: 'old', days: 90 },
       tasks: { overdue: [task('Old', '2026-10-01')], today: [] },
-      events: [event('Standup', at(9, 10))]
+      events: [event('Standup', at(9, 10))],
+      inbox: { waiting: 2, title: 'Buy bread', days: 3 }
     })
     const order: HermanNudgeKind[] = []
     let last: HermanNudgeKind | null = null
     const said: HermanNudgeKind[] = []
-    for (let round = 0; round < 6; round++) {
+    for (let round = 0; round < 7; round++) {
       // Each kind once: what was said is left out of the next round, as if its cause had passed.
       const counsel = compose({ ...everything, lastKind: last, only: HERMAN_NUDGE_KINDS.filter((kind) => !said.includes(kind)) })
       if (!counsel) break
@@ -109,8 +166,18 @@ describe('what he notices', () => {
       said.push(counsel.kind)
       last = counsel.kind
     }
-    expect(order).toEqual(['streak', 'long-session', 'reopened', 'morning', 'overdue'])
-    expect(HERMAN_NUDGE_KINDS).toEqual(['streak', 'long-session', 'reopened', 'morning', 'evening', 'free-block', 'overdue', 'today'])
+    expect(order).toEqual(['streak', 'long-session', 'reopened', 'morning', 'overdue', 'inbox'])
+    expect(HERMAN_NUDGE_KINDS).toEqual([
+      'streak',
+      'long-session',
+      'reopened',
+      'morning',
+      'evening',
+      'free-block',
+      'overdue',
+      'today',
+      'inbox'
+    ])
   })
 })
 
@@ -124,7 +191,8 @@ describe('his restraint in what he says', () => {
   })
 
   it('says the things that last all day once a day', () => {
-    expect([...ONCE_A_DAY].sort()).toEqual(['evening', 'free-block', 'morning', 'overdue', 'today'])
+    expect([...ONCE_A_DAY].sort()).toEqual(['evening', 'free-block', 'inbox', 'morning', 'overdue', 'today'])
+    expect(compose(base({ inbox: { waiting: 1, title: 'Buy bread', days: 2 }, saidToday: ['inbox'] }))).toBeNull()
     expect(compose(base({ tasks: overdue, saidToday: ['overdue'] }))).toBeNull()
     expect(compose(base({ now: at(18), saidToday: ['evening'] }))).toBeNull()
     expect(compose(base({ now: at(8), firstLaunch: true, saidToday: ['morning'] }))).toBeNull()
@@ -141,7 +209,9 @@ describe('his restraint in what he says', () => {
     expect(compose(base({ tasks: overdue, weights: { overdue: 0.5 }, random: dice(0.49, 0) }))?.kind).toBe('overdue')
     expect(compose(base({ tasks: overdue, weights: { overdue: 0.5 }, random: dice(0.5, 0) }))).toBeNull()
     // Passed over, the next kind in line gets its turn.
-    expect(compose(base({ now: at(14), editingMs: 60 * MIN, tasks: overdue, weights: { 'long-session': 0.125 }, random: dice(0.9, 0) }))?.kind).toBe('overdue')
+    expect(
+      compose(base({ now: at(14), editingMs: 60 * MIN, tasks: overdue, weights: { 'long-session': 0.125 }, random: dice(0.9, 0) }))?.kind
+    ).toBe('overdue')
     // No weight, or a full one, costs no roll at all.
     expect(compose(base({ tasks: overdue, weights: { overdue: 1 }, random: dice(0.99) }))?.kind).toBe('overdue')
     let hits = 0
@@ -209,12 +279,16 @@ describe('titles in his lines', () => {
 describe('Portuguese', () => {
   it('says the same things in Brazilian Portuguese', () => {
     const pt = (patch: Partial<CounselInput>): string | undefined => compose(base({ locale: 'pt-BR', ...patch }))?.text
-    expect(pt({ tasks: { overdue: [task('A', '2026-10-08'), task('B', '2026-10-12'), task('C', '2026-10-13')], today: [] } })).toBe('Três coisas esperam desde quinta. Qual delas é mesmo sua?')
+    expect(pt({ tasks: { overdue: [task('A', '2026-10-08'), task('B', '2026-10-12'), task('C', '2026-10-13')], today: [] } })).toBe(
+      'Três coisas esperam desde quinta. Qual delas é mesmo sua?'
+    )
     expect(pt({ tasks: { overdue: [task('A', '2026-10-13')], today: [] } })).toBe('Uma coisa espera desde ontem. Ela é mesmo sua?')
     expect(pt({ tasks: { overdue: [], today: [task('A'), task('B')] } })).toBe('Duas coisas para hoje. Qual vem primeiro?')
     expect(pt({ now: at(14), editingMs: 52 * MIN })).toBe('Cinquenta minutos. Levante-se.')
     expect(pt({ now: at(18) })).toBe('Chega por hoje. O que vale guardar?')
-    expect(pt({ now: at(13), events: [event('Standup', at(9)), event('Review', at(15))] })).toBe('Nada na agenda até as 15:00. O que merece esse tempo?')
+    expect(pt({ now: at(13), events: [event('Standup', at(9)), event('Review', at(15))] })).toBe(
+      'Nada na agenda até as 15:00. O que merece esse tempo?'
+    )
     expect(pt({ now: at(14), reopened: { pageId: 'p', days: 400 } })).toBe('Sem mexer há mais de um ano. Ainda é verdade?')
     const action = compose(base({ locale: 'pt-BR', tasks: { overdue: [task('A', '2026-10-13')], today: [] } }))?.action
     expect(action?.label).toBe('Abrir Hoje')
@@ -232,14 +306,41 @@ describe('the words lines are built from', () => {
 
   it('says how long something has waited', () => {
     const today = new Date(2026, 9, 14)
-    expect([1, 2, 6, 7, 13, 14, 90].map((days) => sinceWords(days, today, 'en'))).toEqual(['since yesterday', 'since Monday', 'since Thursday', 'since last week', 'since last week', 'for weeks', 'for weeks'])
-    expect([1, 6, 10, 30].map((days) => sinceWords(days, today, 'pt-BR'))).toEqual(['desde ontem', 'desde quinta', 'desde a semana passada', 'há semanas'])
+    expect([1, 2, 6, 7, 13, 14, 90].map((days) => sinceWords(days, today, 'en'))).toEqual([
+      'since yesterday',
+      'since Monday',
+      'since Thursday',
+      'since last week',
+      'since last week',
+      'for weeks',
+      'for weeks'
+    ])
+    expect([1, 6, 10, 30].map((days) => sinceWords(days, today, 'pt-BR'))).toEqual([
+      'desde ontem',
+      'desde quinta',
+      'desde a semana passada',
+      'há semanas'
+    ])
   })
 
   it('says how long a page went untouched, and how long a free stretch is', () => {
-    expect([30, 44, 61, 300, 365, 400].map((days) => agoWords(days, 'en'))).toEqual(['a month', 'a month', 'two months', 'ten months', 'a year', 'more than a year'])
+    expect([30, 44, 61, 300, 365, 400].map((days) => agoWords(days, 'en'))).toEqual([
+      'a month',
+      'a month',
+      'two months',
+      'ten months',
+      'a year',
+      'more than a year'
+    ])
     expect([30, 61, 400].map((days) => agoWords(days, 'pt-BR'))).toEqual(['um mês', 'dois meses', 'mais de um ano'])
-    expect([60, 90, 119, 120, 150, 240].map((minutes) => spanWords(minutes, 'en'))).toEqual(['an hour', 'an hour and a half', 'an hour and a half', 'two hours', 'two and a half hours', 'four hours'])
+    expect([60, 90, 119, 120, 150, 240].map((minutes) => spanWords(minutes, 'en'))).toEqual([
+      'an hour',
+      'an hour and a half',
+      'an hour and a half',
+      'two hours',
+      'two and a half hours',
+      'four hours'
+    ])
     expect([90, 120, 150].map((minutes) => spanWords(minutes, 'pt-BR'))).toEqual(['uma hora e meia', 'duas horas', 'duas horas e meia'])
   })
 })
@@ -311,8 +412,10 @@ describe('the bank of lines', () => {
 
   it('never puts English into a Portuguese line, or the reverse', () => {
     for (const kind of HERMAN_NUDGE_KINDS) {
-      for (const line of LINES['pt-BR'][kind]) expect(line.text({ ...sample('pt-BR', false), title: 'Zzz' })).not.toMatch(/\b(the|you|your|what|minutes|since|until)\b/i)
-      for (const line of LINES.en[kind]) expect(line.text({ ...sample('en', false), title: 'Zzz' })).not.toMatch(/\b(para|hoje|minutos|desde|uma)\b/i)
+      for (const line of LINES['pt-BR'][kind])
+        expect(line.text({ ...sample('pt-BR', false), title: 'Zzz' })).not.toMatch(/\b(the|you|your|what|minutes|since|until)\b/i)
+      for (const line of LINES.en[kind])
+        expect(line.text({ ...sample('en', false), title: 'Zzz' })).not.toMatch(/\b(para|hoje|minutos|desde|uma)\b/i)
     }
   })
 

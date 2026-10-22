@@ -128,7 +128,11 @@ describe('countPage', () => {
   })
 
   it('skips blocks that are not loaded and survives a cycle', () => {
-    const get = map(block('p', 'page', {}, ['a', 'gone']), block('a', 'text', text('loop'), ['b']), block('b', 'text', text('back'), ['a', 'p']))
+    const get = map(
+      block('p', 'page', {}, ['a', 'gone']),
+      block('a', 'text', text('loop'), ['b']),
+      block('b', 'text', text('back'), ['a', 'p'])
+    )
     expect(countPage('p', get).words).toBe(2)
     expect(countPage('missing', get)).toBe(NO_TEXT)
   })

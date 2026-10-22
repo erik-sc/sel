@@ -24,6 +24,12 @@ describe('the updates setting', () => {
 
 describe('emptyUpdateStatus', () => {
   it('starts with nothing known', () => {
-    expect(emptyUpdateStatus('0.2.0', true)).toMatchObject({ current: '0.2.0', supported: true, phase: 'idle', version: null, dismissed: false })
+    expect(emptyUpdateStatus('0.2.0', true)).toMatchObject({
+      current: '0.2.0',
+      supported: true,
+      phase: 'idle',
+      version: null,
+      dismissed: false
+    })
   })
 })

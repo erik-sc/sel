@@ -5,6 +5,10 @@
  * process, and is in none of these shapes.
  */
 
+import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
+
 export const TRADITIONS = ['stoic', 'buddhist', 'taoist', 'hindu', 'western', 'poetry', 'mystic'] as const
 export type Tradition = (typeof TRADITIONS)[number]
 
@@ -31,7 +35,15 @@ export function isCalendarColor(value: unknown): value is CalendarColor {
 }
 
 /** Why a calendar could not be read. Never accompanied by its address. */
-export type CalendarErrorCode = 'offline' | 'not-found' | 'forbidden' | 'not-calendar' | 'too-large' | 'timeout' | 'blocked-address' | 'failed'
+export type CalendarErrorCode =
+  | 'offline'
+  | 'not-found'
+  | 'forbidden'
+  | 'not-calendar'
+  | 'too-large'
+  | 'timeout'
+  | 'blocked-address'
+  | 'failed'
 
 export const CALENDAR_ERROR_TEXT: Record<CalendarErrorCode, string> = {
   offline: 'The calendar could not be reached. You may be offline.',
@@ -58,8 +70,11 @@ export const BRIEFING_LIMITS = {
 /** A calendar's name as it is kept: one line, no control characters, at most `label` long. */
 export function cleanCalendarLabel(value: unknown, fallback: string): string {
   if (typeof value !== 'string') return fallback
-  // eslint-disable-next-line no-control-regex
-  const label = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, BRIEFING_LIMITS.label)
+  const label = value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, BRIEFING_LIMITS.label)
   return label || fallback
 }
 
@@ -133,7 +148,27 @@ export interface BriefingTask {
   source: string
   /** `YYYY-MM-DD`. */
   due?: string
-  priority?: { name: string; color: string }
+  /** The wall-clock time it is due at, `HH:mm`, when its date has one. */
+  time?: string
+  /** A row's date property (the one `due` is read from): what rescheduling it writes. */
+  dateProperty?: string
+  /** `id` is the option's: the built-in Tasks database tells its four priorities apart by it. */
+  priority?: { id?: string; name: string; color: string }
+  /**
+   * Rows of the built-in Tasks database only (`labels` is there, even empty, exactly for them):
+   * what the lists show and edit beside the date. Other task databases leave these out.
+   */
+  project?: BriefingTaskTag
+  labels?: BriefingTaskTag[]
+  /** How it repeats, when it does. */
+  recurrence?: { rule: string; from: 'due' | 'completion'; text: string }
+}
+
+/** A project or a label of the built-in Tasks database: one of its options. */
+export interface BriefingTaskTag {
+  id: string
+  name: string
+  color: string
 }
 
 export interface BriefingTasks {
@@ -274,8 +309,10 @@ export function cleanBriefingSetting(key: string, value: unknown): unknown {
       return (OPEN_ON_LAUNCH as readonly unknown[]).includes(value) ? value : undefined
     case 'briefing.name': {
       if (typeof value !== 'string') return undefined
-      // eslint-disable-next-line no-control-regex
-      const name = value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()
+      const name = value
+        .replace(/[\u0000-\u001f\u007f]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
       return name.length <= BRIEFING_LIMITS.name ? name : undefined
     }
     case 'briefing.includeNoDate':
@@ -307,3 +344,49 @@ export function localDay(now: Date | number = new Date()): string {
   const pad = (n: number, width = 2): string => String(n).padStart(width, '0')
   return `${pad(d.getFullYear(), 4)}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
+
+/**
+ * The briefing settings steer what the main process reads and shows, so each is typed. The
+ * databases Today takes its tasks from sync, with the calendars.
+ */
+export const BRIEFING_SETTINGS: SettingsSpec = {
+  keys: BRIEFING_KEYS,
+  clean: cleanBriefingSetting,
+  syncedAt: { 'briefing.databases': 'sync.briefingAt' }
+}
+
+/** The invoke channels of `api.briefing` (see `INVOKE` in ./api.ts): every method of BriefingApi that returns a promise, and no other. */
+export const BRIEFING_INVOKE = {
+  'briefing:get': true,
+  'briefing:agenda': true,
+  'briefing:anotherPhrase': true,
+  'briefing:calendars.list': true,
+  'briefing:calendars.add': true,
+  'briefing:calendars.update': true,
+  'briefing:calendars.remove': true,
+  'briefing:calendars.test': true,
+  'briefing:completeTask': true,
+  'briefing:undoCompleteTask': true,
+  'briefing:ensurePhrasesDatabase': true,
+  'briefing:addPhrase': true,
+  'briefing:databases': true,
+  'briefing:brief': true
+} as const satisfies Record<InvokeChannels<{ briefing: BriefingApi }>, true>
+
+/** The ways to Today and the calendar (see ./commands.ts). */
+export const BRIEFING_COMMANDS = [
+  {
+    id: 'open-today',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+T', key: 't', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Today', order: 210 },
+    palette: { title: 'Today', keywords: ['briefing', 'agenda', 'tasks'], order: 60 },
+    catalog: { group: 'navigation', label: 'Today', keywords: ['briefing', 'agenda'], order: 120 }
+  },
+  {
+    id: 'open-calendar',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+C', key: 'c', ctrl: true, alt: true },
+    menu: { submenu: 'view', label: 'Calendar', order: 220 },
+    palette: { title: 'Calendar', keywords: ['events', 'schedule', 'agenda'], order: 70 },
+    catalog: { group: 'navigation', label: 'Calendar', keywords: ['events'], order: 130 }
+  }
+] as const satisfies readonly CommandSpec[]

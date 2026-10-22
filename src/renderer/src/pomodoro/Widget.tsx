@@ -79,7 +79,14 @@ export function Widget(): JSX.Element | null {
         <span className="pomodoro-phase">{timer.paused ? copy.paused : phase}</span>
         <span className="pomodoro-clock">{clock}</span>
       </button>
-      <Popover anchor={pill.current} open={menuOpen} onClose={() => setPomodoroMenu(false)} placement="top-start" className="pomodoro-menu">
+      <Popover
+        anchor={pill.current}
+        open={menuOpen}
+        onClose={() => setPomodoroMenu(false)}
+        placement="top-start"
+        role="none"
+        className="pomodoro-menu"
+      >
         <Menu items={menuItems(snapshot, copy)} autoFocus onClose={() => setPomodoroMenu(false)} />
       </Popover>
     </div>
@@ -110,7 +117,15 @@ function Ring({ done }: { done: number }): JSX.Element {
   return (
     <svg className="pomodoro-ring" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
       <circle className="pomodoro-ring-track" cx="8" cy="8" r={r} />
-      <circle className="pomodoro-ring-done" cx="8" cy="8" r={r} strokeDasharray={length} strokeDashoffset={length * (1 - shown)} transform="rotate(-90 8 8)" />
+      <circle
+        className="pomodoro-ring-done"
+        cx="8"
+        cy="8"
+        r={r}
+        strokeDasharray={length}
+        strokeDashoffset={length * (1 - shown)}
+        transform="rotate(-90 8 8)"
+      />
     </svg>
   )
 }
@@ -175,10 +190,17 @@ function useCorner(ref: RefObject<HTMLDivElement | null>, asking: boolean): Corn
       // focus mode he is not drawn at all (no box): the corner is the widget's.
       const herman: Box | null =
         dock && dock.classList.contains('is-bottom-right') && dock.offsetWidth > 0 && dock.offsetHeight > 0
-          ? { left: dock.offsetLeft, top: dock.offsetTop, right: dock.offsetLeft + dock.offsetWidth, bottom: dock.offsetTop + dock.offsetHeight }
+          ? {
+              left: dock.offsetLeft,
+              top: dock.offsetTop,
+              right: dock.offsetLeft + dock.offsetWidth,
+              bottom: dock.offsetTop + dock.offsetHeight
+            }
           : null
       const origin = content.getBoundingClientRect()
-      const obstacles = [...document.querySelectorAll(OBSTACLES)].map((element) => relative(element.getBoundingClientRect(), origin)).filter((box) => box.right > box.left && box.bottom > box.top)
+      const obstacles = [...document.querySelectorAll(OBSTACLES)]
+        .map((element) => relative(element.getBoundingClientRect(), origin))
+        .filter((box) => box.right > box.left && box.bottom > box.top)
       const next = placeWidget({
         width: content.clientWidth,
         height: content.clientHeight,

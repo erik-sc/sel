@@ -98,9 +98,9 @@ export const SourceEditor = forwardRef<SourceEditorHandle, Props>(function Sourc
   const matches = useMemo(() => (find.open && find.query ? findMatches(text, find.query) : []), [text, find.open, find.query])
   const current = matches.length ? Math.min(find.index, matches.length - 1) : -1
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only when the match itself changes, not on every keystroke elsewhere.
   useEffect(() => {
     if (current >= 0) scrollRowIntoView(lineAt(text, matches[current].start), true)
-    // Only when the match itself changes, not on every keystroke elsewhere.
   }, [current, matches])
 
   const openFind = useCallback(() => {
@@ -122,6 +122,7 @@ export const SourceEditor = forwardRef<SourceEditorHandle, Props>(function Sourc
     setFind((f) => ({ ...f, open: false }))
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `rows` and `scrollRowIntoView` only read refs.
   useImperativeHandle(
     ref,
     () => ({

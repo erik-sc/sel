@@ -10,4 +10,6 @@ if (prompt.includes('[[agent:fail]]')) {
   process.exit(3)
 }
 const who = /^You are ([A-Za-z]+),/.exec(prompt)?.[1] ?? 'nobody'
-process.stdout.write(`\u001b[32m${who} says: mind the date.\u001b[0m\nargs=${JSON.stringify(process.argv.slice(2))} env=${process.env.FAKE_AGENT_HOME ?? ''}${process.env.SECRET_KEY ?? ''}\n`)
+process.stdout.write(
+  `\u001b[32m${who} says: mind the date.\u001b[0m\nargs=${JSON.stringify(process.argv.slice(2))} env=${process.env.FAKE_AGENT_HOME ?? ''}${process.env.SECRET_KEY ?? ''}\n`
+)

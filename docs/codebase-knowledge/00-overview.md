@@ -47,7 +47,7 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 | Packaging target is Windows NSIS x64, per-user, no signing; the build writes the GitHub update feed files (`latest.yml`, block map) but uploads nothing; updates are opt-in in the app | verified in electron-builder.yml:33, electron-builder.yml:72, package.json `dist`, src/main/updates/schedule.ts:46 |
 | The build fails on purpose if the installed Electron major is not 44 | verified in electron.vite.config.ts:15-26 |
 | Path aliases: `@shared` everywhere, `@` (renderer source) in the renderer only | verified in electron.vite.config.ts:60, electron.vite.config.ts:67, electron.vite.config.ts:73 |
-| The node tsconfig also compiles `src/renderer/src/database/logic/*.ts` | verified in tsconfig.node.json:15 |
+| The pure database logic is shared code (`src/shared/database`), compiled by both tsconfigs; the node one compiles no renderer file | verified in tsconfig.node.json |
 | CI (GitHub Actions) runs `npm run typecheck` (Ubuntu) and `npx vitest run --dir src` (Windows) on Node 24, on every pull request and push to `main`; install is `npm ci --ignore-scripts` | verified in .github/workflows/ci.yml |
 
 ## Entry points

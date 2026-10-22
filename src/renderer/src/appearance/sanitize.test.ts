@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatColor, parseColor, toHex } from './color'
+import { PRESET_MAP } from './presets'
 import {
   MAX_CUSTOM_CSS_LENGTH,
   buildCss,
@@ -72,6 +73,20 @@ describe('numeric values', () => {
     expect(parseNumeric(t('--text-body'), 'calc(16px * var(--font-scale))')).toBe(16)
     expect(formatNumeric(t('--text-body'), 17)).toBe('calc(17px * var(--font-scale))')
     expect(parseNumeric(t('--text-body'), '16px')).toBeNull()
+  })
+
+  it('reads a text size saved under the floors raised in 0.7.0 as the floor (Tiny 10px, Body 12px)', () => {
+    expect(cleanValue(t('--text-2xs'), 'calc(6px * var(--font-scale))')).toBe('calc(10px * var(--font-scale))')
+    expect(cleanValue(t('--text-2xs'), 'calc(9px * var(--font-scale))')).toBe('calc(10px * var(--font-scale))')
+    expect(cleanValue(t('--text-body'), 'calc(11px * var(--font-scale))')).toBe('calc(12px * var(--font-scale))')
+    expect(cleanValue(t('--text-body'), 'calc(13px * var(--font-scale))')).toBe('calc(13px * var(--font-scale))')
+    // Below what was ever allowed, still rejected.
+    expect(cleanValue(t('--text-2xs'), 'calc(5px * var(--font-scale))')).toBeNull()
+    expect(cleanValue(t('--text-body'), 'calc(10px * var(--font-scale))')).toBeNull()
+    // Only on read: what was saved is not touched (the setting is left as it is).
+    const saved = { light: {}, dark: {}, shared: { '--text-body': 'calc(11px * var(--font-scale))' } }
+    expect(sanitizeAppearance(saved).shared['--text-body']).toBe('calc(12px * var(--font-scale))')
+    expect(saved.shared['--text-body']).toBe('calc(11px * var(--font-scale))')
   })
 })
 
@@ -156,24 +171,23 @@ describe('state sanitisation', () => {
       dark: { '--accent': '#00ff00', '--text': 7 },
       shared: { '--glass-blur': '10px', '--accent': '#000000', '--radius-m': t('--radius-m').light, '--font-scale': '1.1' },
       customCss: '@import "x";.a{}',
-      presetId: 'bad id!',
-      skin: 'geocities'
+      presetId: 'bad id!'
     })
     expect(data).toEqual({
       light: { '--accent': '#ff0000' },
       dark: { '--accent': '#00ff00' },
       shared: { '--glass-blur': '10px', '--font-scale': '1.1' },
       customCss: '.a{}',
-      presetId: null,
-      skin: null
+      presetId: null
     })
   })
 
-  it('keeps a window style only when it is one the app ships', () => {
-    expect(sanitizeAppearance({ skin: 'win98' }).skin).toBe('win98')
-    for (const skin of ['', 'WIN98', 'win98 ', '__proto__', 'constructor', 7, null, ['win98'], { id: 'win98' }]) {
-      expect(sanitizeAppearance({ skin }).skin).toBeNull()
-    }
+  it('loads appearances saved while window styles existed, dropping the style', () => {
+    const data = sanitizeAppearance({ light: { '--accent': '#ff0000' }, presetId: 'windows-98', skin: 'win98' })
+    expect(data).toEqual({ light: { '--accent': '#ff0000' }, dark: {}, shared: {}, customCss: '', presetId: 'windows-98' })
+    expect('skin' in data).toBe(false)
+    // The removed look is no preset any more, so the gallery shows the overrides as custom.
+    expect(PRESET_MAP['windows-98']).toBeUndefined()
   })
 
   it('builds one stylesheet with shared and light in :root, dark in its own rule, custom css last', () => {
@@ -184,9 +198,7 @@ describe('state sanitisation', () => {
       customCss: '.a{color:red}',
       presetId: 'glass'
     })
-    expect(buildCss(data)).toBe(
-      ":root{--glass-blur:10px;--accent:#ff0000;}\n:root[data-theme='dark']{--accent:#00ff00;}\n.a{color:red}\n"
-    )
+    expect(buildCss(data)).toBe(":root{--glass-blur:10px;--accent:#ff0000;}\n:root[data-theme='dark']{--accent:#00ff00;}\n.a{color:red}\n")
     expect(buildCss(emptyAppearance())).toBe('')
     expect(effectiveValueIn(data, '--accent', 'dark')).toBe('#00ff00')
     expect(effectiveValueIn(data, '--glass-blur', 'dark')).toBe('10px')

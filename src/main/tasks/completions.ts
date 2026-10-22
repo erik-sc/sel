@@ -23,7 +23,8 @@ function completedAtOf(block: Pick<Block, 'props'>): string | null {
   return null
 }
 
-const isTaskRow = (block: Pick<Block, 'type' | 'parentId'> | null): boolean => !!block && block.type === 'page' && block.parentId === TASKS_DATABASE_ID
+const isTaskRow = (block: Pick<Block, 'type' | 'parentId'> | null): boolean =>
+  !!block && block.type === 'page' && block.parentId === TASKS_DATABASE_ID
 
 /** Before a write: the `Completed at` of each row of the Tasks database that `ops` update. */
 export function completionsBefore(ops: readonly Op[], get: Lookup): Map<string, string | null> {

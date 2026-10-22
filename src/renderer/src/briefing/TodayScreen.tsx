@@ -7,13 +7,30 @@ import { localDay, type Briefing, type BriefingPhrase } from '@shared/briefing'
 import { NOTEBOOK_ID, type NotebookLocale } from '@shared/notebook'
 import { CLOSE_COPY } from '@/notebook/copy'
 import { aiReady, useAiGate } from '@/ai/gate'
-import { Figure } from '@/herman/Figure'
+import { Herman64 } from '@/herman/Herman64'
 import { noteAiEvent, useHerman } from '@/herman/gate'
 import { refreshTree } from '@/store/tree'
 import { openPage } from '@/store/tabs'
 import { notifyError, toast } from '@/ui/toast'
-import { calendarNotes, clock, dayStart, eventMoments, eventTime, longDate, phraseSource, phraseText, taskGroups, updatedLabel } from './format'
-import { EventRow, Lines, TaskRow, openSettings, useCompleteTask, useLive, useNow } from './parts'
+import {
+  calendarNotes,
+  clock,
+  dayStart,
+  eventMoments,
+  eventTime,
+  longDate,
+  phraseSource,
+  phraseText,
+  taskGroups,
+  updatedLabel
+} from './format'
+import { useHome } from '@/home/store'
+import { TASK_COPY } from '@/tasks/copy'
+import { startRefine } from '@/tasks/gate'
+import { TaskPanel } from '@/tasks/lazy'
+import { initRefining, useRefining } from '@/tasks/refining'
+import { useTaskRows } from '@/tasks/TaskRow'
+import { BriefingTaskItem, EventRow, Lines, openSettings, useCompleteTask, useLive, useNow, useTaskViews } from './parts'
 import './today.css'
 
 const readBriefing = (force: boolean): Promise<Briefing> => window.api.briefing.get(force)
@@ -35,7 +52,9 @@ function Plans({ date }: { date: string }): JSX.Element | null {
         (view) => {
           if (!alive) return
           const entry = view.todayEntry
-          setPlans(entry && entry.day === date && !entry.plansDismissed && entry.plans.length ? { items: entry.plans, locale: view.locale } : null)
+          setPlans(
+            entry && entry.day === date && !entry.plansDismissed && entry.plans.length ? { items: entry.plans, locale: view.locale } : null
+          )
         },
         (error: unknown) => console.error('the plans for today failed to load', error)
       )
@@ -77,7 +96,15 @@ function Plans({ date }: { date: string }): JSX.Element | null {
 
 // ---- the phrase ---------------------------------------------------------------
 
-function Phrase({ phrase, hasPhrases, onChange }: { phrase: BriefingPhrase | null; hasPhrases: boolean; onChange: (phrase: BriefingPhrase | null) => void }): JSX.Element | null {
+function Phrase({
+  phrase,
+  hasPhrases,
+  onChange
+}: {
+  phrase: BriefingPhrase | null
+  hasPhrases: boolean
+  onChange: (phrase: BriefingPhrase | null) => void
+}): JSX.Element | null {
   const herman = useHerman((state) => state.on)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -148,7 +175,7 @@ function Phrase({ phrase, hasPhrases, onChange }: { phrase: BriefingPhrase | nul
       {/* With Herman on, the phrase is something he hands over. Presentation only: the phrase is chosen as before. */}
       {herman && (
         <div className="today-herman">
-          <Figure pose="pleased" alive={false} />
+          <Herman64 pose="resting" />
           <span>For today, from Herman</span>
         </div>
       )}
@@ -231,7 +258,13 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
       ) : (
         <ul className="today-list today-agenda">
           {today.map((event, index) => (
-            <EventRow key={event.id} event={event} calendar={colors.get(event.calendarId)} moment={moments[index]} time={eventTime(event, from, to)} />
+            <EventRow
+              key={event.id}
+              event={event}
+              calendar={colors.get(event.calendarId)}
+              moment={moments[index]}
+              time={eventTime(event, from, to)}
+            />
           ))}
         </ul>
       )}
@@ -252,13 +285,22 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
 
 // ---- the tasks ----------------------------------------------------------------
 
-function Tasks({ briefing }: { briefing: Briefing }): JSX.Element {
+/**
+ * The open tasks. Those of the built-in Tasks database are edited where they are (chips, the
+ * row's menu and keys) and open in the task panel, over the right side of the screen.
+ */
+function Tasks({ briefing, today }: { briefing: Briefing; today: string }): JSX.Element {
   const [expanded, setExpanded] = useState(false)
+  const [panel, setPanel] = useState<string | null>(null)
   const { done, complete } = useCompleteTask()
   const { groups, hidden } = useMemo(() => taskGroups(briefing.tasks, expanded, done), [briefing.tasks, expanded, done])
+  const shown = useMemo(() => groups.flatMap((group) => group.tasks), [groups])
+  const views = useTaskViews(shown)
+  const rows = useTaskRows(useMemo(() => shown.filter((task) => views.get(task.id)).map((task) => task.id), [shown, views]))
+  const byId = useMemo(() => new Map(shown.map((task) => [task.id, task])), [shown])
 
   return (
-    <section className="today-section" aria-labelledby="today-tasks">
+    <section className="today-section" aria-labelledby="today-tasks" {...rows.listProps}>
       <h2 className="today-label" id="today-tasks">
         Open tasks
       </h2>
@@ -270,7 +312,17 @@ function Tasks({ briefing }: { briefing: Briefing }): JSX.Element {
             {(groups.length > 1 || group.key !== 'today') && <h3 className="today-group-label">{group.label}</h3>}
             <ul className="today-list">
               {group.tasks.map((task) => (
-                <TaskRow key={task.id} task={task} day={briefing.date} onComplete={complete} />
+                <BriefingTaskItem
+                  key={task.id}
+                  task={task}
+                  view={views.get(task.id)}
+                  day={briefing.date}
+                  today={today}
+                  rows={rows}
+                  panel={panel}
+                  onComplete={complete}
+                  onOpen={setPanel}
+                />
               ))}
             </ul>
           </div>
@@ -281,7 +333,41 @@ function Tasks({ briefing }: { briefing: Briefing }): JSX.Element {
           and {hidden} more…
         </button>
       )}
+      <RefineLine />
+      {panel && (
+        <TaskPanel
+          overlay
+          taskId={panel}
+          today={today}
+          onClose={() => setPanel(null)}
+          onToggle={(item) => {
+            const listed = byId.get(item.id)
+            complete(listed ?? { id: item.id, kind: 'row', title: item.title, pageId: item.id, source: '' })
+          }}
+          onSelect={setPanel}
+        />
+      )}
     </section>
+  )
+}
+
+/**
+ * One quiet line under the tasks while some wait to be refined: "4 to refine · Refine", which
+ * starts the refine mode. Nothing at all otherwise.
+ */
+function RefineLine(): JSX.Element | null {
+  const count = useRefining((state) => state.count)
+  const words = TASK_COPY[useHome((state) => state.locale)]
+  useEffect(() => initRefining(), [])
+  if (count <= 0) return null
+  return (
+    <p className="today-refine">
+      <span>{words.todayLine(count)}</span>
+      <span aria-hidden="true"> · </span>
+      <button type="button" className="today-link is-inline" onClick={() => startRefine('refine')}>
+        {words.refine}
+      </button>
+    </p>
   )
 }
 
@@ -301,7 +387,8 @@ function BriefMe(): JSX.Element | null {
       // The briefing never asks the council.
       if (event.id !== current.current || event.type === 'council') return
       noteAiEvent(event.type, event.type === 'error' && event.code === 'cancelled')
-      if (event.type === 'delta') setState((previous) => (previous.phase === 'running' ? { ...previous, text: previous.text + event.text } : previous))
+      if (event.type === 'delta')
+        setState((previous) => (previous.phase === 'running' ? { ...previous, text: previous.text + event.text } : previous))
       else if (event.type === 'done') {
         current.current = null
         setState({ phase: 'done', id: event.id, text: event.text.trim() })
@@ -433,7 +520,7 @@ export function TodayScreen(): JSX.Element {
       <Plans date={data.date} />
       <Phrase phrase={data.phrase} hasPhrases={data.hasPhrases} onChange={setPhrase} />
       <Agenda briefing={data} now={now} />
-      <Tasks briefing={data} />
+      <Tasks briefing={data} today={localDay(now)} />
       <BriefMe />
       <footer className="today-foot">
         <span>{updatedLabel(data.updatedAt, now)}</span>

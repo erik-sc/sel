@@ -7,6 +7,7 @@ import { SKY_LINES } from '../herman/lines'
 import type { HermanLocale } from '../../shared/herman'
 import type { Handlers } from '../invoke'
 import { SkyService, skyLineMoment } from './service'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `sky:*` channels, and the two happenings the Sky writes as they happen: a to-do checked on
@@ -71,3 +72,19 @@ export function registerSkyIpc(ctx: SkyContext): { handlers: Handlers<'sky'> } {
     }
   }
 }
+
+/**
+ * The Sky: stars from Meditations, dust from tasks, halos from pomodoros. It writes a checked to-do
+ * and a finished pomodoro as they happen, so it is right whenever it is opened. Listed after the
+ * pomodoro in ../features.ts: it listens to it while registering.
+ */
+export const skyFeature = defineFeature({
+  namespace: 'sky',
+  register: (ctx): Registered<'sky'> =>
+    registerSkyIpc({
+      repo: ctx.repo,
+      onPomodoroCompleted: (listener) => ctx.feature('pomodoro').onCompleted(listener),
+      flushChanges: () => ctx.changes('sky'),
+      herman: (sender, line) => ctx.feature('herman').sky(sender, line)
+    })
+})

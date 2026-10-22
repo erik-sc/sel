@@ -90,7 +90,10 @@ describe('applyInlineShortcut', () => {
   it('keeps marks that were already inside', () => {
     const m = detectInlineShortcut('*ab*', 4)!
     const r = applyInlineShortcut([['*a'], ['b', [['b']]], ['*']], m)
-    expect(r.rt).toEqual([['a', [['i']]], ['b', [['b'], ['i']]]])
+    expect(r.rt).toEqual([
+      ['a', [['i']]],
+      ['b', [['b'], ['i']]]
+    ])
     expect(r.caret).toBe(2)
   })
 })
@@ -238,7 +241,11 @@ describe('block catalogue', () => {
     expect(first('divisor')).toBe('divider')
     expect(first('reuniao')).toBe('meeting')
     expect(first('grafico')).toBe('chart')
-    expect(filterSlashItems('lista').map((i) => i.id).slice(0, 3)).toEqual(['bullet', 'number', 'todo'])
+    expect(
+      filterSlashItems('lista')
+        .map((i) => i.id)
+        .slice(0, 3)
+    ).toEqual(['bullet', 'number', 'todo'])
     expect(filterSlashItems('banco de dados').map((i) => i.id)).toEqual(['db-table', 'db-board', 'db-list', 'db-linked'])
     expect(filterSlashItems('resumir', true)[0].id).toBe('ai-summarize')
     expect(filterSlashItems('resumir', false)).toEqual([])

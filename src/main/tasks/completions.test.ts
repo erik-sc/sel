@@ -64,14 +64,27 @@ describe('completions written as edits', () => {
     const ops: Op[] = [{ op: 'update', id: row, patch: { props: { values: { [TASK_PROPS.completedAt]: { start: '2026-10-15T10:00' } } } } }]
     expect(completionsBefore(ops, get).size).toBe(0)
 
-    const created: Op[] = [{ op: 'create', input: { type: 'page', parentId: TASKS_DATABASE_ID, props: { values: { [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-15T10:00' } } } } }]
+    const created: Op[] = [
+      {
+        op: 'create',
+        input: {
+          type: 'page',
+          parentId: TASKS_DATABASE_ID,
+          props: { values: { [TASK_PROPS.done]: true, [TASK_PROPS.completedAt]: { start: '2026-10-15T10:00' } } }
+        }
+      }
+    ]
     expect(apply(created)).toEqual({ completed: 0, uncompleted: 0 })
   })
 
   it('counts several rows ticked in one write, each once', () => {
     const a = task()
     const b = task()
-    const ops = [...completeTaskOps(repo.get(a)!, NOW), ...completeTaskOps(repo.get(b)!, NOW), { op: 'update', id: a, patch: { props: { title: [['Again']] } } } as Op]
+    const ops = [
+      ...completeTaskOps(repo.get(a)!, NOW),
+      ...completeTaskOps(repo.get(b)!, NOW),
+      { op: 'update', id: a, patch: { props: { title: [['Again']] } } } as Op
+    ]
     expect(apply(ops)).toEqual({ completed: 2, uncompleted: 0 })
   })
 })

@@ -58,18 +58,25 @@ export function MeetingsSection(): JSX.Element {
   const { status, download } = engine
 
   const loadStorage = (): void => void window.api.meetings.storage().then(setStorage, () => undefined)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once on mount; `loadStorage` is new on every render and only calls a state setter.
   useEffect(() => {
     const get = <T,>(key: string): Promise<T | null> => window.api.app.getSetting<T>(key).catch(() => null)
-    void Promise.all([get('meetings.model'), get('meetings.language'), get('meetings.keepOriginal'), get('meetings.deleteAfterDays'), get('meetings.defaultSystem'), get('meetings.consentReminder')]).then(
-      ([model, language, keep, days, system, consent]) =>
-        setValues({
-          model: isWhisperModel(model) ? model : DEFAULTS.model,
-          language: isMeetingLanguage(language) ? language : DEFAULTS.language,
-          keepOriginal: keep === true,
-          deleteAfterDays: (DELETE_AFTER_DAYS as readonly unknown[]).includes(days) ? (days as number) : 0,
-          defaultSystem: system !== false,
-          consentReminder: consent !== false
-        })
+    void Promise.all([
+      get('meetings.model'),
+      get('meetings.language'),
+      get('meetings.keepOriginal'),
+      get('meetings.deleteAfterDays'),
+      get('meetings.defaultSystem'),
+      get('meetings.consentReminder')
+    ]).then(([model, language, keep, days, system, consent]) =>
+      setValues({
+        model: isWhisperModel(model) ? model : DEFAULTS.model,
+        language: isMeetingLanguage(language) ? language : DEFAULTS.language,
+        keepOriginal: keep === true,
+        deleteAfterDays: (DELETE_AFTER_DAYS as readonly unknown[]).includes(days) ? (days as number) : 0,
+        defaultSystem: system !== false,
+        consentReminder: consent !== false
+      })
     )
     loadStorage()
   }, [])
@@ -83,7 +90,8 @@ export function MeetingsSection(): JSX.Element {
       })
       .catch((error: unknown) => notifyError('The setting could not be saved.', error))
   }
-  const pick = (which: 'pickProgram' | 'pickModel'): void => void window.api.meetings.engine[which]().then(engine.set, (error: unknown) => notifyError('The file could not be chosen.', error))
+  const pick = (which: 'pickProgram' | 'pickModel'): void =>
+    void window.api.meetings.engine[which]().then(engine.set, (error: unknown) => notifyError('The file could not be chosen.', error))
   const remove = (): void =>
     void window.api.meetings.engine.remove().then(
       (next) => {
@@ -129,8 +137,20 @@ export function MeetingsSection(): JSX.Element {
           </Row>
           {status?.program ? <Row label="Program" help={status.program.path} /> : null}
           {status?.model ? <Row label="Model file" help={status.model.path} /> : null}
-          <Row label="Model" help={wantedMissing ? 'This model is not downloaded yet. Until it is, the one that is here is used.' : 'Larger models are more accurate and slower. All of them understand many languages.'}>
-            <select className="ap-field mt-select" value={values.model} aria-label="Model" onChange={(event) => save('model', event.target.value as WhisperModelId)}>
+          <Row
+            label="Model"
+            help={
+              wantedMissing
+                ? 'This model is not downloaded yet. Until it is, the one that is here is used.'
+                : 'Larger models are more accurate and slower. All of them understand many languages.'
+            }
+          >
+            <select
+              className="ap-field mt-select"
+              value={values.model}
+              aria-label="Model"
+              onChange={(event) => save('model', event.target.value as WhisperModelId)}
+            >
               {WHISPER_MODELS.map((id) => (
                 <option key={id} value={id}>
                   {WHISPER_MODEL_LABELS[id]}
@@ -145,7 +165,12 @@ export function MeetingsSection(): JSX.Element {
             ) : null}
           </Row>
           <Row label="Language" help="The language spoken in your meetings. Detecting it works well when a meeting is in one language.">
-            <select className="ap-field mt-select" value={values.language} aria-label="Language" onChange={(event) => save('language', event.target.value as MeetingLanguage)}>
+            <select
+              className="ap-field mt-select"
+              value={values.language}
+              aria-label="Language"
+              onChange={(event) => save('language', event.target.value as MeetingLanguage)}
+            >
               {MEETING_LANGUAGES.map((language) => (
                 <option key={language} value={language}>
                   {MEETING_LANGUAGE_LABELS[language]}
@@ -155,7 +180,10 @@ export function MeetingsSection(): JSX.Element {
           </Row>
         </div>
         {download && <DownloadProgress download={download} onCancel={() => void window.api.meetings.engine.cancelDownload()} />}
-        <p className="ap-note">Transcription runs on this computer with whisper.cpp. Audio is never uploaded. The download of the program and a model is the only time this feature goes online.</p>
+        <p className="ap-note">
+          Transcription runs on this computer with whisper.cpp. Audio is never uploaded. The download of the program and a model is the only
+          time this feature goes online.
+        </p>
       </section>
 
       <section className="ap-group">
@@ -164,10 +192,20 @@ export function MeetingsSection(): JSX.Element {
         </div>
         <div className="ap-list">
           <Row label="Computer audio" help="Record what the computer plays, next to your microphone, when a recording starts.">
-            <Segmented label="Computer audio" value={values.defaultSystem ? 'on' : 'off'} options={ON_OFF} onChange={(value) => save('defaultSystem', value === 'on')} />
+            <Segmented
+              label="Computer audio"
+              value={values.defaultSystem ? 'on' : 'off'}
+              options={ON_OFF}
+              onChange={(value) => save('defaultSystem', value === 'on')}
+            />
           </Row>
           <Row label="Reminder before recording" help="“Make sure everyone in the meeting knows it is being recorded.”">
-            <Segmented label="Reminder before recording" value={values.consentReminder ? 'on' : 'off'} options={ON_OFF} onChange={(value) => save('consentReminder', value === 'on')} />
+            <Segmented
+              label="Reminder before recording"
+              value={values.consentReminder ? 'on' : 'off'}
+              options={ON_OFF}
+              onChange={(value) => save('consentReminder', value === 'on')}
+            />
           </Row>
         </div>
       </section>
@@ -177,11 +215,24 @@ export function MeetingsSection(): JSX.Element {
           <h3 className="ap-group-title">Storage</h3>
         </div>
         <div className="ap-list">
-          <Row label="Keep original audio" help="The uncompressed recording (about 115 MB an hour for each input). Off keeps only the compact copy once a meeting is transcribed.">
-            <Segmented label="Keep original audio" value={values.keepOriginal ? 'on' : 'off'} options={ON_OFF} onChange={(value) => save('keepOriginal', value === 'on')} />
+          <Row
+            label="Keep original audio"
+            help="The uncompressed recording (about 115 MB an hour for each input). Off keeps only the compact copy once a meeting is transcribed."
+          >
+            <Segmented
+              label="Keep original audio"
+              value={values.keepOriginal ? 'on' : 'off'}
+              options={ON_OFF}
+              onChange={(value) => save('keepOriginal', value === 'on')}
+            />
           </Row>
           <Row label="Delete audio" help="Transcripts and notes are pages and are never deleted by this.">
-            <select className="ap-field mt-select" value={values.deleteAfterDays} aria-label="Delete audio" onChange={(event) => save('deleteAfterDays', Number(event.target.value))}>
+            <select
+              className="ap-field mt-select"
+              value={values.deleteAfterDays}
+              aria-label="Delete audio"
+              onChange={(event) => save('deleteAfterDays', Number(event.target.value))}
+            >
               {DELETE_AFTER_DAYS.map((days) => (
                 <option key={days} value={days}>
                   {DAYS_LABELS[days]}
@@ -197,7 +248,13 @@ export function MeetingsSection(): JSX.Element {
                 : 'Measuring…'
             }
           >
-            <Button onClick={() => void window.api.meetings.openFolder().catch((error: unknown) => notifyError('The folder could not be opened.', error))}>Open recordings folder</Button>
+            <Button
+              onClick={() =>
+                void window.api.meetings.openFolder().catch((error: unknown) => notifyError('The folder could not be opened.', error))
+              }
+            >
+              Open recordings folder
+            </Button>
           </Row>
         </div>
         <p className="ap-note">Recordings stay in this folder on this computer. They are not part of sync.</p>

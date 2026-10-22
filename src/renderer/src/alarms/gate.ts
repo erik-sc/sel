@@ -9,6 +9,7 @@ import { openToday } from '@/briefing/route'
 import { useHerman } from '@/herman/gate'
 import { newMeeting } from '@/meetings/gate'
 import { isBlockId, openPage } from '@/store/tabs'
+import { startRefine } from '@/tasks/gate'
 import { toast } from '@/ui/toast'
 import { alarmsCopy } from './copy'
 
@@ -40,8 +41,11 @@ export function initAlarms(): void {
 function receive(announcement: Announcement): void {
   const { current } = useAlarms.getState()
   if (current?.id === announcement.id || waiting.some((item) => item.id === announcement.id)) return
-  // Taken: no other window needs to say it.
-  void window.api.alarms.heard(announcement.id).catch(() => undefined)
+  // Taken: no other window needs to say it. When main cannot be told, a window opened later
+  // may say it again: written down, so that a repeat has an explanation.
+  void window.api.alarms
+    .heard(announcement.id)
+    .catch((error: unknown) => console.error('[alarms] could not say the announcement was taken', error))
   if (current && useHerman.getState().on) waiting.push(announcement)
   else void present(announcement)
 }
@@ -110,6 +114,7 @@ export function announcementActions(announcement: Announcement): AnnouncementAct
   const actions: AnnouncementAction[] = []
   const { event } = announcement
   if (announcement.kind === 'briefing') actions.push({ label: copy.openToday, primary: true, run: openToday })
+  if (announcement.kind === 'refine') actions.push({ label: copy.refine, primary: true, run: () => startRefine('refine') })
   if (announcement.kind === 'reminder' && announcement.pageId && isBlockId(announcement.pageId)) {
     const pageId = announcement.pageId
     actions.push({ label: copy.openTask, primary: true, run: () => openPage(pageId) })

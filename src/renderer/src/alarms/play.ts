@@ -15,7 +15,10 @@ export async function chime(): Promise<void> {
   const notes = [659.25, 880, 1174.66]
   notes.forEach((frequency, index) => {
     const at = start + index * 0.28
-    for (const [ratio, level] of [[1, 0.16], [2, 0.03]] as const) {
+    for (const [ratio, level] of [
+      [1, 0.16],
+      [2, 0.03]
+    ] as const) {
       const oscillator = context!.createOscillator()
       const gain = context!.createGain()
       oscillator.type = 'sine'
@@ -54,7 +57,11 @@ export function pickVoice(list: readonly SpeechSynthesisVoice[], locale: string,
     if (chosen) return chosen
   }
   const lang = locale.toLowerCase()
-  return list.find((voice) => voice.lang.toLowerCase() === lang) ?? list.find((voice) => voice.lang.toLowerCase().startsWith(lang.slice(0, 2))) ?? null
+  return (
+    list.find((voice) => voice.lang.toLowerCase() === lang) ??
+    list.find((voice) => voice.lang.toLowerCase().startsWith(lang.slice(0, 2))) ??
+    null
+  )
 }
 
 /** Reads `text` aloud; resolves when done (or at once when there is no speech synthesis). */

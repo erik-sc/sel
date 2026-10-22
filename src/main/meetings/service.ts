@@ -31,7 +31,16 @@ import * as arg from '../validate'
 import { FrameGate } from './frames'
 import type { GrantStore } from './grant'
 import { recordingUrl } from './serve'
-import { cleanSpeaker, DEFAULT_SPEAKERS, mergeTranscript, paragraphSpans, renameSpeakerSpans, type Paragraph, type Segment, type Speakers } from './transcript'
+import {
+  cleanSpeaker,
+  DEFAULT_SPEAKERS,
+  mergeTranscript,
+  paragraphSpans,
+  renameSpeakerSpans,
+  type Paragraph,
+  type Segment,
+  type Speakers
+} from './transcript'
 import { patchWebmDuration } from './webm'
 import { peakOf, readWavInfo, repairWav, sliceWav, WavWriter } from './wav'
 import type { WhisperEngine } from './whisper/engine'
@@ -135,8 +144,10 @@ function clock(ms: number): string {
 
 function line(value: unknown, max: number): string | undefined {
   if (typeof value !== 'string') return undefined
-  // eslint-disable-next-line no-control-regex
-  const text = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim()
+  const text = value
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
   return text ? text.slice(0, max) : undefined
 }
 
@@ -164,7 +175,8 @@ export function meetingInput(value: unknown): { title?: string; event?: MeetingE
   if (raw['event'] !== undefined && raw['event'] !== null) {
     const event = arg.plainObject(raw['event'], 'event')
     const { start, end } = event
-    if (typeof start !== 'number' || typeof end !== 'number' || !Number.isFinite(start) || !Number.isFinite(end) || end < start) throw new Error('Invalid event')
+    if (typeof start !== 'number' || typeof end !== 'number' || !Number.isFinite(start) || !Number.isFinite(end) || end < start)
+      throw new Error('Invalid event')
     const context: MeetingEventContext = { title: line(event['title'], MEETING_LIMITS.title) ?? '', start, end }
     const location = line(event['location'], 300)
     const description = typeof event['description'] === 'string' ? event['description'].slice(0, 2000).trim() : ''
@@ -211,7 +223,8 @@ export class MeetingsService {
   private async readManifest(pageId: string): Promise<Manifest | null> {
     try {
       const data = JSON.parse(await readFile(join(this.folder(pageId), 'meeting.json'), 'utf8')) as Partial<Manifest> | null
-      if (!data || data.v !== 1 || data.pageId !== pageId || typeof data.seconds !== 'number' || typeof data.startedAt !== 'number') return null
+      if (!data || data.v !== 1 || data.pageId !== pageId || typeof data.seconds !== 'number' || typeof data.startedAt !== 'number')
+        return null
       if (data.state !== 'recording' && data.state !== 'recorded' && data.state !== 'ready' && data.state !== 'failed') return null
       return {
         v: 1,
@@ -222,7 +235,10 @@ export class MeetingsService {
         seconds: Math.max(0, data.seconds),
         mic: data.mic !== false,
         system: data.system === true,
-        speakers: { mic: cleanSpeaker(data.speakers?.mic, DEFAULT_SPEAKERS.mic), system: cleanSpeaker(data.speakers?.system, DEFAULT_SPEAKERS.system) },
+        speakers: {
+          mic: cleanSpeaker(data.speakers?.mic, DEFAULT_SPEAKERS.mic),
+          system: cleanSpeaker(data.speakers?.system, DEFAULT_SPEAKERS.system)
+        },
         ...(typeof data.language === 'string' && /^[a-z]{2,3}$/.test(data.language) ? { language: data.language } : {}),
         ...(isValidId(data.transcriptPageId) ? { transcriptPageId: data.transcriptPageId } : {}),
         ...(typeof data.error === 'string' ? { error: data.error.slice(0, 300) } : {})
@@ -234,6 +250,23 @@ export class MeetingsService {
 
   private async writeManifest(manifest: Manifest): Promise<void> {
     await writeFile(join(this.folder(manifest.pageId), 'meeting.json'), JSON.stringify(manifest, null, 2), 'utf8')
+  }
+
+  /**
+   * Records that a transcription failed. Without it the meeting would still say "recorded" and
+   * offer nothing to retry, so a failed write is tried once more, then logged.
+   */
+  private async markFailed(manifest: Manifest, error: string): Promise<void> {
+    const failed: Manifest = { ...manifest, state: 'failed', error }
+    try {
+      await this.writeManifest(failed)
+    } catch {
+      try {
+        await this.writeManifest(failed)
+      } catch (err) {
+        console.error('[meetings] could not record that the transcription failed', (err as NodeJS.ErrnoException).code ?? err)
+      }
+    }
   }
 
   // ---- the database -----------------------------------------------------------
@@ -248,7 +281,11 @@ export class MeetingsService {
   ensureDatabase(): Block {
     const current = this.database()
     if (current) return current
-    const named = this.repo.listDatabases().find((database) => database.parentId === null && plainText(database.props.title).trim().toLowerCase() === MEETINGS_TITLE.toLowerCase())
+    const named = this.repo
+      .listDatabases()
+      .find(
+        (database) => database.parentId === null && plainText(database.props.title).trim().toLowerCase() === MEETINGS_TITLE.toLowerCase()
+      )
     if (named) {
       this.repo.setSetting('meetings.databaseId', named.id)
       return named
@@ -270,8 +307,21 @@ export class MeetingsService {
       [SCHEMA_IDS.attendees]: { id: SCHEMA_IDS.attendees, name: 'Attendees', type: 'text' }
     }
     const order = ['title', SCHEMA_IDS.date, SCHEMA_IDS.duration, SCHEMA_IDS.status, SCHEMA_IDS.attendees]
-    const views: DatabaseView[] = [{ id: randomUUID(), name: 'Table', type: 'table', visibleProperties: order, filters: [], sorts: [{ propertyId: SCHEMA_IDS.date, direction: 'desc' }] }]
-    const created = this.repo.create({ type: 'database', parentId: null, props: { title: [[MEETINGS_TITLE]], icon: '\u{1F399}️', schema, views } })
+    const views: DatabaseView[] = [
+      {
+        id: randomUUID(),
+        name: 'Table',
+        type: 'table',
+        visibleProperties: order,
+        filters: [],
+        sorts: [{ propertyId: SCHEMA_IDS.date, direction: 'desc' }]
+      }
+    ]
+    const created = this.repo.create({
+      type: 'database',
+      parentId: null,
+      props: { title: [[MEETINGS_TITLE]], icon: '\u{1F399}️', schema, views }
+    })
     this.repo.setSetting('meetings.databaseId', created.id)
     return created
   }
@@ -319,7 +369,8 @@ export class MeetingsService {
       if (found) return { pageId: found, existing: true }
     }
     const at = input.event?.start ?? this.now()
-    const title = input.title ?? input.event?.title ?? `Meeting, ${new Date(at).toLocaleDateString('en', { day: 'numeric', month: 'long' })}`
+    const title =
+      input.title ?? input.event?.title ?? `Meeting, ${new Date(at).toLocaleDateString('en', { day: 'numeric', month: 'long' })}`
     const values: Record<string, PropertyValue> = {}
     if (database.props.schema?.[SCHEMA_IDS.date]?.type === 'date') values[SCHEMA_IDS.date] = { start: localDay(at) }
     const attendees = uid ? attendeesText(people) : ''
@@ -328,7 +379,8 @@ export class MeetingsService {
     if (input.event) {
       const when = `${clock(input.event.start)}–${clock(input.event.end)}`
       children.push({ type: 'quote', props: { title: [[input.event.location ? `${when} · ${input.event.location}` : when]] } })
-      if (input.event.description) children.push({ type: 'quote', props: { title: [[input.event.description.replace(/\s+/g, ' ').slice(0, 600)]] } })
+      if (input.event.description)
+        children.push({ type: 'quote', props: { title: [[input.event.description.replace(/\s+/g, ' ').slice(0, 600)]] } })
     }
     children.push({ type: 'text', props: {} })
     const props: BlockProps = { title: [[title]], values }
@@ -416,20 +468,41 @@ export class MeetingsService {
     const sources = arg.plainObject(arg.plainObject(rawOptions, 'options')['sources'], 'sources')
     if (sources['micId'] !== null && cleanMic({ id: sources['micId'], label: '' }) === undefined) throw new Error('Invalid microphone')
     if (typeof sources['system'] !== 'boolean') throw new Error('Invalid sources')
-    if (this.live) throw new Error(this.live.pageId === pageId ? 'This meeting is already being recorded.' : 'Another meeting is being recorded. Stop it first.')
+    if (this.live)
+      throw new Error(
+        this.live.pageId === pageId ? 'This meeting is already being recorded.' : 'Another meeting is being recorded. Stop it first.'
+      )
     const page = this.repo.get(pageId)
     if (!page || page.type !== 'page' || page.trashedAt !== null) throw new Error('The page no longer exists')
     const dir = this.folder(pageId)
     const existing = await this.readManifest(pageId)
-    if (existing) throw new Error(existing.state === 'recording' ? 'This meeting has an unfinished recording. Recover or discard it first.' : 'This meeting already has a recording. Start a new meeting to record again.')
+    if (existing)
+      throw new Error(
+        existing.state === 'recording'
+          ? 'This meeting has an unfinished recording. Recover or discard it first.'
+          : 'This meeting already has a recording. Start a new meeting to record again.'
+      )
     await mkdir(this.dir, { recursive: true })
     const free = await (this.options.freeBytes ?? defaultFreeBytes)(this.dir)
     if (free < MEETING_LIMITS.minFreeBytes) throw new Error('There is not enough free disk space to record a meeting.')
     if (this.live) throw new Error('Another meeting is being recorded. Stop it first.')
 
     const system = sources['system'] && this.options.systemAudio
-    const hours = this.setting<number>('meetings.maxHours', MEETING_LIMITS.maxHours.default, (value) => typeof value === 'number' && value >= MEETING_LIMITS.maxHours.min && value <= MEETING_LIMITS.maxHours.max)
-    const manifest: Manifest = { v: 1, pageId, state: 'recording', startedAt: this.now(), seconds: 0, mic: true, system, speakers: { ...DEFAULT_SPEAKERS } }
+    const hours = this.setting<number>(
+      'meetings.maxHours',
+      MEETING_LIMITS.maxHours.default,
+      (value) => typeof value === 'number' && value >= MEETING_LIMITS.maxHours.min && value <= MEETING_LIMITS.maxHours.max
+    )
+    const manifest: Manifest = {
+      v: 1,
+      pageId,
+      state: 'recording',
+      startedAt: this.now(),
+      seconds: 0,
+      mic: true,
+      system,
+      speakers: { ...DEFAULT_SPEAKERS }
+    }
     // Left over from a folder without a manifest (a crash between two steps): nothing worth keeping.
     await rm(dir, { recursive: true, force: true })
     mkdirSync(dir, { recursive: true })
@@ -519,7 +592,10 @@ export class MeetingsService {
       } catch {
         this.dropEncoded(live, verdict.stream)
       }
-    } else if ((stream === 'mic' || stream === 'system') && (verdict.reason === 'bad-sequence' || verdict.reason === 'full' || verdict.reason === 'too-large')) {
+    } else if (
+      (stream === 'mic' || stream === 'system') &&
+      (verdict.reason === 'bad-sequence' || verdict.reason === 'full' || verdict.reason === 'too-large')
+    ) {
       this.dropEncoded(live, stream)
     }
   }
@@ -628,7 +704,8 @@ export class MeetingsService {
   async recover(rawPageId: unknown): Promise<MeetingAudioInfo> {
     const pageId = arg.id(rawPageId, 'pageId')
     const manifest = await this.readManifest(pageId)
-    if (!manifest || manifest.state !== 'recording' || this.live?.pageId === pageId) throw new Error('There is nothing to recover for this meeting.')
+    if (!manifest || manifest.state !== 'recording' || this.live?.pageId === pageId)
+      throw new Error('There is nothing to recover for this meeting.')
     const dir = this.folder(pageId)
     let seconds = 0
     for (const stream of MEETING_STREAMS) seconds = Math.max(seconds, repairWav(join(dir, `${stream}.wav`))?.seconds ?? 0)
@@ -653,7 +730,8 @@ export class MeetingsService {
   async discard(rawPageId: unknown): Promise<void> {
     const pageId = arg.id(rawPageId, 'pageId')
     const manifest = await this.readManifest(pageId)
-    if (!manifest || manifest.state !== 'recording' || this.live?.pageId === pageId) throw new Error('There is nothing to discard for this meeting.')
+    if (!manifest || manifest.state !== 'recording' || this.live?.pageId === pageId)
+      throw new Error('There is nothing to discard for this meeting.')
     await rm(this.folder(pageId), { recursive: true, force: true })
     this.interrupted = (this.interrupted ?? []).filter((entry) => entry.pageId !== pageId)
     this.setRow(pageId, { status: null })
@@ -668,8 +746,10 @@ export class MeetingsService {
     const tracks: MeetingTrack[] = []
     for (const stream of MEETING_STREAMS) {
       if (!manifest[stream]) continue
-      if ((await sizeOf(join(dir, `${stream}.webm`))) > 0) tracks.push({ stream, url: recordingUrl(pageId, stream, 'webm'), format: 'webm' })
-      else if ((await sizeOf(join(dir, `${stream}.wav`))) > 44) tracks.push({ stream, url: recordingUrl(pageId, stream, 'wav'), format: 'wav' })
+      if ((await sizeOf(join(dir, `${stream}.webm`))) > 0)
+        tracks.push({ stream, url: recordingUrl(pageId, stream, 'webm'), format: 'webm' })
+      else if ((await sizeOf(join(dir, `${stream}.wav`))) > 44)
+        tracks.push({ stream, url: recordingUrl(pageId, stream, 'wav'), format: 'wav' })
     }
     return tracks
   }
@@ -743,7 +823,11 @@ export class MeetingsService {
 
   /** `meetings.deleteAfterDays`: deletes the audio of meetings older than that. Returns how many. */
   async prune(): Promise<number> {
-    const days = this.setting<number>('meetings.deleteAfterDays', MEETINGS_DEFAULTS.deleteAfterDays, (value) => typeof value === 'number' && value > 0)
+    const days = this.setting<number>(
+      'meetings.deleteAfterDays',
+      MEETINGS_DEFAULTS.deleteAfterDays,
+      (value) => typeof value === 'number' && value > 0
+    )
     if (!days) return 0
     const before = this.now() - days * 24 * 3600 * 1000
     let pruned = 0
@@ -772,7 +856,12 @@ export class MeetingsService {
    */
   async transcribe(rawPageId: unknown): Promise<void> {
     const pageId = arg.id(rawPageId, 'pageId')
-    if (this.job) throw new Error(this.job.pageId === pageId ? 'This meeting is already being transcribed.' : 'Another meeting is being transcribed. Wait for it to finish.')
+    if (this.job)
+      throw new Error(
+        this.job.pageId === pageId
+          ? 'This meeting is already being transcribed.'
+          : 'Another meeting is being transcribed. Wait for it to finish.'
+      )
     if (this.live?.pageId === pageId) throw new Error('This meeting is still being recorded.')
     const manifest = await this.readManifest(pageId)
     if (!manifest || manifest.state === 'recording') throw new Error('This meeting has no recording.')
@@ -795,9 +884,14 @@ export class MeetingsService {
       async (err: unknown) => {
         const cancelled = err instanceof WhisperError && err.reason === 'cancelled'
         if (!cancelled) {
-          const message = err instanceof WhisperError ? `${err.message}${err.detail ? ` (${err.detail})` : ''}` : err instanceof Error && !('code' in err) ? err.message : 'Transcription failed.'
+          const message =
+            err instanceof WhisperError
+              ? `${err.message}${err.detail ? ` (${err.detail})` : ''}`
+              : err instanceof Error && !('code' in err)
+                ? err.message
+                : 'Transcription failed.'
           if (!(err instanceof WhisperError)) console.error('[meetings] transcription failed', err)
-          await this.writeManifest({ ...manifest, state: 'failed', error: message.slice(0, 300) }).catch(() => undefined)
+          await this.markFailed(manifest, message.slice(0, 300))
         }
         this.setRow(pageId, { status: null })
       }
@@ -816,7 +910,12 @@ export class MeetingsService {
     await this.job.done
   }
 
-  private async work(manifest: Manifest, streams: MeetingStream[], located: { program: WhisperRun['program']; model: string }, job: { pageId: string; abort: AbortController; percent: number }): Promise<void> {
+  private async work(
+    manifest: Manifest,
+    streams: MeetingStream[],
+    located: { program: WhisperRun['program']; model: string },
+    job: { pageId: string; abort: AbortController; percent: number }
+  ): Promise<void> {
     const { pageId } = manifest
     const dir = this.folder(pageId)
     const chunks = join(dir, 'chunks')
@@ -873,7 +972,11 @@ export class MeetingsService {
               language = output.language
               manifest.language = output.language
             }
-            result = output.segments.map((segment) => ({ start: segment.start + piece.from, end: segment.end + piece.from, text: segment.text }))
+            result = output.segments.map((segment) => ({
+              start: segment.start + piece.from,
+              end: segment.end + piece.from,
+              text: segment.text
+            }))
           }
         } finally {
           await rm(wav, { force: true }).catch(() => undefined)
@@ -893,7 +996,8 @@ export class MeetingsService {
     await rm(chunks, { recursive: true, force: true })
     // The compressed copy is what is kept for listening; the large originals go unless asked for.
     if (!this.setting<boolean>('meetings.keepOriginal', MEETINGS_DEFAULTS.keepOriginal, (value) => typeof value === 'boolean')) {
-      for (const stream of streams) if ((await sizeOf(join(dir, `${stream}.webm`))) > 0) await rm(join(dir, `${stream}.wav`), { force: true })
+      for (const stream of streams)
+        if ((await sizeOf(join(dir, `${stream}.webm`))) > 0) await rm(join(dir, `${stream}.wav`), { force: true })
     }
     this.setRow(pageId, { status: 'ready' })
     job.percent = 100
@@ -908,7 +1012,8 @@ export class MeetingsService {
     const existing = manifest.transcriptPageId ? this.repo.get(manifest.transcriptPageId) : null
     return this.repo.transaction(() => {
       if (existing && existing.type === 'page' && existing.parentId === pageId && existing.trashedAt === null) {
-        for (const child of this.repo.children(existing.id)) if (child.type !== 'page' && child.type !== 'database') this.repo.delete(child.id)
+        for (const child of this.repo.children(existing.id))
+          if (child.type !== 'page' && child.type !== 'database') this.repo.delete(child.id)
         for (const child of children) this.repo.createTree(child, existing.id)
         return existing.id
       }
@@ -922,7 +1027,10 @@ export class MeetingsService {
     const raw = arg.plainObject(rawSpeakers, 'speakers')
     const manifest = await this.readManifest(pageId)
     if (!manifest) throw new Error('This meeting has no recording.')
-    const next: Speakers = { mic: cleanSpeaker(raw['mic'], DEFAULT_SPEAKERS.mic), system: cleanSpeaker(raw['system'], DEFAULT_SPEAKERS.system) }
+    const next: Speakers = {
+      mic: cleanSpeaker(raw['mic'], DEFAULT_SPEAKERS.mic),
+      system: cleanSpeaker(raw['system'], DEFAULT_SPEAKERS.system)
+    }
     if (next.mic === next.system) throw new Error('The two speakers need different names.')
     const previous = manifest.speakers
     const page = manifest.transcriptPageId ? this.repo.get(manifest.transcriptPageId) : null

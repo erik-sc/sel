@@ -7,6 +7,7 @@ import { createRoot } from 'react-dom/client'
 import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
 import * as L from '@/database/logic'
 import { useResolvedDatabase } from '@/database/resolved'
+import { RootBoundary } from '@/failures/RootBoundary'
 import { QuickAdd } from './QuickAdd'
 import './tasks.css'
 
@@ -55,7 +56,9 @@ function QuickAddWindow(): JSX.Element {
           onCancel={close}
         />
       ) : (
-        <p className="qa-window-note">{resolved?.status === 'loading' || !resolved ? 'Opening Tasks…' : 'The Tasks database could not be opened.'}</p>
+        <p className="qa-window-note">
+          {resolved?.status === 'loading' || !resolved ? 'Opening Tasks…' : 'The Tasks database could not be opened.'}
+        </p>
       )}
     </div>
   )
@@ -69,7 +72,9 @@ export function mountQuickAddWindow(): void {
   })
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <QuickAddWindow />
+      <RootBoundary>
+        <QuickAddWindow />
+      </RootBoundary>
     </StrictMode>
   )
 }

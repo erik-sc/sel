@@ -83,10 +83,7 @@ export function PageHeader({ page }: { page: Block }): JSX.Element {
             </button>
           )}
           {!style && (
-            <button
-              type="button"
-              onClick={() => setCover(COVER_PRESETS[Math.floor(Math.random() * COVER_PRESETS.length)])}
-            >
+            <button type="button" onClick={() => setCover(COVER_PRESETS[Math.floor(Math.random() * COVER_PRESETS.length)])}>
               <ImageIcon size={14} /> Add cover
             </button>
           )}
@@ -96,11 +93,12 @@ export function PageHeader({ page }: { page: Block }): JSX.Element {
           mode="title"
           value={page.props.title}
           placeholder="Untitled"
+          label="Page title"
           className="pe-title"
           onKeyDown={onTitleKey}
         />
       </div>
-      <Popover open={iconOpen && !!icon} anchor={iconEl} onClose={() => setIconOpen(false)}>
+      <Popover open={iconOpen && !!icon} anchor={iconEl} label="Page icon" onClose={() => setIconOpen(false)}>
         <IconPicker
           current={icon}
           onPick={(shape) => {
@@ -109,7 +107,7 @@ export function PageHeader({ page }: { page: Block }): JSX.Element {
           }}
         />
       </Popover>
-      <Popover open={coverOpen && !!style} anchor={coverEl} onClose={() => setCoverOpen(false)} placement="bottom-end">
+      <Popover open={coverOpen && !!style} anchor={coverEl} label="Cover" onClose={() => setCoverOpen(false)} placement="bottom-end">
         <div className="pe-cover-menu">
           <div className="pe-cover-grid">
             {COVER_PRESETS.map((preset) => (

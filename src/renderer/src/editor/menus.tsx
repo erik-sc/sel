@@ -1,5 +1,5 @@
 // Slash menu, source picker and block (handle) menu.
-import { Fragment, useEffect, useRef } from 'react'
+import { Fragment, useEffect, useId, useRef, useState } from 'react'
 import type { JSX, SyntheticEvent } from 'react'
 import { useStore } from 'zustand'
 import { getBlock } from '@/store/blocks'
@@ -11,8 +11,10 @@ import { pageLink } from '@shared/pageLink'
 import { Columns, Copy, Link as LinkIcon, Trash } from '@/ui/icons'
 import { useEditor } from './context'
 import { besideChoice } from './layout'
-import { TURN_INTO, filterSlashItems, isPlainTextType, isTextType } from './blockTypes'
+import { TURN_INTO, filterSlashItems, isPlainTextType, isTextType, slashListId, slashOptionId } from './blockTypes'
+import { useA11yCopy } from '@/a11y/announce'
 import { COLOR_NAMES } from './richtext-dom'
+import { MAX_ALT_LENGTH } from './blocks'
 import { AI_LANGUAGES, AI_LANGUAGE_LABELS, AI_TONES, AI_TONE_LABELS } from '@shared/ai'
 import type { AiAction } from '@shared/ai'
 import { useAiGate } from '@/ai/gate'
@@ -25,6 +27,7 @@ export function SlashMenu(): JSX.Element | null {
   const slash = useStore(ctrl.ui, (s) => s.slash)
   const listRef = useRef<HTMLDivElement>(null)
   const index = slash?.index ?? 0
+  const a11y = useA11yCopy()
 
   useEffect(() => {
     listRef.current?.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' })
@@ -44,8 +47,15 @@ export function SlashMenu(): JSX.Element | null {
 
   if (!slash) return null
   return (
-    <Popover open anchor={slash.rect} onClose={() => ctrl.closeSlash()} className="pe-slash">
-      <div className="pe-slash-list" ref={listRef} role="listbox" onMouseDown={(e) => e.preventDefault()}>
+    <Popover open anchor={slash.rect} role="none" onClose={() => ctrl.closeSlash()} className="pe-slash">
+      <div
+        className="pe-slash-list"
+        ref={listRef}
+        id={slashListId(slash.blockId)}
+        role={items.length ? 'listbox' : undefined}
+        aria-label={a11y.blocksMenu}
+        onMouseDown={(e) => e.preventDefault()}
+      >
         {items.length === 0 && (
           <>
             <div className="pe-slash-header">Blocks</div>
@@ -58,8 +68,13 @@ export function SlashMenu(): JSX.Element | null {
           const first = !previous || (previous.kind === 'ai') !== (item.kind === 'ai')
           return (
             <Fragment key={item.id}>
-              {first && <div className="pe-slash-header">{group}</div>}
+              {first && (
+                <div className="pe-slash-header" role="presentation">
+                  {group}
+                </div>
+              )}
               <div
+                id={slashOptionId(slash.blockId, i)}
                 role="option"
                 aria-selected={i === index}
                 className={`pe-slash-item${i === index ? ' is-active' : ''}${item.kind === 'ai' ? ' is-ai' : ''}`}
@@ -104,7 +119,7 @@ export function SourcePickerPopover(): JSX.Element | null {
     }, 0)
   }
   return (
-    <Popover open anchor={picker.rect} onClose={close} className="pe-source-picker">
+    <Popover open anchor={picker.rect} label="Linked database view" onClose={close} className="pe-source-picker">
       <div
         className="pe-source-picker-body"
         onClick={stop}
@@ -145,11 +160,19 @@ function aiMenu(ctrl: EditorController, ids: string[]): MenuItem {
       { id: 'ai-lengthen', label: 'Longer', onSelect: run('lengthen') },
       { id: 'ai-expand', label: 'Expand with detail', onSelect: run('expand') },
       { id: 'ai-simplify', label: 'Simplify', onSelect: run('simplify') },
-      { id: 'ai-tone', label: 'Change tone', submenu: AI_TONES.map((tone) => ({ id: `ai-tone-${tone}`, label: AI_TONE_LABELS[tone], onSelect: run('tone', { tone }) })) },
+      {
+        id: 'ai-tone',
+        label: 'Change tone',
+        submenu: AI_TONES.map((tone) => ({ id: `ai-tone-${tone}`, label: AI_TONE_LABELS[tone], onSelect: run('tone', { tone }) }))
+      },
       {
         id: 'ai-translate',
         label: 'Translate',
-        submenu: AI_LANGUAGES.map((language) => ({ id: `ai-lang-${language}`, label: AI_LANGUAGE_LABELS[language], onSelect: run('translate', { language }) }))
+        submenu: AI_LANGUAGES.map((language) => ({
+          id: `ai-lang-${language}`,
+          label: AI_LANGUAGE_LABELS[language],
+          onSelect: run('translate', { language })
+        }))
       },
       { separator: true },
       { id: 'ai-summarize', label: 'Summarize', onSelect: run('summarize') },
@@ -164,12 +187,60 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
+/** The block menu's field for an image's alternative text, in place of the menu. */
+function AltTextField({ block, onDone }: { block: Block; onDone: () => void }): JSX.Element {
+  const { ctrl } = useEditor()
+  const id = useId()
+  const [value, setValue] = useState(typeof block.props.alt === 'string' ? block.props.alt : '')
+  const done = useRef(false)
+  const commit = (): void => {
+    if (done.current) return
+    done.current = true
+    if (value.trim() !== (block.props.alt ?? '').trim()) ctrl.update(block.id, { alt: value.trim() })
+  }
+  return (
+    <div className="pe-alt" onMouseDown={stop}>
+      <label className="pe-alt-label" htmlFor={id}>
+        Alternative text
+      </label>
+      <textarea
+        id={id}
+        className="ui-input pe-alt-input"
+        rows={3}
+        value={value}
+        maxLength={MAX_ALT_LENGTH}
+        autoFocus
+        aria-describedby={`${id}-help`}
+        onChange={(event) => setValue(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+            event.preventDefault()
+            commit()
+            onDone()
+          }
+        }}
+      />
+      <p className="pe-alt-help" id={`${id}-help`}>
+        Read aloud in place of the image. The caption stays as it is.
+      </p>
+    </div>
+  )
+}
+
 export function BlockMenu(): JSX.Element | null {
   const { ctrl } = useEditor()
   const menu = useStore(ctrl.ui, (s) => s.menu)
   const ai = useAiGate((state) => state.enabled)
+  // The image whose alternative text is being written, in place of the menu.
+  const [altFor, setAltFor] = useState<string | null>(null)
+  const altRef = useRef<string | null>(null)
+  altRef.current = altFor
+  // A menu opened again starts as the menu.
+  useEffect(() => setAltFor(null), [menu])
   if (!menu) return null
   const close = (): void => {
+    setAltFor(null)
     ctrl.ui.setState({ menu: null })
     // Give the keyboard back to the block selection unless an action moved focus.
     window.setTimeout(() => {
@@ -184,7 +255,9 @@ export function BlockMenu(): JSX.Element | null {
   })
   // A single database block can join the row of the one before it, or leave its row.
   const only = ids.length === 1 ? getBlock(ids[0]) : undefined
-  const siblings = only?.parentId ? (getBlock(only.parentId)?.content ?? []).map(getBlock).filter((b): b is Block => !!b && !b.trashedAt) : []
+  const siblings = only?.parentId
+    ? (getBlock(only.parentId)?.content ?? []).map(getBlock).filter((b): b is Block => !!b && !b.trashedAt)
+    : []
   const beside = only ? besideChoice(siblings, only.id) : null
 
   const items: MenuItem[] = [
@@ -233,6 +306,18 @@ export function BlockMenu(): JSX.Element | null {
       ]
     },
     ...(ai && convertible ? [aiMenu(ctrl, ids)] : []),
+    ...(only?.type === 'image' && only.props.url
+      ? [
+          {
+            id: 'alt',
+            label: 'Alternative text…',
+            onSelect: () => {
+              altRef.current = only.id
+              setAltFor(only.id)
+            }
+          }
+        ]
+      : []),
     { separator: true },
     {
       id: 'link',
@@ -243,8 +328,19 @@ export function BlockMenu(): JSX.Element | null {
     }
   ]
   return (
-    <Popover open anchor={menu.rect} onClose={close}>
-      <Menu items={items} onClose={close} autoFocus />
+    <Popover open anchor={menu.rect} role={altFor ? 'dialog' : 'none'} label="Alternative text" onClose={close}>
+      {altFor && only ? (
+        <AltTextField block={only} onDone={close} />
+      ) : (
+        <Menu
+          items={items}
+          // "Alternative text…" keeps the popover open: its field takes the menu's place.
+          onClose={() => {
+            if (!altRef.current) close()
+          }}
+          autoFocus
+        />
+      )}
     </Popover>
   )
 }

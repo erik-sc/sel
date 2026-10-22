@@ -1,7 +1,7 @@
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import Database from 'better-sqlite3'
-import { app, BrowserWindow, dialog, shell } from 'electron'
+import { app, BrowserWindow, dialog, shell, utilityProcess } from 'electron'
 import type { BackupKind, BackupProblem, BackupStatus, ExportResult, RestoreOutcome } from '../../shared/data'
 import { backupWhen, DATA_COPY, dataLocale, type DataCopy } from '../../shared/dataCopy'
 import type { SqlDriver } from '../db/driver'
@@ -9,7 +9,19 @@ import type { Repository } from '../db/repository'
 import { filesDir } from '../files'
 import type { Handlers } from '../invoke'
 import { DB_FILE } from '../legacy'
-import { BackupError, BACKUPS_DIR, inspectDatabase, listBackups, stageRestore, takeBackup, type ReadOnlyOpener } from './backups'
+import { LOGS_DIR } from '../log'
+import {
+  BackupError,
+  BACKUPS_DIR,
+  type DatabaseCheck,
+  inspectDatabase,
+  listBackups,
+  stageRestore,
+  takeBackupApart,
+  type ReadOnlyOpener
+} from './backups'
+import type { BackupReply, BackupRequest } from './backupWorker'
+import { defineFeature, type Registered } from '../feature'
 
 /** The first automatic backup waits for the app to settle; then, once an hour, one is made when the newest is this old. */
 const FIRST_CHECK_MS = 60_000
@@ -22,6 +34,30 @@ export const openReadOnly: ReadOnlyOpener = (file) => new Database(file, { reado
 
 export function backupsDir(): string {
   return join(app.getPath('userData'), BACKUPS_DIR)
+}
+
+/**
+ * Copies and checks the database in a utility process (./backupWorker.ts): seconds of work on
+ * a large database that would otherwise hold up every window (release 0.7.0, decision 5).
+ */
+function copyApart(file: string, partial: string): Promise<DatabaseCheck> {
+  // Next to the main bundle: this folder, or the one above when this code lands in a chunk.
+  const script =
+    [join(__dirname, 'backup.js'), join(__dirname, '..', 'backup.js')].find((path) => existsSync(path)) ?? join(__dirname, 'backup.js')
+  return new Promise((resolve, reject) => {
+    const child = utilityProcess.fork(script, [], { serviceName: 'sel backup' })
+    let done = false
+    child.once('spawn', () => child.postMessage({ file, partial } satisfies BackupRequest))
+    child.once('message', (reply: BackupReply) => {
+      done = true
+      child.kill()
+      if ('check' in reply) resolve(reply.check)
+      else reject(Object.assign(new Error(reply.error.message), reply.error.code ? { code: reply.error.code } : {}))
+    })
+    child.once('exit', (code) => {
+      if (!done) reject(new Error(`The backup process stopped before answering (${code})`))
+    })
+  })
 }
 
 export interface DataContext {
@@ -47,24 +83,32 @@ export function registerDataIpc({ repo, busy }: DataContext): { handlers: Handle
     problemAt
   })
 
-  const backUp = (kind: BackupKind): void => {
-    try {
-      takeBackup({ source: repo, dir: backupsDir(), kind, now: Date.now(), open: openReadOnly })
-      problem = problemAt = null
-    } catch (err) {
-      problem = err instanceof BackupError ? err.problem : 'failed'
-      problemAt = Date.now()
-      console.error('[data] the backup was not made', err)
-      throw err
+  /** One backup at a time: a second asked for while one is being made waits for it, then is made. */
+  let queue: Promise<unknown> = Promise.resolve()
+  const backUp = (kind: BackupKind): Promise<void> => {
+    const run = async (): Promise<void> => {
+      try {
+        const file = join(app.getPath('userData'), DB_FILE)
+        await takeBackupApart({ source: repo, file, dir: backupsDir(), kind, now: Date.now(), work: copyApart })
+        problem = problemAt = null
+      } catch (err) {
+        problem = err instanceof BackupError ? err.problem : 'failed'
+        problemAt = Date.now()
+        console.error('[data] the backup was not made', err)
+        throw err
+      }
     }
+    const next = queue.then(run, run)
+    queue = next.catch(() => undefined)
+    return next
   }
 
   /** The daily backup: when the newest one made by the day or by hand is old enough. */
-  const backUpIfDue = (): void => {
+  const backUpIfDue = async (): Promise<void> => {
     const newest = listBackups(backupsDir()).find((b) => b.kind !== 'before-restore')
     if (newest && Date.now() - newest.at < BACKUP_AGE_MS) return
     try {
-      backUp('auto')
+      await backUp('auto')
     } catch {
       /* said in Settings; tried again in an hour */
     }
@@ -106,7 +150,7 @@ export function registerDataIpc({ repo, busy }: DataContext): { handlers: Handle
     if (answer.response !== 0 || busy()) return { outcome: 'cancelled' }
 
     // What is here now becomes a backup first: a restore can be undone by restoring that one.
-    backUp('before-restore')
+    await backUp('before-restore')
     stageRestore(app.getPath('userData'), file)
     setImmediate(() => {
       app.relaunch()
@@ -133,9 +177,9 @@ export function registerDataIpc({ repo, busy }: DataContext): { handlers: Handle
 
   const handlers: Handlers<'data'> = {
     'data:status': () => status(),
-    'data:backUp': () => {
+    'data:backUp': async () => {
       try {
-        backUp('manual')
+        await backUp('manual')
       } catch {
         /* the status says what went wrong */
       }
@@ -147,6 +191,12 @@ export function registerDataIpc({ repo, busy }: DataContext): { handlers: Handle
       const failed = await shell.openPath(backupsDir())
       if (failed) throw new Error(failed)
     },
+    'data:openLogs': async () => {
+      const dir = join(app.getPath('userData'), LOGS_DIR)
+      mkdirSync(dir, { recursive: true })
+      const failed = await shell.openPath(dir)
+      if (failed) throw new Error(failed)
+    },
     'data:exportMarkdown': (_args, event) => exportMarkdown(ownerOf(event.sender))
   }
 
@@ -154,9 +204,15 @@ export function registerDataIpc({ repo, busy }: DataContext): { handlers: Handle
     handlers,
     start() {
       setTimeout(() => {
-        backUpIfDue()
-        setInterval(backUpIfDue, CHECK_EVERY_MS).unref()
+        void backUpIfDue()
+        setInterval(() => void backUpIfDue(), CHECK_EVERY_MS).unref()
       }, FIRST_CHECK_MS).unref()
     }
   }
 }
+
+/** Backups of the database, restoring one, the workspace as Markdown. The daily backup waits for the first window. */
+export const dataFeature = defineFeature({
+  namespace: 'data',
+  register: (ctx): Registered<'data'> => registerDataIpc({ repo: ctx.repo, busy: () => ctx.recording() })
+})

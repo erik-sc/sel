@@ -3,5 +3,5 @@
 // chart view files, which are loaded on demand, so neither module weighs on a database
 // that shows no chart.
 export * from '../logic'
-export * from '../logic/chart'
-export * from '../logic/chartScale'
+export * from '@shared/database/chart'
+export * from '@shared/database/chartScale'

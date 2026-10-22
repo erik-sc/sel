@@ -14,7 +14,10 @@ function when(timestamp: unknown, locale: string): string {
   if (typeof timestamp !== 'number') return ''
   const date = new Date(timestamp)
   const sameYear = date.getFullYear() === new Date().getFullYear()
-  return date.toLocaleDateString(locale, sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' })
+  return date.toLocaleDateString(
+    locale,
+    sameYear ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' }
+  )
 }
 
 export function ArchiveList({ onClose }: { onClose: () => void }) {

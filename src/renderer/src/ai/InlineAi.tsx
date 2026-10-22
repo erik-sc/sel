@@ -179,7 +179,14 @@ export function InlineAi({ session }: { session: AiSession }): JSX.Element {
   const status = statusText(run)
   const error = run.status === 'error' && run.error ? errorLines(run.error) : null
   return (
-    <div ref={rootRef} className={`ai-card${busy ? ' is-streaming' : ''}${error ? ' is-error' : ''}`} role="group" aria-label="AI suggestion" tabIndex={-1} onKeyDown={onKeyDown}>
+    <div
+      ref={rootRef}
+      className={`ai-card${busy ? ' is-streaming' : ''}${error ? ' is-error' : ''}`}
+      role="group"
+      aria-label="AI suggestion"
+      tabIndex={-1}
+      onKeyDown={onKeyDown}
+    >
       <div className="ai-card-head">
         <span className="ai-badge">
           <span aria-hidden="true">{AI_GLYPH}</span> AI
@@ -195,7 +202,14 @@ export function InlineAi({ session }: { session: AiSession }): JSX.Element {
           titles.length > 0 ? (
             <div className="ai-titles" role="listbox" aria-label="Title suggestions">
               {titles.map((entry, index) => (
-                <button key={index} type="button" role="option" aria-selected="false" className="ai-title-option" onClick={() => applyAiTitle(ctrl, entry.title, entry.emoji)}>
+                <button
+                  key={index}
+                  type="button"
+                  role="option"
+                  aria-selected="false"
+                  className="ai-title-option"
+                  onClick={() => applyAiTitle(ctrl, entry.title, entry.emoji)}
+                >
                   <span className="ai-title-emoji" aria-hidden="true">
                     {entry.emoji && <IconGlyph icon={entry.emoji} />}
                   </span>

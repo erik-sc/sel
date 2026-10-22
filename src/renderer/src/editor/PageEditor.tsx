@@ -17,6 +17,7 @@ import { SelectionToolbar } from './SelectionToolbar'
 import { SkeletonLines as Skeleton } from '@/ui/Skeleton'
 import { flushOnUnload } from '@/ui/unload'
 import { bootMark } from '@/boot'
+import { takeMenuKey } from '@/a11y/keys'
 import { useAiGate } from '@/ai/gate'
 import { aiConsolidate, aiOnPage, insertFromAssistant, scopeOf } from '@/ai/session'
 import type { AiTarget } from '@/ai/plan'
@@ -27,6 +28,8 @@ import './editor.css'
 export interface PageEditorProps {
   pageId: string
   onOpenPage: (id: string, opts?: { newTab?: boolean }) => void
+  /** The page's blocks only, without its title, properties, meeting and backlinks: a task's notes in the task panel. */
+  bodyOnly?: boolean
 }
 
 export function PageEditor(props: PageEditorProps): JSX.Element {
@@ -54,7 +57,7 @@ function RowPropertiesGate({ page, onOpenPage }: { page: Block; onOpenPage: Page
   )
 }
 
-function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
+function PageEditorInner({ pageId, onOpenPage, bodyOnly = false }: PageEditorProps): JSX.Element {
   const ctrl = useMemo(() => new EditorController(pageId), [pageId])
   const page = useBlock(pageId)
   // The controller reads the page's blocks synchronously: none may be evicted while it is open.
@@ -235,6 +238,14 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
       return
     }
     if (!selected.length) return
+    // The Menu key or Shift+F10: the selected blocks' menu, as the drag handle opens it.
+    if (takeMenuKey(e)) {
+      e.preventDefault()
+      const id = selected[selected.length - 1]
+      const el = rootRef.current?.querySelector(`[data-block-id="${CSS.escape(id)}"] > .blk-row`)
+      if (el) ctrl.ui.setState({ menu: { id, rect: el.getBoundingClientRect() } })
+      return
+    }
     if (mod) {
       if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault()
@@ -439,7 +450,7 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
           rootRef.current = el
           ctrl.root = el
         }}
-        className={fullWidth ? 'pe-root pe-page is-full' : 'pe-root pe-page'}
+        className={['pe-root pe-page', fullWidth ? 'is-full' : '', bodyOnly ? 'is-body-only' : ''].filter(Boolean).join(' ')}
         tabIndex={-1}
         onKeyDown={onKeyDown}
         onMouseDown={onMouseDown}
@@ -454,9 +465,13 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
       >
         {page ? (
           <>
-            <PageHeader page={page} />
-            <RowPropertiesGate page={page} onOpenPage={onOpenPage} />
-            <MeetingSlot page={page} />
+            {!bodyOnly && (
+              <>
+                <PageHeader page={page} />
+                <RowPropertiesGate page={page} onOpenPage={onOpenPage} />
+                <MeetingSlot page={page} />
+              </>
+            )}
             <div className="pe-content pe-body">
               {loaded && <AiSlot anchorId={null} />}
               {loaded ? <BlockList ids={page.content} /> : <Skeleton />}
@@ -467,7 +482,7 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
                 if (loaded) ctrl.focusTail()
               }}
             />
-            {loaded && <Backlinks pageId={page.id} />}
+            {loaded && !bodyOnly && <Backlinks pageId={page.id} />}
           </>
         ) : (
           <div className="pe-content pe-body pe-loading">

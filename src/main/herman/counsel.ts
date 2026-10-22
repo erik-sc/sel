@@ -57,7 +57,7 @@ export const COUNSEL_DEFAULTS: CounselThresholds = {
 }
 
 /** Kinds said at most once a day: the day they are about barely changes while it lasts. */
-export const ONCE_A_DAY: ReadonlySet<HermanNudgeKind> = new Set(['morning', 'evening', 'free-block', 'overdue', 'today'])
+export const ONCE_A_DAY: ReadonlySet<HermanNudgeKind> = new Set(['morning', 'evening', 'free-block', 'overdue', 'today', 'inbox'])
 
 export const TITLE_CHARS = 48
 
@@ -67,6 +67,11 @@ export interface CounselInput {
   tasks: { overdue: readonly CounselTask[]; today: readonly CounselTask[] }
   /** Today's events, in order. */
   events: readonly CounselEvent[]
+  /**
+   * Tasks in the Inbox, still to refine, for two days or more (shared/tasks/refine.ts): how many,
+   * and the one that has waited longest. Absent when the user turned this reminder off.
+   */
+  inbox?: { waiting: number; title: string; days: number } | null
   /** How long the current page has been edited without a real pause. */
   editingMs?: number
   /** The page in front, when it was opened after a long time untouched. */
@@ -101,8 +106,11 @@ export interface Counsel {
 /** A title as it may appear in a line: one line, no control characters, capped. */
 export function tidyTitle(raw: unknown): string {
   if (typeof raw !== 'string') return ''
-  // eslint-disable-next-line no-control-regex
-  const clean = raw.replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202f]+/g, ' ').replace(/[\u201c\u201d"]/g, '').replace(/\s+/g, ' ').trim()
+  const clean = raw
+    .replace(/[\u0000-\u001f\u007f\u200b-\u200f\u2028-\u202f]+/g, ' ')
+    .replace(/[\u201c\u201d"]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
   return clean.length > TITLE_CHARS ? `${clean.slice(0, TITLE_CHARS - 1).trimEnd()}…` : clean
 }
 
@@ -130,7 +138,20 @@ interface Candidate {
   titledAction?: HermanNudge['action']
 }
 
-const BLANK: Words = { n: '', N: '', one: false, title: '', since: '', minutes: '', Minutes: '', until: '', span: '', Span: '', ago: '', Ago: '' }
+const BLANK: Words = {
+  n: '',
+  N: '',
+  one: false,
+  title: '',
+  since: '',
+  minutes: '',
+  Minutes: '',
+  until: '',
+  span: '',
+  Span: '',
+  ago: '',
+  Ago: ''
+}
 
 function candidates(input: CounselInput, limits: CounselThresholds): Partial<Record<HermanNudgeKind, Candidate>> {
   const { locale } = input
@@ -147,7 +168,10 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
     return { minutes: word, Minutes: capitalize(word) }
   }
   const openToday: HermanNudge['action'] = { label: phrases.openToday, command: { type: 'open-today' } }
-  const openTask = (task: CounselTask): HermanNudge['action'] => ({ label: phrases.openTask, command: { type: 'open-page', pageId: task.pageId } })
+  const openTask = (task: CounselTask): HermanNudge['action'] => ({
+    label: phrases.openTask,
+    command: { type: 'open-page', pageId: task.pageId }
+  })
   const ask = (question: string): HermanNudge['action'] => ({ label: phrases.ask, command: { type: 'ask', question } })
 
   const timed = input.events.filter((event) => !event.allDay && event.end > event.start)
@@ -161,10 +185,12 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
     out.reopened = { words: { ago, Ago: capitalize(ago) }, action: ask(phrases.askPage) }
   }
 
-  if (input.firstLaunch && minuteOfDay >= limits.morningFrom && minuteOfDay < limits.morningTo) out.morning = { words: {}, action: openToday }
+  if (input.firstLaunch && minuteOfDay >= limits.morningFrom && minuteOfDay < limits.morningTo)
+    out.morning = { words: {}, action: openToday }
 
   // The evening line is an invitation to close the day: a few quiet steps, then the window rests.
-  if (minuteOfDay >= limits.eveningFrom && minuteOfDay < limits.eveningTo) out.evening = { words: {}, action: { label: phrases.closeDay, command: { type: 'close-day' } } }
+  if (minuteOfDay >= limits.eveningFrom && minuteOfDay < limits.eveningTo)
+    out.evening = { words: {}, action: { label: phrases.closeDay, command: { type: 'close-day' } } }
 
   // A stretch with nothing on the calendar, on a day that has a calendar at all.
   const busyNow = timed.some((event) => event.start <= input.now && event.end > input.now)
@@ -175,7 +201,13 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
     if (until - input.now >= limits.freeBlockMs) {
       const clock = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(until)
       const span = spanWords((until - input.now) / 60_000, locale)
-      const phrase = next ? (locale === 'pt-BR' ? `até as ${clock}` : `until ${clock}`) : locale === 'pt-BR' ? 'pelo resto do dia' : 'for the rest of the day'
+      const phrase = next
+        ? locale === 'pt-BR'
+          ? `até as ${clock}`
+          : `until ${clock}`
+        : locale === 'pt-BR'
+          ? 'pelo resto do dia'
+          : 'for the rest of the day'
       out['free-block'] = { words: { until: phrase, span, Span: capitalize(span) }, action: ask(phrases.askFirst) }
     }
   }
@@ -183,7 +215,7 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
   const { overdue, today } = input.tasks
   if (overdue.length > 0) {
     // The one that has waited longest speaks for the rest.
-    const oldest = [...overdue].sort((a, b) => (a.due ?? '9999') < (b.due ?? '9999') ? -1 : 1)[0]
+    const oldest = [...overdue].sort((a, b) => ((a.due ?? '9999') < (b.due ?? '9999') ? -1 : 1))[0]
     out.overdue = {
       words: { ...count(overdue.length), title: tidyTitle(oldest.title), since: sinceWords(daysSince(oldest.due, now), now, locale) },
       action: openToday,
@@ -191,6 +223,13 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
     }
   } else if (today.length > 0) {
     out.today = { words: { ...count(today.length), title: tidyTitle(today[0].title) }, action: openToday, titledAction: openTask(today[0]) }
+  }
+  const inbox = input.inbox
+  if (inbox && inbox.waiting > 0) {
+    out.inbox = {
+      words: { ...count(inbox.waiting), title: tidyTitle(inbox.title), since: sinceWords(inbox.days, now, locale) },
+      action: { label: phrases.refineNow, command: { type: 'refine-inbox' } }
+    }
   }
   return out
 }

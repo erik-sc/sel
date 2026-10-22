@@ -1,163 +1,24 @@
 // What each menu command does in this window: the app menu and main's shortcuts send them
-// (see useShellCommands), and the command palette runs the same ones.
-import type { MenuCommand } from '@shared/api'
-import {
-  activeTab,
-  closeTab,
-  cycleTab,
-  goBack,
-  goForward,
-  isBlockId,
-  newTab,
-  openPage,
-  reopenTab,
-  selectTabAt,
-  tabPage
-} from '@/store/tabs'
-import { setFocusMode, setHistoryPage, setQuickFindOpen, setSettingsOpen, toggleFocusMode, toggleSidebar, toggleTheme, useUi } from '@/store/ui'
-import { createPage, reportError } from './actions'
-import { toggleAssistant, useAiGate } from '@/ai/gate'
-import { openCalendar, openToday } from '@/briefing/route'
-import { focusQuickAdd, openTasks } from '@/tasks/gate'
-import { openCloseDay, openNotebook } from '@/notebook/route'
-import { newMeeting } from '@/meetings/gate'
-import { openFind } from './findStore'
-import { runLatexAction } from '@/latex/gate'
-import { openFeedback } from '@/feedback/gate'
-import { openPalette } from '@/commands/store'
-import { goHome } from '@/home/store'
-import { openShortcuts } from '@/shortcuts/gate'
-import { startOrShowPomodoro } from '@/pomodoro/gate'
-import { openSky } from '@/sky/route'
-import { openTemplates } from '@/templates/gate'
+// (see useShellCommands), and the command palette runs the same ones. Every command
+// (src/shared/commands.ts) has its handler in its feature's `menu` (see ../features.ts).
+import type { MenuCommand } from '@shared/commands'
+import type { HandledBy, MenuHandler } from '@/feature'
+import { FEATURES } from '@/features'
+
+type Unhandled = Exclude<MenuCommand, HandledBy<(typeof FEATURES)[number]>>
+/** Typecheck fails here when a command has no handler in any feature. */
+const EVERY_COMMAND_HANDLED: [Unhandled] extends [never] ? true : { unhandled: Unhandled } = true
+void EVERY_COMMAND_HANDLED
+
+let handlers: Readonly<Record<MenuCommand, MenuHandler>> | null = null
+
+/** Every command's handler, from the features (put together on first use, once every feature has loaded). */
+export function menuHandlers(): Readonly<Record<MenuCommand, MenuHandler>> {
+  handlers ??= Object.assign({}, ...FEATURES.map((feature) => feature.menu ?? {})) as Record<MenuCommand, MenuHandler>
+  return handlers
+}
 
 export function runMenuCommand(command: MenuCommand, arg?: unknown): void {
-  switch (command) {
-    case 'new-page':
-      void createPage(null).catch(reportError('create the page'))
-      break
-    case 'new-from-template': {
-      // The page in front is offered as a place for it; the workspace root stays the default.
-      const pageId = tabPage(activeTab())
-      openTemplates({ pageId: pageId && isBlockId(pageId) ? pageId : null })
-      break
-    }
-    case 'new-tab':
-      newTab()
-      break
-    case 'close-tab':
-      closeTab()
-      break
-    case 'next-tab':
-      cycleTab(1)
-      break
-    case 'prev-tab':
-      cycleTab(-1)
-      break
-    case 'quick-find':
-      setQuickFindOpen(true)
-      break
-    case 'find-in-page':
-      // A LaTeX document searches its source with its own find bar.
-      if (!runLatexAction('find')) openFind(window.getSelection()?.toString())
-      break
-    case 'command-palette':
-      openPalette()
-      break
-    case 'keyboard-shortcuts':
-      openShortcuts()
-      break
-    case 'toggle-sidebar':
-      showOrHideSidebar()
-      break
-    case 'toggle-theme':
-      toggleTheme()
-      break
-    case 'toggle-focus-mode':
-      toggleFocusMode()
-      break
-    case 'go-back':
-      goBack()
-      break
-    case 'go-forward':
-      goForward()
-      break
-    case 'open-settings':
-      setSettingsOpen(true)
-      break
-    case 'select-tab':
-      if (typeof arg === 'number') selectTabAt(arg)
-      break
-    case 'reopen-tab':
-      reopenTab()
-      break
-    case 'new-window':
-      void window.api.app.newWindow(tabPage(activeTab()) ?? undefined).catch(reportError('open a new window'))
-      break
-    case 'open-page':
-      if (isBlockId(arg)) openPage(arg)
-      break
-    case 'toggle-assistant':
-      showOrHideAssistant()
-      break
-    case 'go-home':
-      goHome()
-      break
-    case 'open-today':
-      openToday()
-      break
-    case 'open-calendar':
-      openCalendar()
-      break
-    case 'open-tasks':
-      openTasks()
-      break
-    case 'add-task':
-      openTasks()
-      focusQuickAdd()
-      break
-    case 'open-notebook':
-      openNotebook()
-      break
-    case 'close-day':
-      openCloseDay()
-      break
-    case 'new-meeting':
-      void newMeeting()
-      break
-    case 'send-feedback':
-      openFeedback()
-      break
-    case 'start-pomodoro':
-      startOrShowPomodoro()
-      break
-    case 'open-sky':
-      // Turned off, the shortcut does nothing.
-      openSky()
-      break
-    case 'version-history': {
-      // The shortcut toggles: the history of the page in the active tab.
-      const pageId = tabPage(activeTab())
-      setHistoryPage(useUi.getState().historyPageId ? null : (pageId ?? null))
-      break
-    }
-  }
-}
-
-/**
- * Focus mode hides the sidebar and the assistant panel without closing them, so asking for one
- * there means "show it": focus mode ends and the panel is open, rather than a hidden one closing.
- */
-function showOrToggle(open: boolean, toggle: () => void): void {
-  if (!useUi.getState().focusMode) return toggle()
-  setFocusMode(false)
-  if (!open) toggle()
-}
-
-export function showOrHideAssistant(): void {
-  showOrToggle(useAiGate.getState().panelOpen, toggleAssistant)
-}
-
-export function showOrHideSidebar(): void {
-  showOrToggle(!useUi.getState().sidebarCollapsed, toggleSidebar)
+  // A command this window does not know (sent by a newer main process) does nothing, as before.
+  menuHandlers()[command]?.run(arg)
 }

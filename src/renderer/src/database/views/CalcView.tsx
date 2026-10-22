@@ -20,7 +20,7 @@ import {
   isCalcNumber,
   type CalcFunction,
   type CalcResult
-} from '../logic/calc'
+} from '@shared/database/calc'
 import './calc.css'
 
 const FORMAT_LABELS: Record<NonNullable<ViewCalc['format']> | 'auto', string> = {
@@ -106,7 +106,14 @@ function CalcEditor(props: {
     <div className="db-panel is-narrow db-calc-editor">
       <label className="db-calc-field">
         <span>Name</span>
-        <input value={name} placeholder="Untitled" maxLength={L.MAX_NAME_LENGTH} onChange={(event) => setName(event.target.value)} onBlur={commit} onKeyDown={onEnter} />
+        <input
+          value={name}
+          placeholder="Untitled"
+          maxLength={L.MAX_NAME_LENGTH}
+          onChange={(event) => setName(event.target.value)}
+          onBlur={commit}
+          onKeyDown={onEnter}
+        />
       </label>
       <label className="db-calc-field">
         <span>Formula</span>
@@ -134,7 +141,12 @@ function CalcEditor(props: {
             </option>
           ))}
         </select>
-        <select className="db-select is-wide" aria-label="Property" value={property?.id ?? ''} onChange={(event) => setPropertyId(event.target.value)}>
+        <select
+          className="db-select is-wide"
+          aria-label="Property"
+          value={property?.id ?? ''}
+          onChange={(event) => setPropertyId(event.target.value)}
+        >
           {fn === 'count' && <option value="">All rows</option>}
           {offered.map((prop) => (
             <option key={prop.id} value={prop.id}>
@@ -142,7 +154,13 @@ function CalcEditor(props: {
             </option>
           ))}
         </select>
-        <button type="button" className="db-mini-button is-text" disabled={fn !== 'count' && !property} onMouseDown={(event) => event.preventDefault()} onClick={insert}>
+        <button
+          type="button"
+          className="db-mini-button is-text"
+          disabled={fn !== 'count' && !property}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={insert}
+        >
           Insert
         </button>
       </div>
@@ -153,7 +171,9 @@ function CalcEditor(props: {
           value={calc.format ?? 'auto'}
           onChange={(event) => {
             const value = event.target.value
-            patchCalc(databaseId, viewId, calc.id, ({ format: _format, ...rest }) => (value === 'auto' ? rest : { ...rest, format: value as ViewCalc['format'] }))
+            patchCalc(databaseId, viewId, calc.id, ({ format: _format, ...rest }) =>
+              value === 'auto' ? rest : { ...rest, format: value as ViewCalc['format'] }
+            )
           }}
         >
           {(['auto', ...L.CALC_FORMATS] as const).map((format) => (
@@ -210,14 +230,27 @@ export function CalcView({ databaseId, schema, view, rows }: ViewProps): JSX.Ele
   }
 
   const editor = editing && edited && (
-    <Floating open anchor={editing.anchor} onClose={() => setEditing(null)}>
-      <CalcEditor key={edited.id} databaseId={databaseId} viewId={view.id} calc={edited} rows={rows} schema={schema} cells={cells} onClose={() => setEditing(null)} />
+    <Floating open anchor={editing.anchor} label="Edit figure" onClose={() => setEditing(null)}>
+      <CalcEditor
+        key={edited.id}
+        databaseId={databaseId}
+        viewId={view.id}
+        calc={edited}
+        rows={rows}
+        schema={schema}
+        cells={cells}
+        onClose={() => setEditing(null)}
+      />
     </Floating>
   )
 
   if (split && table) {
     const cell = (result: CalcResult | undefined, key: string): JSX.Element => (
-      <td key={key} className={result?.ok && result.value !== null ? undefined : 'is-empty'} title={result && !result.ok ? result.error : undefined}>
+      <td
+        key={key}
+        className={result?.ok && result.value !== null ? undefined : 'is-empty'}
+        title={result && !result.ok ? result.error : undefined}
+      >
         {result ? resultText(result) : '—'}
       </td>
     )
@@ -244,7 +277,13 @@ export function CalcView({ databaseId, schema, view, rows }: ViewProps): JSX.Ele
               ))}
               <th scope="col" className="db-calc-add-cell">
                 {calcs.length < L.MAX_CALCS && (
-                  <button type="button" className="db-calc-heading is-add" aria-label="Add a calculation" title="Add a calculation" onClick={add}>
+                  <button
+                    type="button"
+                    className="db-calc-heading is-add"
+                    aria-label="Add a calculation"
+                    title="Add a calculation"
+                    onClick={add}
+                  >
                     <Plus size={14} />
                   </button>
                 )}
@@ -254,7 +293,9 @@ export function CalcView({ databaseId, schema, view, rows }: ViewProps): JSX.Ele
           <tbody>
             {table.groups.map((group) => (
               <tr key={group.key ?? ''}>
-                <th scope="row">{group.option ? <OptionTag option={group.option} /> : <span className="db-calc-none">{group.label}</span>}</th>
+                <th scope="row">
+                  {group.option ? <OptionTag option={group.option} /> : <span className="db-calc-none">{group.label}</span>}
+                </th>
                 {calcs.map((calc, index) => cell(group.results[index], calc.id))}
                 <td aria-hidden />
               </tr>

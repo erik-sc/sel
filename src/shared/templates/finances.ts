@@ -7,7 +7,28 @@
 // A category reads the month through rollups that keep only this month's (or last month's)
 // transactions, and compares its budget with them; the plan sums the budgets by group the same
 // way. The month's figures and charts are views filtered to "this month".
-import { asc, b, calc, callout, chooser, database, desc, divider, h2, line, linked, ofMonth, opt, p, page, prop, row, schema, views, where } from './build'
+import {
+  asc,
+  b,
+  calc,
+  callout,
+  chooser,
+  database,
+  desc,
+  divider,
+  h2,
+  line,
+  linked,
+  ofMonth,
+  opt,
+  p,
+  page,
+  prop,
+  row,
+  schema,
+  views,
+  where
+} from './build'
 import type { Template, TemplateLocale, TemplateRow } from './model'
 
 export function finances(locale: TemplateLocale): Template {
@@ -42,7 +63,12 @@ export function finances(locale: TemplateLocale): Template {
     ]),
     prop.number('budget', t('Orçamento mensal', 'Monthly budget'), 'currency'),
     prop.rollup('month', t('Gasto este mês', 'Spent this month'), 'entries', 'expense', 'sum', thisMonth),
-    prop.formula('left', t('Resta este mês', 'Left this month'), 'if(not empty(prop("budget")), prop("budget") - prop("month"))', 'currency'),
+    prop.formula(
+      'left',
+      t('Resta este mês', 'Left this month'),
+      'if(not empty(prop("budget")), prop("budget") - prop("month"))',
+      'currency'
+    ),
     prop.formula('used', t('% usado', '% used'), 'if(not empty(prop("budget")), prop("month") / prop("budget"))', 'percent'),
     // "Too fast": more of the budget is gone than of the month. Savings are the other way round: the whole budget is the aim.
     prop.formula(
@@ -85,7 +111,6 @@ export function finances(locale: TemplateLocale): Template {
     prop.rollup('last', t('Último lançamento', 'Last transaction'), 'entries', 'date', 'latest'),
     prop.relation('entries', t('Lançamentos', 'Transactions'), 'entries', { synced: 'account' })
   )
-
 
   // ---- the plan: the take-home pay, and how the budgets of the categories share it out
   const share = (id: string): string => `if(not empty(prop("salary")), prop("${id}") / prop("salary"))`
@@ -151,26 +176,86 @@ export function finances(locale: TemplateLocale): Template {
     const wobble = (n: number, step: number): number => Math.round((n + step * ((m * 7) % 5) - step * 2) * 100) / 100
     const list: Entry[] = [
       { day: 5, title: t('Salário', 'Paycheck'), category: 'salary', account: 'checking', income: t(5200, 4200), recurring: true },
-      { day: 6, title: t('Guardar na poupança', 'Transfer to savings'), category: 'reserve', account: 'checking', expense: t(600, 400), recurring: true },
-      { day: 10, title: t('Aluguel e condomínio', 'Rent'), category: 'housing', account: 'checking', expense: t(1750, 1350), recurring: true },
-      { day: 12, title: t('Conta de luz', 'Electricity'), category: 'housing', account: 'checking', expense: wobble(t(160, 85), t(12, 6)), recurring: true },
+      {
+        day: 6,
+        title: t('Guardar na poupança', 'Transfer to savings'),
+        category: 'reserve',
+        account: 'checking',
+        expense: t(600, 400),
+        recurring: true
+      },
+      {
+        day: 10,
+        title: t('Aluguel e condomínio', 'Rent'),
+        category: 'housing',
+        account: 'checking',
+        expense: t(1750, 1350),
+        recurring: true
+      },
+      {
+        day: 12,
+        title: t('Conta de luz', 'Electricity'),
+        category: 'housing',
+        account: 'checking',
+        expense: wobble(t(160, 85), t(12, 6)),
+        recurring: true
+      },
       { day: 15, title: t('Internet', 'Internet'), category: 'housing', account: 'card', expense: t(110, 60), recurring: true },
-      { day: 8, title: t('Streaming de vídeo', 'Video streaming'), category: 'subscriptions', account: 'card', expense: t(45, 16), recurring: true },
+      {
+        day: 8,
+        title: t('Streaming de vídeo', 'Video streaming'),
+        category: 'subscriptions',
+        account: 'card',
+        expense: t(45, 16),
+        recurring: true
+      },
       { day: 8, title: t('Música', 'Music'), category: 'subscriptions', account: 'card', expense: t(22, 11), recurring: true },
       { day: 20, title: t('Academia', 'Gym'), category: 'health', account: 'card', expense: t(120, 40), recurring: true },
-      { day: 3, title: t('Mercado do mês', 'Big grocery run'), category: 'groceries', account: 'card', expense: wobble(t(420, 130), t(25, 8)) },
+      {
+        day: 3,
+        title: t('Mercado do mês', 'Big grocery run'),
+        category: 'groceries',
+        account: 'card',
+        expense: wobble(t(420, 130), t(25, 8))
+      },
       { day: 14, title: t('Mercado', 'Groceries'), category: 'groceries', account: 'card', expense: wobble(t(260, 85), t(18, 6)) },
       { day: 18, title: t('Feira', "Farmers' market"), category: 'groceries', account: 'wallet', expense: wobble(t(85, 32), t(6, 3)) },
-      { day: 24, title: t('Padaria e hortifrúti', 'Bakery and produce'), category: 'groceries', account: 'card', expense: wobble(t(95, 38), t(7, 3)) },
-      { day: 2, title: t('Recarga do bilhete', 'Transit pass'), category: 'transport', account: 'checking', expense: t(120, 90), recurring: true },
+      {
+        day: 24,
+        title: t('Padaria e hortifrúti', 'Bakery and produce'),
+        category: 'groceries',
+        account: 'card',
+        expense: wobble(t(95, 38), t(7, 3))
+      },
+      {
+        day: 2,
+        title: t('Recarga do bilhete', 'Transit pass'),
+        category: 'transport',
+        account: 'checking',
+        expense: t(120, 90),
+        recurring: true
+      },
       { day: 21, title: t('Corrida de app', 'Rideshare'), category: 'transport', account: 'card', expense: wobble(t(38, 22), t(5, 3)) },
       { day: 17, title: t('Farmácia', 'Pharmacy'), category: 'health', account: 'card', expense: wobble(t(65, 18), t(9, 4)) },
-      { day: 11, title: t('Almoço com a equipe', 'Lunch with the team'), category: 'eating', account: 'card', expense: wobble(t(54, 24), t(4, 2)) }
+      {
+        day: 11,
+        title: t('Almoço com a equipe', 'Lunch with the team'),
+        category: 'eating',
+        account: 'card',
+        expense: wobble(t(54, 24), t(4, 2))
+      }
     ]
     if (m === 0) {
       list.push(
         { day: 9, title: t('Cinema', 'Movies'), category: 'fun', account: 'card', expense: t(60, 28) },
-        { day: 13, title: t('Livro', 'Book'), category: 'fun', account: 'card', expense: t(70, 19), note: t('Presente para a Ana', 'A gift for Sam') }
+        {
+          day: 13,
+          title: t('Livro', 'Book'),
+          category: 'fun',
+          account: 'card',
+          expense: t(70, 19),
+          note: t('Presente para a Ana', 'A gift for Sam')
+        }
       )
     }
     if (m === 1) {
@@ -223,8 +308,20 @@ export function finances(locale: TemplateLocale): Template {
       callout(
         '💡',
         t(
-          [['Comece pelo '], b('Meu plano'), [': escreva seu salário líquido. Depois anote cada entrada e saída em '], b('Lançamentos'), [', com uma categoria e uma conta. O resto desta página se monta sozinho.']],
-          [['Start with '], b('My plan'), [': write down your take-home pay. Then note every bit of money in and out in '], b('Transactions'), [', with a category and an account. The rest of this page builds itself.']]
+          [
+            ['Comece pelo '],
+            b('Meu plano'),
+            [': escreva seu salário líquido. Depois anote cada entrada e saída em '],
+            b('Lançamentos'),
+            [', com uma categoria e uma conta. O resto desta página se monta sozinho.']
+          ],
+          [
+            ['Start with '],
+            b('My plan'),
+            [': write down your take-home pay. Then note every bit of money in and out in '],
+            b('Transactions'),
+            [', with a category and an account. The rest of this page builds itself.']
+          ]
         )
       ),
       h2(t('Meu plano', 'My plan')),
@@ -235,11 +332,19 @@ export function finances(locale: TemplateLocale): Template {
         )
       ),
       // The advice is a sentence: it gets a column of its own, wide enough to be read whole.
-      linked('plan', [views.table(t('Conselho', 'Advice'), ['title', 'advice'], { widths: { title: 130, advice: 640 } })], { title: t('Onde organizar', 'What to look at') }),
-      linked('plan', [views.table(t('Salário', 'Pay'), ['title', 'salary', 'planned', 'free'])], { title: t('Salário e destino', 'Pay and where it goes') }),
-      linked('plan', [views.table(t('Divisão', 'Split'), ['title', 'needs', 'needsShare', 'wants', 'wantsShare', 'future', 'futureShare'])], {
-        title: t('Essencial, estilo de vida e futuro', 'Needs, wants and savings')
+      linked('plan', [views.table(t('Conselho', 'Advice'), ['title', 'advice'], { widths: { title: 130, advice: 640 } })], {
+        title: t('Onde organizar', 'What to look at')
       }),
+      linked('plan', [views.table(t('Salário', 'Pay'), ['title', 'salary', 'planned', 'free'])], {
+        title: t('Salário e destino', 'Pay and where it goes')
+      }),
+      linked(
+        'plan',
+        [views.table(t('Divisão', 'Split'), ['title', 'needs', 'needsShare', 'wants', 'wantsShare', 'future', 'futureShare'])],
+        {
+          title: t('Essencial, estilo de vida e futuro', 'Needs, wants and savings')
+        }
+      ),
       h2(t('Este mês', 'This month')),
       linked(
         'entries',
@@ -277,7 +382,15 @@ export function finances(locale: TemplateLocale): Template {
         [
           views.chart(
             t('Por categoria', 'By category'),
-            { kind: 'donut', x: 'category', y: { aggregate: 'sum', property: 'expense' }, showLegend: true, showValues: true, sort: 'y_desc', height: 240 },
+            {
+              kind: 'donut',
+              x: 'category',
+              y: { aggregate: 'sum', property: 'expense' },
+              showLegend: true,
+              showValues: true,
+              sort: 'y_desc',
+              height: 240
+            },
             { filters: thisMonth }
           )
         ],
@@ -344,7 +457,16 @@ export function finances(locale: TemplateLocale): Template {
         [
           views.chart(
             t('Por grupo', 'By group'),
-            { kind: 'donut', x: 'group', y: { aggregate: 'sum', property: 'budget' }, palette: 'options', showLegend: true, showValues: true, sort: 'manual', height: 260 },
+            {
+              kind: 'donut',
+              x: 'group',
+              y: { aggregate: 'sum', property: 'budget' },
+              palette: 'options',
+              showLegend: true,
+              showValues: true,
+              sort: 'manual',
+              height: 260
+            },
             { filters: withBudget }
           )
         ],

@@ -143,10 +143,7 @@ export const Sidebar = memo(function Sidebar() {
     <aside className={collapsed ? 'sidebar glass is-collapsed' : 'sidebar glass'} aria-hidden={collapsed} inert={collapsed}>
       <div className="sidebar-inner">
         <header className="sidebar-header">
-          <span className="workspace-badge" aria-hidden="true">
-            S
-          </span>
-          <span className="workspace-name">sel</span>
+          <span className="sidebar-header-space" />
           <IconButton label={copy.closeSidebar} onClick={toggleSidebar}>
             <ChevronLeft />
           </IconButton>
@@ -185,7 +182,7 @@ export const Sidebar = memo(function Sidebar() {
       <TrashPopover anchor={panel.anchor} open={panel.open === 'trash'} onClose={closeSidebarPanel} />
       <ArchivePopover anchor={panel.anchor} open={panel.open === 'archive'} onClose={closeSidebarPanel} />
       {menu && (
-        <Popover open anchor={menu} onClose={() => setMenu(null)}>
+        <Popover open anchor={menu} role="none" onClose={() => setMenu(null)}>
           <Menu
             autoFocus
             onClose={() => setMenu(null)}

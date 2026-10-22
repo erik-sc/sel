@@ -6,6 +6,7 @@ import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import type { CalendarSync } from '../sync/format'
 import type { BriefingBridge } from './index'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `briefing:*` channels. This file is all of the briefing that loads at start-up: the
@@ -38,7 +39,13 @@ export interface BriefingAccess {
   occurrence(uid: string, start: number): Promise<BriefingEvent | null>
 }
 
-export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncompleted, onCalendarsChanged }: BriefingIpcContext): BriefingAccess & { handlers: Handlers<'briefing'> } {
+export function registerBriefingIpc({
+  repo,
+  ai,
+  onTaskCompleted,
+  onTaskUncompleted,
+  onCalendarsChanged
+}: BriefingIpcContext): BriefingAccess & { handlers: Handlers<'briefing'> } {
   let bridge: BriefingBridge | null = null
   const briefing = async (): Promise<BriefingBridge> => (bridge ??= new (await import('./index')).BriefingBridge(repo))
 
@@ -90,7 +97,10 @@ export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncomplet
       const b = await briefing()
       const { buildBriefingPrompt } = await import('../ai/prompts')
       // With Herman on, he is the one who answers ("Ask Herman about today"): the same request, in his voice.
-      return (await ai()).runPrompt((language, voice) => buildBriefingPrompt(b.service.promptData(), { defaultLanguage: language, voice }), event.sender)
+      return (await ai()).runPrompt(
+        (language, voice) => buildBriefingPrompt(b.service.promptData(), { defaultLanguage: language, voice }),
+        event.sender
+      )
     }
   }
 
@@ -103,3 +113,17 @@ export function registerBriefingIpc({ repo, ai, onTaskCompleted, onTaskUncomplet
     occurrence: async (uid, start) => (await briefing()).service.occurrence(uid, start)
   }
 }
+
+/** The briefing's main side: Today's calendars, tasks and phrase. Herman notices tasks done here; calendars sync. */
+export const briefingFeature = defineFeature({
+  namespace: 'briefing',
+  register: (ctx): BriefingAccess & Registered<'briefing'> =>
+    registerBriefingIpc({
+      repo: ctx.repo,
+      ai: () => ctx.feature('ai').bridge(),
+      onTaskCompleted: (sender) => ctx.feature('herman').taskCompleted(sender),
+      onTaskUncompleted: () => ctx.feature('herman').taskUncompleted(),
+      // Calendars are synced (into an encrypted repository only): a change here is one to upload.
+      onCalendarsChanged: () => ctx.noteLocalChange()
+    })
+})

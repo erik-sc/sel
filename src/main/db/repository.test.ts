@@ -7,8 +7,7 @@ import { openTestRepository } from './testing'
 let repo: Repository
 
 const ids = (blocks: Block[]): string[] => blocks.map((b) => b.id)
-const page = (title: string, parentId: string | null = null): Block =>
-  repo.create({ type: 'page', parentId, props: { title: [[title]] } })
+const page = (title: string, parentId: string | null = null): Block => repo.create({ type: 'page', parentId, props: { title: [[title]] } })
 const text = (title: string, parentId: string, afterId?: string | null): Block =>
   repo.create({ type: 'text', parentId, props: { title: [[title]] }, afterId })
 
@@ -572,7 +571,7 @@ describe('batches that reorder one parent many times', () => {
     const run = (batch: boolean): { order: string[]; newest: string[]; titles: unknown[] } => {
       const r = openTestRepository()
       const p = r.create({ id: 'p', type: 'page', parentId: null, props: { title: [['P']] } })
-      const q = r.create({ id: 'q', type: 'page', parentId: null, props: { title: [['Q']] } })
+      r.create({ id: 'q', type: 'page', parentId: null, props: { title: [['Q']] } })
       r.create({ id: 'old', type: 'text', parentId: p.id, props: { title: [['old']] } })
       const ops: Parameters<Repository['apply']>[0] = [
         { op: 'create', input: { id: 'a', type: 'text', parentId: 'p', props: { title: [['a']] } } },
@@ -662,6 +661,8 @@ describe('query plans', () => {
     r.listRoot()
     r.listChildren(root.id)
     r.listFavorites()
+    r.listArchived()
+    r.backlinks(root.id)
     r.listRecent()
     r.ancestors(a.id)
     r.search('alpha')
@@ -695,12 +696,16 @@ describe('query plans', () => {
       process.stdout.write([...plans].map(([sql, plan]) => `${sql}\n    => ${plan}`).join('\n') + '\n')
     }
 
-    // The only statement allowed to walk a whole table ("SCAN x" without "USING ... INDEX")
-    // is the substring fallback of search, which has no index to use by design.
+    // The only statements allowed to walk a whole table ("SCAN x" without "USING ... INDEX") are
+    // the substring fallback of search, which has no index to use by design, and the one pass of
+    // the migration that fills page_links.
     const scans = [...plans]
-      .filter(([, plan]) => /\bSCAN (blocks|b|c|p|blocks_fts_content)\b(?! USING)/.test(plan))
+      .filter(([, plan]) => /\bSCAN (blocks|b|c|p|l|page_links|blocks_fts_content)\b(?! USING)/.test(plan))
       .map(([sql]) => sql)
-    expect(scans).toEqual(["SELECT c0 AS id FROM blocks_fts_content WHERE c1 LIKE ? ESCAPE '\\' LIMIT ?"])
+    expect(scans.sort()).toEqual([
+      "SELECT c0 AS id FROM blocks_fts_content WHERE c1 LIKE ? ESCAPE '\\' LIMIT ?",
+      "SELECT id, props FROM blocks WHERE instr(props, 'sel://page/') > 0"
+    ])
 
     const planOf = (fragment: string): string => {
       const hit = [...plans].find(([sql]) => sql.includes(fragment))
@@ -710,12 +715,16 @@ describe('query plans', () => {
     // Recent pages come straight off the partial index, newest first, without a sort.
     expect(planOf('ORDER BY updated_at DESC')).toContain('blocks_pages_recent_idx')
     expect(planOf('ORDER BY updated_at DESC')).not.toContain('TEMP B-TREE')
-    // Favourites only look at live pages and databases, never at ordinary blocks.
-    expect(planOf("json_extract(props, '$.favorite')")).toContain('blocks_pages_recent_idx')
-    // So do the list of source databases (already in recency order) and the views of one source.
-    expect(planOf("json_extract(props, '$.sourceId') IS NULL")).toContain('blocks_pages_recent_idx')
-    expect(planOf("json_extract(props, '$.sourceId') IS NULL")).not.toContain('TEMP B-TREE')
-    expect(planOf("json_extract(props, '$.sourceId') = ?")).toContain('blocks_pages_recent_idx')
+    // Favourites, archived pages, source databases and the views of one source come off partial
+    // indexes on their JSON key: none of these lists grows with the rows of the databases.
+    expect(planOf("json_extract(props, '$.favorite')")).toContain('blocks_favorite_idx')
+    expect(planOf("json_extract(props, '$.favorite')")).not.toContain('TEMP B-TREE')
+    expect(planOf("json_type(props, '$.archivedAt')")).toContain('blocks_archived_idx')
+    expect(planOf("json_type(props, '$.archivedAt')")).not.toContain('TEMP B-TREE')
+    expect(planOf("json_extract(props, '$.sourceId') IS NULL")).toContain('blocks_source_idx')
+    expect(planOf("json_extract(props, '$.sourceId') = ?")).toContain('blocks_source_idx')
+    // "Linked from" reads the links to one page, not the text of every block.
+    expect(planOf('FROM page_links l JOIN blocks b')).toContain('page_links_to_idx')
     expect(planOf('trashed_at IS NOT NULL ORDER BY trashed_at DESC')).toContain('blocks_trashed_idx')
     expect(planOf('trashed_at IS NOT NULL ORDER BY trashed_at DESC')).not.toContain('TEMP B-TREE')
     // The workspace root, the children lookup of delete, and both recursive walks use parent_id / id.
@@ -745,7 +754,7 @@ describe('query plans', () => {
       PRAGMA user_version = 1;
     `)
     const r = new Repo(db)
-    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(5)
+    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(6)
     const names = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all() as { name: string }[]).map((x) => x.name)
     expect(names).toContain('blocks_pages_recent_idx')
     // Migration 3: the version history table, empty.

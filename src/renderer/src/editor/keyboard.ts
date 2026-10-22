@@ -91,7 +91,10 @@ export function onBlockKeyDown(ctrl: EditorController, id: string, e: KeyboardEv
     }
     return
   }
-  if (e.altKey) return
+  if (e.altKey) {
+    if (key === 'F10' && !e.shiftKey && ctrl.requestToolbar()) stop()
+    return
+  }
 
   switch (key) {
     case ' ':

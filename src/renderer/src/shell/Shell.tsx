@@ -1,27 +1,17 @@
-import { useEffect } from 'react'
-import type { CSSProperties } from 'react'
+import { Fragment, Suspense, useEffect } from 'react'
+import type { ComponentType, CSSProperties } from 'react'
+import type { Overlay } from '@/feature'
+import { FEATURES } from '@/features'
 import { tabPage, useActiveTab, useTabs } from '@/store/tabs'
 import { setFocusMode, useUi } from '@/store/ui'
 import { Toaster } from '@/ui/Toaster'
 import { VersionHistory } from '@/versions/VersionHistory'
-import { AiSetup, AssistantDock } from '@/ai/Host'
 import { useAiGate } from '@/ai/gate'
-import { CalendarHost, TodayHost } from '@/briefing/Host'
-import { HermanHost } from '@/herman/Host'
-import { PomodoroHost } from '@/pomodoro/Host'
-import { FeedbackHost } from '@/feedback/Host'
-import { MeetingSetup, RecordingIndicator } from '@/meetings/slot'
-import { isCalendarRoute, isTodayRoute } from '@/briefing/route'
-import { isTasksRoute } from '@/tasks/gate'
-import { TasksHost } from '@/tasks/Host'
-import { CloseDayHost, NotebookHost } from '@/notebook/Host'
-import { isCloseRoute, isNotebookRoute } from '@/notebook/route'
-import { SkyHost } from '@/sky/Host'
-import { isSkyRoute } from '@/sky/route'
-import { UpdateNotice } from '@/updates/Notice'
+import { RecordingIndicator } from '@/meetings/slot'
+import { screenOf } from '@/screens'
 import { CommandPalette } from '@/commands/Palette'
 import { ShortcutsHost } from '@/shortcuts/Host'
-import { TemplatesHost } from '@/templates/Host'
+import { PageSkeleton } from '@/ui/Skeleton'
 import { EmptyState, PageHost } from './PageHost'
 import { FindBar } from './FindBar'
 import { MainBars } from './MainBars'
@@ -32,6 +22,39 @@ import { TabBar } from './TabBar'
 import { TopBar } from './TopBar'
 import { useShellCommands } from './useShellCommands'
 
+/** The shell's own overlays and the features', in their slot's order (see `Overlay` in ../feature.ts). */
+function overlays(slot: Overlay['slot'], own: readonly { order: number; Overlay: ComponentType }[]) {
+  const features = FEATURES.flatMap((feature) => feature.overlays ?? [])
+  return [
+    ...own.map((entry) => ({ ...entry, lazy: false })),
+    ...features.filter((entry) => entry.slot === slot).map((entry) => ({ ...entry, lazy: true }))
+  ].sort((a, b) => a.order - b.order)
+}
+
+const CONTENT_OVERLAYS = overlays('content', [{ order: 30, Overlay: FindBar }])
+const WINDOW_OVERLAYS = overlays('window', [
+  { order: 20, Overlay: QuickFind },
+  { order: 30, Overlay: CommandPalette },
+  { order: 40, Overlay: ShortcutsHost },
+  { order: 50, Overlay: SettingsModal },
+  { order: 60, Overlay: VersionHistory },
+  { order: 110, Overlay: Toaster }
+])
+
+function Overlays({ list }: { list: typeof CONTENT_OVERLAYS }) {
+  return list.map(({ order, Overlay, lazy }) =>
+    lazy ? (
+      <Suspense key={order} fallback={null}>
+        <Overlay />
+      </Suspense>
+    ) : (
+      <Fragment key={order}>
+        <Overlay />
+      </Fragment>
+    )
+  )
+}
+
 export function Shell() {
   useShellCommands()
   const sidebarWidth = useUi((state) => state.sidebarWidth)
@@ -41,6 +64,7 @@ export function Shell() {
   const ready = useTabs((state) => state.ready)
   const tab = useActiveTab()
   const pageId = tabPage(tab)
+  const screen = screenOf(pageId)
 
   const classes = ['shell', `platform-${window.api.app.platform}`]
   if (sidebarCollapsed) classes.push('is-sidebar-collapsed')
@@ -76,41 +100,32 @@ export function Shell() {
         )}
         <div className="content-row">
           <main className="content">
-            {!ready ? null : isTodayRoute(pageId) ? (
-              <TodayHost />
-            ) : isCalendarRoute(pageId) ? (
-              <CalendarHost />
-            ) : isTasksRoute(pageId) ? (
-              <TasksHost />
-            ) : isNotebookRoute(pageId) ? (
-              <NotebookHost />
-            ) : isCloseRoute(pageId) ? (
-              <CloseDayHost />
-            ) : isSkyRoute(pageId) ? (
-              <SkyHost />
+            {!ready ? null : screen ? (
+              // A screen's mount point is fetched the first time it is shown (../screens.ts).
+              <Suspense fallback={<ScreenSkeleton />}>
+                <screen.Host />
+              </Suspense>
             ) : pageId && tab ? (
               <PageHost key={`${tab.id}:${pageId}`} pageId={pageId} />
             ) : (
               <EmptyState />
             )}
-            <HermanHost />
-            <PomodoroHost />
-            <FindBar />
-            <UpdateNotice />
+            <Overlays list={CONTENT_OVERLAYS} />
           </main>
         </div>
       </div>
-      <AssistantDock />
-      <QuickFind />
-      <CommandPalette />
-      <ShortcutsHost />
-      <SettingsModal />
-      <VersionHistory />
-      <AiSetup />
-      <MeetingSetup />
-      <FeedbackHost />
-      <TemplatesHost />
-      <Toaster />
+      <Overlays list={WINDOW_OVERLAYS} />
+    </div>
+  )
+}
+
+/** What a screen shows while its mount point loads: what the mount point itself shows while its screen does. */
+function ScreenSkeleton() {
+  return (
+    <div className="page-host">
+      <div className="page-scroll">
+        <PageSkeleton />
+      </div>
     </div>
   )
 }

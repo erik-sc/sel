@@ -32,6 +32,9 @@ export interface DataCopy {
   problem: Record<BackupProblem, string>
   fileProblem: Record<BackupFileProblem, string>
   somethingWrong: string
+  logs: string
+  logsHelp: string
+  openLogs: string
   // ---- native dialogs (main process)
   chooseBackupTitle: string
   backupFilter: string
@@ -46,6 +49,8 @@ export interface DataCopy {
   couldNotOpen: string
   damagedWithBackup: (when: string, pages: number, aside: string) => string
   damagedWithoutBackup: (folder: string) => string
+  /** The database is damaged and the backups folder is there but cannot be read. */
+  damagedBackupsUnreadable: (folder: string) => string
   restoreBackup: string
   showTheFolder: string
   quit: string
@@ -89,6 +94,9 @@ export const DATA_COPY: Record<DataLocale, DataCopy> = {
       current: 'That is the database sel is using now. Choose a backup.'
     },
     somethingWrong: 'Something went wrong. Nothing was changed.',
+    logs: 'Log',
+    logsHelp: 'What went wrong lately, kept on this computer only. Never what your pages say.',
+    openLogs: 'Open logs folder',
     chooseBackupTitle: 'Choose a backup',
     backupFilter: 'sel backups',
     restoreQuestion: (when) => `Restore the backup of ${when}?`,
@@ -105,6 +113,8 @@ export const DATA_COPY: Record<DataLocale, DataCopy> = {
       `The file looks damaged. There is a backup from ${when}, with ${pages} ${pages === 1 ? 'page' : 'pages'}.\n\nRestoring it keeps the damaged file next to it, as ${aside}: nothing is deleted.`,
     damagedWithoutBackup: (folder) =>
       `The file looks damaged, and there is no backup to restore. Nothing was deleted: the file is in this folder.\n\n${folder}`,
+    damagedBackupsUnreadable: (folder) =>
+      `The file looks damaged, and the backups folder could not be read, so no backup can be offered. Nothing was deleted: check that sel may read this folder, then start sel again.\n\n${folder}`,
     restoreBackup: 'Restore the backup',
     showTheFolder: 'Show the folder',
     quit: 'Quit',
@@ -146,6 +156,9 @@ export const DATA_COPY: Record<DataLocale, DataCopy> = {
       current: 'Esse é o banco que o sel está usando agora. Escolha um backup.'
     },
     somethingWrong: 'Algo deu errado. Nada foi alterado.',
+    logs: 'Log',
+    logsHelp: 'O que deu errado nos últimos tempos, guardado só neste computador. Nunca o que suas páginas dizem.',
+    openLogs: 'Abrir pasta de logs',
     chooseBackupTitle: 'Escolha um backup',
     backupFilter: 'Backups do sel',
     restoreQuestion: (when) => `Restaurar o backup de ${when}?`,
@@ -162,6 +175,8 @@ export const DATA_COPY: Record<DataLocale, DataCopy> = {
       `O arquivo parece danificado. Existe um backup de ${when}, com ${pages} ${pages === 1 ? 'página' : 'páginas'}.\n\nAo restaurar, o arquivo danificado fica guardado ao lado, como ${aside}: nada é apagado.`,
     damagedWithoutBackup: (folder) =>
       `O arquivo parece danificado, e não há backup para restaurar. Nada foi apagado: o arquivo está nesta pasta.\n\n${folder}`,
+    damagedBackupsUnreadable: (folder) =>
+      `O arquivo parece danificado, e não foi possível ler a pasta de backups, então nenhum backup pode ser oferecido. Nada foi apagado: confira se o sel pode ler esta pasta e abra o sel de novo.\n\n${folder}`,
     restoreBackup: 'Restaurar o backup',
     showTheFolder: 'Mostrar a pasta',
     quit: 'Sair',
@@ -186,7 +201,11 @@ export function backupWhen(at: number, now: number, locale: DataLocale): string 
   const yesterday = new Date(now)
   yesterday.setDate(yesterday.getDate() - 1)
   if (day === yesterday.toDateString()) return `${copy.yesterday}, ${time}`
-  const date = new Intl.DateTimeFormat(INTL_LOCALE[locale], { day: 'numeric', month: 'short', ...(new Date(at).getFullYear() !== new Date(now).getFullYear() ? { year: 'numeric' as const } : {}) }).format(at)
+  const date = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    day: 'numeric',
+    month: 'short',
+    ...(new Date(at).getFullYear() !== new Date(now).getFullYear() ? { year: 'numeric' as const } : {})
+  }).format(at)
   return `${date}, ${time}`
 }
 

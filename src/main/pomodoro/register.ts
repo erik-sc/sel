@@ -5,6 +5,7 @@ import { isQuickAddUrl } from '../alarms/windows'
 import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import { PomodoroService } from './service'
+import { defineFeature, type Registered } from '../feature'
 
 /**
  * The `pomodoro:*` channels and the one timer behind them (./service.ts), wired to the windows,
@@ -116,7 +117,8 @@ function notify(ended: PomodoroEnded, snapshot: PomodoroSnapshot, win: BrowserWi
 /** The words of the notification, in the language of the rest of the app's own voice. */
 export function notificationText(ended: PomodoroEnded, snapshot: PomodoroSnapshot): { title: string; body: string } {
   const pt = snapshot.locale === 'pt-BR'
-  const minutes = ended.next === 'short' ? snapshot.settings.short : ended.next === 'long' ? snapshot.settings.long : snapshot.settings.focus
+  const minutes =
+    ended.next === 'short' ? snapshot.settings.short : ended.next === 'long' ? snapshot.settings.long : snapshot.settings.focus
   if (ended.phase === 'focus') {
     return {
       title: pt ? 'Fim do foco' : 'Focus done',
@@ -140,5 +142,17 @@ function localeOf(aiLanguage: unknown, systemLocale: string): 'en' | 'pt-BR' {
 
 /** The windows that show the workspace (not the quick-add window, which has no corner to show it in). */
 function appWindows(): BrowserWindow[] {
-  return BrowserWindow.getAllWindows().filter((win) => !win.isDestroyed() && !win.webContents.isDestroyed() && !isQuickAddUrl(win.webContents.getURL()))
+  return BrowserWindow.getAllWindows().filter(
+    (win) => !win.isDestroyed() && !win.webContents.isDestroyed() && !isQuickAddUrl(win.webContents.getURL())
+  )
 }
+
+/** The one focus timer, kept here so every window shows the same. Silent while a meeting is recorded, like the alarms. */
+export const pomodoroFeature = defineFeature({
+  namespace: 'pomodoro',
+  register: (ctx): PomodoroHooks & Registered<'pomodoro'> => {
+    const hooks = registerPomodoroIpc({ repo: ctx.repo, recording: () => ctx.recording() })
+    // The pomodoro's lengths: the windows show them (a running phase keeps its own).
+    return { ...hooks, onSettingChanged: (key) => hooks.settingChanged(key) }
+  }
+})

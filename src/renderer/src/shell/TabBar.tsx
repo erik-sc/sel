@@ -1,29 +1,21 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DragEvent, KeyboardEvent } from 'react'
 import { useBlock } from '@/store/blocks'
-import {
-  activateTab,
-  closeOtherTabs,
-  closeTab,
-  closeTabsToRight,
-  moveTab,
-  newTab,
-  tabPage,
-  useTabs,
-  type Tab
-} from '@/store/tabs'
+import { activateTab, closeOtherTabs, closeTab, closeTabsToRight, moveTab, newTab, tabPage, useTabs, type Tab } from '@/store/tabs'
 import { useUi } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
 import { Menu, type MenuItem } from '@/ui/Menu'
-import { Popover } from '@/ui/Popover'
+import { Popover, type PopoverAnchor } from '@/ui/Popover'
+import { a11yCopy, announce } from '@/a11y/announce'
+import { isMenuKeyEcho, keyboardAnchor, moveFocusAmong, takeMenuKey } from '@/a11y/keys'
 import { ChevronDown, Close, Plus, Sidebar as SidebarIcon } from '@/ui/icons'
 import { reportError } from './actions'
-import { routeTitle } from '@/briefing/route'
+import { routeTitle } from '@/screens'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { useAiGate } from '@/ai/gate'
 import { WindowControls } from './WindowControls'
-import { showOrHideSidebar } from './menuCommands'
+import { showOrHideSidebar } from './panels'
 
 const DRAG_TYPE = 'application/x-sel-tab'
 
@@ -50,7 +42,7 @@ interface TabItemProps {
 // page re-renders the tabs concerned, not the whole strip.
 const TabItem = memo(function TabItem({ tab, active, last, dragging, onDragStart, onDragOver, onDragEnd }: TabItemProps) {
   const { pageId, screen, block, title } = useTabTitle(tab)
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  const [menu, setMenu] = useState<PopoverAnchor>(null)
 
   // No "Duplicate tab": one page, one tab (see openPage).
   const menuItems = (): MenuItem[] => [
@@ -80,18 +72,30 @@ const TabItem = memo(function TabItem({ tab, active, last, dragging, onDragStart
         draggable
         // Roving tabindex: Tab reaches the active tab, the arrow keys move along the strip.
         tabIndex={active ? 0 : -1}
+        data-tab-id={tab.id}
         onKeyDown={(event) => {
-          if (event.target !== event.currentTarget) return
-          if (event.key === 'Enter' || event.key === ' ') {
+          if (event.target !== event.currentTarget || event.nativeEvent.isComposing) return
+          const strip = event.currentTarget.parentElement
+          if (takeMenuKey(event)) {
+            event.preventDefault()
+            setMenu(keyboardAnchor(event.currentTarget))
+          } else if (event.ctrlKey && event.shiftKey && !event.altKey && (event.key === 'PageUp' || event.key === 'PageDown')) {
+            // Reordered from the keyboard: the tab keeps the focus in its new place.
+            event.preventDefault()
+            const tabs = useTabs.getState().tabs
+            const from = tabs.findIndex((t) => t.id === tab.id)
+            const to = from + (event.key === 'PageUp' ? -1 : 1)
+            if (from < 0 || to < 0 || to >= tabs.length) return
+            moveTab(tab.id, to)
+            requestAnimationFrame(() => strip?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(tab.id)}"]`)?.focus())
+            announce(a11yCopy().tabMoved(to + 1, tabs.length))
+          } else if (event.ctrlKey || event.altKey || event.metaKey) {
+            /* the app's own shortcuts */
+          } else if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault()
             activateTab(tab.id)
-          } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-            const tabEl = event.currentTarget
-            const neighbour = event.key === 'ArrowLeft' ? tabEl.previousElementSibling : tabEl.nextElementSibling
-            if (neighbour instanceof HTMLElement) {
-              event.preventDefault()
-              neighbour.focus()
-            }
+          } else if (strip && moveFocusAmong(strip, ':scope > [role="tab"]', event.key, 'horizontal')) {
+            event.preventDefault()
           }
         }}
         onMouseDown={(event) => {
@@ -104,7 +108,8 @@ const TabItem = memo(function TabItem({ tab, active, last, dragging, onDragStart
         }}
         onContextMenu={(event) => {
           event.preventDefault()
-          setMenu({ x: event.clientX, y: event.clientY })
+          // After the Menu key, which opened the menu already, Windows sends this too.
+          if (!isMenuKeyEcho()) setMenu({ x: event.clientX, y: event.clientY })
         }}
         onDragStart={(event) => onDragStart(event, tab.id)}
         onDragOver={(event) => onDragOver(event, tab.id)}
@@ -113,10 +118,12 @@ const TabItem = memo(function TabItem({ tab, active, last, dragging, onDragStart
       >
         {pageId && !screen && <PageIcon block={block} size={14} />}
         <span className="tab-title">{title}</span>
+        {/* For the pointer: from the keyboard a tab closes with Ctrl+W, or its menu (the Menu key). */}
         <button
           type="button"
           className="tab-close"
           aria-label="Close tab"
+          tabIndex={-1}
           onMouseDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation()
@@ -127,7 +134,7 @@ const TabItem = memo(function TabItem({ tab, active, last, dragging, onDragStart
         </button>
       </div>
       {menu && (
-        <Popover open anchor={menu} onClose={() => setMenu(null)}>
+        <Popover open anchor={menu} role="none" onClose={() => setMenu(null)}>
           <Menu items={menuItems()} onClose={() => setMenu(null)} autoFocus />
         </Popover>
       )}
@@ -181,7 +188,12 @@ function TabList({ onClose }: { onClose: () => void }) {
   const tabs = useTabs((state) => state.tabs)
   const activeId = useTabs((state) => state.activeId)
   const rootRef = useRef<HTMLDivElement>(null)
-  const [cursor, setCursor] = useState(() => Math.max(0, tabs.findIndex((t) => t.id === activeId)))
+  const [cursor, setCursor] = useState(() =>
+    Math.max(
+      0,
+      tabs.findIndex((t) => t.id === activeId)
+    )
+  )
   const at = Math.min(cursor, tabs.length - 1)
 
   useEffect(() => {
@@ -232,14 +244,7 @@ function TabList({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div
-      ref={rootRef}
-      className="ui-menu tab-list"
-      role="listbox"
-      aria-label="Open tabs"
-      tabIndex={-1}
-      onKeyDown={onKeyDown}
-    >
+    <div ref={rootRef} className="ui-menu tab-list" role="listbox" aria-label="Open tabs" tabIndex={-1} onKeyDown={onKeyDown}>
       {tabs.map((tab, index) => (
         <TabListRow
           key={tab.id}
@@ -390,7 +395,7 @@ export const TabBar = memo(function TabBar() {
         </IconButton>
       )}
       {listOpen && (
-        <Popover open anchor={listButton.current} placement="bottom-end" onClose={closeList}>
+        <Popover open anchor={listButton.current} placement="bottom-end" role="none" onClose={closeList}>
           <TabList onClose={closeList} />
         </Popover>
       )}

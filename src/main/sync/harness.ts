@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, describe, expect, vi } from 'vitest'
+import { afterAll, expect, vi } from 'vitest'
 import type { SyncStatus } from '../../shared/sync'
 import type { Block, RichText } from '../../shared/types'
 import type { Repository } from '../db/repository'
@@ -15,13 +15,13 @@ import { calendarSync, CalendarStore, type Cipher } from '../briefing/secrets'
 import { openTestRepository } from '../db/testing'
 import { SyncEngine, type SecretStore, type SyncStep } from './engine'
 import { locateGit } from './git'
+import { gitSuite } from './gitSuite'
 
 export const GIT = locateGit()
-if (!GIT) console.warn('[sync.test] git was not found on this computer: the sync integration tests are skipped')
-/** `describe`, or a skipped one on a computer without git. */
+if (!GIT && !process.env['CI']) console.warn('[sync.test] git was not found on this computer: the sync integration tests are skipped')
+/** `describe`; without git, skipped here and failed on CI (./gitSuite.ts). */
 export function suite(name: string, fn: () => void): void {
-  if (GIT) describe(name, fn)
-  else describe.skip(name, fn)
+  gitSuite(GIT, name, fn)
 }
 // Every cycle starts git a dozen times, and starting a program is slow on Windows.
 vi.setConfig({ testTimeout: 180_000 })
@@ -29,7 +29,10 @@ vi.setConfig({ testTimeout: 180_000 })
 export const ROOT = mkdtempSync(join(tmpdir(), 'sel-sync-'))
 afterAll(() => rmSync(ROOT, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }))
 
-export const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from('IHDR-and-some-pixels-0123456789')])
+export const PNG = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.from('IHDR-and-some-pixels-0123456789')
+])
 const KDF = { N: 1 << 14, r: 8, p: 1 }
 let serial = 0
 /** A name no other folder of this run has. */
@@ -38,7 +41,12 @@ export function unique(prefix: string): string {
 }
 
 export function git(cwd: string, ...args: string[]): string {
-  return execFileSync(GIT as string, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
+  return execFileSync(GIT as string, args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+  })
 }
 
 export function bareRemote(): string {
@@ -116,7 +124,12 @@ export function device(name: string, start: number): Device {
     encrypt: (text) => Buffer.from(Buffer.from(text, 'utf8').map((byte) => byte ^ 0x5a)),
     decrypt: (data) => Buffer.from(data.map((byte) => byte ^ 0x5a)).toString('utf8')
   }
-  const calendars = new CalendarStore(join(dir, 'briefing', 'calendars.bin'), cipher, () => ({}), () => ++clock.t)
+  const calendars = new CalendarStore(
+    join(dir, 'briefing', 'calendars.bin'),
+    cipher,
+    () => ({}),
+    () => ++clock.t
+  )
   const forgotten: string[] = []
   const self: Device = {
     name,

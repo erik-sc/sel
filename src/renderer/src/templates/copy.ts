@@ -77,7 +77,15 @@ export const TEMPLATES_COPY: Record<TemplateLocale, TemplatesCopy> = {
     making: 'Criando…',
     failed: 'make the page from the template',
     untitled: 'Sem título',
-    views: { table: 'tabela', board: 'quadro', list: 'lista', gallery: 'galeria', calendar: 'calendário', chart: 'gráfico', calc: 'cálculos' },
+    views: {
+      table: 'tabela',
+      board: 'quadro',
+      list: 'lista',
+      gallery: 'galeria',
+      calendar: 'calendário',
+      chart: 'gráfico',
+      calc: 'cálculos'
+    },
     rows: (n) => (n === 1 ? '1 exemplo' : `${n} exemplos`),
     properties: (n) => (n === 1 ? '1 propriedade' : `${n} propriedades`),
     linkedView: (source) => `visão de ${source}`,
@@ -87,31 +95,3 @@ export const TEMPLATES_COPY: Record<TemplateLocale, TemplatesCopy> = {
     command: 'Templates'
   }
 }
-
-/** Words to find the gallery by in the command palette, in both languages. */
-export const TEMPLATE_KEYWORDS = [
-  'template',
-  'templates',
-  'modelo',
-  'modelos',
-  'new page from template',
-  'nova página a partir de template',
-  'finances',
-  'finanças',
-  'budget',
-  'orçamento',
-  'household',
-  'casa',
-  'trip',
-  'viagem',
-  'project',
-  'projeto',
-  'library',
-  'biblioteca',
-  'studies',
-  'estudos',
-  'kitchen',
-  'cozinha',
-  'recipes',
-  'receitas'
-]

@@ -1,4 +1,7 @@
-import type { CouncilEvent } from './council'
+import type { AgentKind, AiAgentInfo, CouncilEvent } from './council'
+import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
 
 /**
  * AI workflows: the shapes shared by the main process (which finds and drives the Claude Code
@@ -133,7 +136,11 @@ export interface AiError {
   detail?: string
 }
 
-export type AiEvent = ({ type: 'delta' } & AiDelta) | ({ type: 'done' } & AiDone) | ({ type: 'error' } & AiError) | ({ type: 'council' } & CouncilEvent)
+export type AiEvent =
+  | ({ type: 'delta' } & AiDelta)
+  | ({ type: 'done' } & AiDone)
+  | ({ type: 'error' } & AiError)
+  | ({ type: 'council' } & CouncilEvent)
 
 export const AI_CHANNELS = { delta: 'ai:delta', done: 'ai:done', error: 'ai:error', council: 'ai:council' } as const
 
@@ -185,7 +192,10 @@ export function cleanAiSetting(key: string, value: unknown): boolean | number | 
 export function parseTitleSuggestions(text: string): { emoji: string; title: string }[] {
   const out: { emoji: string; title: string }[] = []
   for (const raw of text.split('\n')) {
-    const line = raw.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/[*_`#"]/g, '').trim()
+    const line = raw
+      .replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '')
+      .replace(/[*_`#"]/g, '')
+      .trim()
     if (!line) continue
     const match = /^(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)\s*(.+)$/u.exec(line)
     const title = (match ? match[2] : line).trim().slice(0, 120)
@@ -194,3 +204,65 @@ export function parseTitleSuggestions(text: string): { emoji: string; title: str
   }
   return out
 }
+
+/**
+ * Which AI settings a renderer may write: each typed, since they decide what the main process runs.
+ * The program's path is the exception: a renderer can clear it but never name one; a path only
+ * comes out of the native file dialog (`ai:pickCli`).
+ */
+export const AI_SETTINGS: SettingsSpec = {
+  keys: AI_KEYS,
+  clean: cleanAiSetting,
+  dialogOnly: { keys: ['ai.cliPath'], message: 'The program can only be chosen with the file dialog' }
+}
+
+export interface AiApi {
+  /** Whether the program was found and answers; cached unless `refresh`. */
+  status(refresh?: boolean): Promise<AiStatus>
+  /**
+   * Starts a request and resolves with its id at once. Its text, its end and any failure
+   * (including the program missing) arrive through `onEvent`. Rejects only for an invalid request.
+   */
+  run(request: AiRequest): Promise<{ id: string }>
+  /** Stops a request of this window. Resolves false when it was already over. */
+  cancel(id: string): Promise<boolean>
+  /**
+   * Opens a file dialog to choose the program and stores the choice (`ai.cliPath`), the only way
+   * that setting gets a value. Null when cancelled; otherwise the status with the chosen file.
+   */
+  pickCli(): Promise<AiStatus | null>
+  /**
+   * Other programs that can answer for a seat of Herman's council (see shared/council.ts).
+   * A program's path only ever comes from a search of PATH or the native file dialog.
+   */
+  agents: {
+    list(): Promise<AiAgentInfo[]>
+    /** Connects a program of this kind: found on PATH, or (with `pick`, or when not found) chosen in a file dialog. Null when cancelled. */
+    connect(kind: AgentKind, pick?: boolean): Promise<AiAgentInfo | null>
+    remove(id: string): Promise<AiAgentInfo[]>
+  }
+  /** `ai:delta`, `ai:done`, `ai:error` and `ai:council` for this window's requests. Returns an unsubscribe function. */
+  onEvent(listener: (event: AiEvent) => void): () => void
+}
+
+/** The invoke channels of `api.ai` (see `INVOKE` in ./api.ts): every method of AiApi that returns a promise, and no other. */
+export const AI_INVOKE = {
+  'ai:status': true,
+  'ai:run': true,
+  'ai:cancel': true,
+  'ai:pickCli': true,
+  'ai:agents.list': true,
+  'ai:agents.connect': true,
+  'ai:agents.remove': true
+} as const satisfies Record<InvokeChannels<{ ai: AiApi }>, true>
+
+/** Herman's panel, the assistant (see ./commands.ts). The palette lists it while AI is on. */
+export const AI_COMMANDS = [
+  {
+    id: 'toggle-assistant',
+    shortcut: { accelerator: 'CmdOrCtrl+J', key: 'j', ctrl: true },
+    menu: { submenu: 'view', label: 'Toggle Assistant', order: 310 },
+    palette: { title: 'Herman, the assistant', keywords: ['ai', 'ask', 'chat', 'claude'], order: 140 },
+    catalog: { group: 'herman', label: 'Talk to Herman, the assistant', keywords: ['ai', 'ask'], order: 10, ai: true }
+  }
+] as const satisfies readonly CommandSpec[]

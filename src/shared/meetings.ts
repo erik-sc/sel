@@ -7,6 +7,10 @@
  * the open-source whisper.cpp program and a speech model, after the user asked for it.
  */
 
+import type { SettingsSpec } from './settings'
+import type { InvokeChannels } from './ipc'
+import type { CommandSpec } from './commands'
+
 /** What is written to disk while recording: mono, 16 kHz, 16-bit little-endian PCM. */
 export const PCM = { sampleRate: 16_000, bytesPerSample: 2 } as const
 
@@ -261,7 +265,14 @@ export const MEETINGS_KEYS = [
   'meetings.consentReminder'
 ] as const
 
-export const MEETINGS_DEFAULTS = { model: 'small' as WhisperModelId, language: 'auto' as MeetingLanguage, keepOriginal: false, deleteAfterDays: 0, defaultSystem: true, consentReminder: true } as const
+export const MEETINGS_DEFAULTS = {
+  model: 'small' as WhisperModelId,
+  language: 'auto' as MeetingLanguage,
+  keepOriginal: false,
+  deleteAfterDays: 0,
+  defaultSystem: true,
+  consentReminder: true
+} as const
 
 export function isWhisperModel(value: unknown): value is WhisperModelId {
   return typeof value === 'string' && (WHISPER_MODELS as readonly string[]).includes(value)
@@ -278,8 +289,14 @@ export function cleanMic(value: unknown): { id: string; label: string } | undefi
   if (value === null || typeof value !== 'object') return undefined
   const { id, label } = value as { id?: unknown; label?: unknown }
   if (typeof id !== 'string' || !DEVICE_ID_RE.test(id) || typeof label !== 'string') return undefined
-  // eslint-disable-next-line no-control-regex
-  return { id, label: label.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120) }
+  return {
+    id,
+    label: label
+      .replace(/[\u0000-\u001f\u007f]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 120)
+  }
 }
 
 /** The value a meetings setting accepts from a renderer, or undefined when it does not. */
@@ -326,3 +343,51 @@ export function parseClockTime(text: string): number | null {
 export const RECORDINGS_HOST = 'recordings'
 export const TRANSCRIPT_TITLE = 'Transcript'
 export const MEETINGS_TITLE = 'Meetings'
+
+/**
+ * The meetings settings decide what the main process records, keeps and runs, so each is typed.
+ * The program and the model file are like `ai.cliPath`: a renderer can clear them but never
+ * name one; a path only comes out of a native file dialog.
+ */
+export const MEETINGS_SETTINGS: SettingsSpec = {
+  keys: MEETINGS_KEYS,
+  clean: cleanMeetingsSetting,
+  dialogOnly: { keys: ['meetings.whisperPath', 'meetings.modelPath'], message: 'The file can only be chosen with the file dialog' }
+}
+
+/** The invoke channels of `api.meetings` (see `INVOKE` in ./api.ts): every method of MeetingsApi that returns a promise, and no other. */
+export const MEETINGS_INVOKE = {
+  'meetings:status': true,
+  'meetings:engine.status': true,
+  'meetings:engine.download': true,
+  'meetings:engine.cancelDownload': true,
+  'meetings:engine.pickProgram': true,
+  'meetings:engine.pickModel': true,
+  'meetings:engine.remove': true,
+  'meetings:create': true,
+  'meetings:recording.probe': true,
+  'meetings:recording.begin': true,
+  'meetings:recording.pause': true,
+  'meetings:recording.resume': true,
+  'meetings:recording.stop': true,
+  'meetings:recording.recover': true,
+  'meetings:recording.discard': true,
+  'meetings:transcribe': true,
+  'meetings:cancelTranscribe': true,
+  'meetings:setSpeakers': true,
+  'meetings:audio.info': true,
+  'meetings:audio.delete': true,
+  'meetings:storage': true,
+  'meetings:openFolder': true
+} as const satisfies Record<InvokeChannels<{ meetings: MeetingsApi }>, true>
+
+/** A new meeting page, ready to record (see ./commands.ts). */
+export const MEETINGS_COMMANDS = [
+  {
+    id: 'new-meeting',
+    shortcut: { accelerator: 'CmdOrCtrl+Alt+M', key: 'm', ctrl: true, alt: true },
+    menu: { submenu: 'file', label: 'New Meeting', order: 130 },
+    palette: { title: 'New meeting', keywords: ['record', 'transcribe', 'call'], order: 130 },
+    catalog: { group: 'pages', label: 'New meeting', keywords: ['record', 'transcribe'], order: 60 }
+  }
+] as const satisfies readonly CommandSpec[]
