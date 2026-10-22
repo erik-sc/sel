@@ -41,7 +41,8 @@ export function backupsDir(): string {
  */
 function copyApart(file: string, partial: string): Promise<DatabaseCheck> {
   // Next to the main bundle: this folder, or the one above when this code lands in a chunk.
-  const script = [join(__dirname, 'backup.js'), join(__dirname, '..', 'backup.js')].find((path) => existsSync(path)) ?? join(__dirname, 'backup.js')
+  const script =
+    [join(__dirname, 'backup.js'), join(__dirname, '..', 'backup.js')].find((path) => existsSync(path)) ?? join(__dirname, 'backup.js')
   return new Promise((resolve, reject) => {
     const child = utilityProcess.fork(script, [], { serviceName: 'sel backup' })
     let done = false

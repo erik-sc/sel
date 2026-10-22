@@ -448,7 +448,9 @@ describe('the workspace read from the rows for an upload', () => {
     // The algorithm of 0.6: the rows of each page sorted by id, one hash update per row.
     const expected = new Map<string, string>()
     for (const page of [top.id, sub.id]) {
-      const own = rows.filter((r) => (page === top.id ? r.id !== sub.id && r.parent_id !== sub.id : r.id === sub.id || r.parent_id === sub.id))
+      const own = rows.filter((r) =>
+        page === top.id ? r.id !== sub.id && r.parent_id !== sub.id : r.id === sub.id || r.parent_id === sub.id
+      )
       own.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
       const hash = createHash('sha1')
       for (const r of own)
