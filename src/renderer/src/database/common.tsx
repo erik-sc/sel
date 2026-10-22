@@ -1,5 +1,12 @@
 import { useRef, useState } from 'react'
-import type { CSSProperties, DragEvent, JSX, MouseEvent as ReactMouseEvent, SyntheticEvent } from 'react'
+import type {
+  CSSProperties,
+  DragEvent,
+  JSX,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  SyntheticEvent
+} from 'react'
 import type { Block, DatabaseView, PropertyType, SelectOption, ViewType } from '@shared/types'
 import {
   ArrowUpRight,
@@ -184,7 +191,8 @@ export interface ViewProps {
   editingRowId: string | null
   setEditingRowId: (id: string | null) => void
   onOpen: (rowId: string, event?: OpenModifiers) => void
-  onRowMenu: (event: ReactMouseEvent, rowId: string) => void
+  /** The row menu: at the pointer, or under `from` (the focused card, cell or event) for the Menu key. */
+  onRowMenu: (event: ReactMouseEvent | ReactKeyboardEvent, rowId: string, from?: Element) => void
   /** Creates a row honouring the view filters; returns its id and starts title editing. */
   onNewRow: (input?: { values?: L.Values; afterId?: string | null }) => string
   onAddFilter: (propertyId: string) => void

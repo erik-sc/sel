@@ -230,7 +230,7 @@ export function CalcView({ databaseId, schema, view, rows }: ViewProps): JSX.Ele
   }
 
   const editor = editing && edited && (
-    <Floating open anchor={editing.anchor} onClose={() => setEditing(null)}>
+    <Floating open anchor={editing.anchor} label="Edit figure" onClose={() => setEditing(null)}>
       <CalcEditor
         key={edited.id}
         databaseId={databaseId}

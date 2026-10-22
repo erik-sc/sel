@@ -1086,8 +1086,15 @@ button.db-formula-item:hover {
   outline: none;
 }
 
-.db-table:focus-visible {
+.db-table:focus-visible,
+.db-grid:focus-visible {
   outline: none;
+}
+
+/* The add button's cell in the header row: the button keeps its own box. */
+.db-th-slot {
+  display: flex;
+  flex-shrink: 0;
 }
 
 /* Rounded container. `clip` (not `hidden`) so the header can stay sticky to the page scroller. */

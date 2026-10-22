@@ -102,3 +102,56 @@ export function formatAccelerator(accelerator: string, mac: boolean): string {
   const ordered = (mac ? MAC_ORDER : OTHER_ORDER).filter((m) => modifiers.has(m))
   return mac ? ordered.join('') + key : [...ordered, key].join('+')
 }
+
+/**
+ * A key a page handles itself (a list, a popover, the editor), written like an app shortcut. On
+ * Windows and Linux main sees every key first: one that matched an app shortcut would never reach
+ * the page, so shortcuts.test.ts checks that none does.
+ */
+export interface PageKey {
+  accelerator: string
+  /** `KeyboardEvent.key`, lower-cased. */
+  key: string
+  ctrl?: boolean
+  shift?: boolean
+  alt?: boolean
+  /** Where it works. */
+  where: string
+}
+
+/** The keys of the lists and menus (see "Teclado e leitor de tela" in docs/codebase-knowledge/50-conventions.md). */
+export const PAGE_KEYS: readonly PageKey[] = [
+  { where: 'any item with a menu', accelerator: 'Shift+F10', key: 'f10', shift: true },
+  { where: 'any item with a menu', accelerator: 'ContextMenu', key: 'contextmenu' },
+  { where: 'board and calendar', accelerator: 'Control+Alt+Left', key: 'arrowleft', ctrl: true, alt: true },
+  { where: 'board and calendar', accelerator: 'Control+Alt+Right', key: 'arrowright', ctrl: true, alt: true },
+  { where: 'board and calendar', accelerator: 'Control+Alt+Up', key: 'arrowup', ctrl: true, alt: true },
+  { where: 'board and calendar', accelerator: 'Control+Alt+Down', key: 'arrowdown', ctrl: true, alt: true },
+  { where: 'sidebar', accelerator: 'Alt+Shift+Up', key: 'arrowup', alt: true, shift: true },
+  { where: 'sidebar', accelerator: 'Alt+Shift+Down', key: 'arrowdown', alt: true, shift: true },
+  { where: 'sidebar', accelerator: 'Alt+Shift+Right', key: 'arrowright', alt: true, shift: true },
+  { where: 'sidebar', accelerator: 'Alt+Shift+Left', key: 'arrowleft', alt: true, shift: true },
+  { where: 'tab strip', accelerator: 'Control+Shift+PageUp', key: 'pageup', ctrl: true, shift: true },
+  { where: 'tab strip', accelerator: 'Control+Shift+PageDown', key: 'pagedown', ctrl: true, shift: true },
+  { where: 'selected text', accelerator: 'Alt+F10', key: 'f10', alt: true }
+]
+
+/**
+ * The zoom keys, menu accelerators (main's menu, src/main/zoom.ts). The first of each is shown;
+ * the others are there for keyboards and layouts that do not make the first.
+ */
+export const ZOOM_KEYS: Readonly<Record<'in' | 'out' | 'reset', readonly PageKey[]>> = {
+  in: [
+    { where: 'window', accelerator: 'CmdOrCtrl+Plus', key: '+', ctrl: true, shift: true },
+    { where: 'window', accelerator: 'CmdOrCtrl+=', key: '=', ctrl: true },
+    { where: 'window', accelerator: 'CmdOrCtrl+numadd', key: '+', ctrl: true }
+  ],
+  out: [
+    { where: 'window', accelerator: 'CmdOrCtrl+-', key: '-', ctrl: true },
+    { where: 'window', accelerator: 'CmdOrCtrl+numsub', key: '-', ctrl: true }
+  ],
+  reset: [
+    { where: 'window', accelerator: 'CmdOrCtrl+0', key: '0', ctrl: true },
+    { where: 'window', accelerator: 'CmdOrCtrl+num0', key: '0', ctrl: true }
+  ]
+}

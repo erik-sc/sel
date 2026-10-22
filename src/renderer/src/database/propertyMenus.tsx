@@ -67,7 +67,7 @@ export function AddPropertyMenu({
   ]
   const formulaProp = formulaId ? L.propOf(actions.snapshot(databaseId).schema, formulaId) : undefined
   return (
-    <Floating open anchor={anchor} placement={placement} onClose={onClose}>
+    <Floating open anchor={anchor} placement={placement} label="Add a property" onClose={onClose}>
       {formulaProp ? (
         <Suspense fallback={<PartFallback kind="popover" />}>
           <FormulaEditor databaseId={databaseId} prop={formulaProp} onClose={onClose} />
@@ -404,7 +404,7 @@ export function PropertyMenu({
 
   if (picking === 'formula') {
     return (
-      <Floating open anchor={anchor} placement={placement} onClose={close}>
+      <Floating open anchor={anchor} placement={placement} label={prop.name} onClose={close}>
         <Suspense fallback={<PartFallback kind="popover" />}>
           <FormulaEditor databaseId={databaseId} prop={prop} onClose={close} />
         </Suspense>
@@ -414,7 +414,7 @@ export function PropertyMenu({
 
   if (picking) {
     return (
-      <Floating open anchor={anchor} placement={placement} onClose={close}>
+      <Floating open anchor={anchor} placement={placement} label={prop.name} onClose={close}>
         <Suspense fallback={<PartFallback kind="popover" />}>
           <RelationTargetPicker
             databaseId={databaseId}
@@ -430,7 +430,7 @@ export function PropertyMenu({
   }
 
   return (
-    <Floating open anchor={anchor} placement={placement} onClose={close}>
+    <Floating open anchor={anchor} placement={placement} label={prop.name} onClose={close}>
       <div className="db-prop-menu">
         <div className="db-prop-menu-name">
           <input

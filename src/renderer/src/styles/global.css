@@ -219,6 +219,16 @@ hr {
   }
 }
 
+/* Read by screen readers, never shown (the live region of a11y/announce.ts). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* ---- selection, focus ---- */
 ::selection {
   background: var(--bg-selection);

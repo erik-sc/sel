@@ -16,6 +16,9 @@ import { EditableText } from './EditableText'
 import { BookmarkBlock, CalloutIcon, CodeBlock, ImageBlock, PageLinkBlock } from './blocks'
 import { EquationBlock } from './EquationBlock'
 import { AiSlot } from '../ai/slot'
+import { useA11yCopy } from '@/a11y/announce'
+
+const HEADING_LEVEL: Partial<Record<Block['type'], number>> = { heading_1: 1, heading_2: 2, heading_3: 3 }
 
 export const BlockList = memo(function BlockList({ ids }: { ids: string[] }): JSX.Element {
   const blocks = useBlocks(ids)
@@ -43,6 +46,7 @@ export const BlockList = memo(function BlockList({ ids }: { ids: string[] }): JS
 
 const BlockView = memo(function BlockView({ block, number }: { block: Block; number: number }): JSX.Element {
   const { ctrl, onOpenPage } = useEditor()
+  const a11y = useA11yCopy()
   const id = block.id
   const type = block.type
   const selected = useStore(ctrl.ui, (s) => isSelected(s.selected, id))
@@ -100,7 +104,26 @@ const BlockView = memo(function BlockView({ block, number }: { block: Block; num
           </button>
         )}
         {type === 'callout' && <CalloutIcon block={block} />}
-        <EditableText blockId={id} mode="block" value={block.props.title} placeholder={PLACEHOLDERS[type]} />
+        {HEADING_LEVEL[type] ? (
+          // A heading says its level; the text inside is still the block's field.
+          <div className="blk-heading" role="heading" aria-level={HEADING_LEVEL[type]}>
+            <EditableText
+              blockId={id}
+              mode="block"
+              value={block.props.title}
+              placeholder={PLACEHOLDERS[type]}
+              roleDescription={a11y.block[type]}
+            />
+          </div>
+        ) : (
+          <EditableText
+            blockId={id}
+            mode="block"
+            value={block.props.title}
+            placeholder={PLACEHOLDERS[type]}
+            roleDescription={a11y.block[type]}
+          />
+        )}
       </>
     )
   } else if (type === 'code') body = <CodeBlock block={block} />

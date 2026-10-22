@@ -472,6 +472,30 @@ span[class*='rt-bg-'] {
   cursor: grabbing;
 }
 
+/* the block menu's alternative text field (menus.tsx) */
+.pe-alt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 280px;
+  padding: 10px;
+}
+
+.pe-alt-label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.pe-alt-input {
+  resize: vertical;
+}
+
+.pe-alt-help {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
 /* headings */
 
 .blk-heading_1 {
@@ -484,23 +508,30 @@ span[class*='rt-bg-'] {
   margin-top: 16px;
 }
 
-.blk-heading_1 > .blk-row > .rt,
-.blk-heading_2 > .blk-row > .rt,
-.blk-heading_3 > .blk-row > .rt {
+/* The heading role around a heading's text (BlockView.tsx): it takes the text's place in the row. */
+.blk-heading {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.blk-heading_1 > .blk-row > .blk-heading > .rt,
+.blk-heading_2 > .blk-row > .blk-heading > .rt,
+.blk-heading_3 > .blk-row > .blk-heading > .rt {
   font-family: var(--font-display);
   letter-spacing: var(--tracking-title);
   line-height: var(--leading-ui);
 }
 
-.blk-heading_1 > .blk-row > .rt {
+.blk-heading_1 > .blk-row > .blk-heading > .rt {
   font-size: var(--text-h1);
   font-weight: var(--weight-heading);
 }
-.blk-heading_2 > .blk-row > .rt {
+.blk-heading_2 > .blk-row > .blk-heading > .rt {
   font-size: var(--text-h2);
   font-weight: var(--weight-subheading);
 }
-.blk-heading_3 > .blk-row > .rt {
+.blk-heading_3 > .blk-row > .blk-heading > .rt {
   font-size: var(--text-h3);
   font-weight: var(--weight-subheading);
 }

@@ -1,7 +1,8 @@
 import { app, BrowserWindow, Menu, type MenuItemConstructorOptions } from 'electron'
 import { IPC } from '../shared/api'
 import { COMMANDS, type CommandSpec, type MenuCommand, type MenuPlace, type MenuSubmenu } from '../shared/commands'
-import { APP_SHORTCUTS } from '../shared/shortcuts'
+import { APP_SHORTCUTS, ZOOM_KEYS } from '../shared/shortcuts'
+import { zoomWindow } from './zoom'
 
 const isMac = process.platform === 'darwin'
 
@@ -36,6 +37,23 @@ interface Placed {
 function placeOf(spec: CommandSpec): MenuPlace | null {
   if (!spec.menu) return null
   return isMac && spec.menu.mac ? spec.menu.mac : spec.menu
+}
+
+/**
+ * Zoom In, Zoom Out and Actual Size: kept per device (zoom.ts) where the roles would forget it.
+ * Each has hidden twins for the other keys that mean it (Ctrl+= where Ctrl+Plus takes Shift).
+ */
+function zoomItems(order: number, label: string, keys: readonly { accelerator: string }[], direction: -1 | 0 | 1): Placed[] {
+  return keys.map((key, index) => ({
+    order: order + index,
+    item: {
+      label,
+      accelerator: key.accelerator,
+      visible: index === 0,
+      acceleratorWorksWhenHidden: true,
+      click: (_item, win) => zoomWindow(win instanceof BrowserWindow ? win : BrowserWindow.getFocusedWindow(), direction)
+    }
+  }))
 }
 
 /** A menu: its own items (roles) and the commands that name it, in order, separated by group. */
@@ -109,9 +127,9 @@ export function buildMenu(commands: readonly CommandSpec[] = COMMANDS): void {
           { order: 610, item: { role: 'forceReload' } },
           // Developer tools (and their Ctrl+Shift+I accelerator) exist only in unpackaged builds.
           ...(app.isPackaged ? [] : [{ order: 620, item: { role: 'toggleDevTools' } } as Placed]),
-          { order: 700, item: { role: 'resetZoom' } },
-          { order: 710, item: { role: 'zoomIn' } },
-          { order: 720, item: { role: 'zoomOut' } },
+          ...zoomItems(700, 'Actual Size', ZOOM_KEYS.reset, 0),
+          ...zoomItems(710, 'Zoom In', ZOOM_KEYS.in, 1),
+          ...zoomItems(720, 'Zoom Out', ZOOM_KEYS.out, -1),
           { order: 800, item: { role: 'togglefullscreen' } }
         ],
         commands

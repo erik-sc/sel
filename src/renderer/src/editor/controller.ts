@@ -13,6 +13,7 @@ import type { BlockProps, BlockType, Mark, Op, RichText } from '@shared/types'
 import { applyOps, getBlock, loadTree, newId } from '@/store/blocks'
 import { createThrottle } from '@/ui/throttle'
 import { notifyError } from '@/ui/toast'
+import { a11yCopy, announce } from '@/a11y/announce'
 import { isPlainTextType, isTextType, type SlashItem } from './blockTypes'
 import { History } from './history'
 import { invertOps } from './ops'
@@ -70,6 +71,7 @@ export class EditorController {
     drop: null,
     menu: null,
     linkRequest: 0,
+    toolbarRequest: 0,
     ai: null
   }))
   readonly tree: Tree
@@ -351,6 +353,14 @@ export class EditorController {
     return true
   }
 
+  /** Alt+F10: the keyboard goes to the toolbar over the selected text, when there is some. */
+  requestToolbar(): boolean {
+    const range = this.focusedRange()
+    if (!range || range.end <= range.start) return false
+    this.ui.setState((s) => ({ toolbarRequest: s.toolbarRequest + 1 }))
+    return true
+  }
+
   requestLink(): void {
     const range = this.focusedRange()
     if (range && range.end > range.start) this.ui.setState((s) => ({ linkRequest: s.linkRequest + 1 }))
@@ -393,17 +403,23 @@ export class EditorController {
 
   indent(ids: string[]): void {
     this.flushAll()
-    this.commit(indentOps(this.tree, ids))
+    const ops = indentOps(this.tree, ids)
+    this.commit(ops)
+    if (ops.length) announce(a11yCopy().indented)
   }
 
   outdent(ids: string[]): void {
     this.flushAll()
-    this.commit(outdentOps(this.tree, ids))
+    const ops = outdentOps(this.tree, ids)
+    this.commit(ops)
+    if (ops.length) announce(a11yCopy().outdented)
   }
 
   moveBlocks(ids: string[], dir: -1 | 1): void {
     this.flushAll()
-    this.commit(moveOps(this.tree, ids, dir))
+    const ops = moveOps(this.tree, ids, dir)
+    this.commit(ops)
+    if (ops.length) announce(dir < 0 ? a11yCopy().movedUp : a11yCopy().movedDown)
   }
 
   duplicate(ids: string[]): void {
@@ -423,6 +439,7 @@ export class EditorController {
       tops.map((id): Op => ({ op: 'delete', id })),
       { before: { kind: 'blocks', ids: tops }, after }
     )
+    announce(a11yCopy().deleted(tops.length))
   }
 
   /** Creates a block after `afterId` (or first in the page when null) and focuses it. */

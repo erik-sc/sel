@@ -1,7 +1,7 @@
 // The bar docked at the top of a meeting page: start, the recording itself (time, levels,
 // pause, stop), then transcription and what follows it. One component for every state, so
 // that the place the user looks at never moves. Loaded on demand (see slot.tsx).
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { clockTime, MEETINGS_DEFAULTS, cleanMic, type MeetingAudioInfo, type MeetingSources } from '@shared/meetings'
 import { requestPageAi, useAiGate } from '@/ai/gate'
@@ -147,7 +147,7 @@ function SourcePicker({ state, systemAudio }: { state: ReturnType<typeof useSour
         <span className="mt-sources-text">{summary}</span>
         <ChevronDown size={12} />
       </button>
-      <Popover open={open} anchor={anchor.current} placement="bottom-start" onClose={() => setOpen(false)}>
+      <Popover open={open} anchor={anchor.current} placement="bottom-start" label="What is recorded" onClose={() => setOpen(false)}>
         <div className="mt-picker" role="group" aria-label="What is recorded">
           <div className="mt-picker-title">Microphone</div>
           <label className="mt-option">
@@ -188,9 +188,12 @@ function SourcePicker({ state, systemAudio }: { state: ReturnType<typeof useSour
 
 function Consent({ onStart, onClose }: { onStart(remember: boolean): void; onClose(): void }): JSX.Element {
   const [skip, setSkip] = useState(false)
+  const titleId = useId()
   return (
-    <Modal open onClose={onClose} label="Before you record" className="mt-dialog">
-      <h2 className="mt-dialog-title">Before you record</h2>
+    <Modal open onClose={onClose} labelledBy={titleId} className="mt-dialog">
+      <h2 className="mt-dialog-title" id={titleId}>
+        Before you record
+      </h2>
       <p className="mt-dialog-text">Make sure everyone in the meeting knows it is being recorded.</p>
       <p className="mt-dialog-text is-quiet">The audio stays on this computer. It is transcribed here and is never uploaded or synced.</p>
       <label className="mt-option">
@@ -219,9 +222,12 @@ function Speakers({
   const [mic, setMic] = useState(info.speakers.mic)
   const [system, setSystem] = useState(info.speakers.system)
   const valid = mic.trim() && system.trim() && mic.trim() !== system.trim()
+  const titleId = useId()
   return (
-    <Modal open onClose={onClose} label="Rename speakers" className="mt-dialog">
-      <h2 className="mt-dialog-title">Rename speakers</h2>
+    <Modal open onClose={onClose} labelledBy={titleId} className="mt-dialog">
+      <h2 className="mt-dialog-title" id={titleId}>
+        Rename speakers
+      </h2>
       <label className="mt-field">
         <span>Microphone</span>
         <input className="mt-input" value={mic} maxLength={40} onChange={(event) => setMic(event.target.value)} />
@@ -539,7 +545,7 @@ export function RecordingBar({ meetingId, role }: { meetingId: string; role: 'me
           >
             <MoreHorizontal />
           </IconButton>
-          <Popover open={menuOpen} anchor={moreRef.current} placement="bottom-end" onClose={() => setMenuOpen(false)}>
+          <Popover open={menuOpen} anchor={moreRef.current} placement="bottom-end" role="none" onClose={() => setMenuOpen(false)}>
             <Menu items={menu} onClose={() => setMenuOpen(false)} autoFocus />
           </Popover>
         </div>

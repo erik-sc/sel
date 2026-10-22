@@ -1,7 +1,10 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import type { ClipboardEvent, KeyboardEvent, MouseEvent } from 'react'
+import { useStore } from 'zustand'
 import type { RichText } from '@shared/types'
 import { getBlock } from '@/store/blocks'
+import { useAiGate } from '@/ai/gate'
+import { filterSlashItems, slashListId, slashOptionId } from './blockTypes'
 import { useEditor } from './context'
 import { MIME_RICHTEXT } from './clipboard'
 import { onBlockKeyDown } from './keyboard'
@@ -27,8 +30,16 @@ export interface EditableTextProps {
   mode: 'block' | 'title' | 'caption'
   value: RichText | undefined
   placeholder?: string
+  /** What the field is, for a screen reader, when nothing near it says so (a caption, the page title). */
+  label?: string
+  /** The kind of block, read in place of "text box" ("Heading 2", "To-do"). */
+  roleDescription?: string
   className?: string
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>, el: HTMLDivElement) => void
+}
+
+function isEmpty(value: RichText | undefined): boolean {
+  return !value || value.every(([text]) => !text)
 }
 
 /** Editables narrower than this have no usable line box to hit-test. */
@@ -67,12 +78,21 @@ export const EditableText = memo(function EditableText({
   mode,
   value,
   placeholder,
+  label,
+  roleDescription,
   className,
   onKeyDown
 }: EditableTextProps) {
   const { ctrl } = useEditor()
   const ref = useRef<HTMLDivElement>(null)
   const regKey = field === 'title' ? blockId : `${blockId}:${field}`
+  // While the slash menu is open on this block, the block points at the option it would pick.
+  const slashOption = useStore(ctrl.ui, (s) => {
+    const slash = mode === 'block' && s.slash?.blockId === blockId ? s.slash : null
+    if (!slash) return -1
+    const count = filterSlashItems(slash.query, useAiGate.getState().enabled).length
+    return slash.index < count ? slash.index : -1
+  })
   const st = useRef({
     pending: null as RichText | null,
     timer: 0,
@@ -248,6 +268,14 @@ export const EditableText = memo(function EditableText({
       suppressContentEditableWarning
       spellCheck
       role="textbox"
+      aria-multiline={mode === 'block' || undefined}
+      aria-label={label}
+      aria-roledescription={roleDescription}
+      // Only while empty: Chromium names a textbox by its placeholder, and a block with text in it
+      // would be read as its placeholder ("Heading 2") on top of its kind.
+      aria-placeholder={isEmpty(value) ? placeholder : undefined}
+      aria-controls={slashOption >= 0 ? slashListId(blockId) : undefined}
+      aria-activedescendant={slashOption >= 0 ? slashOptionId(blockId, slashOption) : undefined}
       data-editable={regKey}
       data-rich={mode === 'block' ? '1' : undefined}
       data-placeholder={placeholder}

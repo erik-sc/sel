@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { DragEvent, JSX, KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import type { PropertySchema } from '@shared/types'
 import { Plus, Pen, Trash, Close } from '@/ui/icons'
 import { Menu } from '@/ui/Menu'
+import { takeMenuKey } from '@/a11y/keys'
 import * as L from '../logic'
 import * as actions from '../actions'
 import { bulkEditItems } from '../bulkEdit'
 import { isTextLike, type EditMove } from '../cells'
 import { Floating, TypeIcon, beginDrag, draggedOf, endDrag, type ViewProps } from '../common'
 import { AddPropertyMenu, PropertyMenu } from '../propertyMenus'
-import { TableRow, cellKey } from './TableRow'
+import { TableRow, cellId, cellKey } from './TableRow'
 import { WINDOW_THRESHOLD, scrollToRow, useRowHeight, useWindowedRange } from './tableWindow'
 
 interface CellRef {
@@ -33,7 +34,9 @@ export function TableView(p: ViewProps): JSX.Element {
   const props = useMemo(() => L.visibleProps(view, schema), [view, schema])
   const titleId = L.getTitleProperty(schema)?.id
   const rootRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const gridId = useId()
 
   const [liveWidths, setLiveWidths] = useState<Record<string, number>>({})
   const [focus, setFocus] = useState<CellRef | null>(null)
@@ -155,7 +158,7 @@ export function TableView(p: ViewProps): JSX.Element {
       clearTimeout(refocusTimer.current)
       refocusTimer.current = setTimeout(() => {
         const active = document.activeElement
-        if (!active || active === document.body) rootRef.current?.focus({ preventScroll: true })
+        if (!active || active === document.body) gridRef.current?.focus({ preventScroll: true })
       }, 0)
     },
     [moveFocus]
@@ -278,6 +281,11 @@ export function TableView(p: ViewProps): JSX.Element {
     const c = prop ? props.indexOf(prop) : 0
     const mod = event.ctrlKey || event.metaKey
     const page = Math.max(1, Math.floor(window.innerHeight / rowHeight) - 1)
+    if (row && prop && takeMenuKey(event)) {
+      const cell = rootRef.current?.querySelector(`[data-cell="${CSS.escape(cellKey(row.id, prop.id))}"]`)
+      p.onRowMenu(event, row.id, cell ?? undefined)
+      return
+    }
     let handled = true
     switch (event.key) {
       case 'ArrowUp':
@@ -351,9 +359,15 @@ export function TableView(p: ViewProps): JSX.Element {
   const allSelected = rows.length > 0 && selected.size === rows.length
   const menuProp = menu ? L.propOf(schema, menu.propId) : undefined
   const visibleRows = rows.slice(range.start, range.end)
+  // The focused cell, for the screen reader: only while its row is drawn (windowing).
+  const focusIndex = focus ? rowIndex.get(focus.row) : undefined
+  const activeCell =
+    focus && focusIndex !== undefined && focusIndex >= range.start && focusIndex < range.end
+      ? cellId(gridId, focus.row, focus.prop)
+      : undefined
 
   return (
-    <div className="db-table" ref={rootRef} tabIndex={0} role="grid" aria-rowcount={rows.length} onKeyDown={onKeyDown}>
+    <div className="db-table" ref={rootRef}>
       {selected.size > 0 && (
         <div className="db-bulk-bar">
           <span className="db-bulk-count">{selected.size} selected</span>
@@ -385,121 +399,153 @@ export function TableView(p: ViewProps): JSX.Element {
         </div>
       )}
       <div className="db-table-sheet">
-        <div className="db-thead">
-          <div className={selected.size ? 'db-gutter is-visible' : 'db-gutter'}>
-            <span className="db-drag-handle is-placeholder" />
-            <input
-              type="checkbox"
-              className="db-row-check"
-              aria-label="Select all rows"
-              checked={allSelected}
-              onChange={() => setSelected(allSelected ? NO_SELECTION : new Set(rows.map((r) => r.id)))}
-            />
-          </div>
-          {props.map((prop, index) => {
-            const classes = ['db-th']
-            if (colDrop?.id === prop.id) classes.push(`drop-${colDrop.edge}`)
-            if (menu?.propId === prop.id) classes.push('is-active')
-            return (
-              <div
-                key={prop.id}
-                className={classes.join(' ')}
-                style={{ width: widths[index] }}
-                draggable
-                onDragStart={(event) => beginDrag(event, { kind: 'column', id: prop.id, databaseId })}
-                onDragEnd={() => {
-                  endDrag()
-                  setColDrop(null)
-                }}
-                onDragOver={(event) => {
-                  if (!draggedOf('column', databaseId)) return
-                  event.preventDefault()
-                  const rect = event.currentTarget.getBoundingClientRect()
-                  const edge = event.clientX < rect.left + rect.width / 2 ? 'before' : 'after'
-                  setColDrop((prev) => (prev && prev.id === prop.id && prev.edge === edge ? prev : { id: prop.id, edge }))
-                }}
-                onDragLeave={(event) => {
-                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                    setColDrop((prev) => (prev?.id === prop.id ? null : prev))
-                  }
-                }}
-                onDrop={(event) => onColumnDrop(event, index)}
-                onClick={(event) => {
-                  const anchor = event.currentTarget
-                  setMenu((prev) => (prev?.propId === prop.id ? null : { propId: prop.id, anchor }))
-                }}
-                onContextMenu={(event) => {
-                  event.preventDefault()
-                  setMenu({ propId: prop.id, anchor: event.currentTarget })
-                }}
-              >
-                <span className="db-th-icon">
-                  <TypeIcon type={prop.type} />
-                </span>
-                <span className="db-th-name">{prop.name}</span>
-                <span
-                  className="db-resize-handle"
-                  draggable={false}
-                  onPointerDown={(event) => startResize(event, prop, widths[index])}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={(event) => event.stopPropagation()}
-                  onDoubleClick={(event) => {
-                    event.stopPropagation()
-                    actions.patchView(databaseId, view.id, (v) => L.resetPropertyWidth(v, prop.id))
-                  }}
-                />
-              </div>
-            )
-          })}
-          <button
-            type="button"
-            className="db-th is-add"
-            aria-label="Add a property"
-            title="Add a property"
-            onClick={(event) => setAddAnchor(event.currentTarget)}
-          >
-            <Plus size={14} />
-          </button>
-          <div className="db-th is-filler" />
-        </div>
-
         <div
-          className="db-tbody"
-          ref={bodyRef}
-          onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setRowDrop(null)
+          className="db-grid"
+          ref={gridRef}
+          role="grid"
+          tabIndex={0}
+          aria-label={view.name}
+          aria-rowcount={rows.length + 1}
+          aria-colcount={props.length + 1}
+          aria-multiselectable="true"
+          aria-activedescendant={activeCell}
+          onKeyDown={onKeyDown}
+          onFocus={(event) => {
+            // Tab arrives on the grid: a cell is focused at once, so there is something to read.
+            if (event.target === event.currentTarget && !latest.current.focus) moveFocus(0, 0)
           }}
         >
-          {range.start > 0 && <div style={{ height: range.start * rowHeight }} />}
-          {visibleRows.map((row) => (
-            <TableRow
-              key={row.id}
-              databaseId={databaseId}
-              row={row}
-              schema={schema}
-              props={props}
-              widths={widths}
-              selected={selected.has(row.id)}
-              anySelected={selected.size > 0}
-              focusedProp={focus?.row === row.id ? focus.prop : null}
-              editingProp={editing?.row === row.id ? editing.prop : null}
-              initialText={editing?.row === row.id ? editing.initial : undefined}
-              discardOnCancel={editing?.row === row.id && editing.isNew === true}
-              canReorder={canReorder}
-              dropEdge={rowDrop?.id === row.id ? rowDrop.edge : null}
-              onFocusCell={onFocusCell}
-              onStartEdit={onStartEdit}
-              onStopEdit={onStopEdit}
-              onToggleSelect={onToggleSelect}
-              onOpen={p.onOpen}
-              onRowMenu={p.onRowMenu}
-              onDragOverRow={onDragOverRow}
-              onDropRow={onDropRow}
-              onDragEndRow={onDragEndRow}
-            />
-          ))}
-          {range.end < rows.length && <div style={{ height: (rows.length - range.end) * rowHeight }} />}
-          {rows.length === 0 && <div className="db-empty-row">No rows{view.filters.length ? ' match the filters' : ''}</div>}
+          <div className="db-thead" role="row" aria-rowindex={1}>
+            <div
+              className={selected.size ? 'db-gutter is-visible' : 'db-gutter'}
+              role="columnheader"
+              aria-colindex={1}
+              aria-label="Selection"
+            >
+              <span className="db-drag-handle is-placeholder" />
+              <input
+                type="checkbox"
+                className="db-row-check"
+                aria-label="Select all rows"
+                checked={allSelected}
+                onChange={() => setSelected(allSelected ? NO_SELECTION : new Set(rows.map((r) => r.id)))}
+              />
+            </div>
+            {props.map((prop, index) => {
+              const classes = ['db-th']
+              if (colDrop?.id === prop.id) classes.push(`drop-${colDrop.edge}`)
+              if (menu?.propId === prop.id) classes.push('is-active')
+              return (
+                <div
+                  key={prop.id}
+                  className={classes.join(' ')}
+                  style={{ width: widths[index] }}
+                  role="columnheader"
+                  aria-colindex={index + 2}
+                  draggable
+                  onDragStart={(event) => beginDrag(event, { kind: 'column', id: prop.id, databaseId })}
+                  onDragEnd={() => {
+                    endDrag()
+                    setColDrop(null)
+                  }}
+                  onDragOver={(event) => {
+                    if (!draggedOf('column', databaseId)) return
+                    event.preventDefault()
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    const edge = event.clientX < rect.left + rect.width / 2 ? 'before' : 'after'
+                    setColDrop((prev) => (prev && prev.id === prop.id && prev.edge === edge ? prev : { id: prop.id, edge }))
+                  }}
+                  onDragLeave={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                      setColDrop((prev) => (prev?.id === prop.id ? null : prev))
+                    }
+                  }}
+                  onDrop={(event) => onColumnDrop(event, index)}
+                  onClick={(event) => {
+                    const anchor = event.currentTarget
+                    setMenu((prev) => (prev?.propId === prop.id ? null : { propId: prop.id, anchor }))
+                  }}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    setMenu({ propId: prop.id, anchor: event.currentTarget })
+                  }}
+                >
+                  <span className="db-th-icon">
+                    <TypeIcon type={prop.type} />
+                  </span>
+                  <span className="db-th-name">{prop.name}</span>
+                  <span
+                    className="db-resize-handle"
+                    draggable={false}
+                    onPointerDown={(event) => startResize(event, prop, widths[index])}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={(event) => event.stopPropagation()}
+                    onDoubleClick={(event) => {
+                      event.stopPropagation()
+                      actions.patchView(databaseId, view.id, (v) => L.resetPropertyWidth(v, prop.id))
+                    }}
+                  />
+                </div>
+              )
+            })}
+            <div className="db-th-slot" role="columnheader" aria-colindex={props.length + 2}>
+              <button
+                type="button"
+                className="db-th is-add"
+                aria-label="Add a property"
+                title="Add a property"
+                onClick={(event) => setAddAnchor(event.currentTarget)}
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+            <div className="db-th is-filler" aria-hidden="true" />
+          </div>
+
+          <div
+            className="db-tbody"
+            ref={bodyRef}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setRowDrop(null)
+            }}
+          >
+            {range.start > 0 && <div style={{ height: range.start * rowHeight }} />}
+            {visibleRows.map((row) => (
+              <TableRow
+                key={row.id}
+                databaseId={databaseId}
+                gridId={gridId}
+                index={rowIndex.get(row.id) ?? 0}
+                row={row}
+                schema={schema}
+                props={props}
+                widths={widths}
+                selected={selected.has(row.id)}
+                anySelected={selected.size > 0}
+                focusedProp={focus?.row === row.id ? focus.prop : null}
+                editingProp={editing?.row === row.id ? editing.prop : null}
+                initialText={editing?.row === row.id ? editing.initial : undefined}
+                discardOnCancel={editing?.row === row.id && editing.isNew === true}
+                canReorder={canReorder}
+                dropEdge={rowDrop?.id === row.id ? rowDrop.edge : null}
+                onFocusCell={onFocusCell}
+                onStartEdit={onStartEdit}
+                onStopEdit={onStopEdit}
+                onToggleSelect={onToggleSelect}
+                onOpen={p.onOpen}
+                onRowMenu={p.onRowMenu}
+                onDragOverRow={onDragOverRow}
+                onDropRow={onDropRow}
+                onDragEndRow={onDragEndRow}
+              />
+            ))}
+            {range.end < rows.length && <div style={{ height: (rows.length - range.end) * rowHeight }} />}
+            {rows.length === 0 && (
+              <div className="db-empty-row" role="row">
+                <span role="gridcell">No rows{view.filters.length ? ' match the filters' : ''}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <button type="button" className="db-new-row" onClick={() => p.onNewRow()}>
@@ -512,7 +558,7 @@ export function TableView(p: ViewProps): JSX.Element {
       </div>
 
       {editAnchor && selected.size > 0 && (
-        <Floating open anchor={editAnchor} onClose={() => setEditAnchor(null)}>
+        <Floating open anchor={editAnchor} role="none" onClose={() => setEditAnchor(null)}>
           <Menu items={bulkEditItems(schema, () => [...selected])} onClose={() => setEditAnchor(null)} autoFocus />
         </Floating>
       )}

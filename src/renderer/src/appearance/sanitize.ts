@@ -127,7 +127,10 @@ export function cleanValue(token: TokenDef, raw: unknown): string | null {
     // Out-of-range numbers (a 0px font, a 9999px blur) could make the app unusable, settings included.
     const n = parseNumeric(token, value)
     if (n === null || !Number.isFinite(n)) return null
-    if (token.min !== undefined && n < token.min) return null
+    if (token.min !== undefined && n < token.min) {
+      // Saved before the floor was raised: read as the floor. The setting keeps what it holds.
+      return token.floorFrom !== undefined && n >= token.floorFrom ? formatNumeric(token, token.min) : null
+    }
     if (token.max !== undefined && n > token.max) return null
     return value
   }

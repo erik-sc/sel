@@ -40,9 +40,47 @@ function ReviewList({ label, items }: { label: string; items: DayReviewItem[] })
  * The window at rest: dimmed, two words, until a key or a click. With the Sky on, the year's sky
  * appears first and the line just written lights its star; the words come after.
  */
-function Rest({ copy, onWake, day, sky }: { copy: CloseCopy; onWake: () => void; day: string; sky: boolean }): JSX.Element {
+function Rest({
+  copy,
+  onWake,
+  day,
+  sky,
+  fallback
+}: {
+  copy: CloseCopy
+  onWake: () => void
+  day: string
+  sky: boolean
+  /** Where the focus goes after waking when the Close button is gone. */
+  fallback: () => HTMLElement | null
+}): JSX.Element {
   const [waking, setWaking] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  // Read while rendering: the Close button that brought the rest on.
+  const [opener] = useState(() => document.activeElement as HTMLElement | null)
+  const fallbackRef = useRef(fallback)
+  fallbackRef.current = fallback
+
+  // A modal of its own: the focus stays on it while it rests, and goes back where it came from
+  // (the Close button, or what stands in its place once the day is closed) when it wakes.
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const keep = (event: FocusEvent): void => {
+      if (event.target instanceof Node && !el.contains(event.target)) el.focus({ preventScroll: true })
+    }
+    const tab = (event: KeyboardEvent): void => {
+      if (event.key === 'Tab') event.preventDefault()
+    }
+    document.addEventListener('focusin', keep)
+    document.addEventListener('keydown', tab, true)
+    return () => {
+      document.removeEventListener('focusin', keep)
+      document.removeEventListener('keydown', tab, true)
+      const back = opener?.isConnected ? opener : fallbackRef.current()
+      back?.focus({ preventScroll: true })
+    }
+  }, [opener])
 
   useEffect(() => {
     ref.current?.focus()
@@ -94,6 +132,7 @@ export function CloseDayScreen(): JSX.Element {
   const [problem, setProblem] = useState<Problem>(null)
   const [phase, setPhase] = useState<'steps' | 'rest' | 'closed'>('steps')
   const heading = useRef<HTMLHeadingElement>(null)
+  const doneAction = useRef<HTMLButtonElement>(null)
   // The Sky: whether the rest shows it, and the month's name on its last day.
   const [sky, setSky] = useState<SkyView | null>(null)
   const [naming, setNaming] = useState(false)
@@ -242,7 +281,7 @@ export function CloseDayScreen(): JSX.Element {
           <p className="close-done-words">{copy.closed}</p>
           <p className="notebook-quiet">{copy.closedHelp}</p>
           {review.line && <blockquote className="notebook-echo-line close-done-line">{review.line}</blockquote>}
-          <button type="button" className="notebook-link" onClick={openNotebook}>
+          <button ref={doneAction} type="button" className="notebook-link" onClick={openNotebook}>
             {copy.openNotebook}
           </button>
         </section>
@@ -380,7 +419,7 @@ export function CloseDayScreen(): JSX.Element {
         </div>
       </section>
 
-      {phase === 'rest' && <Rest copy={copy} onWake={wake} day={day} sky={!!sky?.enabled} />}
+      {phase === 'rest' && <Rest copy={copy} onWake={wake} day={day} sky={!!sky?.enabled} fallback={() => doneAction.current} />}
     </article>
   )
 }

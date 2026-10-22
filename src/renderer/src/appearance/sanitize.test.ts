@@ -73,6 +73,20 @@ describe('numeric values', () => {
     expect(formatNumeric(t('--text-body'), 17)).toBe('calc(17px * var(--font-scale))')
     expect(parseNumeric(t('--text-body'), '16px')).toBeNull()
   })
+
+  it('reads a text size saved under the floors raised in 0.7.0 as the floor (Tiny 10px, Body 12px)', () => {
+    expect(cleanValue(t('--text-2xs'), 'calc(6px * var(--font-scale))')).toBe('calc(10px * var(--font-scale))')
+    expect(cleanValue(t('--text-2xs'), 'calc(9px * var(--font-scale))')).toBe('calc(10px * var(--font-scale))')
+    expect(cleanValue(t('--text-body'), 'calc(11px * var(--font-scale))')).toBe('calc(12px * var(--font-scale))')
+    expect(cleanValue(t('--text-body'), 'calc(13px * var(--font-scale))')).toBe('calc(13px * var(--font-scale))')
+    // Below what was ever allowed, still rejected.
+    expect(cleanValue(t('--text-2xs'), 'calc(5px * var(--font-scale))')).toBeNull()
+    expect(cleanValue(t('--text-body'), 'calc(10px * var(--font-scale))')).toBeNull()
+    // Only on read: what was saved is not touched (the setting is left as it is).
+    const saved = { light: {}, dark: {}, shared: { '--text-body': 'calc(11px * var(--font-scale))' } }
+    expect(sanitizeAppearance(saved).shared['--text-body']).toBe('calc(12px * var(--font-scale))')
+    expect(saved.shared['--text-body']).toBe('calc(11px * var(--font-scale))')
+  })
 })
 
 describe('value sanitisation', () => {

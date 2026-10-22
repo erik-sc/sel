@@ -13,6 +13,14 @@ export interface PopoverProps {
   placement?: PopoverPlacement
   children: ReactNode
   className?: string
+  /**
+   * What the popover is to a screen reader. A `dialog` (the default) is named by `labelledBy` (the
+   * id of its visible title) or `label`. `none` when all it holds is a menu or a listbox, which
+   * names itself: the popover is then only a box, and nothing is said twice.
+   */
+  role?: 'dialog' | 'none'
+  label?: string
+  labelledBy?: string
 }
 
 const GAP = 4
@@ -64,7 +72,16 @@ export function Popover(props: PopoverProps) {
   return <PopoverLayer {...props} />
 }
 
-function PopoverLayer({ anchor, onClose, placement = 'bottom-start', children, className }: PopoverProps) {
+function PopoverLayer({
+  anchor,
+  onClose,
+  placement = 'bottom-start',
+  children,
+  className,
+  role = 'dialog',
+  label,
+  labelledBy
+}: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
   const closeRef = useRef(onClose)
@@ -144,7 +161,9 @@ function PopoverLayer({ anchor, onClose, placement = 'bottom-start', children, c
     }
   }, [opener])
 
-  const style: CSSProperties = pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, visibility: 'hidden' }
+  // Unseen until it is placed, but not `visibility: hidden`: what is in it may take the focus while
+  // it mounts (a menu, an `autoFocus` field), and a hidden element cannot.
+  const style: CSSProperties = pos ? { left: pos.left, top: pos.top } : { left: 0, top: 0, opacity: 0, pointerEvents: 'none' }
 
   return createPortal(
     <div
@@ -153,7 +172,9 @@ function PopoverLayer({ anchor, onClose, placement = 'bottom-start', children, c
       style={style}
       data-placement={placement}
       data-popover=""
-      role="dialog"
+      role={role === 'dialog' ? 'dialog' : undefined}
+      aria-label={role === 'dialog' && !labelledBy ? label : undefined}
+      aria-labelledby={role === 'dialog' ? labelledBy : undefined}
     >
       {children}
     </div>,

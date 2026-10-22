@@ -139,7 +139,7 @@
   /* ---- text (light): ink, not black ---- */
   --text: #24221d;
   --text-secondary: #615d54;
-  --text-tertiary: #7c766a;
+  --text-tertiary: #6d685d;
   --text-code: #8a4530;
   /* focus mode, when it fades the blocks other than the one being written */
   --text-faded-opacity: 0.32;
@@ -221,7 +221,7 @@
 
   --text: #e8e3d9;
   --text-secondary: #a8a297;
-  --text-tertiary: #7f7a70;
+  --text-tertiary: #959188;
   --text-code: #d99a82;
 
   --border: rgba(232, 222, 200, 0.09);

@@ -17,6 +17,9 @@ const KINDS: { value: FeedbackKind; label: string }[] = [
   { value: 'suggestion', label: 'Suggestion' }
 ]
 
+/** One feedback window per app window: its title names the dialog. */
+const FEEDBACK_TITLE = 'feedback-title'
+
 const STATUS_LABEL: Record<FeedbackStatus, string> = {
   open: 'Waiting',
   'in-progress': 'In progress',
@@ -54,7 +57,7 @@ type View = 'new' | 'sent'
 export function FeedbackDialog(): JSX.Element {
   const open = useFeedbackGate((state) => state.open)
   return (
-    <Modal open={open} onClose={closeFeedback} label="Feedback" className="fb-dialog">
+    <Modal open={open} onClose={closeFeedback} labelledBy={FEEDBACK_TITLE} className="fb-dialog">
       <FeedbackBody />
     </Modal>
   )
@@ -80,7 +83,7 @@ function FeedbackBody(): JSX.Element {
   return (
     <>
       <header className="fb-head">
-        <h2>Feedback</h2>
+        <h2 id={FEEDBACK_TITLE}>Feedback</h2>
         <div className="fb-tabs" role="tablist" aria-label="Feedback">
           <button
             type="button"

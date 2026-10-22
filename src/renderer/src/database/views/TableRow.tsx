@@ -1,10 +1,10 @@
 import { memo } from 'react'
-import type { DragEvent, JSX, MouseEvent as ReactMouseEvent } from 'react'
+import type { DragEvent, JSX } from 'react'
 import type { Block, PropertySchema } from '@shared/types'
 import { DragHandle } from '@/ui/icons'
 import * as L from '../logic'
 import { PropertyCell, type EditMove } from '../cells'
-import { RowIcon, beginDrag, type OpenModifiers } from '../common'
+import { RowIcon, beginDrag, type OpenModifiers, type ViewProps } from '../common'
 
 /** Horizontal offset of the drag image under the pointer. */
 const DRAG_IMAGE_OFFSET_X = 20
@@ -13,8 +13,17 @@ export function cellKey(rowId: string, propertyId: string): string {
   return `${rowId}:${propertyId}`
 }
 
+/** The id of a cell, which the grid names as its active descendant (unique per table). */
+export function cellId(gridId: string, rowId: string, propertyId: string): string {
+  return `${gridId}-${rowId}-${propertyId}`
+}
+
 export interface TableRowProps {
   databaseId: string
+  /** Prefix of the cell ids (see cellId). */
+  gridId: string
+  /** Position among all the rows of the view, from 0 (the header is row 1 of the grid). */
+  index: number
   row: Block
   /** The (store) schema the props come from: what a formula gives depends on it. */
   schema: L.Schema
@@ -34,7 +43,7 @@ export interface TableRowProps {
   onStopEdit: (move?: EditMove) => void
   onToggleSelect: (row: string, shift: boolean) => void
   onOpen: (rowId: string, event?: OpenModifiers) => void
-  onRowMenu: (event: ReactMouseEvent, rowId: string) => void
+  onRowMenu: ViewProps['onRowMenu']
   onDragOverRow: (event: DragEvent, rowId: string) => void
   onDropRow: (event: DragEvent) => void
   onDragEndRow: () => void
@@ -53,11 +62,14 @@ export const TableRow = memo(function TableRow(p: TableRowProps): JSX.Element {
     <div
       className={classes.join(' ')}
       data-row-id={row.id}
+      role="row"
+      aria-rowindex={p.index + 2}
+      aria-selected={p.selected}
       onContextMenu={(event) => p.onRowMenu(event, row.id)}
       onDragOver={(event) => p.onDragOverRow(event, row.id)}
       onDrop={p.onDropRow}
     >
-      <div className={p.anySelected ? 'db-gutter is-visible' : 'db-gutter'}>
+      <div className={p.anySelected ? 'db-gutter is-visible' : 'db-gutter'} role="gridcell" aria-colindex={1}>
         <span
           className={p.canReorder ? 'db-drag-handle' : 'db-drag-handle is-disabled'}
           draggable={p.canReorder}
@@ -91,8 +103,11 @@ export const TableRow = memo(function TableRow(p: TableRowProps): JSX.Element {
         return (
           <div
             key={prop.id}
+            id={cellId(p.gridId, row.id, prop.id)}
             className={tdClasses.join(' ')}
             style={{ width: p.widths[index] }}
+            role="gridcell"
+            aria-colindex={index + 2}
             data-cell={cellKey(row.id, prop.id)}
             onMouseDown={() => p.onFocusCell(row.id, prop.id)}
           >
@@ -130,7 +145,7 @@ export const TableRow = memo(function TableRow(p: TableRowProps): JSX.Element {
           </div>
         )
       })}
-      <div className="db-td is-filler" />
+      <div className="db-td is-filler" aria-hidden="true" />
     </div>
   )
 })

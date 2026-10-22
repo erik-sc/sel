@@ -27,14 +27,14 @@ interface Item {
   submenu?: Item[]
 }
 
-/** A menu as lines: `label (keys)`, a role by name, `—` for a separator. */
+/** A menu as lines: `label (keys)`, a role by name, `—` for a separator; a hidden item ends in `, hidden`. */
 function lines(items: Item[]): string[] {
   return items.map((item) =>
     item.type === 'separator'
       ? '—'
       : item.role
         ? `[${item.role}]${item.accelerator ? ` (${item.accelerator})` : ''}`
-        : `${item.label}${item.accelerator ? ` (${item.accelerator})` : ''}`
+        : `${item.label}${item.accelerator ? ` (${item.accelerator})` : ''}${item.visible === false ? ', hidden' : ''}`
   )
 }
 
@@ -81,9 +81,14 @@ const VIEW = [
   '[forceReload]',
   '[toggleDevTools]',
   '—',
-  '[resetZoom]',
-  '[zoomIn]',
-  '[zoomOut]',
+  // Remembered per device (zoom.ts); the hidden ones are the other keys that mean the same.
+  'Actual Size (CmdOrCtrl+0)',
+  'Actual Size (CmdOrCtrl+num0), hidden',
+  'Zoom In (CmdOrCtrl+Plus)',
+  'Zoom In (CmdOrCtrl+=), hidden',
+  'Zoom In (CmdOrCtrl+numadd), hidden',
+  'Zoom Out (CmdOrCtrl+-)',
+  'Zoom Out (CmdOrCtrl+numsub), hidden',
   '—',
   '[togglefullscreen]'
 ]

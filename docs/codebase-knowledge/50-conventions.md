@@ -86,6 +86,69 @@ Arguments arrive as `unknown`: narrow them with `arg.*` (src/main/validate.ts) o
 The wrapper in src/main/ipc.ts already checks the sender and the client id, waits for `ready`,
 drains changes and reduces errors; nothing calls `ipcMain.handle` by itself.
 
+## Teclado e leitor de tela
+
+Since 0.7.0 (item 4): what lists, popovers and dialogs do with the keyboard and say to a screen
+reader. New lists follow it (the task rows of 9b), and so do the windowed database views (item 7).
+The helpers are in src/renderer/src/a11y/: `keys.ts` (keys), `announce.ts` (the live region) and
+`copy.ts` (what it says, pt-BR and en).
+
+**Lists of things you open** (the page tree, the tab strip, board cards, calendar days and events):
+
+- **One Tab stop per list** (roving tabindex). The item focused last has `tabIndex={0}`, every other
+  `-1`. While no item is the stop (none focused yet, or that one went away), the list itself is,
+  and hands the focus on (`useTreeEntry` in src/renderer/src/shell/PageTree.tsx). A board has one
+  stop per column, a calendar one per month (its focused day, whose events Tab then reaches).
+- **Small buttons inside an item** (expand, "⋯", close) are `tabIndex={-1}`: for the pointer. The
+  keyboard does what they do with keys and the item's menu.
+- **Arrows** move along, Home and End go to the ends, nothing wraps (`rovingTarget`,
+  `moveFocusAmong`). Enter opens; Ctrl+Enter opens in a new tab.
+- **The item's menu** opens with the Menu key or Shift+F10, under the item: `takeMenuKey(event)`
+  on keydown, `keyboardAnchor(el)` as the popover's anchor. Windows sends a `contextmenu` after
+  the Menu key: `onContextMenu` ignores it while `isMenuKeyEcho()`.
+- **Moving an item** from the keyboard: Ctrl+Alt+arrows on a board and in a calendar, Alt+Shift+
+  arrows in the tree, Ctrl+Shift+PageUp/PageDown on tabs. It calls what dragging calls
+  (`moveCard` in BoardView.tsx, `moveEvent` in CalendarView.tsx, `dropPage`, `moveTab`), says where
+  the item went with `announce()`, and keeps the focus on it: the item is drawn again in its new
+  place and focused by its id (`data-card-id`, `data-event-id`, `data-tab-id`, the tree's `pending`).
+- **Roles**: `list` and `listitem` (board columns and cards, a calendar day and its events),
+  `tree`/`treeitem` with `aria-level` and `aria-expanded`, `tablist`/`tab`. A list with nothing in
+  it gets no list role: an empty `listbox` or `list` is an error to axe and says nothing.
+- **New keys** go in `PAGE_KEYS` (src/shared/shortcuts.ts), which src/shared/shortcuts.test.ts checks
+  against the app shortcuts (main sees every key first and would keep one that matched), and in
+  the shortcuts screen (src/renderer/src/shortcuts/catalog.ts).
+- **Windowed** (item 7): the focused item is never left out of the window, or the focus falls to
+  `<body>` and the place is lost.
+
+**Grids** (the table, src/renderer/src/database/views/TableView.tsx): the grid element holds the
+focus and points at the focused cell with `aria-activedescendant` (`cellId` in TableRow.tsx), only
+while its row is drawn. Rows carry `aria-rowindex` (the header row is 1), cells `aria-colindex`,
+and `aria-rowcount` counts every row of the view, drawn or not.
+
+**Popovers and dialogs**:
+
+- `Modal` takes `labelledBy`, the id of its visible title, when the title is drawn with it; `label`
+  only when nothing on it says what it is (Quick find, the palette) or the title is behind
+  `Suspense`.
+- `Popover` is a `dialog` by default and then needs `label` or `labelledBy`; `role="none"` when all
+  it holds is a `Menu` or a listbox, which name themselves.
+- A `Menu` keeps the focus on itself and points at its items with `aria-activedescendant`
+  (src/renderer/src/ui/Menu.tsx). A search field over a list is a `combobox` with
+  `aria-controls` and `aria-activedescendant` on option ids from `useId()`; options are `option`
+  with `aria-selected`, and nothing in an option takes the focus (it is read and chosen whole).
+- The focus goes back where it came from: `Modal` and `Popover` do it. A screen of its own (the
+  rest of Close the day, notebook/CloseDayScreen.tsx) keeps Tab on itself and does it too.
+
+**The editor**: each block's text is a `textbox` with `aria-roledescription` (the kind of block)
+and `aria-placeholder`; a heading's sits in `role="heading"` with its `aria-level`. While the slash
+menu is open, the block points at its highlighted option (`slashListId`, `slashOptionId`). Moves,
+indents and deletions made from the keyboard are announced by the controller. Alt+F10 goes from
+selected text to its toolbar.
+
+**Contrast**: src/renderer/src/appearance/contrast.test.ts holds every preset, light and dark, to
+4.5:1 for text, secondary and tertiary text on the surfaces they are drawn on and 3:1 for the
+focus ring; the few exceptions, kept for fidelity to the original, are listed there with why.
+
 ## Error handling
 
 - Renderer input is typed `unknown` and narrowed by validators that throw (src/main/validate.ts:39-57, src/main/ai/index.ts:127-128).
@@ -101,7 +164,7 @@ drains changes and reduces errors; nothing calls `ipcMain.handle` by itself.
 ## Testing
 
 - Tests sit next to the code as `*.test.ts`. vitest.config.ts resolves the `@shared` and `@` aliases, so tests import code the way the app does.
-- No DOM library is installed (package.json:21-37); renderer tests cover pure logic. How src/renderer/src/editor/richtext-dom.test.ts:1 obtains a DOM was not checked (unverified).
+- Most renderer tests cover pure logic in Node. Components are tested in a DOM by happy-dom (dev only, like axe-core): the file starts with `// @vitest-environment happy-dom` and uses src/renderer/src/a11y/testing.tsx (`render`, `press`, `settle`, `seriousViolations`, `fakeApi`), as src/renderer/src/a11y/axe.test.tsx and src/renderer/src/database/views/TableView.a11y.test.tsx do.
 - Repository tests open an in-memory database on `node:sqlite`, or better-sqlite3 when `SEL_TEST_DRIVER` says so (src/main/db/testing.ts:12-22).
 - Time-zone-sensitive suites run once per zone by setting `TZ` on the first lines of a tiny test file (src/main/briefing/ical.utc.test.ts:1-4).
 - External programs are replaced by scripted fakes selected with markers in the prompt (src/main/ai/fixtures/fake-claude.mjs:6-8).

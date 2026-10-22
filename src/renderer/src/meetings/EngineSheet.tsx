@@ -1,7 +1,7 @@
 // The sheet that sets up transcription: what will be downloaded, from where, how large it is,
 // and that this is the only time the feature goes online. Nothing is fetched before the button
 // is pressed. Loaded on demand (see slot.tsx).
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { JSX } from 'react'
 import {
   MEETINGS_DEFAULTS,
@@ -116,6 +116,7 @@ export function EngineSheet(): JSX.Element {
   const engine = useEngine()
   const [model, setModel] = useState<WhisperModelId>(MEETINGS_DEFAULTS.model)
   const { status, download } = engine
+  const titleId = useId()
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: only when the sheet opens or closes; `engine` is a new object on every render.
   useEffect(() => {
@@ -144,9 +145,9 @@ export function EngineSheet(): JSX.Element {
   const total = status ? (needsProgram ? status.offer.programBytes : 0) + status.offer.models[model] : 0
 
   return (
-    <Modal open={setup !== null} onClose={closeMeetingSetup} label="Set up transcription" className="mt-sheet">
+    <Modal open={setup !== null} onClose={closeMeetingSetup} labelledBy={titleId} className="mt-sheet">
       <header className="mt-sheet-head">
-        <h2>Set up transcription</h2>
+        <h2 id={titleId}>Set up transcription</h2>
         <IconButton label="Close" tooltip={false} onClick={closeMeetingSetup}>
           <Close />
         </IconButton>

@@ -175,8 +175,8 @@ const GLASS = {
     '--bg-selection': 'rgba(0, 122, 255, 0.24)',
     '--scrim': 'rgba(0, 0, 0, 0.22)',
     '--text': 'rgba(0, 0, 0, 0.88)',
-    '--text-secondary': 'rgba(60, 60, 67, 0.62)',
-    '--text-tertiary': 'rgba(60, 60, 67, 0.32)',
+    '--text-secondary': 'rgba(60, 60, 67, 0.88)',
+    '--text-tertiary': 'rgba(60, 60, 67, 0.8)',
     '--text-code': '#d70015',
     '--border': 'rgba(60, 60, 67, 0.16)',
     '--border-strong': 'rgba(60, 60, 67, 0.3)',
@@ -185,7 +185,7 @@ const GLASS = {
     '--accent-soft': 'rgba(0, 122, 255, 0.14)',
     '--danger': '#ff3b30',
     '--success': '#34c759',
-    '--focus-ring': 'rgba(0, 122, 255, 0.5)',
+    '--focus-ring': '#006ee6',
     '--shadow-panel': '0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 28px rgba(31, 38, 80, 0.1)',
     '--shadow-card': '0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(31, 38, 80, 0.06)',
     '--shadow-popover': '0 0 0 0.5px rgba(0, 0, 0, 0.08), 0 10px 30px rgba(31, 38, 80, 0.18), 0 24px 70px rgba(31, 38, 80, 0.16)',
@@ -239,8 +239,8 @@ const GLASS = {
     '--bg-selection': 'rgba(10, 132, 255, 0.36)',
     '--scrim': 'rgba(0, 0, 0, 0.45)',
     '--text': 'rgba(255, 255, 255, 0.92)',
-    '--text-secondary': 'rgba(235, 235, 245, 0.6)',
-    '--text-tertiary': 'rgba(235, 235, 245, 0.3)',
+    '--text-secondary': 'rgba(235, 235, 245, 0.74)',
+    '--text-tertiary': 'rgba(235, 235, 245, 0.62)',
     '--text-code': '#ff6961',
     '--border': 'rgba(255, 255, 255, 0.1)',
     '--border-strong': 'rgba(255, 255, 255, 0.2)',
@@ -249,7 +249,7 @@ const GLASS = {
     '--accent-soft': 'rgba(10, 132, 255, 0.22)',
     '--danger': '#ff453a',
     '--success': '#30d158',
-    '--focus-ring': 'rgba(10, 132, 255, 0.6)',
+    '--focus-ring': '#2c95ff',
     '--shadow-panel': '0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 34px rgba(0, 0, 0, 0.36)',
     '--shadow-card': '0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 10px rgba(0, 0, 0, 0.24)',
     '--shadow-popover': '0 0 0 0.5px rgba(255, 255, 255, 0.12), 0 12px 34px rgba(0, 0, 0, 0.5), 0 28px 80px rgba(0, 0, 0, 0.5)',
@@ -342,7 +342,8 @@ export const PRESETS: Preset[] = [
       '--bg-elevated': 'rgba(250, 250, 252, 0.6)',
       '--glass-bg': 'rgba(255, 255, 255, 0.3)',
       '--glass-thick-bg': 'rgba(248, 248, 252, 0.58)',
-      '--glass-border': 'rgba(255, 255, 255, 0.55)'
+      '--glass-border': 'rgba(255, 255, 255, 0.55)',
+      '--text-tertiary': 'rgba(60, 60, 67, 0.82)'
     },
     dark: {
       ...GLASS.dark,
@@ -352,7 +353,8 @@ export const PRESETS: Preset[] = [
       '--bg-elevated': 'rgba(44, 44, 50, 0.58)',
       '--glass-bg': 'rgba(40, 40, 46, 0.28)',
       '--glass-thick-bg': 'rgba(38, 38, 44, 0.56)',
-      '--glass-border': 'rgba(255, 255, 255, 0.16)'
+      '--glass-border': 'rgba(255, 255, 255, 0.16)',
+      '--text-tertiary': 'rgba(235, 235, 245, 0.68)'
     }
   },
   {
@@ -393,13 +395,14 @@ export const PRESETS: Preset[] = [
     light: {
       ...GLASS.light,
       ...wallpaper('#eeeef0', '#c9c9cf', '#e2e2e6', '#b4b4bc', '#d8d8de'),
-      ...accent('#6e6e73', '110, 110, 115', '#ffffff', 0.16, 0.5, 0.26),
+      ...accent('#6e6e73', '110, 110, 115', '#ffffff', 0.16, 0.94, 0.26),
+      '--text-tertiary': 'rgba(60, 60, 67, 0.82)',
       ...menuBar('#6e6e73', '#ffffff')
     },
     dark: {
       ...GLASS.dark,
       ...wallpaper('#0c0c0d', '#3a3a3f', '#232326', '#4a4a50', '#2c2c30'),
-      ...accent('#a1a1a6', '161, 161, 166', '#1c1c1e', 0.24, 0.6, 0.36),
+      ...accent('#a1a1a6', '161, 161, 166', '#1c1c1e', 0.24, 0.7, 0.36),
       ...menuBar('#a1a1a6', '#1c1c1e')
     }
   },
@@ -412,12 +415,14 @@ export const PRESETS: Preset[] = [
       ...GLASS.light,
       ...wallpaper('#fff3ea', '#ffb199', '#ffd08a', '#ff9ec2', '#ffc9a8'),
       ...accent('#f0532d', '240, 83, 45', '#ffffff', 0.14, 0.5, 0.22),
+      '--focus-ring': '#ce4727',
       ...menuBar('#f0532d', '#ffffff')
     },
     dark: {
       ...GLASS.dark,
       ...wallpaper('#140b0e', '#8f2f1b', '#8a5a12', '#7a1f4c', '#5c2a14'),
-      ...accent('#ff7a59', '255, 122, 89', '#2a0f08', 0.22, 0.6, 0.34),
+      ...accent('#ff7a59', '255, 122, 89', '#2a0f08', 0.22, 0.85, 0.34),
+      '--text-tertiary': 'rgba(235, 235, 245, 0.68)',
       ...menuBar('#ff7a59', '#2a0f08')
     }
   },
@@ -430,12 +435,14 @@ export const PRESETS: Preset[] = [
       ...GLASS.light,
       ...wallpaper('#ecf7f4', '#9be8d0', '#a8c8ff', '#c9b8ff', '#b8f5c4'),
       ...accent('#00917c', '0, 145, 124', '#ffffff', 0.14, 0.5, 0.22),
+      '--focus-ring': '#008875',
       ...menuBar('#00917c', '#ffffff')
     },
     dark: {
       ...GLASS.dark,
       ...wallpaper('#06110f', '#0f6b5c', '#1b3f8f', '#4a2a8f', '#1c6b32'),
-      ...accent('#2fd6b8', '47, 214, 184', '#04221d', 0.22, 0.6, 0.32),
+      ...accent('#2fd6b8', '47, 214, 184', '#04221d', 0.22, 0.65, 0.32),
+      '--text-tertiary': 'rgba(235, 235, 245, 0.66)',
       ...menuBar('#2fd6b8', '#04221d')
     }
   },
@@ -529,10 +536,10 @@ export const PRESETS: Preset[] = [
       '--glass-thick-bg': 'rgba(245, 252, 255, 0.86)',
       '--glass-border': 'rgba(255, 255, 255, 0.85)',
       '--text': '#102a43',
-      '--text-secondary': 'rgba(16, 42, 67, 0.68)',
-      '--text-tertiary': 'rgba(16, 42, 67, 0.42)',
+      '--text-secondary': 'rgba(16, 42, 67, 0.76)',
+      '--text-tertiary': 'rgba(16, 42, 67, 0.68)',
       '--success': '#2e9e3a',
-      ...accent('#0a84d6', '10, 132, 214', '#ffffff', 0.16, 0.5, 0.24)
+      ...accent('#0a84d6', '10, 132, 214', '#ffffff', 0.16, 1, 0.24)
     },
     dark: {
       ...GLASS.dark,
@@ -637,11 +644,12 @@ export const PRESETS: Preset[] = [
       '--scrim': 'rgba(0, 0, 0, 0)',
       '--text': '#ffffff',
       '--text-secondary': '#c0c0c0',
-      '--text-tertiary': '#8a8a8a',
+      '--text-tertiary': '#a6a6a6',
       '--text-code': '#ff9090',
       '--border': '#6e6e6e',
       '--border-strong': '#c0c0c0',
       ...accent('#1084d0', '16, 132, 208', '#ffffff', 0.2, 0.7, 0.4),
+      '--focus-ring': '#218dd3',
       '--shadow-panel': '0 0 0 0 rgba(0, 0, 0, 0)',
       '--shadow-card': bevel('#000000', '#7a7a7a', '#1e1e1e', '#555555'),
       '--shadow-popover': bevel('#000000', '#555555', '#1e1e1e', '#7a7a7a'),
@@ -683,9 +691,9 @@ export const PRESETS: Preset[] = [
       '--scrim': 'rgba(0, 0, 0, 0.15)',
       '--text': '#000000',
       '--text-secondary': '#444444',
-      '--text-tertiary': '#8a8a8a',
+      '--text-tertiary': '#757575',
       '--border': 'rgba(0, 0, 0, 0.16)',
-      ...accent('#316ac5', '49, 106, 197', '#ffffff', 0.16, 0.6, 0.3),
+      ...accent('#316ac5', '49, 106, 197', '#ffffff', 0.16, 0.72, 0.3),
       ...menuBar('#316ac5', '#ffffff')
     },
     dark: {
@@ -699,7 +707,7 @@ export const PRESETS: Preset[] = [
       '--glass-bg': '#2a2a2a',
       '--glass-thick-bg': '#202020',
       ...NO_EDGE,
-      ...accent('#4c9be8', '76, 155, 232', '#ffffff', 0.2, 0.6, 0.36),
+      ...accent('#4c9be8', '76, 155, 232', '#ffffff', 0.2, 0.68, 0.36),
       ...menuBar('#2f6fc0', '#ffffff')
     }
   },
@@ -740,9 +748,9 @@ export const PRESETS: Preset[] = [
       '--glass-highlight': 'rgba(255, 255, 255, 0)',
       '--text': '#000000',
       '--text-secondary': '#4d4d4d',
-      '--text-tertiary': '#8c8c8c',
+      '--text-tertiary': '#767676',
       '--border': 'rgba(0, 0, 0, 0.18)',
-      ...accent('#3875d7', '56, 117, 215', '#ffffff', 0.16, 0.6, 0.3),
+      ...accent('#3875d7', '56, 117, 215', '#ffffff', 0.16, 0.78, 0.3),
       ...menuBar('#3875d7', '#ffffff')
     },
     dark: {
@@ -755,7 +763,7 @@ export const PRESETS: Preset[] = [
       '--glass-bg': '#2a2a2c',
       '--glass-thick-bg': '#28282c',
       '--glass-highlight': 'rgba(255, 255, 255, 0)',
-      ...accent('#5a9cf8', '90, 156, 248', '#ffffff', 0.2, 0.6, 0.36),
+      ...accent('#5a9cf8', '90, 156, 248', '#ffffff', 0.2, 0.66, 0.36),
       ...menuBar('#3a74d6', '#ffffff')
     }
   },
@@ -796,10 +804,10 @@ export const PRESETS: Preset[] = [
       '--scrim': 'rgba(0, 0, 0, 0)',
       '--text': '#000000',
       '--text-secondary': '#3d3d3d',
-      '--text-tertiary': '#7a7a7a',
+      '--text-tertiary': '#606060',
       '--border': 'rgba(0, 0, 0, 0.25)',
       '--border-strong': '#000000',
-      ...accent('#5555aa', '85, 85, 170', '#ffffff', 0.16, 0.7, 0.3),
+      ...accent('#5555aa', '85, 85, 170', '#ffffff', 0.16, 0.76, 0.3),
       ...menuBar('#5555aa', '#ffffff')
     },
     dark: {
@@ -816,9 +824,9 @@ export const PRESETS: Preset[] = [
       '--scrim': 'rgba(0, 0, 0, 0)',
       '--text': '#f0f0f0',
       '--text-secondary': '#c4c4c4',
-      '--text-tertiary': '#8a8a8a',
+      '--text-tertiary': '#a3a3a3',
       '--border': 'rgba(255, 255, 255, 0.2)',
-      ...accent('#8a8ae0', '138, 138, 224', '#000000', 0.2, 0.7, 0.36),
+      ...accent('#8a8ae0', '138, 138, 224', '#000000', 0.2, 0.84, 0.36),
       ...menuBar('#6a6ac0', '#ffffff')
     }
   },
@@ -893,8 +901,8 @@ export const PRESETS: Preset[] = [
       '--ease': 'linear'
     },
     // Both themes are screens: the light one starts from the dark Glass values (tags, fills).
-    light: { ...GLASS.dark, ...phosphor('#ffb000', '255, 176, 0', '#120b00', '#c88a00', '#86600a', '#ffd270', '#0d0800', '#1a1000') },
-    dark: { ...GLASS.dark, ...phosphor('#33ff66', '51, 255, 102', '#001a07', '#22b84a', '#178033', '#a0ffb8', '#020a04', '#06180a') }
+    light: { ...GLASS.dark, ...phosphor('#ffb000', '255, 176, 0', '#120b00', '#c88a00', '#98782f', '#ffd270', '#0d0800', '#1a1000') },
+    dark: { ...GLASS.dark, ...phosphor('#33ff66', '51, 255, 102', '#001a07', '#22b84a', '#338f4b', '#a0ffb8', '#020a04', '#06180a') }
   }
 ]
 

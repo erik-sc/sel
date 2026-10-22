@@ -1001,7 +1001,12 @@ export function CalendarScreen(): JSX.Element {
             Settings
           </button>
         </footer>
-        <Popover open={!!adding} anchor={adding?.point ?? null} onClose={() => setAdding(null)}>
+        <Popover
+          open={!!adding}
+          anchor={adding?.point ?? null}
+          label={adding ? copy.newTask(longDate(adding.day)) : undefined}
+          onClose={() => setAdding(null)}
+        >
           {adding && (
             <CalendarQuickAdd
               key={`${adding.day}T${adding.time ?? ''}`}

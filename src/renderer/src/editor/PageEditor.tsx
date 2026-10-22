@@ -17,6 +17,7 @@ import { SelectionToolbar } from './SelectionToolbar'
 import { SkeletonLines as Skeleton } from '@/ui/Skeleton'
 import { flushOnUnload } from '@/ui/unload'
 import { bootMark } from '@/boot'
+import { takeMenuKey } from '@/a11y/keys'
 import { useAiGate } from '@/ai/gate'
 import { aiConsolidate, aiOnPage, insertFromAssistant, scopeOf } from '@/ai/session'
 import type { AiTarget } from '@/ai/plan'
@@ -235,6 +236,14 @@ function PageEditorInner({ pageId, onOpenPage }: PageEditorProps): JSX.Element {
       return
     }
     if (!selected.length) return
+    // The Menu key or Shift+F10: the selected blocks' menu, as the drag handle opens it.
+    if (takeMenuKey(e)) {
+      e.preventDefault()
+      const id = selected[selected.length - 1]
+      const el = rootRef.current?.querySelector(`[data-block-id="${CSS.escape(id)}"] > .blk-row`)
+      if (el) ctrl.ui.setState({ menu: { id, rect: el.getBoundingClientRect() } })
+      return
+    }
     if (mod) {
       if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault()

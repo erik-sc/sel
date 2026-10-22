@@ -22,7 +22,7 @@ import { ArchiveButton } from '@/archive/ArchiveButton'
 import { HomeButton } from '@/home/HomeButton'
 import { createPage, reportError } from './actions'
 import { NewPageButton } from './NewPageButton'
-import { PageRow, PageTree } from './PageTree'
+import { PageRow, PageTree, useTreeEntry } from './PageTree'
 import { preloadSettings } from './SettingsModal'
 import { preloadTrash } from './TrashPopover'
 import { toggleSidebarPanel, useSidebarPanel } from './sidebarPanels'
@@ -63,11 +63,12 @@ function SearchItem() {
 function FavoritesItem() {
   const copy = useSidebarCopy()
   const favorites = useTree((state) => state.favorites)
+  const entry = useTreeEntry('flat')
   if (favorites.length === 0) return null
   return (
     <section className="sidebar-section">
       <div className="sidebar-section-title">{copy.items.favorites}</div>
-      <div role="tree">
+      <div role="tree" aria-label={copy.items.favorites} {...entry}>
         {favorites.map((id) => (
           <PageRow key={id} id={id} depth={0} flat />
         ))}

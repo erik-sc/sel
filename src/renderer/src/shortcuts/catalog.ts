@@ -46,13 +46,30 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
     entries: [
       { id: 'find-next', order: 50, label: 'Next match, in the find bar', keys: ['Enter', 'F3'], keywords: ['search'] },
       { id: 'find-previous', order: 60, label: 'Previous match, in the find bar', keys: ['Shift+Enter', 'Shift+F3'], keywords: ['search'] },
-      { id: 'focus-leave', order: 110, label: 'Leave focus mode, when nothing else takes the key', keys: ['Escape'], keywords: ['zen'] }
+      { id: 'focus-leave', order: 110, label: 'Leave focus mode, when nothing else takes the key', keys: ['Escape'], keywords: ['zen'] },
+      {
+        id: 'item-menu',
+        order: 130,
+        label: 'Open the menu of the focused page, tab, card or row',
+        keys: ['Shift+F10'],
+        keywords: ['menu key', 'context', 'right click']
+      },
+      { id: 'zoom-in', order: 140, label: 'Zoom in', keys: ['CmdOrCtrl+Plus', 'CmdOrCtrl+='], keywords: ['bigger', 'larger'] },
+      { id: 'zoom-out', order: 150, label: 'Zoom out', keys: ['CmdOrCtrl+-'], keywords: ['smaller'] },
+      { id: 'zoom-reset', order: 160, label: 'Actual size', keys: ['CmdOrCtrl+0'], keywords: ['zoom', 'reset'] }
     ]
   },
   {
     id: 'navigation',
     title: 'Navigation',
     entries: [
+      {
+        id: 'tab-move',
+        order: 75,
+        label: 'Move the tab left or right, in the tab strip',
+        keys: ['Control+Shift+PageUp', 'Control+Shift+PageDown'],
+        keywords: ['reorder']
+      },
       { id: 'tab-position', order: 80, label: 'Go to tab 1 to 8', keys: ['CmdOrCtrl+1…8'], notMac: true },
       { id: 'tab-last', order: 90, label: 'Go to the last tab', keys: ['CmdOrCtrl+9'], notMac: true },
       { id: 'open-in-tab', order: 100, label: 'Open a page in a new tab, from the sidebar', keys: ['CmdOrCtrl+Click', 'CmdOrCtrl+Enter'] },
@@ -67,7 +84,21 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
     entries: [
       { id: 'undo', order: 20, label: 'Undo', keys: ['CmdOrCtrl+Z'] },
       { id: 'redo', order: 30, label: 'Redo', keys: ['CmdOrCtrl+Shift+Z', 'CmdOrCtrl+Y'] },
-      { id: 'rename-page', order: 50, label: 'Rename a page, in the sidebar', keys: ['F2'] }
+      { id: 'rename-page', order: 50, label: 'Rename a page, in the sidebar', keys: ['F2'] },
+      {
+        id: 'move-page',
+        order: 52,
+        label: 'Move a page up or down, in the sidebar',
+        keys: ['Alt+Shift+Up', 'Alt+Shift+Down'],
+        keywords: ['reorder']
+      },
+      {
+        id: 'nest-page',
+        order: 54,
+        label: 'Put a page inside the one above, or take it out of its parent',
+        keys: ['Alt+Shift+Right', 'Alt+Shift+Left'],
+        keywords: ['indent', 'parent', 'move']
+      }
     ]
   },
   {
@@ -90,7 +121,8 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
       { id: 'select-block', label: 'Select the block', keys: ['Escape'] },
       { id: 'select-all', label: 'Select every block (press twice)', keys: ['CmdOrCtrl+A'] },
       { id: 'ai-write', label: 'Write with AI, on an empty line', keys: ['Space'], ai: true, keywords: ['herman'] },
-      { id: 'leave-code', label: 'Leave a code block', keys: ['CmdOrCtrl+Enter', 'Shift+Enter'] }
+      { id: 'leave-code', label: 'Leave a code block', keys: ['CmdOrCtrl+Enter', 'Shift+Enter'] },
+      { id: 'toolbar', label: 'Go to the formatting toolbar, with text selected', keys: ['Alt+F10'], keywords: ['format', 'ai'] }
     ]
   },
   {
@@ -104,7 +136,8 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
       { id: 'blocks-indent', label: 'Indent or outdent', keys: ['Tab', 'Shift+Tab'] },
       { id: 'blocks-move', label: 'Move the blocks up or down', keys: ['CmdOrCtrl+Shift+Up', 'CmdOrCtrl+Shift+Down'] },
       { id: 'blocks-duplicate', label: 'Duplicate the blocks', keys: ['CmdOrCtrl+D'], keywords: ['copy'] },
-      { id: 'blocks-clear', label: 'Back to typing', keys: ['Escape'], keywords: ['deselect'] }
+      { id: 'blocks-clear', label: 'Back to typing', keys: ['Escape'], keywords: ['deselect'] },
+      { id: 'blocks-menu', label: 'Open the menu of the selected blocks', keys: ['Shift+F10'], keywords: ['menu key', 'options'] }
     ]
   },
   {
@@ -140,7 +173,16 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
       { id: 'db-open', label: 'Open the row as a page', keys: ['CmdOrCtrl+Enter'] },
       { id: 'db-check', label: 'Tick or untick a checkbox', keys: ['Space'] },
       { id: 'db-clear', label: 'Clear the cell', keys: ['Delete', 'Backspace'] },
-      { id: 'db-deselect', label: 'Clear the selection', keys: ['Escape'] }
+      { id: 'db-deselect', label: 'Clear the selection', keys: ['Escape'] },
+      {
+        id: 'db-card-move',
+        label: 'Move a card to the group beside, on a board',
+        keys: ['Control+Alt+Left', 'Control+Alt+Right'],
+        keywords: ['kanban']
+      },
+      { id: 'db-card-order', label: 'Move a card up or down its group, on a board', keys: ['Control+Alt+Up', 'Control+Alt+Down'] },
+      { id: 'db-event-day', label: 'Move an event a day earlier or later, in a calendar', keys: ['Control+Alt+Left', 'Control+Alt+Right'] },
+      { id: 'db-event-week', label: 'Move an event a week earlier or later, in a calendar', keys: ['Control+Alt+Up', 'Control+Alt+Down'] }
     ]
   },
   {
