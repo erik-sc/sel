@@ -208,6 +208,8 @@ export class HermanService {
       quietHours,
       size: hermanSetting('size', this.setting('herman.size')),
       corner: hermanSetting('corner', this.setting('herman.corner')),
+      skin: hermanSetting('skin', this.setting('herman.skin')),
+      seasonalSkins: hermanSetting('seasonalSkins', this.setting('herman.seasonalSkins')),
       locale,
       greeting: memory.met ? null : phrases.greeting,
       quiet: !this.deps.fast && isQuiet(quietHours, this.now()),

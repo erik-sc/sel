@@ -52,7 +52,10 @@ body.is-resizing * {
   flex-shrink: 0;
   width: var(--sidebar-width);
   border-radius: var(--radius-l);
-  background: var(--bg-sidebar);
+  background-color: var(--bg-sidebar);
+  /* the ground the page lies on: a grid of dots every 12px */
+  background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+  background-size: 12px 12px;
   transition:
     width var(--duration) var(--ease),
     margin var(--duration) var(--ease),
@@ -108,34 +111,9 @@ body.is-resizing .sidebar {
   padding-left: 78px;
 }
 
-.platform-darwin .workspace-badge {
-  display: none;
-}
-
-.workspace-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-xs);
-  background: var(--accent);
-  color: var(--accent-text);
-  font-family: var(--font-display);
-  font-size: var(--text-md);
-  font-weight: var(--weight-title);
-}
-
-.workspace-name {
+/* The header holds no title: it is the window's drag handle above the sidebar, with the collapse button at its end. */
+.sidebar-header-space {
   flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-display);
-  font-size: var(--text-body);
-  font-weight: var(--weight-title);
-  letter-spacing: var(--tracking-title);
 }
 
 .sidebar-actions,
@@ -201,9 +179,11 @@ body.is-resizing .sidebar {
   background: var(--bg-active);
 }
 
+/* The chosen item: the page's own paper, and a 2px line of ink at its edge. */
 .sidebar-action.is-active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--text);
 }
 
 .sidebar-action.is-active > svg {
@@ -253,9 +233,11 @@ body.is-resizing .sidebar {
   justify-content: space-between;
   height: 26px;
   padding: 0 2px 0 8px;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .sidebar-section-title .ui-icon-button {
@@ -362,8 +344,9 @@ body.is-resizing .sidebar {
 }
 
 .tree-row.is-active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+  color: var(--text);
   font-weight: var(--weight-medium);
 }
 

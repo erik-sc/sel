@@ -16,7 +16,7 @@ import { getBlock } from '@/store/blocks'
 import { activeTab, isBlockId, openPage, tabPage, useTabs } from '@/store/tabs'
 import { setSettingsOpen, useUi } from '@/store/ui'
 import { useToasts } from '@/ui/toast'
-import { Figure } from './Figure'
+import { Herman64 } from './Herman64'
 import { useHerman } from './gate'
 import { cornerAfterKey, editingSince, near, nearestCorner, poseFor, type Box } from './mood'
 
@@ -455,7 +455,7 @@ export function Dock(): JSX.Element | null {
         onFocus={() => setAttended(true)}
         onBlur={() => setAttended(false)}
       >
-        <Figure pose={pose} draw />
+        <Herman64 pose={pose} draw />
       </button>
       {/* Announced politely; nothing here ever takes the focus. */}
       <div className="herman-live" aria-live="polite" aria-atomic="true">
