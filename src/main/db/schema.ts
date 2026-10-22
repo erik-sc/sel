@@ -1,10 +1,12 @@
 import type { SqlDriver } from './driver'
+import { linkTargets } from './links'
 
 /**
  * Ordered migrations. Index + 1 is the `user_version` reached after running it.
- * Never edit a released migration; append a new one.
+ * Never edit a released migration; append a new one. A migration is SQL, or a function for
+ * one that needs more than SQL; either runs inside the transaction that sets the version.
  */
-const MIGRATIONS: string[] = [
+const MIGRATIONS: (string | ((db: SqlDriver) => void))[] = [
   `
   CREATE TABLE blocks (
     -- Explicit integer key so the FTS rowid mapping survives VACUUM.
@@ -76,7 +78,36 @@ const MIGRATIONS: string[] = [
   UPDATE blocks SET props = replace(replace(props, 'selida-file://', 'sel-file://'), 'selida://', 'sel://') WHERE props LIKE '%selida%://%';
   UPDATE settings SET value = replace(value, 'selida-file://', 'sel-file://') WHERE value LIKE '%selida-file://%';
   DELETE FROM sync_state WHERE page_id = '~meta';
-  `
+  `,
+  // Release 0.7.0: what used to take a scan of every block.
+  // - page_links: which blocks link to which page (`sel://page/<id>` marks in their text, see
+  //   ./links.ts), kept by the repository as it writes; "Linked from" reads it instead of every row.
+  // - Partial indexes on the JSON keys the sidebar and the linked views ask for. Database rows
+  //   are pages too, so without them these lists cost as much as the rows of every database.
+  // Written so that it can run again over its own result (a test rewinds `user_version`).
+  (db) => {
+    // The indexes read props as JSON: a page whose props are not JSON (nothing writes one, but a
+    // damaged file could hold it) reads as {} everywhere already, and now is stored as {}.
+    db.exec(`UPDATE blocks SET props = '{}' WHERE type IN ('page', 'database') AND NOT json_valid(props)`)
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS page_links (
+        from_block TEXT NOT NULL,
+        to_page    TEXT NOT NULL,
+        PRIMARY KEY (from_block, to_page)
+      ) WITHOUT ROWID;
+      CREATE INDEX IF NOT EXISTS page_links_to_idx ON page_links(to_page);
+      CREATE INDEX IF NOT EXISTS blocks_favorite_idx ON blocks(created_at)
+        WHERE type IN ('page', 'database') AND trashed_at IS NULL AND json_extract(props, '$.favorite') = 1;
+      CREATE INDEX IF NOT EXISTS blocks_archived_idx ON blocks(json_extract(props, '$.archivedAt'))
+        WHERE type IN ('page', 'database') AND trashed_at IS NULL AND json_type(props, '$.archivedAt') IN ('integer', 'real');
+      CREATE INDEX IF NOT EXISTS blocks_source_idx ON blocks(json_extract(props, '$.sourceId'))
+        WHERE type = 'database' AND trashed_at IS NULL;
+      DELETE FROM page_links;
+    `)
+    const insert = db.prepare('INSERT OR IGNORE INTO page_links (from_block, to_page) VALUES (?, ?)')
+    const rows = db.prepare(`SELECT id, props FROM blocks WHERE instr(props, 'sel://page/') > 0`).all() as { id: string; props: string }[]
+    for (const row of rows) for (const to of linkTargets(row.props)) insert.run(row.id, to)
+  }
 ]
 
 /** The `user_version` of a database this build has fully migrated. */
@@ -115,7 +146,9 @@ export function migrate(db: SqlDriver): void {
   while (version < SCHEMA_VERSION) {
     db.exec('BEGIN IMMEDIATE')
     try {
-      db.exec(MIGRATIONS[version])
+      const step = MIGRATIONS[version]
+      if (typeof step === 'string') db.exec(step)
+      else step(db)
       version += 1
       db.exec(`PRAGMA user_version = ${version}`)
       db.exec('COMMIT')

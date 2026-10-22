@@ -355,6 +355,11 @@ export interface ChangeEvent {
    * one of them drops its undo history: the recorded steps no longer describe the page.
    */
   reset?: string[]
+  /**
+   * Those of `ids` whose text holds, or held, a link to a page (`sel://page/...`): a "Linked
+   * from" list looks again for these, and for any change from another window, not for the rest.
+   */
+  links?: string[]
 }
 
 /** One place a database appears: a linked view and the page that contains it (null at the workspace root). */

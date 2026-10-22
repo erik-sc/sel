@@ -157,8 +157,9 @@ describe('the writing tools', () => {
     })
     expect(said).toBe(`Updated Book the room [${row.id}] in Tasks [${db.id}] (database): Status, Due, Points, Name.`)
     expect(repo.get(row.id)!.props.values).toEqual({ s: 'o2', c: false, d: { start: '2026-11-01' } })
-    // A row's values belong to the history of its database.
-    expect(repo.listVersions(db.id).length).toBeGreaterThan(0)
+    // A row's values belong to the row's own history (since 0.7.0, not to its database's).
+    expect(repo.listVersions(row.id).length).toBeGreaterThan(0)
+    expect(repo.getVersion(repo.listVersions(row.id)[0].id).blocks[0].props.values).toEqual({ s: 'o1', c: false, n: 2 })
     expect(() => write(repo, 'update_database_row', { id: row.id, values: {} })).toThrow('Give at least one value to set.')
     expect(() => write(repo, 'update_database_row', { id: db.id, values: { Name: 'x' } })).toThrow('No row of a database has that id.')
   })

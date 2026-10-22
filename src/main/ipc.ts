@@ -95,7 +95,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext, lists: Ip
     createWindow,
     changes(origin, options) {
       const ids = repo.drainChanges()
-      changes.add(origin, ids, repo.drainResets())
+      changes.add(origin, ids, repo.drainResets(), repo.drainLinks())
       if (ids.length && options?.local !== false) ctx.noteLocalChange()
     },
     noteLocalChange: () => ctx.feature('sync').noteLocalChange(),
@@ -129,7 +129,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext, lists: Ip
         // Reads leave nothing to drain; a failed mutation was rolled back and leaves nothing either.
         if (origin !== null) {
           const ids = repo.drainChanges()
-          changes.add(origin, ids, repo.drainResets())
+          changes.add(origin, ids, repo.drainResets(), repo.drainLinks())
           // Something changed on this device: sync uploads it once things have been quiet for a moment.
           if (ids.length) ctx.noteLocalChange()
         }

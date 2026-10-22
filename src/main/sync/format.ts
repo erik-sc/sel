@@ -361,7 +361,6 @@ export function fingerprintPages(rows: readonly Row[]): Map<string, string> {
     const path: string[] = []
     let cur: string | null = id
     let found: string | null = null
-    const onPath = new Set<string>()
     while (cur !== null) {
       const known = owner.get(cur)
       if (known !== undefined) {
@@ -369,8 +368,8 @@ export function fingerprintPages(rows: readonly Row[]): Map<string, string> {
         break
       }
       const row = byId.get(cur)
-      if (!row || onPath.has(cur)) break
-      onPath.add(cur)
+      // A cycle of parents (only a damaged file has one) belongs to no page. Paths are short.
+      if (!row || path.includes(cur)) break
       path.push(cur)
       if (isPageLike(row.type)) {
         found = cur
@@ -392,41 +391,87 @@ export function fingerprintPages(rows: readonly Row[]): Map<string, string> {
   const out = new Map<string, string>()
   for (const [page, list] of groups) {
     list.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    const hash = createHash('sha1')
+    // The rows of a page hashed in one go: the same bytes as one update per row, at a fraction of the calls.
+    let text = ''
     for (const r of list)
-      hash.update(
-        `${r.id}\u0000${r.type}\u0000${r.parent_id ?? ''}\u0000${r.content}\u0000${r.props}\u0000${r.created_at}\u0000${r.updated_at}\u0000${r.trashed_at ?? ''}\u0001`
-      )
-    out.set(page, hash.digest('hex'))
+      text += `${r.id}\u0000${r.type}\u0000${r.parent_id ?? ''}\u0000${r.content}\u0000${r.props}\u0000${r.created_at}\u0000${r.updated_at}\u0000${r.trashed_at ?? ''}\u0001`
+    out.set(page, createHash('sha1').update(text).digest('hex'))
   }
   return out
 }
 
 /** The workspace the database holds, in the shape the merge works on. */
 export function workspaceFromRows(rows: readonly Row[], root: { order: string[]; at: number }): Workspace {
+  const outline = outlineFromRows(rows, root)
+  outline.withProps(outline.ws.blocks.values())
+  return outline.ws
+}
+
+function parsed(text: string, empty: string): unknown {
+  if (text === empty) return undefined
+  try {
+    return JSON.parse(text)
+  } catch {
+    /* a row that cannot be read is exported as an empty block rather than not at all */
+    return undefined
+  }
+}
+
+/**
+ * The workspace the database holds with every block's props left empty: where each block
+ * belongs (child lists are read) without parsing what any of them says. `withProps` then
+ * reads the props of the blocks given, the ones about to be written: an upload of one
+ * changed page parses that page, not the workspace.
+ */
+export function outlineFromRows(
+  rows: readonly Row[],
+  root: { order: string[]; at: number }
+): { ws: Workspace; withProps(blocks: Iterable<SyncBlock>): void } {
   const blocks = new Map<string, SyncBlock>()
+  const raw = new Map<string, string>()
   for (const row of rows) {
     if (!isValidId(row.id) || !isBlockType(row.type)) continue
-    let props: unknown = {}
-    let content: unknown = []
-    try {
-      if (row.props !== '{}') props = JSON.parse(row.props)
-      if (row.content !== '[]') content = JSON.parse(row.content)
-    } catch {
-      /* a row that cannot be read is exported as an empty block rather than not at all */
-    }
+    const content = parsed(row.content, '[]')
+    if (row.props !== '{}') raw.set(row.id, row.props)
     blocks.set(row.id, {
       id: row.id,
       type: row.type,
       parentId: row.parent_id,
       content: Array.isArray(content) ? content.filter((id): id is string => isValidId(id)) : [],
-      props: isPlain(props) ? props : {},
+      props: {},
       createdAt: Number(row.created_at),
       updatedAt: Number(row.updated_at),
       trashedAt: row.trashed_at == null ? null : Number(row.trashed_at)
     })
   }
-  return normalizeWorkspace({ blocks, root: root.order, rootAt: root.at })
+  const ws = normalizeWorkspace({ blocks, root: root.order, rootAt: root.at })
+  return {
+    ws,
+    withProps(list) {
+      for (const block of list) {
+        const text = raw.get(block.id)
+        const props = text === undefined ? undefined : parsed(text, '{}')
+        // Each block of the workspace is its own object: filling one in touches nothing else.
+        block.props = isPlain(props) ? props : {}
+      }
+    }
+  }
+}
+
+/**
+ * The text of workspace.json for the database's rows, read without parsing any of them: the
+ * same as `serializeRoot(workspaceFromRows(rows, root))` (the root order keeps the pages and
+ * databases it names that exist and are not in the trash, each once).
+ */
+export function rootTextFromRows(rows: readonly Row[], root: { order: string[]; at: number }): string {
+  const named = new Set(root.order)
+  const live = new Set<string>()
+  for (const row of rows) {
+    if (named.has(row.id) && row.trashed_at == null && isValidId(row.id) && isBlockType(row.type) && isPageLike(row.type)) live.add(row.id)
+  }
+  const order: string[] = []
+  for (const id of root.order) if (live.delete(id)) order.push(id)
+  return serializeRoot({ blocks: new Map(), root: order, rootAt: root.at })
 }
 
 const FILE_URL_RE = /sel(?:ida)?-file:\/\/files\/([A-Za-z0-9_-]{1,80}\.(?:png|jpe?g|gif|webp|avif|bmp))/g
