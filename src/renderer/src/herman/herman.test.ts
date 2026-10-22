@@ -306,9 +306,8 @@ describe('herman.css', () => {
     const eases = declarations
       .filter(({ property }) => property === 'transition' || property === 'animation')
       .flatMap(({ value }) => value.match(/var\(--ease\)|ease-in-out|linear|ease(?![-\w])/g) ?? [])
-    // --ease everywhere, with two stated exceptions: the stroke that draws him, and the turning curl (his, and his council's).
-    expect(eases.filter((ease) => ease !== 'var(--ease)').sort()).toEqual(['ease-in-out', 'linear', 'linear'])
-    expect(css).toMatch(/\.council-face\.is-thinking \.council-face-thought \{[^}]*linear infinite/)
+    // --ease everywhere, with two stated exceptions: the stroke that draws him, and the turning curl.
+    expect(eases.filter((ease) => ease !== 'var(--ease)').sort()).toEqual(['ease-in-out', 'linear'])
   })
 
   it('stills everything when motion is to be reduced', () => {
@@ -320,10 +319,9 @@ describe('herman.css', () => {
     expect(reduced).toMatch(/\.herman-dock\.is-aside \{\s*transform: none;/)
   })
 
-  it('animates nothing forever except the small curl while he (or a member of his council) thinks', () => {
+  it('animates nothing forever except the small curl while he thinks', () => {
     const forever = declarations.filter(({ property, value }) => property === 'animation' && value.includes('infinite'))
-    expect(forever.length).toBe(2)
+    expect(forever.length).toBe(1)
     expect(css).toMatch(/\.herman-figure\.is-thinking \.herman-thought \{[^}]*infinite/)
-    expect(css).toMatch(/\.council-face\.is-thinking \.council-face-thought \{[^}]*infinite/)
   })
 })

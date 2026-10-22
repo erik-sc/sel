@@ -23,7 +23,7 @@ type InvokePaths<T, P extends string> = {
         : never
 }[keyof T & string]
 
-/** The invoke channels of an api: `blocks.get` becomes `blocks:get`, `ai.agents.list` becomes `ai:agents.list`. */
+/** The invoke channels of an api: `blocks.get` becomes `blocks:get`, `briefing.calendars.list` becomes `briefing:calendars.list`. */
 export type InvokeChannels<T> = {
   [K in keyof T & string]: T[K] extends AnyFunction ? never : T[K] extends object ? `${K}:${InvokePaths<T[K], ''>}` : never
 }[keyof T & string]

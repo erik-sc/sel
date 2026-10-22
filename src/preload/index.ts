@@ -59,7 +59,7 @@ const api: Api = {
   ai: {
     ...invoke.ai,
     onEvent(listener) {
-      const types = ['delta', 'done', 'error', 'council'] as const
+      const types = ['delta', 'done', 'error'] as const
       const handlers = types.map((type) => {
         const handler = (_: unknown, payload: object): void => listener({ type, ...payload } as AiEvent)
         ipcRenderer.on(AI_CHANNELS[type], handler)

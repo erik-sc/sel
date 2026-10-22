@@ -2,19 +2,15 @@
 // Answers stream in as rich text; each can be put into the page (a click is the user's say-so),
 // copied or asked again. Conversations are kept per page for as long as the window lives.
 // With Herman on, the same panel is a conversation with him: his figure at the top takes the
-// pose of what the request is doing, and the words around the chat are his. He can be told to
-// ask his council first (their answers show above his), and what he proposes to build shows as
-// a card: nothing is created until Apply is pressed.
+// pose of what the request is doing, and the words around the chat are his. What he proposes
+// to build shows as a card: nothing is created until Apply is pressed.
 import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties, JSX, KeyboardEvent } from 'react'
+import type { JSX, KeyboardEvent } from 'react'
 import { create } from 'zustand'
 import { splitActions, type HermanAction } from '@shared/actions'
 import { AI_LIMITS, type AiTurn } from '@shared/ai'
-import { COUNCIL_KEY, COUNCIL_MEMBERS, COUNCIL_PEOPLE, councilSeats, type CouncilEvent, type CouncilMemberId } from '@shared/council'
 import { isTodayRoute } from '@/briefing/route'
 import { routeTitle } from '@/screens'
-import { CouncilFace } from '@/herman/CouncilFace'
-import { MEMBER_COLORS } from '@/herman/faces'
 import { Herman64 } from '@/herman/Herman64'
 import { useHerman } from '@/herman/gate'
 import { poseFor } from '@/herman/mood'
@@ -45,23 +41,14 @@ interface Message {
   run?: RunState
   /** User messages: whether a selection was sent along. */
   withSelection?: boolean
-  /** User messages: whether the council was asked. Assistant messages: how each member fared. */
-  withCouncil?: boolean
-  council?: Seat[]
   /** Assistant messages: what became of the proposal in the answer. */
   proposal?: Outcome
 }
 
-interface Seat {
-  member: CouncilMemberId
-  status: CouncilEvent['status']
-  text?: string
-}
-
 type Outcome = { state: 'applying' | 'dismissed' } | { state: 'applied'; done: string[]; skipped: string[]; open: string | null }
 
-/** Conversations by page id ('' for no page), and whether the next question goes to the council. */
-const useChats = create<{ chats: Record<string, Message[]>; council: boolean }>(() => ({ chats: {}, council: false }))
+/** Conversations by page id ('' for no page). */
+const useChats = create<{ chats: Record<string, Message[]> }>(() => ({ chats: {} }))
 const NO_MESSAGES: Message[] = []
 let nextMessageId = 0
 
@@ -73,14 +60,6 @@ const SUGGESTIONS = ['Summarize this page', 'What are the action items?', 'What 
 /** What one might ask Herman: of a page, and of the day. */
 const HERMAN_OPENERS = ['What is this page really about?', 'What am I avoiding here?', 'Make this shorter', 'What should I do first today?']
 const HERMAN_DAY_OPENERS = ['What should I do first today?', 'What can wait until tomorrow?', 'What am I avoiding today?']
-/** What one might put to the whole council: the work of putting a workspace in order. */
-const COUNCIL_OPENERS = [
-  'Organize this space',
-  'Find what is duplicated, stale or misplaced',
-  'Turn these notes into a database',
-  'Plan the next week from what is here'
-]
-const COUNCIL_DAY_OPENERS = ['Plan my day from what is here', 'Sort out what is overdue', 'Organize my workspace']
 const DAY_OPENERS = ['What should I do first today?', 'What is overdue?', 'What does the afternoon look like?']
 
 /** The finished turns before `upTo`, as the main process wants them: capped in number and size. */
@@ -92,60 +71,6 @@ function historyOf(messages: readonly Message[], upTo: number): AiTurn[] {
     if (text.trim()) turns.push({ role: message.role, text })
   }
   return turns.slice(-(AI_LIMITS.historyTurns - 2))
-}
-
-/** The colour a member is drawn and named in, for an element and what is inside it. */
-const memberStyle = (member: CouncilMemberId): CSSProperties => ({ '--member-color': `var(--c-${MEMBER_COLORS[member]})` }) as CSSProperties
-
-/** What the council said, each member under a line that opens; what they drafted to build is counted, and Herman's proposal carries it. */
-function CouncilView({ seats, working }: { seats: readonly Seat[]; working: boolean }): JSX.Element {
-  return (
-    <div className="council" aria-label="Council">
-      {seats.map((seat) => {
-        const { name, role } = COUNCIL_PEOPLE[seat.member]
-        const state =
-          seat.status === 'thinking' ? (working ? (seat.text ?? 'thinking…') : 'stopped') : seat.status === 'failed' ? 'no answer' : ''
-        const said = seat.status === 'done' && seat.text ? splitActions(seat.text) : null
-        const drafted = said?.actions.length ?? 0
-        return (
-          <details key={seat.member} className={`council-seat is-${seat.status}`} style={memberStyle(seat.member)}>
-            <summary>
-              <CouncilFace member={seat.member} state={seat.status === 'thinking' && !working ? 'idle' : seat.status} />
-              <span className="council-name">{name}</span>
-              <span className="council-role">{role}</span>
-              {drafted > 0 && <span className="council-drafted">{drafted === 1 ? '1 change drafted' : `${drafted} changes drafted`}</span>}
-              {state && <span className="council-state">{state}</span>}
-            </summary>
-            {said ? (
-              <MarkdownView markdown={said.text} />
-            ) : seat.status === 'failed' && seat.text ? (
-              <p className="council-note">{seat.text}</p>
-            ) : null}
-          </details>
-        )
-      })}
-    </div>
-  )
-}
-
-/** The seats that are on, as stored; read again whenever the council chip is switched on. */
-function useSeated(on: boolean): CouncilMemberId[] {
-  const [seated, setSeated] = useState<CouncilMemberId[]>([])
-  useEffect(() => {
-    if (!on) return
-    let alive = true
-    window.api.app.getSetting<unknown>(COUNCIL_KEY).then(
-      (stored) => {
-        const seats = councilSeats(stored)
-        if (alive) setSeated(COUNCIL_MEMBERS.filter((member) => seats[member].enabled))
-      },
-      (error: unknown) => console.error('the council could not be read', error)
-    )
-    return () => {
-      alive = false
-    }
-  }, [on])
-  return on ? seated : []
 }
 
 /** A proposal with more steps than this shows a summary, and the steps on request. */
@@ -231,9 +156,6 @@ export function AssistantPanel(): JSX.Element {
   const [composing, setComposing] = useState(false)
   const page = useBlock(pageId)
   const messages = useChats((state) => state.chats[key] ?? NO_MESSAGES)
-  /** Herman asks his council before he answers. Only he has one. */
-  const council = useChats((state) => state.council) && herman
-  const seated = useSeated(council)
   const editor = useAiGate((state) => (state.editor && state.editor.pageId === pageId ? state.editor : null))
   const scope = useAiGate((state) => (state.scope && state.scope.pageId === pageId ? state.scope : null))
   const [draft, setDraft] = useState('')
@@ -291,24 +213,9 @@ export function AssistantPanel(): JSX.Element {
     if (list && stick.current) list.scrollTop = list.scrollHeight
   }, [messages.length, tail])
 
-  const answer = (question: string, history: AiTurn[], selectionText: string | null, withCouncil: boolean): void => {
+  const answer = (question: string, history: AiTurn[], selectionText: string | null): void => {
     const id = ++nextMessageId
     setChat(key, (list) => [...list, { id, role: 'assistant', text: '', run: IDLE }])
-    const patch = (change: (message: Message) => Message): void =>
-      setChat(key, (list) => list.map((message) => (message.id === id ? change(message) : message)))
-    const onCouncil = ({ member, status, text }: CouncilEvent): void =>
-      patch((message) => {
-        // Only the request this answer is waiting for speaks for its council.
-        if (!message.run || !isBusy(message.run)) return message
-        const seat: Seat = { member, status, ...(text ? { text } : {}) }
-        const seats = message.council ?? []
-        return {
-          ...message,
-          council: seats.some((entry) => entry.member === member)
-            ? seats.map((entry) => (entry.member === member ? seat : entry))
-            : [...seats, seat]
-        }
-      })
     const emit = (event: RunEvent): void => {
       setChat(key, (list) =>
         list.map((message) => {
@@ -325,11 +232,9 @@ export function AssistantPanel(): JSX.Element {
         instruction: question,
         ...(pageId ? { pageId } : today ? { today: true } : {}),
         ...(selectionText ? { selectionText: selectionText.slice(0, AI_LIMITS.selection) } : {}),
-        ...(history.length ? { history } : {}),
-        ...(withCouncil ? { council: true } : {})
+        ...(history.length ? { history } : {})
       },
-      emit,
-      onCouncil
+      emit
     )
   }
 
@@ -373,11 +278,8 @@ export function AssistantPanel(): JSX.Element {
         return
       }
       const history = historyOf(useChats.getState().chats[key] ?? NO_MESSAGES, Number.MAX_SAFE_INTEGER)
-      setChat(key, (list) => [
-        ...list,
-        { id: ++nextMessageId, role: 'user', text: question, withSelection: !!selection, withCouncil: council }
-      ])
-      answer(question, history, selection, council)
+      setChat(key, (list) => [...list, { id: ++nextMessageId, role: 'user', text: question, withSelection: !!selection }])
+      answer(question, history, selection)
     })
   }
 
@@ -390,7 +292,7 @@ export function AssistantPanel(): JSX.Element {
     const history = historyOf(list, index - 1)
     setChat(key, (current) => current.slice(0, index))
     stick.current = true
-    answer(question.text, history, question.withSelection ? selection : null, !!question.withCouncil && herman)
+    answer(question.text, history, question.withSelection ? selection : null)
   }
 
   const insert = (text: string, mode: 'below' | 'replace'): void => {
@@ -415,28 +317,16 @@ export function AssistantPanel(): JSX.Element {
     }
   }
 
-  const openers = council
+  const openers = herman ? (today ? HERMAN_DAY_OPENERS : HERMAN_OPENERS) : today ? DAY_OPENERS : SUGGESTIONS
+  const emptyTitle = herman
     ? today
-      ? COUNCIL_DAY_OPENERS
-      : COUNCIL_OPENERS
-    : herman
-      ? today
-        ? HERMAN_DAY_OPENERS
-        : HERMAN_OPENERS
-      : today
-        ? DAY_OPENERS
-        : SUGGESTIONS
-  const emptyTitle = council
-    ? 'The council is seated'
-    : herman
-      ? today
-        ? 'Ask about your day'
-        : 'What is on your mind?'
-      : today
-        ? 'Ask about your day'
-        : pageId
-          ? 'Ask about this page'
-          : 'Ask anything'
+      ? 'Ask about your day'
+      : 'What is on your mind?'
+    : today
+      ? 'Ask about your day'
+      : pageId
+        ? 'Ask about this page'
+        : 'Ask anything'
   // Herman does not explain himself: with him on there is no help line, only the openers.
   const emptyHelp = herman
     ? null
@@ -445,11 +335,6 @@ export function AssistantPanel(): JSX.Element {
       : pageId
         ? 'The assistant reads this page and what is around it. Nothing changes unless you insert an answer or apply what it proposes.'
         : 'Open a page to ask about what is in it.'
-  /** How each seated member fares in the answer being written now; at rest they are simply there. */
-  const benchState = (member: CouncilMemberId): 'idle' | 'thinking' | 'done' | 'failed' => {
-    if (!busy) return 'done'
-    return last?.council?.find((seat) => seat.member === member)?.status ?? 'idle'
-  }
 
   return (
     <aside
@@ -493,13 +378,6 @@ export function AssistantPanel(): JSX.Element {
           <Herman64 pose={poseFor({ mood, attended: composing || draft.trim() !== '' })} draw />
         </div>
       )}
-      {seated.length > 0 && (
-        <div className="council-bench" aria-label="The council">
-          {seated.map((member) => (
-            <CouncilFace key={member} member={member} state={benchState(member)} draw label />
-          ))}
-        </div>
-      )}
 
       <div
         className="assistant-list"
@@ -513,7 +391,7 @@ export function AssistantPanel(): JSX.Element {
           <div className="assistant-empty">
             <p className="assistant-empty-title">{emptyTitle}</p>
             {emptyHelp && <p className="assistant-empty-help">{emptyHelp}</p>}
-            {(pageId || today || council) && (
+            {(pageId || today) && (
               <div className="assistant-suggestions">
                 {openers.map((suggestion) => (
                   <button key={suggestion} type="button" className="assistant-suggestion" onClick={() => send(suggestion)}>
@@ -541,7 +419,6 @@ export function AssistantPanel(): JSX.Element {
             const hasText = text.trim().length > 0
             return (
               <div key={message.id} className={`assistant-message is-assistant${working ? ' is-streaming' : ''}`}>
-                {message.council?.length ? <CouncilView seats={message.council} working={working} /> : null}
                 {hasText ? <MarkdownView markdown={text} /> : working ? <div className="ai-skeleton" aria-hidden="true" /> : null}
                 {working && parsed.pending && (
                   <p className="ai-status" role="status">
@@ -634,17 +511,6 @@ export function AssistantPanel(): JSX.Element {
                 <Close size={10} />
               </button>
             </span>
-          )}
-          {herman && (
-            <button
-              type="button"
-              className={council ? 'assistant-chip is-toggle is-on' : 'assistant-chip is-toggle'}
-              aria-pressed={council}
-              title="Herman asks his council first: they read the workspace and draft changes, and he proposes one plan. Who sits on it is in Settings."
-              onClick={() => useChats.setState((state) => ({ council: !state.council }))}
-            >
-              Council
-            </button>
           )}
         </div>
         <div className="assistant-composer">

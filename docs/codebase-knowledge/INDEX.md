@@ -17,7 +17,7 @@ src/main/ipc.ts:69-90, src/renderer/index.html:19).
 
 - [Overview](00-overview.md) · [Glossary](10-glossary.md) · [Architecture](20-architecture.md)
 - Flows: [startup](30-flows/startup.md), [edit to disk](30-flows/edit-to-disk.md),
-  [Herman, council and Apply](30-flows/herman-council-apply.md)
+  [ask Herman and Apply](30-flows/herman-ask-apply.md)
 - [History and ownership](40-history.md) · [Conventions](50-conventions.md) · [Open questions](90-questions.md)
 
 ## Five things you would not guess from the code

@@ -2,7 +2,7 @@
 
 ## Naming
 
-- IPC invoke channels are `namespace:method`, nested with a dot, and name the method's place on `window.api`: `api.ai.agents.list` answers on `ai:agents.list` (src/shared/ipc.ts:1-10). Each is declared once, in its feature's fragment of `INVOKE` (src/shared/api.ts; see "Adicionar uma feature").
+- IPC invoke channels are `namespace:method`, nested with a dot, and name the method's place on `window.api`: `api.briefing.calendars.list` answers on `briefing:calendars.list` (src/shared/ipc.ts:1-10). Each is declared once, in its feature's fragment of `INVOKE` (src/shared/api.ts; see "Adicionar uma feature").
 - Settings keys are `area.key` (src/shared/ai.ts:142, src/shared/herman.ts:143-145); the pattern is enforced by a regex (src/main/validate.ts:29).
 - Main-process feature folders use `register.ts` (handlers, loaded at start-up), `index.ts` (the lazy `*Bridge`), `service.ts` (Electron-free) (src/main/briefing/register.ts:9-12, src/main/briefing/index.ts:36-55, src/main/briefing/service.ts:81).
 - Renderer features expose `gate.ts` (always loaded), `Host.tsx` (mount point) and lazy chunks (src/renderer/src/ai/gate.ts:1-3, src/renderer/src/ai/Host.tsx:8-19).

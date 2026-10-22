@@ -88,16 +88,14 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Let him build.** Herman reads more than the page in front of him: where it sits, what else you keep, your databases and how they are shaped, your day, and the pages that seem to bear on the question. Ask him for a page, a plan, a table or more rows and he proposes it; nothing is created until you press Apply.
 
-**Ask his council.** Press Council and he first asks a few other voices (a skeptic, a strategist, a builder, an editor, a keeper), each answering from one point of view, then gives you one answer of his own with theirs above it. Each seat can run on a model of its own, or on another program you connect in Settings → Herman: Codex CLI, Gemini CLI, Ollama, or anything that reads a prompt and prints an answer.
-
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
 
 **Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. Playing the recording back marks the paragraph being heard. A meeting made from a calendar event lists who was invited. The audio never leaves the computer.
 
 | | |
 |---|---|
-| ![Herman answers a question about the page](docs/screens/herman.webp) | ![The council: what the Skeptic and the Builder said, then one answer from Herman](docs/screens/council.webp) |
-| ![Herman proposes a page; nothing is made until Apply](docs/screens/herman-apply.webp) | ![A meeting page: its details, the recorder and the notes](docs/screens/meeting.webp) |
+| ![Herman answers a question about the page](docs/screens/herman.webp) | ![Herman proposes a page; nothing is made until Apply](docs/screens/herman-apply.webp) |
+| ![A meeting page: its details, the recorder and the notes](docs/screens/meeting.webp) | |
 
 ### Sync and settings
 

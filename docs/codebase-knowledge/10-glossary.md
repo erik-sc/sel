@@ -30,9 +30,7 @@
 | Tradition | A source family for the phrase of the day | src/shared/briefing.ts:8 | `TRADITIONS` | |
 | Herman | The assistant persona; also a source of pre-written nudges chosen without AI | src/main/ai/herman.ts:22, src/main/herman/service.ts:120 | | Two different code areas; see Naming hazards |
 | Nudge | A short pre-written line Herman says, chosen locally | src/shared/herman.ts:67, src/main/herman/lines.ts:240 | `HermanNudgeKind`, "counsel" (src/main/herman/counsel.ts:214) | |
-| Council | Up to five fixed personas consulted before Herman answers | src/shared/council.ts:11 | `COUNCIL_MEMBERS`, "seat" | Orchestrated at src/main/ai/index.ts:199-204 |
-| Agent | Another CLI connected to fill a council seat: codex, gemini, ollama or any stdin program | src/main/ai/agents.ts:29-55 | `AiAgent`, `AgentKind` (src/shared/council.ts:29) | |
-| Action | Something Herman proposes to build: create a page, append, create a database, add rows | src/shared/actions.ts:44-48 | `HermanAction`, `sel-actions` block | Parsed in the renderer only (src/renderer/src/ai/AssistantPanel.tsx:410) |
+| Action | Something Herman proposes to build: create a page, append, create a database, add rows | src/shared/actions.ts:44-48 | `HermanAction`, `sel-actions` block | Parsed in the renderer only (src/renderer/src/ai/AssistantPanel.tsx:417) |
 | Nonce fencing | Untrusted text is wrapped in markers carrying a random nonce per prompt | src/main/ai/prompts.ts:286-293 | `newNonce` (src/main/ai/prompts.ts:108) | |
 | Sync | One person's devices exchanging a per-page file tree through a private git repository | src/main/sync/engine.ts:239 | `SyncEngine`, `SyncStep` (src/main/sync/engine.ts:77) | |
 | Fingerprint | The hash a page had when last uploaded, kept in `sync_state` | src/main/db/schema.ts:66-70, src/main/sync/engine.ts:834-850 | `hash` | There is no change log; uploads recompute and compare |

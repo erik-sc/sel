@@ -459,7 +459,6 @@ describe('his settings', () => {
   it('are a fixed set of keys a window may write; what he remembers is not one of them', () => {
     expect([...HERMAN_KEYS].sort()).toEqual([
       'herman.corner',
-      'herman.council',
       'herman.enabled',
       'herman.frequency',
       'herman.nudges',

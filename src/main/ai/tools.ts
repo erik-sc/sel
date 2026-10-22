@@ -6,7 +6,7 @@ import { truncateMiddle } from './prompts'
 import { TOOL_CAPS } from './toolspecs'
 
 /**
- * The workspace as tools: what Herman and his council may look up while they answer, beyond
+ * The workspace as tools: what Herman may look up while he answers, beyond
  * what the prompt already carries. Every tool reads; none writes. A change is still only ever
  * proposed (shared/actions.ts) and made by the window when the user presses Apply.
  *
@@ -286,7 +286,7 @@ export function callTool(source: ToolSource, name: string, rawArgs: unknown, now
   }
 }
 
-/** What a tool says a little about, for the window to show while a member works: "reading “Projects”". */
+/** What a tool says a little about, for the window to show while a request works: "reading “Projects”". */
 export function toolActivity(source: Pick<ToolSource, 'get'>, name: string, rawArgs: unknown): string {
   const args = rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? (rawArgs as Record<string, unknown>) : {}
   const named = (id: unknown): string => {

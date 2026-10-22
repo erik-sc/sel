@@ -20,7 +20,6 @@ import {
 import { ConfirmButton, Segmented } from '@/appearance/controls'
 import { notifyError, toast } from '@/ui/toast'
 import { AlarmSettings } from '@/alarms/AlarmSettings'
-import { CouncilSettings } from './CouncilSettings'
 import { Herman64 } from './Herman64'
 import { spriteUrl } from './sprites'
 import { useHerman } from './gate'
@@ -312,8 +311,6 @@ export function HermanSection(): JSX.Element {
       </section>
 
       <AlarmSettings />
-
-      <CouncilSettings enabled={enabled} />
     </div>
   )
 }

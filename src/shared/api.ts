@@ -279,7 +279,7 @@ export const IPC = {
   windowClose: 'window:close'
 } as const
 
-/** Every invoke channel of `Api`: `blocks.get` answers on `blocks:get`, `ai.agents.list` on `ai:agents.list`. */
+/** Every invoke channel of `Api`: `blocks.get` answers on `blocks:get`, `briefing.calendars.list` on `briefing:calendars.list`. */
 export type InvokeChannel = InvokeChannels<Api>
 
 /**

@@ -77,7 +77,7 @@ describe('the preload', () => {
     // A change here changes what a renderer can reach: review it as such.
     expect(Object.fromEntries([...members()].filter(([, what]) => !what.startsWith('invoke ')))).toEqual({
       clientId: 'string',
-      'ai.onEvent': 'on ai:council ai:delta ai:done ai:error',
+      'ai.onEvent': 'on ai:delta ai:done ai:error',
       'sync.onStatus': 'on sync:status',
       'briefing.onChanged': 'on briefing:changed',
       'meetings.recording.frames': 'send meetings:recording.frames',

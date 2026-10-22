@@ -1,17 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { AI_LANGUAGE_LABELS, type AiAction, type AiLanguage, type AiRequest, type AiTone, type AiTurn } from '../../shared/ai'
 import { ACTIONS_FENCE } from '../../shared/actions'
-import type { CouncilMemberId } from '../../shared/council'
-import {
-  COUNCIL_RULE,
-  councilBody,
-  MEMBER_DRAFT_RULE,
-  MEMBER_LANGUAGE_RULE,
-  MEMBER_TASK,
-  memberIntro,
-  memberRules,
-  type CouncilOpinion
-} from './council'
 import { TOOL_LIST } from './toolspecs'
 import { PASSAGES_RULE, PERSONA_INTRO, PERSONA_LANGUAGE_RULE, passagesBody, personaRules, type PersonaVoice } from './herman'
 
@@ -78,13 +67,6 @@ export interface PromptOptions {
   voice?: PersonaVoice | null
   /** `ask` with a voice: ids of bundled passages he may quote. Ids of anything else give nothing. */
   passageIds?: readonly string[]
-  /**
-   * `ask`: the prompt is for one member of Herman's council instead of for him. The name of a
-   * persona this process holds (see ./council.ts), like a voice.
-   */
-  member?: CouncilMemberId | null
-  /** `ask`: what the council said, for Herman to weigh. Text written by models: data like any other. */
-  council?: readonly CouncilOpinion[]
   /** `ask`: the request may read the workspace through the tools (see ./tools.ts). */
   tools?: boolean
 }
@@ -329,24 +311,12 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   const workspace = isAsk && context.workspace?.trim() ? context.workspace : undefined
   const related = isAsk && context.related?.trim() ? context.related : undefined
   const aboutDay = day !== undefined && !page && (request.today === true || workspace === undefined)
-  // A member of the council answers instead of Herman: the same sections, another point of view.
-  const member = isAsk ? (options.member ?? null) : null
-  const council = isAsk && !member ? councilBody(options.council ?? []) : ''
-  const base = taskFor(request, focus !== undefined, aboutDay, page !== undefined || !isAsk)
-  const spec: Task = member ? { ...base, task: MEMBER_TASK } : base
+  const spec = taskFor(request, focus !== undefined, aboutDay, page !== undefined || !isAsk)
 
   // Herman speaks in the conversation only: the tools that rewrite text have no voice of their own.
-  const voice = isAsk && !member ? (options.voice ?? null) : null
+  const voice = isAsk ? (options.voice ?? null) : null
   const passages = voice ? passagesBody(options.passageIds) : ''
-  const lines: string[] = [
-    member ? memberIntro(member) : voice ? PERSONA_INTRO : 'You are the writing assistant built into sel, a notes app.',
-    '',
-    `Task: ${spec.task}`
-  ]
-  if (member) {
-    lines.push('', 'Your point of view:')
-    for (const rule of memberRules(member)) lines.push(`- ${rule}`)
-  }
+  const lines: string[] = [voice ? PERSONA_INTRO : 'You are the writing assistant built into sel, a notes app.', '', `Task: ${spec.task}`]
   if (voice) {
     lines.push('', 'Your voice:')
     for (const rule of personaRules(voice)) lines.push(`- ${rule}`)
@@ -354,10 +324,7 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   }
   const rules = [...(spec.rules ?? [])]
   if (workspace || related || (day && !aboutDay)) rules.push(CONTEXT_RULE)
-  if (council) rules.push(COUNCIL_RULE)
   if (isAsk && options.tools) rules.push(TOOLS_RULE)
-  // The one who answers the user proposes; a member of the council drafts in the same form, for him.
-  if (isAsk && member) rules.push(MEMBER_DRAFT_RULE)
   if (isAsk) rules.push(...ACTIONS_RULES)
 
   if (request.action !== 'translate') {
@@ -368,11 +335,9 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
         ? `Write in ${AI_LANGUAGE_LABELS[language]}.`
         : request.action === 'consolidate'
           ? 'Write in the language the meeting was held in (the language of the transcript), whatever language the notes are in, section headings included.'
-          : member
-            ? MEMBER_LANGUAGE_RULE
-            : voice
-              ? PERSONA_LANGUAGE_RULE
-              : 'Write in the language of the content.'
+          : voice
+            ? PERSONA_LANGUAGE_RULE
+            : 'Write in the language of the content.'
     )
   }
   if (spec.markdown !== false) rules.push(...FORMAT_RULES)
@@ -429,8 +394,6 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   if (request.action === 'ask' && request.history?.length) section('CONVERSATION', historyText(request.history, PROMPT_CAPS.history))
   // Text of the bundled collection, read by this process: offered as something to quote, and still not instructions.
   if (passages) section('PASSAGES', passages, 'from the collection bundled with this app; the only text that may be quoted')
-  // What other models answered when asked: advice for him to weigh, and data like everything else here.
-  if (council) section('COUNCIL', council, 'what the members of your council answered, each from one point of view')
 
   lines.push('', 'Rules:')
   for (const rule of rules) lines.push(`- ${rule}`)

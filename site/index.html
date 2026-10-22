@@ -298,8 +298,6 @@
     background: var(--bg-elevated); border-right: 0.5px solid var(--border-strong); border-bottom: 0.5px solid var(--border-strong);
     transform: translateX(-50%) rotate(45deg);
   }
-  .council { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 22px; }
-  .council span { font: 13px/1 var(--font-sans); border: 0.5px solid var(--border-strong); border-radius: 999px; padding: 7px 11px; color: var(--text-secondary); }
 
   /* ---- principles ---- */
   .principles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 48px; border-top: 0.5px solid var(--border-strong); }
@@ -635,26 +633,17 @@
             <span data-l="pt"><b>Ele propõe, você aplica.</b> Peça uma página, um plano, uma tabela ou mais linhas. Nada é criado até você apertar Aplicar.</span>
           </li>
           <li>
-            <span data-l="en"><b>His council.</b> Before answering he can ask a few other voices, each on a model of its own, or on Codex CLI, Gemini CLI or Ollama.</span>
-            <span data-l="pt"><b>O conselho.</b> Antes de responder ele pode ouvir outras vozes, cada uma num modelo próprio, ou no Codex CLI, Gemini CLI ou Ollama.</span>
-          </li>
-          <li>
             <span data-l="en"><b>Meetings, on your machine.</b> Record the microphone and what the computer plays. whisper.cpp transcribes locally; the audio never leaves.</span>
             <span data-l="pt"><b>Reuniões, na sua máquina.</b> Grave o microfone e o som do computador. O whisper.cpp transcreve localmente; o áudio nunca sai dali.</span>
           </li>
         </ul>
-        <div class="council ui" aria-label="The council">
-          <span data-l="en">the skeptic</span><span data-l="en">the strategist</span><span data-l="en">the builder</span><span data-l="en">the editor</span><span data-l="en">the keeper</span>
-          <span data-l="pt">o cético</span><span data-l="pt">o estrategista</span><span data-l="pt">o construtor</span><span data-l="pt">o editor</span><span data-l="pt">o guardião</span>
-        </div>
       </div>
     </div>
     <div class="wrap">
       <figure class="viewer wide-viewer reveal" data-viewer>
-        <div class="frame shot"><img src="docs/screens/council.webp" width="1200" height="800" alt="" loading="lazy"></div>
+        <div class="frame shot"><img src="docs/screens/herman.webp" width="1200" height="800" alt="" loading="lazy"></div>
         <figcaption></figcaption>
         <div class="picks ui" role="group" aria-label="Screens">
-          <button type="button" data-src="council" data-en="The council: Cato the Skeptic and Ada the Builder say their piece, then Herman gives one answer." data-pt="O conselho: Cato, o Cético, e Ada, a Construtora, dizem o que pensam, e o Herman dá uma resposta só."><span data-l="en">Council</span><span data-l="pt">Conselho</span></button>
           <button type="button" data-src="herman" data-en="Herman answers a question about the page in front of you." data-pt="O Herman responde a uma pergunta sobre a página aberta."><span data-l="en">Answer</span><span data-l="pt">Resposta</span></button>
           <button type="button" data-src="herman-apply" data-en="Ask for a page and he proposes it. Nothing is made until you press Apply." data-pt="Peça uma página e ele propõe. Nada é criado até você apertar Aplicar."><span data-l="en">Apply</span><span data-l="pt">Aplicar</span></button>
           <button type="button" data-src="settings-herman" data-en="Settings → Herman: his voice, his size, his corner, and when he speaks." data-pt="Configurações → Herman: a voz, o tamanho, o canto e quando ele fala."><span data-l="en">Settings</span><span data-l="pt">Ajustes</span></button>

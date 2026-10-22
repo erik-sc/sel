@@ -1,4 +1,3 @@
-import type { AgentKind, AiAgentInfo, CouncilEvent } from './council'
 import type { SettingsSpec } from './settings'
 import type { InvokeChannels } from './ipc'
 import type { CommandSpec } from './commands'
@@ -97,12 +96,6 @@ export interface AiRequest {
    * agenda and open tasks, as it has them stored; the window sends none of it.
    */
   today?: boolean
-  /**
-   * `ask` only: Herman consults his council first. The seats that are taken each answer the
-   * question from their own point of view (see shared/council.ts), and he answers with their
-   * counsel in front of him. Which seats, programs and models is read from the settings.
-   */
-  council?: boolean
 }
 
 export type AiUnavailableReason = 'not-found' | 'not-executable' | 'unknown-version' | 'disabled'
@@ -136,13 +129,9 @@ export interface AiError {
   detail?: string
 }
 
-export type AiEvent =
-  | ({ type: 'delta' } & AiDelta)
-  | ({ type: 'done' } & AiDone)
-  | ({ type: 'error' } & AiError)
-  | ({ type: 'council' } & CouncilEvent)
+export type AiEvent = ({ type: 'delta' } & AiDelta) | ({ type: 'done' } & AiDone) | ({ type: 'error' } & AiError)
 
-export const AI_CHANNELS = { delta: 'ai:delta', done: 'ai:done', error: 'ai:error', council: 'ai:council' } as const
+export const AI_CHANNELS = { delta: 'ai:delta', done: 'ai:done', error: 'ai:error' } as const
 
 // ---- settings ---------------------------------------------------------------
 
@@ -231,17 +220,7 @@ export interface AiApi {
    * that setting gets a value. Null when cancelled; otherwise the status with the chosen file.
    */
   pickCli(): Promise<AiStatus | null>
-  /**
-   * Other programs that can answer for a seat of Herman's council (see shared/council.ts).
-   * A program's path only ever comes from a search of PATH or the native file dialog.
-   */
-  agents: {
-    list(): Promise<AiAgentInfo[]>
-    /** Connects a program of this kind: found on PATH, or (with `pick`, or when not found) chosen in a file dialog. Null when cancelled. */
-    connect(kind: AgentKind, pick?: boolean): Promise<AiAgentInfo | null>
-    remove(id: string): Promise<AiAgentInfo[]>
-  }
-  /** `ai:delta`, `ai:done`, `ai:error` and `ai:council` for this window's requests. Returns an unsubscribe function. */
+  /** `ai:delta`, `ai:done` and `ai:error` for this window's requests. Returns an unsubscribe function. */
   onEvent(listener: (event: AiEvent) => void): () => void
 }
 
@@ -250,10 +229,7 @@ export const AI_INVOKE = {
   'ai:status': true,
   'ai:run': true,
   'ai:cancel': true,
-  'ai:pickCli': true,
-  'ai:agents.list': true,
-  'ai:agents.connect': true,
-  'ai:agents.remove': true
+  'ai:pickCli': true
 } as const satisfies Record<InvokeChannels<{ ai: AiApi }>, true>
 
 /** Herman's panel, the assistant (see ./commands.ts). The palette lists it while AI is on. */

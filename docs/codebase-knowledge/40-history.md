@@ -21,6 +21,7 @@ The whole visible history is 35 commits, all dated 2026-10-13, 30 of them non-me
 | 12 | Calendar screen with month, then week | Documented in subjects | commit fd0149e, commit b36d895 |
 | 13 | Version 0.2.0 | | commit 4f4042f |
 | 14 | Herman gets workspace context, a council, other CLIs and proposals | Documented: "nothing is created until Apply is pressed, and the ops go through the same pipeline as the user's own edits"; running limit raised from two to four | commit 8acaec9 |
+| 15 | The council and the connected programs (Codex, Gemini, Ollama, stdin) are removed | The owner asked for it ("remova o council"); a question goes to Herman alone, and a stored `herman.council` setting is ignored | branch release/0.7.2 |
 
 ## Hotspots (churn; say "repo is N days old" when churn is meaningless)
 
