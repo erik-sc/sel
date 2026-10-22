@@ -24,6 +24,7 @@ reconfere antes de mexer.
 | 1 (paralelo) | 3 Desempenho no processo principal · 4 Teclado e leitor de tela · 5 Falhas que aparecem · 6 Binário mais fechado | arquivos disjuntos entre si (ver "Toca em") |
 | 2 | 7 Desempenho no renderer | mexe nas mesmas views de database que o item 4 (janelamento × navegação por teclado) |
 | 1–2 | 9 Tarefas: capturar, refinar, agendar (9a → 9b → 9c) — **a pedido do Érik, a única feature nova da 0.7.0**; spec em  | 9a (datas e recorrência) quase não toca registros e pode correr junto do item 2; 9b depois do item 4 (mesmas listas, foco e aria); 9c depois de 9b |
+| 2–3 | 10 Design system e Herman 64 — **a pedido do Érik (2026-10-22), aprovado no artefato** | toca o CSS de quase todas as telas e a pasta do Herman: entra depois do item 7 e antes do 8 |
 | 3 | 8 Documentação e README | descreve o app e o código depois de tudo integrado |
 
 **Disco.** Em 2026-10-19 o C: tinha **5,3 GB livres (99%)**, e cada worktree pediu ~5,4 GB na 0.6.x (memória
@@ -415,6 +416,69 @@ teclado do item 4 continua funcionando nas views janeladas.
 
 ---
 
+## 10. Design system e Herman 64
+
+Status: **aprovado** · 2026-10-22 — o Érik aprovou o design system do artefato
+(https://claude.ai/artifact/DAe7kc5iFdEnhrNqroUmYs), pediu para entrar na 0.7.0 e autorizou baixar as fontes.
+Branch `claude/design-system-herman`, de `release/0.7.0`.
+
+**Hoje.** Visual "Zen" (papel quente, índigo, serifa nos títulos, cantos 4–18px, sombras difusas e blur nos
+overlays), sete "estilos de janela" (skins retrô) em Settings → Aparência, o título "sel" no canto superior
+esquerdo, e o Herman como figura de uma linha só (src/renderer/src/herman/Figure.tsx + poses.ts).
+
+**Escopo.**
+- **Estilos de janela saem** (feito): skins.ts, skins/*.css, os 7 presets que os usavam, o seletor "Window style";
+  aparências salvas com `skin` carregam sem ele.
+- **Tokens** (tokens.css, espelhados em appearance/schema.ts): cantos 0 (2px em checkbox e código, pílula em
+  toggles), sombra "carimbo" (3px 3px, sem desfoque) + moldura de 1px em tinta em tudo que flutua, sem blur;
+  cores novas `frame`, `paper-sunk`, `grid-dot`, `night`, `night-ink`; o resto da paleta fica.
+- **Fontes empacotadas** (OFL, sem rede): Newsreader para título e texto da página, IBM Plex Mono para interface,
+  rótulos, metadados e atalhos. Sans do sistema só em frases longas de interface.
+- **Componentes**: botões como palavra entre colchetes; barra lateral em mono com glifos e a árvore `├─ └─`;
+  item escolhido com fio de 2px em `accent`; chão com grade de pontos; menus e diálogos com moldura + carimbo e
+  `>` na linha ativa; tarefas `[ ]`/`[x]`; toasts com `[ok]`/`[erro]`; rótulos de grupo em CAIXA ALTA mono.
+- **O título "sel" no canto superior esquerdo sai** (pedido do Érik, 2026-10-22).
+- **Herman 64**: o Herman em 3D low-poly estilo PS1, em tiras de quadros PNG (84 px, ampliadas 2×/3× com
+  `image-rendering: pixelated`), oito animações (respirando, girando, acenando, pensando, falando, dormindo,
+  aparecendo, comemorando) no lugar das poses do Figure, nos mesmos lugares (canto, painel, Hoje, Settings).
+  O gerador (renderizador PS1 + rig + skins) entra em `scripts/herman64/` para refazer as tiras.
+- **Skins do Herman**: 12 (Clássico, Mago das estrelas, Monge zen, Hacker, Jardineiro, Astronauta, Pirata,
+  Detetive, Escriba, **Pedra**; Papai Noel em dezembro e Abóbora em outubro). A Pedra (três pedras empilhadas
+  com olhos, pedido do Érik em 2026-10-22) não usa o corpo do Herman: tem rig e animações próprias com os mesmos
+  oito nomes (as pedras respiram, a de cima balança para dizer olá, pensa girando devagar, cai uma por uma ao
+  aparecer, pulam em sequência ao comemorar). Setting `herman.skin`, **local como as outras preferências
+  do Herman** (sincronizar pediria um arquivo novo no motor de sync: fica para depois); escolha em
+  Settings → Herman com as miniaturas. As sazonais só aparecem no mês delas (✅ desligadas por
+  padrão: um interruptor "Skins da estação" as libera).
+- Com "reduzir movimento", o Herman fica no primeiro quadro.
+
+**Fora do escopo.** Tokenizar o espaçamento solto do CSS (fica para depois, ver item 8). WebGL ao vivo para o
+Herman (as tiras bastam). Redesenhar os presets de cor além do que os tokens novos pedem.
+
+**Como ficou (2026-10-22).** Feito na branch `claude/design-system-herman`:
+- Tokens: cantos 0 (2px no xs), `--radius-pill` 0 (interruptores e chips quadrados), sombra carimbo em
+  popover/menu/diálogo/toast, sem blur; novos `--frame`, `--bg-sunk`, `--grid-dot`. Os presets Glass e
+  derivados recebem de volta sans do sistema, mono antigo, 14px, blur e pílula (bloco GLASS).
+- Fontes: Newsreader e IBM Plex Mono, latin, woff2, em `src/renderer/src/styles/fonts/` com as licenças OFL;
+  `@fontsource/*` só em devDependencies, como origem dos arquivos.
+- Botões entre colchetes, primário com carimbo; menus com `>` e separadores tracejados; toasts com `[ok]`/`[!]`;
+  caixas de tarefa quadradas (editor, databases, Hoje); callout em `--bg-sunk`; texto da página em serifa.
+- Barra lateral: sem o título "sel", grade de pontos, item escolhido com fio índigo, rótulos em caixa alta.
+- Herman 64: `herman/Herman64.tsx` (poses → animações), 12 skins × 9 PNGs gerados por
+  `node scripts/herman64/generate.mjs`, `herman.skin` + `herman.seasonalSkins`, seletor em Settings → Herman.
+- **Ficou para depois:** a árvore `├─ └─` em ASCII na barra lateral (pede mudar o componente da árvore) e os
+  botões de janela (minimizar/maximizar/fechar), que continuam redondos.
+
+**Toca em.** src/renderer/src/styles/*, appearance/schema.ts, presets.ts e testes de contraste; CSS das telas
+(shell, editor, database, menus, dialogs, toasts); shell/Sidebar (título); herman/* (Figure → Herman64);
+src/shared/settings.ts (`herman.skin`, `herman.seasonalSkins`); HermanSettings.tsx; package.json (@fontsource).
+
+**Pronto quando.** Lint, typecheck e testes verdes; o teste de contraste passa nos dois temas; o app buildado
+mostra o visual novo nas telas principais (página, Hoje, Tarefas, painel do Herman, Settings), o Herman 64
+animado e a troca de skin funcionando e sincronizando.
+
+---
+
 ## 8. Documentação e README
 
 **Hoje.** O README diz "All style values live in one file, tokens.css" (README.md:158), mas há ~2264 `px` soltos no CSS
@@ -430,6 +494,8 @@ conflitos em merges (17 nos últimos 120).
 - codebase-knowledge: atualizar 00-overview (lint, CI), 50-conventions ("Adicionar uma feature", depois do item 2),
   90-questions (#16, #20, #21, #24, #25, #27, #28 fechados ou atualizados; novas perguntas abertas: `noUncheckedIndexedAccess`,
   protocolo próprio, assinatura de código), 30-flows/startup.md se o item 3 mexer na abertura.
+- Descrever o visual novo (item 10): o design system zen/digital/ASCII/brutalista, as fontes empacotadas,
+  o Herman 64 e as skins; tirar a menção aos estilos de janela.
 - Versão 0.7.0 em package.json.
 
 **Fora do escopo.** Quebrar o README em fragmentos por feature (resolveria os conflitos de README, mas muda o jeito de

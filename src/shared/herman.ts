@@ -34,6 +34,36 @@ export type HermanSize = (typeof HERMAN_SIZES)[number]
 export const HERMAN_CORNERS = ['bottom-right', 'bottom-left', 'top-right', 'top-left'] as const
 export type HermanCorner = (typeof HERMAN_CORNERS)[number]
 
+/**
+ * What Herman 64 wears (renderer/herman/sprites.ts draws each one). The skin changes only how he
+ * looks: the same animations play in every skin. The Stone is three stacked rocks instead of him.
+ */
+export const HERMAN_SKINS = [
+  'classic',
+  'wizard',
+  'monk',
+  'hacker',
+  'gardener',
+  'astronaut',
+  'pirate',
+  'detective',
+  'scribe',
+  'stone',
+  'santa',
+  'pumpkin'
+] as const
+export type HermanSkinId = (typeof HERMAN_SKINS)[number]
+
+/** Skins of a season: offered, and worn, only in their month (1–12), and only when seasonal skins are on. */
+export const HERMAN_SEASONAL_SKINS: Partial<Record<HermanSkinId, number>> = { santa: 12, pumpkin: 10 }
+
+/** The skin he wears today: a seasonal skin out of its month, or with seasonal skins off, falls back to the classic one. */
+export function wornSkin(skin: HermanSkinId, seasonal: boolean, today: Date = new Date()): HermanSkinId {
+  const month = HERMAN_SEASONAL_SKINS[skin]
+  if (month === undefined) return skin
+  return seasonal && today.getMonth() + 1 === month ? skin : 'classic'
+}
+
 /** The hours he keeps silent, as minutes of the local day. They may span midnight; equal ends mean none. */
 export interface HermanQuietHours {
   from: number
@@ -48,6 +78,8 @@ export interface HermanSettings {
   quietHours: HermanQuietHours
   size: HermanSize
   corner: HermanCorner
+  skin: HermanSkinId
+  seasonalSkins: boolean
 }
 
 export const HERMAN_DEFAULTS: HermanSettings = {
@@ -57,7 +89,9 @@ export const HERMAN_DEFAULTS: HermanSettings = {
   frequency: 'sometimes',
   quietHours: { from: 21 * 60, to: 8 * 60 },
   size: 'small',
-  corner: 'bottom-right'
+  corner: 'bottom-right',
+  skin: 'classic',
+  seasonalSkins: false
 }
 
 /** The languages his own lines are written in. */
@@ -152,6 +186,8 @@ export const HERMAN_PREFERENCE_KEYS = [
   'herman.frequency',
   'herman.quietHours',
   'herman.size',
+  'herman.skin',
+  'herman.seasonalSkins',
   COUNCIL_KEY
 ] as const
 /** Device-local state: where he sits in this window. */
@@ -175,7 +211,10 @@ export function cleanHermanSetting(key: string, value: unknown): unknown {
   switch (key) {
     case 'herman.enabled':
     case 'herman.nudges':
+    case 'herman.seasonalSkins':
       return typeof value === 'boolean' ? value : undefined
+    case 'herman.skin':
+      return oneOf(HERMAN_SKINS, value)
     case 'herman.voice':
       return oneOf(HERMAN_VOICES, value)
     case 'herman.frequency':

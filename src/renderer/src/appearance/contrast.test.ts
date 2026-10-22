@@ -8,13 +8,8 @@ import { TOKEN_MAP, defaultValue, type ThemeName } from './schema'
 const TEXT = ['--text', '--text-secondary', '--text-tertiary'] as const
 const NEEDS: Record<string, number> = { '--text': 4.5, '--text-secondary': 4.5, '--text-tertiary': 4.5, '--focus-ring': 3 }
 
-/**
- * Where fidelity to the original wins, written down here and nowhere else. The Windows 98
- * palette has one grey between black and the silver face, #808080, and that is the grey of its
- * quiet text: it stays (2.2:1 on silver), and it is used only where a word repeats what is
- * already said elsewhere (placeholders, hints).
- */
-const EXCEPTIONS: ReadonlySet<string> = new Set(['windows-98 light --text-tertiary'])
+/** Preset, theme and token that may stay below the bar, written down here and nowhere else. None today. */
+const EXCEPTIONS: ReadonlySet<string> = new Set<string>()
 
 /** Zen is the default: tokens.css as it is, with no preset over it. */
 const DEFAULT: Preset = { id: 'default', name: 'Default', description: '', light: {}, dark: {}, shared: {} }
@@ -30,8 +25,7 @@ function color(preset: Preset, theme: ThemeName, name: string): Rgba {
 /**
  * The surfaces text is drawn on, each composited over what is under it: the page and the sidebar
  * over the wallpaper (its base and each of its colours, the worst counts), a raised surface and a
- * popover over the page. A look with a window style of its own (a skin) paints its sidebar
- * itself, so its sidebar colour is not one of them.
+ * popover over the page.
  */
 function surfaces(preset: Preset, theme: ThemeName): Rgba[] {
   const opaque = (c: Rgba): Rgba => ({ ...c, a: 1 })
@@ -43,7 +37,7 @@ function surfaces(preset: Preset, theme: ThemeName): Rgba[] {
     ...over('--bg-elevated', page),
     ...over('--bg-solid', wallpaper),
     ...over('--glass-thick-bg', page),
-    ...(preset.skin ? [] : over('--bg-sidebar', wallpaper))
+    ...over('--bg-sidebar', wallpaper)
   ]
 }
 

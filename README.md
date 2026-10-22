@@ -101,7 +101,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Say what's wrong.** Report a bug or suggest a feature from the sidebar, the Help menu or `Ctrl+K`. It is kept as a file on your computer, where you can follow it as it is taken up, reviewed and done, or withdraw it. The app sends nothing; a nightly development run reads the folder and opens a pull request for what it can fix.
 
-**Make it yours.** Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance. Presets with a window style of their own redraw the chrome as Frutiger Aero, Windows 98, Windows XP, Aqua, Mac OS 9, Full glass or a phosphor Terminal.
+**Make it yours.** Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance.
 
 | | |
 |---|---|

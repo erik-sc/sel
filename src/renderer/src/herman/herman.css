@@ -120,8 +120,10 @@
 
 /* ---- his corner ---- */
 
+/* Herman 64 is pixel art: every size here is a whole multiple of his 84px frame. */
+
 .herman-dock {
-  --herman-size: 50;
+  --herman-size: 84;
   /* Small, the glow is kept close to the line, or it would swallow the drawing. */
   --herman-halo: 2.4;
   position: absolute;
@@ -138,7 +140,7 @@
 }
 
 .herman-dock.is-medium {
-  --herman-size: 76;
+  --herman-size: 168;
   --herman-halo: 3;
 }
 
@@ -320,7 +322,7 @@
 /* ---- in the conversation ---- */
 
 .herman-stage {
-  --herman-size: 112;
+  --herman-size: 168;
   display: flex;
   flex: none;
   justify-content: center;
@@ -337,7 +339,7 @@
 }
 
 .herman-stage.is-large {
-  --herman-size: 156;
+  --herman-size: 168;
   padding: 14px 0 0;
 }
 
@@ -353,7 +355,7 @@
 /* ---- on the Today screen ---- */
 
 .today-herman {
-  --herman-size: 44;
+  --herman-size: 84;
   --herman-halo: 2.4;
   display: flex;
   align-items: flex-end;
@@ -374,7 +376,7 @@
 /* ---- settings ---- */
 
 .herman-settings-figure {
-  --herman-size: 72;
+  --herman-size: 168;
   display: flex;
   align-items: center;
   gap: 16px;

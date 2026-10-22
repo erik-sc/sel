@@ -143,10 +143,7 @@ export const Sidebar = memo(function Sidebar() {
     <aside className={collapsed ? 'sidebar glass is-collapsed' : 'sidebar glass'} aria-hidden={collapsed} inert={collapsed}>
       <div className="sidebar-inner">
         <header className="sidebar-header">
-          <span className="workspace-badge" aria-hidden="true">
-            S
-          </span>
-          <span className="workspace-name">sel</span>
+          <span className="sidebar-header-space" />
           <IconButton label={copy.closeSidebar} onClick={toggleSidebar}>
             <ChevronLeft />
           </IconButton>

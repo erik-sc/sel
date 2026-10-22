@@ -5,20 +5,24 @@ import {
   HERMAN_CORNERS,
   HERMAN_DEFAULTS,
   HERMAN_FREQUENCIES,
+  HERMAN_SEASONAL_SKINS,
   HERMAN_SIZES,
+  HERMAN_SKINS,
   HERMAN_VOICES,
   HERMAN_VOICE_LABELS,
   type HermanCorner,
   type HermanFrequency,
   type HermanSettings,
   type HermanSize,
+  type HermanSkinId,
   type HermanVoice
 } from '@shared/herman'
 import { ConfirmButton, Segmented } from '@/appearance/controls'
 import { notifyError, toast } from '@/ui/toast'
 import { AlarmSettings } from '@/alarms/AlarmSettings'
 import { CouncilSettings } from './CouncilSettings'
-import { Figure } from './Figure'
+import { Herman64 } from './Herman64'
+import { spriteUrl } from './sprites'
 import { useHerman } from './gate'
 import { fromClock, toClock } from './mood'
 
@@ -44,6 +48,24 @@ const CORNER_LABELS: Record<HermanCorner, string> = {
   'top-right': 'Top right',
   'top-left': 'Top left'
 }
+const SKIN_LABELS: Record<HermanSkinId, string> = {
+  classic: 'Classic',
+  wizard: 'Star wizard',
+  monk: 'Zen monk',
+  hacker: 'Hacker',
+  gardener: 'Gardener',
+  astronaut: 'Astronaut',
+  pirate: 'Pirate',
+  detective: 'Detective',
+  scribe: 'Scribe',
+  stone: 'Stone',
+  santa: 'Santa',
+  pumpkin: 'Pumpkin'
+}
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const EVERYDAY_SKINS = HERMAN_SKINS.filter((skin) => HERMAN_SEASONAL_SKINS[skin] === undefined)
+const SEASON_SKINS = HERMAN_SKINS.filter((skin) => HERMAN_SEASONAL_SKINS[skin] !== undefined)
+
 const VOICE_HELP: Record<HermanVoice, string> = {
   plain: 'The assistant answers without his voice.',
   herman: 'Warm, plain and brief; a question more often than a list of tips.',
@@ -56,8 +78,8 @@ export function HermanSection(): JSX.Element {
   useEffect(() => {
     let alive = true
     window.api.herman.state().then(
-      ({ enabled, voice, nudges, frequency, quietHours, size, corner }) => {
-        if (alive) setValues({ enabled, voice, nudges, frequency, quietHours, size, corner })
+      ({ enabled, voice, nudges, frequency, quietHours, size, corner, skin, seasonalSkins }) => {
+        if (alive) setValues({ enabled, voice, nudges, frequency, quietHours, size, corner, skin, seasonalSkins })
       },
       (error: unknown) => console.error('herman settings failed to load', error)
     )
@@ -71,7 +93,13 @@ export function HermanSection(): JSX.Element {
     const previous = values[name]
     setValues((current) => ({ ...current, [name]: value }))
     window.api.app.setSetting(`herman.${name}`, value).then(
-      () => useHerman.setState((state) => ({ version: state.version + 1, ...(name === 'enabled' ? { on: value === true } : {}) })),
+      () =>
+        useHerman.setState((state) => ({
+          version: state.version + 1,
+          ...(name === 'enabled' ? { on: value === true } : {}),
+          ...(name === 'skin' ? { skin: value as HermanSkinId } : {}),
+          ...(name === 'seasonalSkins' ? { seasonal: value === true } : {})
+        })),
       (error: unknown) => {
         setValues((current) => ({ ...current, [name]: previous }))
         notifyError('The setting could not be saved.', error)
@@ -100,7 +128,7 @@ export function HermanSection(): JSX.Element {
           <h3 className="ap-group-title">Herman</h3>
         </div>
         <div className="herman-settings-figure">
-          <Figure pose={enabled ? 'resting' : 'sleeping'} />
+          <Herman64 pose={enabled ? 'resting' : 'sleeping'} />
           <p>The face and the voice of the assistant: an old man who listens, answers briefly, and otherwise leaves you alone.</p>
         </div>
         <div className="ap-list">
@@ -117,6 +145,48 @@ export function HermanSection(): JSX.Element {
                 onChange={(value) => change('enabled', value === 'on')}
               />
             </div>
+          </div>
+          <div className="ap-row herman-skins-row">
+            <div className="ap-row-text">
+              <span className="ap-row-label">Outfit</span>
+              <span className="ap-row-help">Only how he looks: he moves and speaks the same in every one.</span>
+            </div>
+            <div className="herman-skins" role="group" aria-label="Outfit">
+              {EVERYDAY_SKINS.map((skin) => (
+                <SkinChoice key={skin} skin={skin} chosen={values.skin === skin} onChoose={() => change('skin', skin)} />
+              ))}
+            </div>
+          </div>
+          <div className="ap-row herman-skins-row">
+            <div className="ap-row-text">
+              <span className="ap-row-label">Outfits of the season</span>
+              <span className="ap-row-help">
+                {values.seasonalSkins
+                  ? 'Worn only in their month; the rest of the year he wears the classic one.'
+                  : 'Off: he never wears them.'}
+              </span>
+            </div>
+            <div className="ap-row-control">
+              <Segmented
+                label="Outfits of the season"
+                value={values.seasonalSkins ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => change('seasonalSkins', value === 'on')}
+              />
+            </div>
+            {values.seasonalSkins && (
+              <div className="herman-skins" role="group" aria-label="Outfits of the season">
+                {SEASON_SKINS.map((skin) => (
+                  <SkinChoice
+                    key={skin}
+                    skin={skin}
+                    chosen={values.skin === skin}
+                    note={MONTHS[(HERMAN_SEASONAL_SKINS[skin] ?? 1) - 1]}
+                    onChoose={() => change('skin', skin)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           <div className="ap-row">
             <div className="ap-row-text">
@@ -245,5 +315,25 @@ export function HermanSection(): JSX.Element {
 
       <CouncilSettings enabled={enabled} />
     </div>
+  )
+}
+
+function SkinChoice({
+  skin,
+  chosen,
+  note,
+  onChoose
+}: {
+  skin: HermanSkinId
+  chosen: boolean
+  note?: string
+  onChoose: () => void
+}): JSX.Element {
+  return (
+    <button type="button" className={chosen ? 'herman-skin is-chosen' : 'herman-skin'} aria-pressed={chosen} onClick={onChoose}>
+      <img src={spriteUrl(skin, 'still')} alt="" width={84} height={84} />
+      <span className="herman-skin-name">{SKIN_LABELS[skin]}</span>
+      {note && <span className="herman-skin-note">{note}</span>}
+    </button>
   )
 }
