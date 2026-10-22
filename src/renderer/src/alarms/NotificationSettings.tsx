@@ -1,4 +1,4 @@
-// Settings → Notifications: the reminders of tasks, the calendar's events (and how long before
+// Settings → Notifications: the reminders of tasks, the four reminders to refine them (shared/tasks/refine.ts), the calendar's events (and how long before
 // they start), whether a meeting asks to be recorded, the chime, and whether sel keeps running
 // in the notification area so that any of it rings with the window closed. The briefing's times
 // and voice stay under Herman (./AlarmSettings.tsx). Written in Herman's language.

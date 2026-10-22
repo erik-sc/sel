@@ -77,7 +77,7 @@ export function registerTasksIpc({ repo }: { repo: Repository }): { handlers: Ha
   return { handlers }
 }
 
-/** Tasks beyond block edits: the Todoist import, the system-wide quick-add shortcut. */
+/** Tasks beyond block edits: the Todoist import, the system-wide quick-add shortcut, the count of tasks to refine. */
 export const tasksFeature = defineFeature({
   namespace: 'tasks',
   register: (ctx): Registered<'tasks'> => registerTasksIpc({ repo: ctx.repo })
