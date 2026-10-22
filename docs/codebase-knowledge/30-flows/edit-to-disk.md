@@ -11,9 +11,9 @@ Trigger: `onInput` on the contentEditable element (src/renderer/src/editor/Edita
 5. Otherwise the flush is debounced — src/renderer/src/editor/EditableText.tsx:199; `TEXT_DEBOUNCE_MS` is 300 — src/renderer/src/editor/types.ts:10
 6. `flush` commits one `update` op with a `text:` key — src/renderer/src/editor/EditableText.tsx:95-105
 7. `EditorController.commit` computes the inverse ops and pushes an undo entry — src/renderer/src/editor/controller.ts:197-205; `invertOps` at src/renderer/src/editor/ops.ts:126
-8. `applyOps(ops)` is fired without awaiting — src/renderer/src/editor/controller.ts:206; defined at src/renderer/src/store/blocks.ts:301
-9. The ops are applied optimistically to the zustand map — src/renderer/src/store/blocks.ts:304-322
-10. `window.api.blocks.apply(ops)` — src/renderer/src/store/blocks.ts:324; the preload prepends the client id — src/preload/index.ts:25
+8. `applyOps(ops)` is fired without awaiting — src/renderer/src/editor/controller.ts:206; defined at src/renderer/src/store/blocks.ts:457
+9. The ops are planned as a set of changed blocks (`planOps`, src/renderer/src/store/ops.ts:52) and written optimistically into the zustand map in place, with a version bump and the changed ids (`commit`) — src/renderer/src/store/blocks.ts:458-473, src/renderer/src/store/blocks.ts:60-90
+10. `window.api.blocks.apply(ops)` — src/renderer/src/store/blocks.ts:477; the preload prepends the client id — src/preload/index.ts:25
 
 ## Main process
 
@@ -27,8 +27,8 @@ Trigger: `onInput` on the contentEditable element (src/renderer/src/editor/Edita
 
 ## Back in the renderers
 
-18. The originating window reconciles the reply, skipping blocks superseded by a newer local write — src/renderer/src/store/blocks.ts:325-332
-19. Other windows receive the change through the preload listener — src/preload/index.ts:145-148; the store filters ids with pending writes and its own echoes, then refetches — src/renderer/src/store/blocks.ts:584-597
+18. The originating window reconciles the reply, skipping blocks superseded by a newer local write and those that came back as the optimistic write showed them (`sameWrite`) — src/renderer/src/store/blocks.ts:478-489
+19. Other windows receive the change through the preload listener — src/preload/index.ts:145-148; the store filters ids with pending writes and its own echoes, then refetches — src/renderer/src/store/blocks.ts:734-747
 20. The editable re-renders from the model unless it is composing or has a pending edit — src/renderer/src/editor/EditableText.tsx:109-117
 
 ## When a `page_versions` row is written
@@ -42,14 +42,14 @@ There is no timer. All captures go through `VersionStore.capture` (src/main/db/v
 
 ## State touched
 
-- Renderer: zustand block map plus module maps for pending writes and own echoes (src/renderer/src/store/blocks.ts:95-100); the editor undo history (src/renderer/src/editor/history.ts:34-61).
+- Renderer: zustand block map plus module maps for pending writes and own echoes (src/renderer/src/store/blocks.ts:124-130); the editor undo history (src/renderer/src/editor/history.ts:34-61).
 - SQLite: `blocks`, `blocks_fts`, conditionally `page_versions` (src/main/db/repository.ts:633, src/main/db/repository.ts:646-647, src/main/db/versions.ts:686).
 - `sync_state` is not written on this path; sync is only notified (src/main/ipc.ts:86).
 
 ## Failure handling
 
 - Main: any throw rolls back and rethrows — src/main/db/repository.ts:203-210; the wrapper logs unexpected errors and throws a sanitised error — src/main/ipc.ts:77-79
-- Renderer store: on rejection it refetches the written blocks, or restores the snapshot if that fails too, then rethrows — src/renderer/src/store/blocks.ts:334-337
+- Renderer store: on rejection it refetches the written blocks, or restores the snapshot if that fails too, then rethrows — src/renderer/src/store/blocks.ts:490-493
 - Controller: `onApplyFailed` clears the undo history and shows an error toast ("Couldn't save that change. It was undone.", or the undo/redo variant), at most once per 5 s across all editors; failures inside that window are only logged — src/renderer/src/editor/controller.ts:57-60, src/renderer/src/editor/controller.ts:216-227, src/renderer/src/ui/throttle.ts:12
 - The rejection is consumed by the `.catch` at src/renderer/src/editor/controller.ts:212, so the global `unhandledrejection` toast (src/renderer/src/main.tsx:26-28) does not also fire. Another `applyOps` caller without a catch would reach that toast.
 
