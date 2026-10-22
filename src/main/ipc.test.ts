@@ -72,7 +72,7 @@ describe('ipc registration', () => {
 
   it('listens to the fire-and-forget channels only', () => {
     expect([...electron.on].sort()).toEqual(
-      [IPC.windowMinimize, IPC.windowToggleMaximize, IPC.windowClose, MEETINGS_CHANNELS.frames, MEETINGS_CHANNELS.encoded].sort()
+      [IPC.windowMinimize, IPC.windowToggleMaximize, IPC.windowClose, IPC.log, MEETINGS_CHANNELS.frames, MEETINGS_CHANNELS.encoded].sort()
     )
   })
 
@@ -98,10 +98,11 @@ describe('the handler map type', () => {
       'feedback:list': ok,
       'feedback:create': ok,
       'feedback:withdraw': ok,
-      'feedback:openFolder': ok
+      'feedback:openFolder': ok,
+      'feedback:logTail': ok
     }
     // @ts-expect-error: `feedback:openFolder` has no handler
-    const missing: Handlers<'feedback'> = { 'feedback:list': ok, 'feedback:create': ok, 'feedback:withdraw': ok }
+    const missing: Handlers<'feedback'> = { 'feedback:list': ok, 'feedback:create': ok, 'feedback:withdraw': ok, 'feedback:logTail': ok }
     // @ts-expect-error: no channel `feedback:nope` is declared
     const extra: Handlers<'feedback'> = { ...complete, 'feedback:nope': ok }
     expect(Object.keys({ ...complete, ...missing, ...extra })).toContain('feedback:list')

@@ -93,11 +93,13 @@ describe('the preload', () => {
       'pomodoro.onCompleted': 'on pomodoro:completed',
       'sky.onChanged': 'on sky:changed',
       'app.platform': 'string',
+      'app.log': 'send log:error',
       'app.window.minimize': 'send window:minimize',
       'app.window.toggleMaximize': 'send window:toggleMaximize',
       'app.window.close': 'send window:close',
       onChange: 'on event:change',
-      onCommand: 'on event:command'
+      onCommand: 'on event:command',
+      onNotice: 'on event:notice'
     })
   })
 

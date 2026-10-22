@@ -1024,6 +1024,11 @@ body.is-resizing .sidebar {
   letter-spacing: var(--tracking-title);
 }
 
+.page-state.is-root {
+  height: 100vh;
+  background: var(--bg);
+}
+
 .page-state-actions {
   display: flex;
   gap: 8px;

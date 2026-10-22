@@ -13,7 +13,9 @@ import { readTheme, registerIpc, type SyncHooks } from './ipc'
 import { recordingGrants } from './meetings/grant'
 import { handleDisplayMedia } from './meetings/register'
 import { adoptLegacyProfile, DB_FILE } from './legacy'
+import { LOGS_DIR, startLog } from './log'
 import { attachShortcuts, buildMenu } from './menu'
+import { raiseNotice } from './notices'
 import { migrateNotebookTitle } from './notebook/title'
 import { DEV_URL, isAllowedRequest, isAppUrl, isDevServerUrl, RENDERER_FILE, toExternalUrl } from './security'
 import { flushTrace, mark } from './trace'
@@ -367,7 +369,9 @@ async function seedWorkspace(store: Repository): Promise<void> {
       seedIfEmpty(store)
       mark('workspace seeded')
     } catch (err) {
+      // The workspace stays empty this time; the next start tries again (it is still empty then).
       console.error('[main] could not create the welcome page', err)
+      raiseNotice('seed-failed', 'single')
     }
   }
   try {
@@ -383,9 +387,13 @@ async function seedWorkspace(store: Repository): Promise<void> {
 }
 
 function start(store: Repository): void {
-  // A bug must not take the app down with a raw stack-trace dialog; log it and keep the data safe.
+  // A bug must not take the app down with a raw stack-trace dialog: it goes to the log (./log.ts)
+  // and the data stays safe. After an exception nobody caught, the windows ask to save and restart.
   process.on('unhandledRejection', (reason) => console.error('[main] unhandled rejection', reason))
-  process.on('uncaughtException', (err) => console.error('[main] uncaught exception', err))
+  process.on('uncaughtException', (err) => {
+    console.error('[main] uncaught exception', err)
+    raiseNotice('crashed', 'lasting')
+  })
 
   // The second instance's command line and working directory are deliberately ignored:
   // nothing a launcher (or a crafted link) passes is interpreted as a path, url or flag.
@@ -481,6 +489,8 @@ if (!adoptEarlierNotes()) {
 } else if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
+  // From here this instance owns the profile, and with it the log.
+  startLog(join(app.getPath('userData'), LOGS_DIR))
   repo = openStore()
   if (repo) start(repo)
   else recoverStore()

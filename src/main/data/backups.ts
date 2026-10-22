@@ -69,13 +69,18 @@ export function parseBackupName(name: string): { at: number; kind: BackupKind } 
   return { at: date.getTime(), kind: (m[7] as BackupKind | undefined) ?? 'auto' }
 }
 
-/** The backups in `dir`, newest first. Files that are not backups are left out (and alone). */
-export function listBackups(dir: string): BackupFile[] {
+/**
+ * The backups in `dir`, newest first. Files that are not backups are left out (and alone).
+ * No folder means no backups yet; a folder that is there and cannot be read throws, since
+ * "unreadable" is not "empty" (see `listBackups` for the callers that only show a list).
+ */
+export function findBackups(dir: string): BackupFile[] {
   let names: string[]
   try {
     names = readdirSync(dir)
-  } catch {
-    return []
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw err
   }
   const found: BackupFile[] = []
   for (const name of names) {
@@ -90,6 +95,16 @@ export function listBackups(dir: string): BackupFile[] {
     }
   }
   return found.sort((a, b) => b.at - a.at || a.name.localeCompare(b.name))
+}
+
+/** `findBackups` for a list on screen or the daily check: an unreadable folder is logged and lists nothing. */
+export function listBackups(dir: string): BackupFile[] {
+  try {
+    return findBackups(dir)
+  } catch (err) {
+    console.error('[data] the backups folder could not be read', (err as NodeJS.ErrnoException).code ?? err)
+    return []
+  }
 }
 
 const localDay = (at: number): string => new Date(at).toDateString()
@@ -335,9 +350,12 @@ export async function takeBackupApart({
   }
 }
 
-/** The newest backup that passes its check, for a start-up whose database cannot be opened. */
+/**
+ * The newest backup that passes its check, for a start-up whose database cannot be opened.
+ * Null when there is none; throws when the folder is there but cannot be read.
+ */
 export function newestGoodBackup(dir: string, open: ReadOnlyOpener): { file: BackupFile; pages: number } | null {
-  for (const file of listBackups(dir)) {
+  for (const file of findBackups(dir)) {
     const check = inspectDatabase(open, file.path)
     if (check.ok) return { file, pages: check.pages }
   }

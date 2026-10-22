@@ -223,6 +223,16 @@ export interface Api {
     setSetting(key: string, value: unknown): Promise<void>
     openExternal(url: string): Promise<void>
     newWindow(pageId?: string): Promise<void>
+    /**
+     * What the main process asked the windows to say and that this window has not shown yet (a
+     * crash, the welcome page that could not be made). Waits for the workspace to be ready.
+     */
+    notices(): Promise<AppNotice[]>
+    /**
+     * Writes a failure the user was told about to the local log (src/main/log.ts). Only the
+     * message and the error's name, message and stack are sent; fire-and-forget.
+     */
+    log(message: string, error?: unknown): void
     /** Node's `process.platform`, e.g. 'win32' | 'darwin' | 'linux'. */
     platform: string
     window: {
@@ -237,6 +247,22 @@ export interface Api {
   onChange(listener: (event: ChangeEvent) => void): () => void
   /** Menu/accelerator commands forwarded from the main process (see MenuCommand). */
   onCommand(listener: (command: MenuCommand, arg?: unknown) => void): () => void
+  /** A notice from the main process while this window is open (see `app.notices`). */
+  onNotice(listener: (notice: AppNotice) => void): () => void
+}
+
+/**
+ * What the main process asks a window to tell the user; the words are the renderer's.
+ * `crashed`: an exception nobody caught, the app may be in a bad state. `seed-failed`: the
+ * first-run welcome page could not be made (tried again on the next start).
+ */
+export type AppNotice = 'crashed' | 'seed-failed'
+export const APP_NOTICES: readonly AppNotice[] = ['crashed', 'seed-failed']
+
+/** What `app.log` sends: strings only, capped by the main process. */
+export interface RendererLogEntry {
+  message: string
+  error?: { name: string; message: string; stack: string }
 }
 
 /** What main sends a window from the menu and its shortcuts, declared with the commands (./commands.ts). */
@@ -246,6 +272,8 @@ export type { MenuCommand } from './commands'
 export const IPC = {
   change: 'event:change',
   command: 'event:command',
+  notice: 'event:notice',
+  log: 'log:error',
   windowMinimize: 'window:minimize',
   windowToggleMaximize: 'window:toggleMaximize',
   windowClose: 'window:close'
@@ -317,6 +345,7 @@ export const INVOKE = {
   'app:setSetting': true,
   'app:openExternal': true,
   'app:newWindow': true,
+  'app:notices': true,
   'app:window.isMaximized': true,
 
   ...AI_INVOKE,

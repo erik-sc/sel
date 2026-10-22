@@ -252,6 +252,23 @@ export class MeetingsService {
     await writeFile(join(this.folder(manifest.pageId), 'meeting.json'), JSON.stringify(manifest, null, 2), 'utf8')
   }
 
+  /**
+   * Records that a transcription failed. Without it the meeting would still say "recorded" and
+   * offer nothing to retry, so a failed write is tried once more, then logged.
+   */
+  private async markFailed(manifest: Manifest, error: string): Promise<void> {
+    const failed: Manifest = { ...manifest, state: 'failed', error }
+    try {
+      await this.writeManifest(failed)
+    } catch {
+      try {
+        await this.writeManifest(failed)
+      } catch (err) {
+        console.error('[meetings] could not record that the transcription failed', (err as NodeJS.ErrnoException).code ?? err)
+      }
+    }
+  }
+
   // ---- the database -----------------------------------------------------------
 
   private database(): Block | null {
@@ -874,7 +891,7 @@ export class MeetingsService {
                 ? err.message
                 : 'Transcription failed.'
           if (!(err instanceof WhisperError)) console.error('[meetings] transcription failed', err)
-          await this.writeManifest({ ...manifest, state: 'failed', error: message.slice(0, 300) }).catch(() => undefined)
+          await this.markFailed(manifest, message.slice(0, 300))
         }
         this.setRow(pageId, { status: null })
       }

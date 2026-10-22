@@ -51,12 +51,21 @@ export async function recoverDatabase(error: unknown, userData: string): Promise
     return answer.response === 0 ? showFolder() : null
   }
 
-  const backup = newestGoodBackup(join(userData, BACKUPS_DIR), openReadOnly)
+  const backupsDir = join(userData, BACKUPS_DIR)
+  let backup: ReturnType<typeof newestGoodBackup> = null
+  let unreadable = false
+  try {
+    backup = newestGoodBackup(backupsDir, openReadOnly)
+  } catch (err) {
+    // Not the same as no backups: there may be good ones to get back once the folder can be read.
+    console.error('[data] the backups folder could not be read', (err as NodeJS.ErrnoException).code ?? err)
+    unreadable = true
+  }
   if (!backup) {
     const answer = await dialog.showMessageBox({
       type: 'error',
       message: words.couldNotOpen,
-      detail: words.damagedWithoutBackup(userData),
+      detail: unreadable ? words.damagedBackupsUnreadable(backupsDir) : words.damagedWithoutBackup(userData),
       buttons: [words.showTheFolder, words.quit],
       defaultId: 1,
       cancelId: 1,

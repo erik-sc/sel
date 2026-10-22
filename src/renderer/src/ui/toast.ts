@@ -89,8 +89,10 @@ export function toast(message: string, options: ToastOptions = {}): string {
   return id
 }
 
-/** Logs `error` to the console (the detail is for developers) and tells the user `message`. */
+/** Logs `error` (the detail is for developers) and tells the user `message`. */
 export function notifyError(message: string, error?: unknown): void {
   console.error(message, error)
+  // What the user was told also goes to the local log, for a bug report (src/main/log.ts).
+  if (typeof window !== 'undefined') window.api?.app?.log?.(message, error)
   toast(message, { kind: 'error' })
 }

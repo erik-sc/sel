@@ -30,13 +30,18 @@ import { systemKindOf } from '../../../shared/system'
 import { TASK_PROPS } from '../../../shared/tasks'
 import { completeTaskOps } from '../../../shared/tasks/recur'
 import { applyOps, getBlock, loadChildren, loadTree, newId, refreshBlocks, useBlockStore } from '../store/blocks'
+import { notifyWriteFailed } from '../failures/notify'
 import { notifyError, toast } from '../ui/toast'
 import * as L from './logic'
 import { markFreshChart } from './chartFresh'
 
+/**
+ * Every write of this module. A refused write is already rolled back by the store (it reads the
+ * blocks again); the user is told, at most once every few seconds, like the editor does.
+ */
 function run(ops: Op[]): void {
   if (!ops.length) return
-  applyOps(ops).catch((error) => console.error('database: applyOps failed', error))
+  applyOps(ops).catch((error: unknown) => notifyWriteFailed(error))
 }
 
 function toRichText(text: string): RichText {
@@ -223,8 +228,10 @@ export function patchView(
 
 // ---- views ----
 
-export function addView(databaseId: string, type: ViewType): string {
-  const { schema, views } = snapshot(databaseId)
+/** The new view's id, or undefined when nothing could be written (a linked view whose source is away). */
+export function addView(databaseId: string, type: ViewType): string | undefined {
+  const { schema, views, ready } = snapshot(databaseId)
+  if (!ready) return undefined
   const result = L.addView(schema, views, type)
   setSchema(databaseId, result.schema, result.views)
   if (type === 'chart') markFreshChart(result.view.id)

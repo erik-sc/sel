@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { AI_CHANNELS, type AiEvent } from '@shared/ai'
 import { ALARMS_CHANNEL } from '@shared/alarms'
 import { BRIEFING_CHANGED } from '@shared/briefing'
-import { INVOKE, IPC, type Api, type MenuCommand } from '@shared/api'
+import { INVOKE, IPC, type Api, type AppNotice, type MenuCommand, type RendererLogEntry } from '@shared/api'
 import { HERMAN_NUDGE_CHANNEL } from '@shared/herman'
 import { buildInvokers, type Invokers } from '@shared/ipc'
 import { MEETINGS_CHANNELS } from '@shared/meetings'
@@ -22,6 +22,15 @@ function randomId(): string {
 }
 
 const clientId = randomId()
+
+/** What goes to the log of a failure: plain strings, never the object that failed. */
+function logEntry(message: unknown, error: unknown): RendererLogEntry {
+  const text = (value: unknown): string => (typeof value === 'string' ? value : '')
+  const entry: RendererLogEntry = { message: text(message) }
+  if (error instanceof Error) entry.error = { name: error.name, message: error.message, stack: text(error.stack) }
+  else if (typeof error === 'string') entry.error = { name: 'Error', message: error, stack: '' }
+  return entry
+}
 
 // Every invoke carries the clientId so the main process can tag ChangeEvent.origin.
 const call =
@@ -112,6 +121,7 @@ const api: Api = {
   app: {
     ...invoke.app,
     platform: process.platform,
+    log: (message, error) => ipcRenderer.send(IPC.log, logEntry(message, error)),
     window: {
       ...invoke.app.window,
       minimize: () => ipcRenderer.send(IPC.windowMinimize),
@@ -128,7 +138,8 @@ const api: Api = {
     const handler = (_: unknown, command: MenuCommand, arg?: unknown): void => listener(command, arg)
     ipcRenderer.on(IPC.command, handler)
     return () => ipcRenderer.removeListener(IPC.command, handler)
-  }
+  },
+  onNotice: subscribe<AppNotice>(IPC.notice)
 }
 
 contextBridge.exposeInMainWorld('api', api)

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { crc32, deflateRawSync } from 'node:zlib'
 import { afterAll, afterEach, describe, expect, it } from 'vitest'
 import { PCM, WHISPER_MODELS } from '../../../shared/meetings'
+import { until } from '../../../shared/testing'
 import { wavHeader } from '../wav'
 import { checkDownloadUrl, DownloadError, downloadVerified, sha256File, type DownloadOptions } from './download'
 import { WhisperEngine } from './engine'
@@ -554,10 +555,7 @@ const alive = (pid: number): boolean => {
     return false
   }
 }
-const gone = async (pid: number): Promise<boolean> => {
-  for (let i = 0; i < 300 && alive(pid); i++) await new Promise((resolve) => setTimeout(resolve, 100))
-  return !alive(pid)
-}
+const gone = (pid: number): Promise<boolean> => until(() => !alive(pid), { timeout: 30_000, interval: 100 }).catch(() => false)
 const failure = async (work: Promise<unknown>): Promise<WhisperError> => {
   try {
     await work
@@ -781,8 +779,7 @@ describe('the engine', () => {
     const { engine: target } = engine(base)
     await expect(target.install('tiny.en')).rejects.toThrow(/Unknown model/)
     const first = target.install('small')
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    expect((await target.status()).download).not.toBeNull()
+    await until(async () => (await target.status()).download, { what: 'the download to start' })
     await expect(target.install('small')).rejects.toThrow(/already running/)
     target.cancelDownload()
     const status = await first

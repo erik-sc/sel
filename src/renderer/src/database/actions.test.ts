@@ -260,7 +260,7 @@ describe('view edits are built from the store at commit time', () => {
     seed([])
     const id = actions.addProperty('db', 'date', 'v1', 'When')
     actions.renameProperty('db', id, 'Deadline')
-    const calendar = actions.addView('db', 'calendar')
+    const calendar = actions.addView('db', 'calendar')!
     actions.renameView('db', calendar, 'Plan')
     const props = dbProps()
     expect(props.schema![id]).toEqual({ id, name: 'Deadline', type: 'date' })
@@ -485,6 +485,14 @@ describe('linked views', () => {
     expect(dbProps().views).toEqual([tableView, boardView])
     // And the linked block never grows a schema.
     expect(lvProps().schema).toBeUndefined()
+  })
+
+  it('adding a view while the source is away writes nothing and gives no id', () => {
+    seedLinked()
+    delete store.blocks.db
+    expect(actions.snapshot('lv').ready).toBe(false)
+    expect(actions.addView('lv', 'list')).toBeUndefined()
+    expect(store.batches).toEqual([])
   })
 
   it('two linked views of one source keep independent views', () => {

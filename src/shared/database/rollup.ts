@@ -7,21 +7,6 @@ import { applyFilters } from './query'
 import { linkedRows, relatedDatabaseState, type CellContext } from './relation'
 import { findOption, formatValue, getCellValue, isEmptyValue, isPlainObject, isSafeKey, propOf, type Schema } from './values'
 
-export const ROLLUP_FUNCTIONS: RollupFunction[] = [
-  'show_original',
-  'count',
-  'count_values',
-  'count_unique',
-  'sum',
-  'average',
-  'min',
-  'max',
-  'range',
-  'earliest',
-  'latest',
-  'percent_checked'
-]
-
 export const ROLLUP_LABELS: Record<RollupFunction, string> = {
   show_original: 'Show original',
   count: 'Count all',

@@ -11,6 +11,8 @@ import type { FeatureContext, Registered } from './feature'
 import { FEATURES, type FeatureName, type RegisteredOf } from './features'
 import { pickImage, saveGeneratedImage, saveImage } from './files'
 import type { Handler, Handlers } from './invoke'
+import { logRendererFailure } from './log'
+import { takeNotices } from './notices'
 import { isTrustedSender, toExternalUrl } from './security'
 import * as arg from './validate'
 
@@ -271,6 +273,7 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext, lists: Ip
       createWindow(arg.optionalId(a, 'pageId'))
     },
     // The other window controls are fire-and-forget (see the end of this function).
+    'app:notices': () => takeNotices(),
     'app:window.isMaximized': (_args, event) => windowOf(event)?.isMaximized() ?? false
   }
 
@@ -301,6 +304,11 @@ export function registerIpc({ repo, ready, createWindow }: IpcContext, lists: Ip
     else win.maximize()
   })
   on(IPC.windowClose, (win) => win.close())
+
+  // ---- a failure a window told the user about goes to the local log (./log.ts)
+  ipcMain.on(IPC.log, (event: IpcMainEvent, entry: unknown) => {
+    if (isTrustedSender(event)) logRendererFailure(entry)
+  })
 
   return {
     meetings: ctx.feature('meetings'),

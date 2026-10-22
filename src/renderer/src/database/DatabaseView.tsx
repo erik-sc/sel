@@ -351,7 +351,10 @@ export function DatabaseView(props: {
       id: type,
       label: L.VIEW_LABELS[type],
       icon: <ViewIcon type={type} />,
-      onSelect: () => selectView(actions.addView(databaseId, type))
+      onSelect: () => {
+        const id = actions.addView(databaseId, type)
+        if (id) selectView(id)
+      }
     }))
   ]
 

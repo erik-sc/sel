@@ -203,6 +203,8 @@ function harness(
     write?: AlarmsDeps['writeBriefing']
     events?: BriefingEvent[]
     locale?: 'en' | 'pt-BR'
+    /** Settings whose read throws (a database that cannot be read). */
+    unreadable?: Set<string>
   }
 ) {
   const store = new Map<string, unknown>(Object.entries(settings))
@@ -220,7 +222,10 @@ function harness(
     updatedAt: 0
   }
   const deps: AlarmsDeps = {
-    getSetting: (key) => store.get(key) ?? null,
+    getSetting: (key) => {
+      if (options.unreadable?.has(key)) throw new Error('SQLITE_IOERR')
+      return store.get(key) ?? null
+    },
     setSetting: (key, value) => void store.set(key, value),
     now: () => now,
     id: () => `n${++id}`,
@@ -280,6 +285,36 @@ describe('the clock', () => {
     h.service.heard(h.said[0].id)
     expect(h.service.pendingAnnouncement()).toBeNull()
     await h.advance(local(2026, 10, 15, 12, 0))
+    expect(h.said.length).toBe(1)
+  })
+
+  it('rings nothing again while what already rang cannot be read', async () => {
+    const at = local(2026, 10, 15, 8, 30)
+    const unreadable = new Set<string>()
+    const h = harness({ [ALARMS_SETTING.times]: times }, { now: local(2026, 10, 15, 8, 0), unreadable })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 8, 31))
+    expect(h.said.length).toBe(1)
+    // The setting goes unreadable: taking it for "nothing rang" would ring 8:30 a second time.
+    unreadable.add(ALARMS_FIRED_KEY)
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 8, 40))
+    expect(h.said.length).toBe(1)
+    expect(h.store.get(ALARMS_FIRED_KEY)).toEqual({ 'a:work': at })
+    // Readable again: what was stored still says it rang.
+    unreadable.clear()
+    await h.advance(local(2026, 10, 15, 8, 45))
+    expect(h.said.length).toBe(1)
+  })
+
+  it('does not overwrite or ring snoozes it cannot read', async () => {
+    const unreadable = new Set([ALARMS_SNOOZED_KEY])
+    const h = harness({ [ALARMS_SETTING.times]: times }, { now: local(2026, 10, 15, 8, 30), unreadable })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 8, 31))
+    expect(h.said).toEqual([])
+    unreadable.clear()
+    await h.advance(local(2026, 10, 15, 8, 33))
     expect(h.said.length).toBe(1)
   })
 

@@ -7,6 +7,9 @@
 // the transcription reads) and as Opus in WebM (the browser's recorder: what is kept to listen to).
 import { create } from 'zustand'
 import { PCM, type MeetingAudioInfo, type MeetingSources, type MeetingStream } from '@shared/meetings'
+import { useHome } from '@/home/store'
+import { notifyError } from '@/ui/toast'
+import { RECORDER_COPY, type RecorderCopy } from './copy'
 import workletUrl from './pcm-worklet.js?url&no-inline'
 
 export interface RecorderSession {
@@ -47,6 +50,10 @@ const CHUNK_MS = 4000
 function patch(change: Partial<RecorderSession>): void {
   const { session } = useRecorder.getState()
   if (session) useRecorder.setState({ session: { ...session, ...change } })
+}
+
+function copy(): RecorderCopy {
+  return RECORDER_COPY[useHome.getState().locale]
 }
 
 function message(error: unknown): string {
@@ -180,7 +187,7 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
     if (systemRecorder) owner.recorders.push(systemRecorder)
     // The microphone was unplugged: what was recorded is saved.
     mic.getAudioTracks()[0]?.addEventListener('ended', () => {
-      if (capture === owner) void stopRecording().catch(() => undefined)
+      if (capture === owner) void stopRecording().catch((error: unknown) => notifyError(copy().stopFailed, error))
     })
     if (context.state === 'suspended') await context.resume()
     capture = owner
@@ -195,20 +202,42 @@ export async function startRecording(pageId: string, sources: MeetingSources): P
   }
 }
 
+function setRecorders(owner: Capture, state: 'paused' | 'recording'): void {
+  for (const recorder of owner.recorders) {
+    if (state === 'paused' && recorder.state === 'recording') recorder.pause()
+    else if (state === 'recording' && recorder.state === 'paused') recorder.resume()
+  }
+}
+
+/**
+ * Pauses at once (no more frames go out), then asks the main process. When it refuses, the
+ * recording goes on as before and the user is told: the bar never says "paused" while main records.
+ */
 export function pauseRecording(): void {
   const owner = capture
   if (!owner || useRecorder.getState().session?.state !== 'recording') return
   patch({ state: 'paused' })
-  for (const recorder of owner.recorders) if (recorder.state === 'recording') recorder.pause()
-  void window.api.meetings.recording.pause(owner.token).catch(() => undefined)
+  setRecorders(owner, 'paused')
+  window.api.meetings.recording.pause(owner.token).catch((error: unknown) => {
+    if (capture !== owner || useRecorder.getState().session?.state !== 'paused') return
+    setRecorders(owner, 'recording')
+    patch({ state: 'recording' })
+    notifyError(copy().pauseFailed, error)
+  })
 }
 
+/** Resumes, and goes back to paused when the main process refuses (it is not writing). */
 export function resumeRecording(): void {
   const owner = capture
   if (!owner || useRecorder.getState().session?.state !== 'paused') return
-  for (const recorder of owner.recorders) if (recorder.state === 'paused') recorder.resume()
+  setRecorders(owner, 'recording')
   patch({ state: 'recording' })
-  void window.api.meetings.recording.resume(owner.token).catch(() => undefined)
+  window.api.meetings.recording.resume(owner.token).catch((error: unknown) => {
+    if (capture !== owner || useRecorder.getState().session?.state !== 'recording') return
+    setRecorders(owner, 'paused')
+    patch({ state: 'paused' })
+    notifyError(copy().resumeFailed, error)
+  })
 }
 
 /** Stops, lets the last compressed chunks through, and has the main process close the files. */
