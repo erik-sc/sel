@@ -1,6 +1,6 @@
 # Release 0.7.1 — uma linguagem só
 
-Status: **em andamento** · 2026-10-22 · pedido do Érik: harmonizar o design system, o Céu e o Herman 64; tirar a aba
+Status: **pronta para PR** · 2026-10-22 · pedido do Érik: harmonizar o design system, o Céu e o Herman 64; tirar a aba
 Aparência; o Céu "no padrão 64" · branch `release/0.7.1`, de main @ dad4d7a (v0.7.0).
 
 Referências: o design system (https://claude.ai/artifact/DAe7kc5iFdEnhrNqroUmYs, card **Harmonia**) e os conceitos do Céu
@@ -22,7 +22,9 @@ dia, mais a **Constelação-objeto**, as **Noites raras** e o **Morro do Herman*
    (12 quadros, ao lado da legenda do Céu; eclipse e ano-novo tocam uma vez) e o morro (240 × 136, a 2×), onde o
    Herman 64 da roupa escolhida dorme sob a lua da fase real, no "Até amanhã" do Fechar o dia.
 
+5. **README e versão.** O README descreve o visual único, o Céu em pixel e o Herman no morro; package.json em 0.7.1.
+
 ## Falta
 
 - A figura também no momento "o mês vira constelação" e nos "Céus anteriores" (hoje só na dica do nome).
-- README e versão 0.7.1 em package.json; PR para main.
+- As capturas de tela em `docs/screens/` ainda mostram o visual antigo: refazer numa próxima release.

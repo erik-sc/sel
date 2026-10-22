@@ -73,9 +73,9 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Keep a line a day.** Meditations holds one line for each day, a short paragraph at most. Today's can be rewritten until midnight; after that it stays as it was, and nothing in the app can change it. Under today's line, the same date in earlier years: "1 year ago you wrote…". Its days sync between your devices like any page. `Ctrl+Alt+N` opens it.
 
-**Watch the sky.** Each day you write in Meditations lights a star. The stars of a month draw a figure, one at a time, and when the month ends the constellation gets its name, or the one you give it. Each year is a sky of its own, the twelve months in a wheel around the real moon of tonight. Finished tasks become dust in the Milky Way; a finished pomodoro, a ring around that day's star. Now and then a rare night: a meteor shower, an eclipse, a comet that stays a week. Nothing ever goes out, and there are no numbers. `Ctrl+Alt+G` opens it; Settings → Today turns it off.
+**Watch the sky.** Each day you write in Meditations lights a star. The stars of a month draw a figure, one at a time, and when the month ends the constellation gets its name, or the one you give it. Each year is a sky of its own, the twelve months in a wheel around the real moon of tonight. Finished tasks become dust in the Milky Way; a finished pomodoro, a ring around that day's star. Now and then a rare night: a meteor shower, an eclipse, a comet that stays a week. Nothing ever goes out, and there are no numbers. It is drawn in pixels, like Herman: hover a month's name and its constellation turns in 3D. `Ctrl+Alt+G` opens it; Settings → Today turns it off.
 
-**Close the day.** In the evening Herman may offer to close the day, or you can from the sidebar. One quiet screen, in four steps: what happened (the tasks you finished, the pages you wrote in), what is worth keeping (it becomes today's line in Meditations), up to three things for tomorrow (they wait at the top of Today in the morning), and the close: the window dims to the sky, today's star lights up, "Until tomorrow", with a soft bell, and any key brings it back. On the last day of a month you may name its constellation. No streaks, no scores. Settings → Today turns the bell off.
+**Close the day.** In the evening Herman may offer to close the day, or you can from the sidebar. One quiet screen, in four steps: what happened (the tasks you finished, the pages you wrote in), what is worth keeping (it becomes today's line in Meditations), up to three things for tomorrow (they wait at the top of Today in the morning), and the close: the window dims to the sky, today's star lights up, Herman falls asleep on his hill under tonight's moon, "Until tomorrow", with a soft bell, and any key brings it back. On the last day of a month you may name its constellation. No streaks, no scores. Settings → Today turns the bell off.
 
 | | |
 |---|---|
@@ -101,15 +101,15 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 ### Sync and settings
 
-**Sync.** Keep the same notes on several computers through a git repository you choose. With a password, everything is encrypted before it leaves; your calendars only ever travel encrypted. The look, your home and the sidebar's layout come along.
+**Sync.** Keep the same notes on several computers through a git repository you choose. With a password, everything is encrypted before it leaves; your calendars only ever travel encrypted. Your home and the sidebar's layout come along.
 
 **Say what's wrong.** Report a bug or suggest a feature from the sidebar, the Help menu or `Ctrl+K`. It is kept as a file on your computer, where you can follow it as it is taken up, reviewed and done, or withdraw it. You can attach the last lines of sel's own log, after seeing them. The app sends nothing; a nightly development run reads the folder and opens a pull request for what it can fix.
 
-**Make it yours.** Zen is the default look: square corners, a printed frame on menus and dialogs, Newsreader for your words and IBM Plex Mono for the app's, both shipped with it. Every colour, font and size can be changed in Settings → Appearance. Everything can be reached from the keyboard, and the zoom you choose is kept.
+**One look.** Paper and ink, light or dark: square corners, a printed frame on menus and dialogs, a grid of dots behind the sidebar, Newsreader for your words and IBM Plex Mono for the app's, both shipped with it. Herman and the sky are drawn in the same inks. Settings → General picks light, dark or the system's. Everything can be reached from the keyboard, and the zoom you choose is kept.
 
 | | |
 |---|---|
-| ![Settings → Appearance: presets, and every colour, font, size and radius](docs/screens/settings-appearance.webp) | ![A page in the dark theme](docs/screens/page-dark.webp) |
+| ![A page in the light theme](docs/screens/page.webp) | ![A page in the dark theme](docs/screens/page-dark.webp) |
 | ![Settings → Sync: a git repository of your own, encrypted if you like](docs/screens/settings-sync.webp) | ![Report a bug or suggest a feature](docs/screens/feedback.webp) |
 | ![Settings → Herman](docs/screens/settings-herman.webp) | ![Settings → Notifications](docs/screens/settings-notifications.webp) |
 
@@ -157,7 +157,7 @@ The code is in `src/`:
 
 - `main/` — the Electron main process: storage, files, version history, sync, AI, the briefing, tasks, alarms, meetings, Herman.
 - `preload/` — the narrow bridge the interface is allowed to use.
-- `renderer/` — the interface: editor, databases, shell, appearance, and a folder per screen.
+- `renderer/` — the interface: editor, databases, shell, and a folder per screen.
 - `shared/` — types and pure logic both sides agree on.
 
 Colours, fonts, shadows and radii live in one file, `src/renderer/src/styles/tokens.css`; layout keeps its own measures.
