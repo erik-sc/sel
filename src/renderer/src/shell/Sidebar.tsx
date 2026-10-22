@@ -185,7 +185,7 @@ export const Sidebar = memo(function Sidebar() {
       <TrashPopover anchor={panel.anchor} open={panel.open === 'trash'} onClose={closeSidebarPanel} />
       <ArchivePopover anchor={panel.anchor} open={panel.open === 'archive'} onClose={closeSidebarPanel} />
       {menu && (
-        <Popover open anchor={menu} onClose={() => setMenu(null)}>
+        <Popover open anchor={menu} role="none" onClose={() => setMenu(null)}>
           <Menu
             autoFocus
             onClose={() => setMenu(null)}

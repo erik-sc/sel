@@ -40,10 +40,15 @@ export interface TokenDef {
   unit?: string
   /** The value is emitted as `calc(<n>px * var(--font-scale))`; the editor exposes <n>. */
   scaled?: boolean
+  /**
+   * The `min` of an earlier version, when it was raised: a saved value from `floorFrom` up to `min`
+   * reads as `min` (the setting keeps what it holds). Below `floorFrom` it is rejected, like any.
+   */
+  floorFrom?: number
   description?: string
 }
 
-type Extra = Partial<Pick<TokenDef, 'min' | 'max' | 'step' | 'unit' | 'scaled' | 'description'>>
+type Extra = Partial<Pick<TokenDef, 'min' | 'max' | 'step' | 'unit' | 'scaled' | 'floorFrom' | 'description'>>
 
 function def(group: TokenGroup, kind: TokenKind, name: string, label: string, light: string, dark?: string, extra: Extra = {}): TokenDef {
   const token: TokenDef = { name, label, group, kind, themed: dark !== undefined, light, ...extra }
@@ -57,13 +62,14 @@ const color = (g: TokenGroup, name: string, label: string, light: string, dark?:
 const px = (g: TokenGroup, name: string, label: string, value: number, min: number, max: number, step = 1, description?: string) =>
   def(g, 'length', name, label, `${value}px`, undefined, { min, max, step, unit: 'px', description })
 
-const size = (name: string, label: string, value: number, min: number, max: number) =>
+const size = (name: string, label: string, value: number, min: number, max: number, floorFrom?: number) =>
   def('Type scale', 'length', name, label, `calc(${value}px * var(--font-scale))`, undefined, {
     min,
     max,
     step: 1,
     unit: 'px',
-    scaled: true
+    scaled: true,
+    ...(floorFrom !== undefined ? { floorFrom } : {})
   })
 
 const weight = (name: string, label: string, value: number) =>
@@ -126,7 +132,7 @@ export const TOKENS: TokenDef[] = [
   // ---- text ----
   color('Text', '--text', 'Primary text', '#24221d', '#e8e3d9'),
   color('Text', '--text-secondary', 'Secondary text', '#615d54', '#a8a297'),
-  color('Text', '--text-tertiary', 'Tertiary text', '#7c766a', '#7f7a70'),
+  color('Text', '--text-tertiary', 'Tertiary text', '#6d685d', '#959188'),
   color('Text', '--text-code', 'Inline code text', '#8a4530', '#d99a82'),
   def('Text', 'number', '--text-faded-opacity', 'Faded blocks in focus mode', '0.32', undefined, {
     min: 0.1,
@@ -214,12 +220,13 @@ export const TOKENS: TokenDef[] = [
     step: 0.01,
     description: 'Multiplies every size below.'
   }),
-  size('--text-2xs', 'Tiny', 10, 6, 16),
+  // Since 0.7.0 Tiny goes down to 10px (was 6) and Body to 12px (was 11): see floorFrom.
+  size('--text-2xs', 'Tiny', 10, 10, 16, 6),
   size('--text-xs', 'Extra small', 11, 7, 18),
   size('--text-sm', 'Small', 12, 8, 20),
   size('--text-md', 'Medium', 13, 9, 22),
   size('--text-ui', 'Interface', 14, 10, 24),
-  size('--text-body', 'Body', 17, 11, 28),
+  size('--text-body', 'Body', 17, 12, 28, 11),
   size('--text-lg', 'Large', 18, 12, 32),
   size('--text-h3', 'Heading 3', 20, 14, 36),
   size('--text-h2', 'Heading 2', 24, 16, 44),

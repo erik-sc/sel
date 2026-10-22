@@ -62,6 +62,16 @@ export interface SlashItem {
   linked?: boolean
 }
 
+/** The slash menu's list, opened from the block `blockId` (one menu at a time, one block per id). */
+export function slashListId(blockId: string): string {
+  return `pe-slash-${blockId}`
+}
+
+/** The menu's `index`th option (as filterSlashItems lists them). */
+export function slashOptionId(blockId: string, index: number): string {
+  return `pe-slash-${blockId}-${index}`
+}
+
 export const SLASH_ITEMS: SlashItem[] = [
   { id: 'text', label: 'Text', hint: 'Plain paragraph', glyph: 'Aa', keywords: 'text paragraph plain', kind: 'turn', type: 'text' },
   {

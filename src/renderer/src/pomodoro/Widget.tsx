@@ -79,7 +79,14 @@ export function Widget(): JSX.Element | null {
         <span className="pomodoro-phase">{timer.paused ? copy.paused : phase}</span>
         <span className="pomodoro-clock">{clock}</span>
       </button>
-      <Popover anchor={pill.current} open={menuOpen} onClose={() => setPomodoroMenu(false)} placement="top-start" className="pomodoro-menu">
+      <Popover
+        anchor={pill.current}
+        open={menuOpen}
+        onClose={() => setPomodoroMenu(false)}
+        placement="top-start"
+        role="none"
+        className="pomodoro-menu"
+      >
         <Menu items={menuItems(snapshot, copy)} autoFocus onClose={() => setPomodoroMenu(false)} />
       </Popover>
     </div>

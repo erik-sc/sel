@@ -48,6 +48,8 @@ export interface BlockProps {
   /** image, bookmark */
   url?: string
   caption?: RichText
+  /** image: what a screen reader says in its place (the block menu's "Alternative text"); the caption is what everyone reads. */
+  alt?: string
   /** toggle: collapsed state */
   collapsed?: boolean
   /** block colour name (text or `<name>_background`) */

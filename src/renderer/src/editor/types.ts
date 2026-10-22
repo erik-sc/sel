@@ -79,6 +79,8 @@ export interface UIState {
   menu: { id: string; rect: DOMRect } | null
   /** Incremented to ask the selection toolbar to open its link editor. */
   linkRequest: number
+  /** Incremented to move the keyboard to the selection toolbar (Alt+F10). */
+  toolbarRequest: number
   /** The inline AI action whose prompt or preview is on screen, if any (see ai/session.ts). */
   ai: AiSession | null
 }

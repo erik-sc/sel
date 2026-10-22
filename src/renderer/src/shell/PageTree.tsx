@@ -1,6 +1,8 @@
 import { memo, useEffect, useRef, useState } from 'react'
-import type { DragEvent, KeyboardEvent, MouseEvent } from 'react'
-import { useBlock } from '@/store/blocks'
+import type { DragEvent, FocusEvent, KeyboardEvent, MouseEvent } from 'react'
+import { getBlock, useBlock } from '@/store/blocks'
+import { a11yCopy, announce } from '@/a11y/announce'
+import { isMenuKeyEcho, keyboardAnchor, moveFocusAmong, takeMenuKey } from '@/a11y/keys'
 import { create } from 'zustand'
 import { preloadDatabase } from '@/database/lazy'
 import { openPage, tabPage, useTabs } from '@/store/tabs'
@@ -8,7 +10,7 @@ import { ROOT, loadTreeChildren, useTree } from '@/store/tree'
 import { setExpanded, setRenaming, useUi } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
 import { Menu } from '@/ui/Menu'
-import { Popover } from '@/ui/Popover'
+import { Popover, type PopoverAnchor } from '@/ui/Popover'
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from '@/ui/icons'
 import { createPage, dropPage, isAncestorOrSelf, movePageToRoot, pageTitle, renamePage, reportError, type DropPosition } from './actions'
 import { usePageTitle } from './linked'
@@ -49,6 +51,41 @@ function setDrop(drop: DropTarget | null): void {
   const current = useDrag.getState().drop
   if (current?.id === drop?.id && current?.position === drop?.position) return
   useDrag.setState({ drop })
+}
+
+/** The sidebar's two lists of pages: the tree, and Favorites (flat). */
+export type TreeScope = 'tree' | 'flat'
+
+interface TreeFocus {
+  /** The row of each list that is its one Tab stop (roving tabindex): the one focused last. */
+  stop: Record<TreeScope, string | null>
+  /** A row moved from the keyboard, to focus again once it is drawn in its new place. */
+  pending: string | null
+}
+
+const useTreeFocus = create<TreeFocus>(() => ({ stop: { tree: null, flat: null }, pending: null }))
+
+function setStop(scope: TreeScope, id: string | null): void {
+  const { stop } = useTreeFocus.getState()
+  if (stop[scope] !== id) useTreeFocus.setState({ stop: { ...stop, [scope]: id } })
+}
+
+/**
+ * The props of a list of rows (`role="tree"`): while none of its rows is the Tab stop (none was
+ * focused yet, or that one went away), the list itself is, and hands the focus to the open page's
+ * row, or the first.
+ */
+export function useTreeEntry(scope: TreeScope) {
+  const hasStop = useTreeFocus((state) => state.stop[scope] !== null)
+  return {
+    tabIndex: hasStop ? undefined : 0,
+    onFocus: (event: FocusEvent<HTMLElement>): void => {
+      if (event.target !== event.currentTarget) return
+      const rows = event.currentTarget.querySelectorAll<HTMLElement>('[role="treeitem"]')
+      const row = [...rows].find((r) => r.classList.contains('is-active')) ?? rows[0]
+      row?.focus()
+    }
+  }
 }
 
 function RenameInput({ id, initial }: { id: string; initial: string }) {
@@ -103,12 +140,31 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
   const childIds = useTree((state) => state.children[id])
   const dragging = useDrag((state) => !flat && state.dragId === id)
   const dropPosition = useDrag((state) => (!flat && state.drop?.id === id ? state.drop.position : null))
-  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | { x: number; y: number } | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<PopoverAnchor>(null)
   const moreRef = useRef<HTMLButtonElement>(null)
+  const rowRef = useRef<HTMLDivElement>(null)
+  const scope: TreeScope = flat ? 'flat' : 'tree'
+  const isStop = useTreeFocus((state) => state.stop[scope] === id)
+  const pending = useTreeFocus((state) => !flat && state.pending === id)
   // A linked view goes by its source's title until it is given one of its own.
   const title = usePageTitle(block)
 
   const expandable = !flat && block?.type === 'page'
+
+  // A row that is the Tab stop and goes away (closed parent, deleted page) gives the stop back to its list.
+  useEffect(() => {
+    if (!isStop) return
+    return () => {
+      if (useTreeFocus.getState().stop[scope] === id) setStop(scope, null)
+    }
+  }, [isStop, scope, id])
+
+  // Moved from the keyboard: the row is drawn again in its new place, and takes the focus back.
+  useEffect(() => {
+    if (!pending || !rowRef.current) return
+    useTreeFocus.setState({ pending: null })
+    rowRef.current.focus()
+  }, [pending])
 
   useEffect(() => {
     if (expanded && expandable && childIds === undefined) {
@@ -166,10 +222,63 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
     if (target?.id === id) void dropPage(dragId, id, target.position).catch(reportError('move the page'))
   }
 
+  /** Alt+Shift+arrows: up or down among its siblings, inside the page above, or out of its parent. */
+  const movePage = async (key: string): Promise<void> => {
+    const siblings = useTree.getState().children[block.parentId ?? ROOT] ?? []
+    const at = siblings.indexOf(id)
+    if (at < 0) return
+    const copy = a11yCopy()
+    let into: string | null = null
+    if (key === 'ArrowUp' && at > 0) await dropPage(id, siblings[at - 1], 'before')
+    else if (key === 'ArrowDown' && at < siblings.length - 1) await dropPage(id, siblings[at + 1], 'after')
+    else if (key === 'ArrowRight' && at > 0 && getBlock(siblings[at - 1])?.type === 'page') {
+      into = siblings[at - 1]
+      await dropPage(id, into, 'inside')
+    } else if (key === 'ArrowLeft' && block.parentId && getBlock(block.parentId)) await dropPage(id, block.parentId, 'after')
+    else return
+    // Said as it is now, so that a move the tree refused (a built-in database) is not announced.
+    const moved = getBlock(id)
+    if (!moved) return
+    useTreeFocus.setState({ pending: id })
+    const parent = moved.parentId ? getBlock(moved.parentId) : undefined
+    if (into && moved.parentId === into && parent) announce(copy.pageInside(pageTitle(parent)))
+    else {
+      const list = useTree.getState().children[moved.parentId ?? ROOT] ?? []
+      if (list.includes(id)) announce(copy.pageMoved(list.indexOf(id) + 1, list.length))
+    }
+  }
+
   // Rows are operated from the keyboard too; keys typed in a control inside the row are its own.
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    if (event.target !== event.currentTarget) return
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.target !== event.currentTarget || event.nativeEvent.isComposing) return
+    const row = event.currentTarget
+    const tree = row.closest('[role="tree"]')
+    if (takeMenuKey(event)) {
+      event.preventDefault()
+      setMenuAnchor(keyboardAnchor(row))
+    } else if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey && event.key.startsWith('Arrow')) {
+      event.preventDefault()
+      if (!flat) void movePage(event.key).catch(reportError('move the page'))
+    } else if (event.altKey || event.ctrlKey || event.metaKey) {
+      if (event.key === 'Enter' && !event.altKey) {
+        event.preventDefault()
+        openPage(id, { newTab: true })
+      }
+    } else if (tree && moveFocusAmong(tree, '[role="treeitem"]', event.key, 'vertical')) {
+      event.preventDefault()
+    } else if (event.key === 'ArrowRight' && expandable && expanded) {
+      // Already open: to its first page.
+      event.preventDefault()
+      const group = row.nextElementSibling
+      group?.querySelector<HTMLElement>('[role="treeitem"]')?.focus()
+    } else if (event.key === 'ArrowLeft' && !(expandable && expanded)) {
+      // Closed, or nothing inside: to the page it is in.
+      const parent = row.parentElement?.closest('[role="group"]')?.previousElementSibling
+      if (parent instanceof HTMLElement) {
+        event.preventDefault()
+        parent.focus()
+      }
+    } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       openPage(id, { newTab: event.ctrlKey || event.metaKey })
     } else if (event.key === 'ArrowRight' && expandable && !expanded) {
@@ -198,11 +307,16 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
         role="treeitem"
         aria-selected={active}
         aria-expanded={expandable ? expanded : undefined}
+        aria-level={flat ? undefined : depth + 1}
         style={{ paddingLeft: ROW_PADDING + depth * INDENT }}
         draggable={!flat && !renaming}
-        tabIndex={0}
+        ref={rowRef}
+        tabIndex={isStop ? 0 : -1}
         onClick={onClick}
         onKeyDown={onKeyDown}
+        onFocus={(event) => {
+          if (event.target === event.currentTarget) setStop(scope, id)
+        }}
         // A database is about to be opened: have its code ready.
         onPointerEnter={block.type === 'database' ? preloadDatabase : undefined}
         onAuxClick={(event) => {
@@ -210,7 +324,8 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
         }}
         onContextMenu={(event) => {
           event.preventDefault()
-          setMenuAnchor({ x: event.clientX, y: event.clientY })
+          // After the Menu key, which opened the menu already, Windows sends this too.
+          if (!isMenuKeyEcho()) setMenuAnchor({ x: event.clientX, y: event.clientY })
         }}
         onDragStart={flat ? undefined : onDragStart}
         onDragEnd={() => {
@@ -223,9 +338,11 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
         <span className="tree-lead">
           <PageIcon block={block} />
           {expandable && (
+            // For the pointer: the keyboard opens and closes with Right and Left.
             <button
               type="button"
               className="tree-toggle"
+              tabIndex={-1}
               aria-label={expanded ? 'Collapse' : 'Expand'}
               onClick={(event) => {
                 event.stopPropagation()
@@ -243,6 +360,8 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
               ref={moreRef}
               size="small"
               label="Rename, duplicate, delete…"
+              // The row's menu is the Menu key (or Shift+F10) from the keyboard: one Tab stop per tree.
+              tabIndex={-1}
               aria-haspopup="menu"
               aria-expanded={!!menuAnchor}
               onClick={() => setMenuAnchor(menuAnchor ? null : moreRef.current)}
@@ -250,7 +369,12 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
               <MoreHorizontal />
             </IconButton>
             {block.type === 'page' && (
-              <IconButton size="small" label="Add a page inside" onClick={() => void createPage(id).catch(reportError('create the page'))}>
+              <IconButton
+                size="small"
+                label="Add a page inside"
+                tabIndex={-1}
+                onClick={() => void createPage(id).catch(reportError('create the page'))}
+              >
                 <Plus />
               </IconButton>
             )}
@@ -258,7 +382,7 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
         )}
       </div>
       {menuAnchor && (
-        <Popover open anchor={menuAnchor} onClose={() => setMenuAnchor(null)}>
+        <Popover open anchor={menuAnchor} role="none" onClose={() => setMenuAnchor(null)}>
           <Menu items={sidebarPageMenu(block)} onClose={() => setMenuAnchor(null)} autoFocus />
         </Popover>
       )}
@@ -283,11 +407,14 @@ export function PageTree() {
   const loaded = useTree((state) => state.loaded)
   // A drop target with the ROOT id means "append to the workspace root".
   const rootDrop = useDrag((state) => state.drop?.id === ROOT)
+  const entry = useTreeEntry('tree')
 
   return (
     <div
       className={rootDrop ? 'tree is-drop-root' : 'tree'}
       role="tree"
+      aria-label="Pages"
+      {...entry}
       onDragOver={(event) => {
         // Only reached when not over a row (rows stop propagation).
         if (!useDrag.getState().dragId) return

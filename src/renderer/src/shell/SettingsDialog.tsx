@@ -8,10 +8,13 @@ import { Close } from '@/ui/icons'
 import { Modal } from '@/ui/Modal'
 import { SETTINGS_SECTIONS, type SettingsSection } from './settingsSections'
 
+/** One Settings window per app window: its title names the dialog. */
+const SETTINGS_TITLE = 'settings-title'
+
 export function SettingsDialog() {
   const open = useUi((state) => state.settingsOpen)
   return (
-    <Modal open={open} onClose={() => setSettingsOpen(false)} label="Settings" className="settings2">
+    <Modal open={open} onClose={() => setSettingsOpen(false)} labelledBy={SETTINGS_TITLE} className="settings2">
       <SettingsBody />
     </Modal>
   )
@@ -32,7 +35,9 @@ function SettingsBody() {
   return (
     <>
       <nav className="settings2-nav" aria-label="Settings sections">
-        <h2 className="settings2-nav-title">Settings</h2>
+        <h2 className="settings2-nav-title" id={SETTINGS_TITLE}>
+          Settings
+        </h2>
         {SETTINGS_SECTIONS.map((entry) => (
           <button
             type="button"

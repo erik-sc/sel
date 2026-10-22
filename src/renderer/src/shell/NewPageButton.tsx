@@ -63,7 +63,7 @@ export function NewPageButton(): JSX.Element {
         <ChevronDown size={12} />
       </button>
       {anchor && (
-        <Popover open anchor={anchor} onClose={close}>
+        <Popover open anchor={anchor} role="none" onClose={close}>
           <Menu items={newPageItems(null)} onClose={close} autoFocus />
         </Popover>
       )}

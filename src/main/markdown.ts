@@ -307,7 +307,7 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
       return ['---']
     case 'image': {
       if (!p.url) return []
-      const alt = plainText(p.caption).replace(/[[\]\n]/g, ' ')
+      const alt = (typeof p.alt === 'string' && p.alt.trim() ? p.alt : plainText(p.caption)).replace(/[[\]\n]/g, ' ')
       return [`![${alt}](${p.url.replace(/[()\s]/g, encodeURIComponent)})`]
     }
     case 'bookmark': {

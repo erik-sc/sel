@@ -463,7 +463,7 @@ export function PropertyCell({
         <CellBody row={row} prop={prop} placeholder={placeholder} />
       )}
       {popoverType && (
-        <Floating open={editing && !!el} anchor={el} onClose={() => onStopEdit()} className="db-popover">
+        <Floating open={editing && !!el} anchor={el} label={prop.name} onClose={() => onStopEdit()} className="db-popover">
           {field === 'recurrence' ? (
             <Suspense fallback={<PartFallback kind="popover" />}>
               <RecurrencePicker

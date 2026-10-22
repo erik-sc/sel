@@ -3,6 +3,7 @@ import { app, BrowserWindow, dialog, nativeTheme, screen, session, shell, type S
 import { isQuickAddUrl } from './alarms/windows'
 import { APPEARANCE_KEY, windowBackground } from './background'
 import { DEFAULT_SIZE, fitBounds, MIN_SIZE, type SavedBounds } from './bounds'
+import { keepZoomIn, restoreZoom } from './zoom'
 import { applyStagedRestore } from './data/backups'
 import { openDatabase, type Repository } from './db'
 import { isValidId } from './db/blocks'
@@ -136,6 +137,7 @@ function createWindow(pageId?: string): BrowserWindow {
   attachShortcuts(win)
   recoverFromCrashes(win)
   trackBounds(win)
+  restoreZoom(win)
   // Closing the window that records a meeting would cut the recording short: ask first.
   win.on('close', (event) => {
     const meetings = syncHooks?.meetings
@@ -397,6 +399,7 @@ function start(store: Repository): void {
       if (process.platform === 'win32') app.setAppUserModelId('app.sel')
       hardenSession(session.defaultSession)
       nativeTheme.themeSource = readTheme(store)
+      keepZoomIn(store)
       handleFileProtocol()
       const hooks = registerIpc({ repo: store, ready: seedWorkspace(store), createWindow: (pageId) => void createWindow(pageId) })
       syncHooks = hooks

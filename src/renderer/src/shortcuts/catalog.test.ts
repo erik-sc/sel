@@ -122,6 +122,7 @@ const EDITOR: Record<string, Expectation> = {
   strikethrough: { calls: 'toggleMark', args: [['s']] },
   'inline-code': { calls: 'toggleMark', args: [['c']] },
   link: { calls: 'requestLink', selection: 'some' },
+  toolbar: { calls: 'requestToolbar', selection: 'some' },
   indent: { calls: 'indent' },
   outdent: { calls: 'outdent' },
   'move-block': { calls: 'moveBlocks' },

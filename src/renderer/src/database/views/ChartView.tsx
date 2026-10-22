@@ -457,7 +457,7 @@ export function ChartView(p: ViewProps): JSX.Element {
       {!message && data.kind !== 'number' && <DataTable data={data} caption={caption} />}
 
       {drill && (
-        <Floating open anchor={drill.at} onClose={() => setDrill(null)}>
+        <Floating open anchor={drill.at} label={drillTitle} onClose={() => setDrill(null)}>
           <div className="db-chart-drill">
             <div className="db-panel-title">
               <span className="db-chart-drill-title">{drillTitle}</span>

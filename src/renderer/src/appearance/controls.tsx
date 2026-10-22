@@ -219,7 +219,14 @@ function ColorControl({ token, value, commit }: ControlProps) {
       >
         <span style={{ background: value }} />
       </button>
-      <Popover anchor={anchor} open={!!anchor} onClose={() => setAnchor(null)} placement="bottom-end" className="ap-picker">
+      <Popover
+        anchor={anchor}
+        open={!!anchor}
+        onClose={() => setAnchor(null)}
+        placement="bottom-end"
+        label={token.label}
+        className="ap-picker"
+      >
         <ColorPicker value={value} commit={commit} />
       </Popover>
     </>

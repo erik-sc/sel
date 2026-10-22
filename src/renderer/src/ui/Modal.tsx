@@ -3,15 +3,20 @@ import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { isTopLayer, pushLayer } from './layers'
 
-export interface ModalProps {
+interface ModalBase {
   open: boolean
   onClose: () => void
-  label: string
   /** 'top' anchors the dialog near the top (command palettes); 'center' centres it. */
   align?: 'top' | 'center'
   className?: string
   children: ReactNode
 }
+
+/**
+ * A dialog is named by its visible title when it has one (`labelledBy`, the title's id), and by
+ * `label` only when nothing on it says what it is (a search field, a palette).
+ */
+export type ModalProps = ModalBase & ({ label: string; labelledBy?: undefined } | { labelledBy: string; label?: undefined })
 
 const FOCUSABLE =
   'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]'
@@ -25,7 +30,7 @@ export function Modal(props: ModalProps) {
   return <ModalLayer {...props} />
 }
 
-function ModalLayer({ onClose, label, align = 'center', className, children }: ModalProps) {
+function ModalLayer({ onClose, label, labelledBy, align = 'center', className, children }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef(onClose)
@@ -97,7 +102,8 @@ function ModalLayer({ onClose, label, align = 'center', className, children }: M
         className={className ? `ui-modal glass-thick ${className}` : 'ui-modal glass-thick'}
         role="dialog"
         aria-modal="true"
-        aria-label={label}
+        aria-label={labelledBy ? undefined : label}
+        aria-labelledby={labelledBy}
         tabIndex={-1}
       >
         {children}

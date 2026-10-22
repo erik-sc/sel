@@ -1,7 +1,7 @@
 // The one place that explains what the AI features need: the Claude Code program on this
 // computer, signed in with the user's own account. Every AI entry point leads here when the
 // program is missing; "How to sign in" leads here when it is there but not signed in.
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { JSX } from 'react'
 import type { AiStatus } from '@shared/ai'
 import { Button, IconButton } from '@/ui/Button'
@@ -42,6 +42,7 @@ export function SetupSheet(): JSX.Element {
   const [busy, setBusy] = useState<'check' | 'pick' | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const signIn = reason === 'not-logged-in'
+  const titleId = useId()
 
   const settle = (next: AiStatus | null): void => {
     setBusy(null)
@@ -72,9 +73,9 @@ export function SetupSheet(): JSX.Element {
   }
 
   return (
-    <Modal open={reason !== null} onClose={closeAiSetup} label={signIn ? 'Sign in to Claude Code' : 'Set up AI'} className="ai-setup">
+    <Modal open={reason !== null} onClose={closeAiSetup} labelledBy={titleId} className="ai-setup">
       <header className="ai-setup-head">
-        <h2>{signIn ? 'Sign in to Claude Code' : 'Set up AI'}</h2>
+        <h2 id={titleId}>{signIn ? 'Sign in to Claude Code' : 'Set up AI'}</h2>
         <IconButton label="Close" tooltip={false} onClick={closeAiSetup}>
           <Close />
         </IconButton>
