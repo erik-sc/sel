@@ -31,6 +31,30 @@ const event = (title: string, start: number, minutes = 30): { title: string; sta
   allDay: false
 })
 
+describe('the Inbox', () => {
+  it('says when tasks have sat in the Inbox for days, and offers to refine them', () => {
+    const counsel = compose(base({ inbox: { waiting: 3, title: 'Buy bread', days: 3 } }))
+    expect(counsel).toMatchObject({ kind: 'inbox', variant: 'inbox:0' })
+    // Wednesday 14 October: three days back is a Sunday.
+    expect(counsel?.text).toBe('Three things have waited in the Inbox since Sunday. A minute to sort them?')
+    expect(counsel?.action).toEqual({ label: 'Refine now', command: { type: 'refine-inbox' } })
+    const pt = compose(base({ locale: 'pt-BR', inbox: { waiting: 1, title: 'Comprar pão', days: 2 } }))
+    expect(pt?.text).toBe('Uma coisa espera no Inbox desde segunda. Um minuto para pontuar?')
+    expect(pt?.action).toEqual({ label: 'Refinar agora', command: { type: 'refine-inbox' } })
+  })
+
+  it('has nothing to say of an Inbox with nothing waiting, or when told not to', () => {
+    expect(compose(base({ inbox: { waiting: 0, title: '', days: 0 } }))).toBeNull()
+    expect(compose(base({ inbox: null }))).toBeNull()
+  })
+
+  it('comes after everything more timely', () => {
+    const both = base({ tasks: { overdue: [task('Old', '2026-10-01')], today: [] }, inbox: { waiting: 1, title: 'Buy bread', days: 2 } })
+    expect(compose(both)?.kind).toBe('overdue')
+    expect(compose({ ...both, saidToday: ['overdue'] })?.kind).toBe('inbox')
+  })
+})
+
 describe('what he notices', () => {
   it('says nothing when there is nothing to say', () => {
     expect(compose(base())).toBeNull()
@@ -128,12 +152,13 @@ describe('what he notices', () => {
       editingMs: 60 * MIN,
       reopened: { pageId: 'old', days: 90 },
       tasks: { overdue: [task('Old', '2026-10-01')], today: [] },
-      events: [event('Standup', at(9, 10))]
+      events: [event('Standup', at(9, 10))],
+      inbox: { waiting: 2, title: 'Buy bread', days: 3 }
     })
     const order: HermanNudgeKind[] = []
     let last: HermanNudgeKind | null = null
     const said: HermanNudgeKind[] = []
-    for (let round = 0; round < 6; round++) {
+    for (let round = 0; round < 7; round++) {
       // Each kind once: what was said is left out of the next round, as if its cause had passed.
       const counsel = compose({ ...everything, lastKind: last, only: HERMAN_NUDGE_KINDS.filter((kind) => !said.includes(kind)) })
       if (!counsel) break
@@ -141,8 +166,18 @@ describe('what he notices', () => {
       said.push(counsel.kind)
       last = counsel.kind
     }
-    expect(order).toEqual(['streak', 'long-session', 'reopened', 'morning', 'overdue'])
-    expect(HERMAN_NUDGE_KINDS).toEqual(['streak', 'long-session', 'reopened', 'morning', 'evening', 'free-block', 'overdue', 'today'])
+    expect(order).toEqual(['streak', 'long-session', 'reopened', 'morning', 'overdue', 'inbox'])
+    expect(HERMAN_NUDGE_KINDS).toEqual([
+      'streak',
+      'long-session',
+      'reopened',
+      'morning',
+      'evening',
+      'free-block',
+      'overdue',
+      'today',
+      'inbox'
+    ])
   })
 })
 
@@ -156,7 +191,8 @@ describe('his restraint in what he says', () => {
   })
 
   it('says the things that last all day once a day', () => {
-    expect([...ONCE_A_DAY].sort()).toEqual(['evening', 'free-block', 'morning', 'overdue', 'today'])
+    expect([...ONCE_A_DAY].sort()).toEqual(['evening', 'free-block', 'inbox', 'morning', 'overdue', 'today'])
+    expect(compose(base({ inbox: { waiting: 1, title: 'Buy bread', days: 2 }, saidToday: ['inbox'] }))).toBeNull()
     expect(compose(base({ tasks: overdue, saidToday: ['overdue'] }))).toBeNull()
     expect(compose(base({ now: at(18), saidToday: ['evening'] }))).toBeNull()
     expect(compose(base({ now: at(8), firstLaunch: true, saidToday: ['morning'] }))).toBeNull()

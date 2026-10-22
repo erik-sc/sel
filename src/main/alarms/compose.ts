@@ -18,6 +18,8 @@ export interface BriefingFacts {
   name: string
   events: readonly BriefingEvent[]
   tasks: { overdue: readonly BriefingTask[]; today: readonly BriefingTask[] }
+  /** Open tasks still to refine, when that reminder is on (shared/tasks/refine.ts). */
+  refine?: number
 }
 
 export interface Spoken {
@@ -69,7 +71,11 @@ const WORDS = {
     started: (minutes: number) => `Started ${minutes} min ago`,
     minutesSpoken: (minutes: number) => (minutes === 1 ? 'one minute' : `${minutes} minutes`),
     also: (titles: string) => `Also: ${titles}.`,
-    untitled: 'Untitled event'
+    untitled: 'Untitled event',
+    refine: (count: number) =>
+      count === 1 ? 'There is one task waiting to be refined.' : `There are ${count} tasks waiting to be refined.`,
+    refineTitle: 'Time to refine',
+    refineNow: (count: number) => (count === 1 ? 'Time to refine: one task is waiting.' : `Time to refine: ${count} tasks are waiting.`)
   },
   'pt-BR': {
     hello: (hour: number, name: string) => `${hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite'}${name ? `, ${name}` : ''}.`,
@@ -99,7 +105,11 @@ const WORDS = {
     started: (minutes: number) => `Começou há ${minutes} min`,
     minutesSpoken: (minutes: number) => (minutes === 1 ? 'um minuto' : `${minutes} minutos`),
     also: (titles: string) => `Também: ${titles}.`,
-    untitled: 'Evento sem título'
+    untitled: 'Evento sem título',
+    refine: (count: number) => (count === 1 ? 'Há uma tarefa esperando refino.' : `Há ${count} tarefas esperando refino.`),
+    refineTitle: 'Hora de refinar',
+    refineNow: (count: number) =>
+      count === 1 ? 'Hora de refinar: uma tarefa está esperando.' : `Hora de refinar: ${count} tarefas estão esperando.`
   }
 } as const
 
@@ -127,6 +137,7 @@ export function composeBriefing(facts: BriefingFacts): Spoken {
     const first = overdue[0] ?? today[0]
     if (first) lines.push(w.start(tidy(first.title)))
   }
+  if (facts.refine && facts.refine > 0) lines.push(w.refine(facts.refine))
   lines.push(w.end)
   const text = lines.join(' ')
   return { text, speech: text.replace(/…/g, '') }
@@ -172,4 +183,16 @@ export function composeEvents(
   const others = rest.map((event) => tidy(event.title)).filter(Boolean)
   const tail = others.length ? ` ${w.also(others.join('; '))}` : ''
   return { title: head, text: `${head}: ${name}.${tail}`, speech: `${spoken}: ${name}.${tail}`.replace(/…/g, '') }
+}
+
+/** The line the briefing gains when tasks wait to be refined; the AI's briefing gets it too. */
+export function composeRefineLine(count: number, locale: AlarmLocale): string {
+  return WORDS[locale].refine(count)
+}
+
+/** The refine time: "Time to refine: 4 tasks are waiting." `title` heads the system's notification. */
+export function composeRefine(count: number, locale: AlarmLocale): Spoken & { title: string } {
+  const w = WORDS[locale]
+  const text = w.refineNow(count)
+  return { title: w.refineTitle, text, speech: text }
 }

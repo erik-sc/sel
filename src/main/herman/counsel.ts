@@ -57,7 +57,7 @@ export const COUNSEL_DEFAULTS: CounselThresholds = {
 }
 
 /** Kinds said at most once a day: the day they are about barely changes while it lasts. */
-export const ONCE_A_DAY: ReadonlySet<HermanNudgeKind> = new Set(['morning', 'evening', 'free-block', 'overdue', 'today'])
+export const ONCE_A_DAY: ReadonlySet<HermanNudgeKind> = new Set(['morning', 'evening', 'free-block', 'overdue', 'today', 'inbox'])
 
 export const TITLE_CHARS = 48
 
@@ -67,6 +67,11 @@ export interface CounselInput {
   tasks: { overdue: readonly CounselTask[]; today: readonly CounselTask[] }
   /** Today's events, in order. */
   events: readonly CounselEvent[]
+  /**
+   * Tasks in the Inbox, still to refine, for two days or more (shared/tasks/refine.ts): how many,
+   * and the one that has waited longest. Absent when the user turned this reminder off.
+   */
+  inbox?: { waiting: number; title: string; days: number } | null
   /** How long the current page has been edited without a real pause. */
   editingMs?: number
   /** The page in front, when it was opened after a long time untouched. */
@@ -218,6 +223,13 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
     }
   } else if (today.length > 0) {
     out.today = { words: { ...count(today.length), title: tidyTitle(today[0].title) }, action: openToday, titledAction: openTask(today[0]) }
+  }
+  const inbox = input.inbox
+  if (inbox && inbox.waiting > 0) {
+    out.inbox = {
+      words: { ...count(inbox.waiting), title: tidyTitle(inbox.title), since: sinceWords(inbox.days, now, locale) },
+      action: { label: phrases.refineNow, command: { type: 'refine-inbox' } }
+    }
   }
   return out
 }

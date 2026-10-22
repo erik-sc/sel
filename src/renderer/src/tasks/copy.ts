@@ -55,6 +55,19 @@ export interface TaskCopy {
   /** Inline edit: what the parser recognised, read after the field. */
   willSet: (parts: string[]) => string
   fromCompletion: string
+  /** An empty chip: a field the task still lacks ("+ date"). */
+  addField: Record<TaskField, string>
+  /** Refining (shared/tasks/refine.ts): the list, its button, the refine mode, the line on Today. */
+  refineList: string
+  refine: string
+  refineEmpty: string
+  refining: string
+  progress: (at: number, of: number) => string
+  refineKeys: string
+  /** The end of the walk, with nothing left to refine; and with something left (skipped). */
+  refineDone: string
+  refineLeft: string
+  todayLine: (count: number) => string
 }
 
 const EN: TaskCopy = {
@@ -92,7 +105,17 @@ const EN: TaskCopy = {
   change: (field, value) => `${field}: ${value}`,
   none: 'none',
   willSet: (parts) => `Will set ${parts.join(', ')}`,
-  fromCompletion: 'from completion'
+  fromCompletion: 'from completion',
+  addField: { date: '+ date', repeat: '+ repeat', priority: '+ priority', project: '+ project', labels: '+ labels', remind: '+ reminder' },
+  refineList: 'To refine',
+  refine: 'Refine',
+  refineEmpty: 'Nothing to refine. Every open task has a date, a priority and a project.',
+  refining: 'Refining',
+  progress: (at, of) => `${at} of ${of}`,
+  refineKeys: 'Enter next · S skip · Del delete · Esc leave · F2 name · D date · R repeat · 1–4 priority · # project · @ labels',
+  refineDone: 'Inbox up to date.',
+  refineLeft: 'That is all for now.',
+  todayLine: (count) => `${count} to refine`
 }
 
 const PT: TaskCopy = {
@@ -130,7 +153,24 @@ const PT: TaskCopy = {
   change: (field, value) => `${field}: ${value}`,
   none: 'nenhum',
   willSet: (parts) => `Vai definir ${parts.join(', ')}`,
-  fromCompletion: 'a partir da conclusão'
+  fromCompletion: 'a partir da conclusão',
+  addField: {
+    date: '+ data',
+    repeat: '+ repetir',
+    priority: '+ prioridade',
+    project: '+ projeto',
+    labels: '+ rótulos',
+    remind: '+ lembrete'
+  },
+  refineList: 'A refinar',
+  refine: 'Refinar',
+  refineEmpty: 'Nada para refinar. Toda tarefa aberta tem data, prioridade e projeto.',
+  refining: 'Refinando',
+  progress: (at, of) => `${at} de ${of}`,
+  refineKeys: 'Enter próxima · S pular · Del apagar · Esc sair · F2 nome · D data · R repetir · 1–4 prioridade · # projeto · @ rótulos',
+  refineDone: 'Inbox em dia.',
+  refineLeft: 'Por ora, é isso.',
+  todayLine: (count) => `${count} para refinar`
 }
 
 export const TASK_COPY: Record<HomeLocale, TaskCopy> = { en: EN, 'pt-BR': PT }

@@ -10,7 +10,7 @@ import { newMeeting } from '@/meetings/gate'
 import { useBlock, useBlocks } from '@/store/blocks'
 import { openPage } from '@/store/tabs'
 import * as L from '@/database/logic'
-import { readTasks } from '@/tasks/lists'
+import { emptyChipsOf, readTasks } from '@/tasks/lists'
 import { viewOfBriefing, type TaskView } from '@/tasks/model'
 import { TaskRow as ListTaskRow, type useTaskRows } from '@/tasks/TaskRow'
 import { setSettingsOpen, useUi } from '@/store/ui'
@@ -252,6 +252,7 @@ export function BriefingTaskItem({
       onToggle={() => onComplete(task)}
       onOpen={() => onOpen(task.id)}
       onLeave={rows.leave}
+      emptyChips={emptyChipsOf(view)}
     />
   )
 }

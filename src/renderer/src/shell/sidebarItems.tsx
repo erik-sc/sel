@@ -2,6 +2,7 @@
 // default order and the zones). The sidebar draws from here in the order the `sidebar` setting
 // gives, and Settings → Sidebar lists the same entries. A new item adds its id to
 // SIDEBAR_ITEMS at its default place and an entry here.
+import { useEffect } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import type { SidebarItemId } from '@shared/sidebar'
 import { setQuickFindOpen, setSettingsOpen } from '@/store/ui'
@@ -13,6 +14,7 @@ import { openCalendar, openToday } from '@/briefing/route'
 import { openCloseDay, openNotebook } from '@/notebook/route'
 import { openSky, useSkyEnabled } from '@/sky/route'
 import { openTasks, preloadTasks } from '@/tasks/gate'
+import { initRefining, useRefining } from '@/tasks/refining'
 import { newMeeting } from '@/meetings/gate'
 import { MOD_KEY } from '@/ui/platform'
 import { useTree } from '@/store/tree'
@@ -45,6 +47,23 @@ function Action({ id, icon, onClick, preload }: { id: SidebarItemId; icon: React
     <button type="button" className="sidebar-action" onPointerEnter={preload} onFocus={preload} onClick={onClick}>
       {icon}
       <span>{copy.items[id]}</span>
+    </button>
+  )
+}
+
+/** Tasks, with a quiet mark (no number) while tasks wait to be refined and the mark is on. */
+function TasksItem() {
+  const copy = useSidebarCopy()
+  const marked = useRefining((state) => state.mark && state.count > 0)
+  useEffect(() => initRefining(), [])
+  return (
+    <button type="button" className="sidebar-action" onPointerEnter={preloadTasks} onFocus={preloadTasks} onClick={openTasks}>
+      <Check />
+      <span>
+        {copy.items.tasks}
+        {marked && <span className="sr-only">, {copy.toRefine}</span>}
+      </span>
+      {marked && <i className="sidebar-mark" aria-hidden="true" title={copy.toRefine} />}
     </button>
   )
 }
@@ -132,7 +151,7 @@ export const SIDEBAR_ITEM_DEFS: Record<SidebarItemId, SidebarItemDef> = {
   home: { id: 'home', icon: <Home />, Render: HomeButton },
   today: { id: 'today', icon: <Clock />, Render: () => <Action id="today" icon={<Clock />} onClick={openToday} /> },
   calendar: { id: 'calendar', icon: <Calendar />, Render: () => <Action id="calendar" icon={<Calendar />} onClick={openCalendar} /> },
-  tasks: { id: 'tasks', icon: <Check />, Render: () => <Action id="tasks" icon={<Check />} onClick={openTasks} preload={preloadTasks} /> },
+  tasks: { id: 'tasks', icon: <Check />, Render: TasksItem },
   meditations: { id: 'meditations', icon: <Pen />, Render: () => <Action id="meditations" icon={<Pen />} onClick={openNotebook} /> },
   // Gone while the Sky is turned off (see useAvailableItem).
   sky: { id: 'sky', icon: <Sky />, Render: () => <Action id="sky" icon={<Sky />} onClick={openSky} /> },

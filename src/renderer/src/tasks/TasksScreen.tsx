@@ -13,8 +13,13 @@ import * as L from '@/database/logic'
 import * as actions from '@/database/actions'
 import { chooseView, DatabaseView } from '@/database/DatabaseView'
 import { useTasksDatabase } from './data'
-import { focusQuickAdd, showTaskList, useTasksGate, type TaskListKey } from './gate'
-import { dueLabel, listCounts, listTasks, openDescendants, readTasks, type TaskGroup, type TaskItem } from './lists'
+import { useHome } from '@/home/store'
+import { Button } from '@/ui/Button'
+import { TASK_COPY } from './copy'
+import { focusQuickAdd, showTaskList, stopRefine, useTasksGate, type RefineFrom, type TaskListKey } from './gate'
+import { dueLabel, emptyChipsOf, listCounts, listTasks, openDescendants, readTasks, type TaskGroup, type TaskItem } from './lists'
+import { Refine } from './Refine'
+import { refineQueue } from './refineWalk'
 import { QuickAdd } from './QuickAdd'
 import { TaskPanel } from './lazy'
 import { TaskRow, useTaskRows } from './TaskRow'
@@ -31,8 +36,10 @@ function useToday(): string {
   return today
 }
 
-const FIXED: { kind: 'inbox' | 'today' | 'upcoming' | 'completed'; name: string }[] = [
+const FIXED: { kind: 'inbox' | 'refine' | 'today' | 'upcoming' | 'completed'; name: string }[] = [
   { kind: 'inbox', name: 'Inbox' },
+  // Its name is in the home's language (TASK_COPY.refineList).
+  { kind: 'refine', name: 'To refine' },
   { kind: 'today', name: 'Today' },
   { kind: 'upcoming', name: 'Upcoming' },
   { kind: 'completed', name: 'Completed' }
@@ -145,6 +152,7 @@ type Moves = { onIndent?: () => void; onOutdent?: () => void }
 
 const EMPTY_TEXT: Record<TaskListKey['kind'], string> = {
   inbox: 'Nothing in the inbox. Tasks without a project land here.',
+  refine: '',
   today: 'Nothing due today.',
   upcoming: 'Nothing scheduled after today.',
   completed: 'No completed tasks yet.',
@@ -160,6 +168,8 @@ export function TasksScreen(): JSX.Element {
   const [panel, setPanel] = useState<string | null>(null)
   const list = useTasksGate((state) => state.list)
   const { pending, complete, reopen } = useCompletion(today)
+  const words = TASK_COPY[useHome((state) => state.locale)]
+  const refining = useTasksGate((state) => state.refining)
 
   const tasks = useMemo(
     () => readTasks(rows, schema).filter((task) => task.done || !isPending(pending.get(task.id), task)),
@@ -172,6 +182,9 @@ export function TasksScreen(): JSX.Element {
     [complete, reopen, tasks]
   )
   const counts = useMemo(() => listCounts(tasks, schema), [tasks, schema])
+  // What the refine button would walk, on the Inbox and on "To refine".
+  const refineFrom: RefineFrom | null = list.kind === 'inbox' || list.kind === 'refine' ? list.kind : null
+  const canRefine = useMemo(() => (refineFrom ? refineQueue(tasks, refineFrom).length > 0 : false), [tasks, refineFrom])
   const projects = L.optionsOf(L.propOf(schema, TASK_PROPS.project))
   const labels = L.optionsOf(L.propOf(schema, TASK_PROPS.labels))
 
@@ -221,7 +234,9 @@ export function TasksScreen(): JSX.Element {
         ? `@${labels.find((option) => option.id === list.id)?.name ?? ''}`
         : list.kind === 'view'
           ? (views.find((view) => view.id === list.id)?.name ?? '')
-          : (FIXED.find((item) => item.kind === list.kind)?.name ?? '')
+          : list.kind === 'refine'
+            ? words.refineList
+            : (FIXED.find((item) => item.kind === list.kind)?.name ?? '')
 
   const navItem = (key: TaskListKey, name: string, count: number | undefined, extra?: JSX.Element): JSX.Element => {
     const active = sameList(key, list)
@@ -233,6 +248,7 @@ export function TasksScreen(): JSX.Element {
           aria-current={active ? 'page' : undefined}
           onClick={() => {
             if (key.kind === 'view') chooseView(TASKS_DATABASE_ID, key.id)
+            stopRefine()
             showTaskList(key)
           }}
         >
@@ -273,7 +289,13 @@ export function TasksScreen(): JSX.Element {
     <div className={panel ? 'tasks has-panel' : 'tasks'}>
       <nav className="tasks-nav" aria-label="Task lists">
         <ul className="tasks-nav-list">
-          {FIXED.map((item) => navItem({ kind: item.kind }, item.name, item.kind === 'completed' ? undefined : counts.get(item.kind)))}
+          {FIXED.map((item) =>
+            navItem(
+              { kind: item.kind },
+              item.kind === 'refine' ? words.refineList : item.name,
+              item.kind === 'completed' ? undefined : counts.get(item.kind)
+            )
+          )}
         </ul>
         {projects.length > 0 && (
           <section className="tasks-nav-section">
@@ -315,18 +337,39 @@ export function TasksScreen(): JSX.Element {
       </nav>
 
       <div className="tasks-main">
-        {list.kind === 'view' ? (
+        {refining && refineFrom ? (
+          <Refine
+            key={refineFrom}
+            tasks={tasks}
+            from={refining}
+            today={today}
+            onExit={() => {
+              stopRefine()
+              // Back to the list, at the button that started it (or the list when nothing is left).
+              requestAnimationFrame(() =>
+                document.querySelector<HTMLElement>('.tasks-refine, .tasks-list [data-task-row], .tasks-list .qa-input')?.focus()
+              )
+            }}
+          />
+        ) : list.kind === 'view' ? (
           <div className="tasks-view">
             <DatabaseView key={list.id} databaseId={TASKS_DATABASE_ID} onOpenPage={openPage} />
           </div>
         ) : (
           <div className="tasks-list" {...rowList.listProps}>
-            <h1 className="tasks-heading">{heading}</h1>
+            <div className="tasks-heading-row">
+              <h1 className="tasks-heading">{heading}</h1>
+              {refineFrom && canRefine && (
+                <Button className="tasks-refine" onClick={() => useTasksGate.setState({ refining: refineFrom })}>
+                  {words.refine}
+                </Button>
+              )}
+            </div>
             {list.kind !== 'completed' && (
               <QuickAdd key={`${list.kind}:${'id' in list ? list.id : ''}`} list={list} today={today} projects={projects} labels={labels} />
             )}
             {empty ? (
-              <p className="tasks-empty">{EMPTY_TEXT[list.kind]}</p>
+              <p className="tasks-empty">{list.kind === 'refine' ? words.refineEmpty : EMPTY_TEXT[list.kind]}</p>
             ) : (
               groups.map((group) =>
                 group.items.length ? (
@@ -347,6 +390,7 @@ export function TasksScreen(): JSX.Element {
                           onToggle={() => toggle(task)}
                           onOpen={() => setPanel(task.id)}
                           onLeave={rowList.leave}
+                          emptyChips={emptyChipsOf(task)}
                           {...moves(group, index)}
                         />
                       ))}

@@ -71,6 +71,17 @@ const EN: Record<HermanNudgeKind, Line[]> = {
     line((w) => `${w.N} for today. Just the first ten minutes.`),
     line(() => 'What did you promise yourself today?')
   ],
+  // Tasks in the Inbox for two days or more, still without a date, a priority or a project.
+  inbox: [
+    line((w) => `${w.N} ${s(w, 'thing has', 'things have')} waited in the Inbox ${w.since}. A minute to sort ${s(w, 'it', 'them')}?`),
+    titled((w) => `“${w.title}” has sat in the Inbox ${w.since}. Where does it belong?`),
+    line((w) => `The Inbox has held ${w.n} ${s(w, 'thing', 'things')} ${w.since}. A day and a place for ${s(w, 'it', 'each')}?`),
+    line((w) => `Things have waited in the Inbox ${w.since}. Decided, they weigh less.`),
+    line((w) => `${w.N} in the Inbox, unsorted. When, how urgent, where?`),
+    line((w) => `${w.N} without a place ${w.since}. Which one is easy to place?`),
+    titled((w) => `“${w.title}” is still in the Inbox. A date, a weight, a home?`),
+    line(() => 'The Inbox is for catching, not keeping. Sort a few?')
+  ],
   'free-block': [
     line((w) => `Nothing scheduled ${w.until}. What deserves it?`),
     line((w) => `${w.Span} free. Give it to deep work.`),
@@ -158,6 +169,17 @@ const PT: Record<HermanNudgeKind, Line[]> = {
     line((w) => `${w.N} para hoje. Só os primeiros dez minutos.`),
     line(() => 'O que você prometeu a si para hoje?')
   ],
+  // Tasks in the Inbox for two days or more, still without a date, a priority or a project.
+  inbox: [
+    line((w) => `${w.N} ${s(w, 'coisa espera', 'coisas esperam')} no Inbox ${w.since}. Um minuto para pontuar?`),
+    titled((w) => `“${w.title}” está no Inbox ${w.since}. Onde ela mora?`),
+    line((w) => `O Inbox guarda ${w.n} ${s(w, 'coisa', 'coisas')} ${w.since}. Um dia e um lugar para ${s(w, 'ela', 'cada uma')}?`),
+    line((w) => `Há coisas no Inbox ${w.since}. Decididas, pesam menos.`),
+    line((w) => `${w.N} no Inbox, sem pontuar. Quando, quão urgente, onde?`),
+    line((w) => `${w.N} sem lugar ${w.since}. Qual é fácil de encaixar?`),
+    titled((w) => `“${w.title}” ainda está no Inbox. Uma data, um peso, uma casa?`),
+    line(() => 'O Inbox é para pegar, não para guardar. Pontua algumas?')
+  ],
   'free-block': [
     line((w) => `Nada na agenda ${w.until}. O que merece esse tempo?`),
     line((w) => `${w.Span} sem ninguém pedindo nada. Use bem.`),
@@ -231,6 +253,8 @@ export const PHRASES: Record<
     /** The evening invitation's button: it opens the ritual that closes the day. */
     closeDay: string
     openTask: string
+    /** The Inbox nudge's button: the refine mode. */
+    refineNow: string
     ask: string
     notNow: string
     fewer: string
@@ -247,6 +271,7 @@ export const PHRASES: Record<
     openToday: 'Open Today',
     closeDay: 'Close the day',
     openTask: 'Open it',
+    refineNow: 'Refine now',
     ask: 'Ask Herman',
     notNow: 'Not now',
     fewer: 'Fewer like this',
@@ -259,6 +284,7 @@ export const PHRASES: Record<
     openToday: 'Abrir Hoje',
     closeDay: 'Fechar o dia',
     openTask: 'Abrir',
+    refineNow: 'Refinar agora',
     ask: 'Perguntar ao Herman',
     notNow: 'Agora não',
     fewer: 'Menos como esta',

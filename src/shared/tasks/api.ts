@@ -81,13 +81,16 @@ export interface TasksApi {
   globalShortcut(): Promise<GlobalShortcutState>
   /** Stores the setting and (un)registers the keys at once. Fails on a malformed accelerator. */
   setGlobalShortcut(setting: GlobalShortcutSetting): Promise<GlobalShortcutState>
+  /** How many open tasks are still to refine (./refine.ts): the sidebar's mark and the Today line. */
+  refining(): Promise<{ count: number }>
 }
 
 /** The invoke channels of `api.tasks` (see `INVOKE` in ./api.ts): every method of TasksApi that returns a promise, and no other. */
 export const TASKS_INVOKE = {
   'tasks:importTodoist': true,
   'tasks:globalShortcut': true,
-  'tasks:setGlobalShortcut': true
+  'tasks:setGlobalShortcut': true,
+  'tasks:refining': true
 } as const satisfies Record<InvokeChannels<{ tasks: TasksApi }>, true>
 
 /** The ways to the Tasks screen and its quick add (see ../commands.ts). */
@@ -106,5 +109,10 @@ export const TASKS_COMMANDS = [
     menu: { submenu: 'view', label: 'Add a Task…', order: 240 },
     palette: { title: 'Add a task…', keywords: ['new task', 'quick add', 'todo'], order: 90 },
     catalog: { group: 'navigation', label: 'Add a task', keywords: ['quick add', 'todo'], order: 150 }
+  },
+  {
+    /** Opens Tasks and walks the tasks to refine one by one (the refine time's notification sends it too). */
+    id: 'refine-tasks',
+    palette: { title: 'Refine tasks', keywords: ['refinar', 'inbox', 'triage', 'todo'], order: 95 }
   }
 ] as const satisfies readonly CommandSpec[]

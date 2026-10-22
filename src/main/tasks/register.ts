@@ -13,6 +13,7 @@ import { readFileCapped } from '../fsutil'
 import type { Handlers } from '../invoke'
 import * as arg from '../validate'
 import { importTodoistFiles } from './import'
+import { refineFacts } from './refine'
 import { TODOIST_LIMITS } from './todoist'
 import { openQuickAddWindow } from './window'
 import { defineFeature, type Registered } from '../feature'
@@ -70,12 +71,13 @@ export function registerTasksIpc({ repo }: { repo: Repository }): { handlers: Ha
       repo.setSetting(GLOBAL_SHORTCUT_KEY, setting)
       state = apply(setting)
       return state
-    }
+    },
+    'tasks:refining': async () => ({ count: refineFacts(repo, Date.now()).count })
   }
   return { handlers }
 }
 
-/** Tasks beyond block edits: the Todoist import, the system-wide quick-add shortcut. */
+/** Tasks beyond block edits: the Todoist import, the system-wide quick-add shortcut, the count of tasks to refine. */
 export const tasksFeature = defineFeature({
   namespace: 'tasks',
   register: (ctx): Registered<'tasks'> => registerTasksIpc({ repo: ctx.repo })

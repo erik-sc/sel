@@ -87,6 +87,20 @@ Três partes, uma branch cada, nesta ordem (a seguinte usa os componentes da ant
   Refinar", só quando houver; dentro de Tarefas a contagem fica ao lado de "A refinar", como as outras listas.
 - Nada disso entra no Céu nem no Fechar o dia (sem números ali).
 
+**Como ficou (9c, 2026-10-22).** Branch `claude/tasks-refine`:
+- A regra é `src/shared/tasks/refine.ts` (pura, testada): `missingFields`, `needsRefining`, `refineList` (mais antigas
+  primeiro pela criação da linha), `refineSummary` (o main lê as linhas guardadas) e os quatro settings
+  `tasks.refine*` (locais, não sincronizam, como os alarmes). **Decisão do agente:** subtarefa se refina com a tarefa
+  mãe — fica fora de "A refinar", das contagens, dos lembretes e dos chips vazios.
+- Lista "A refinar" e chips vazios (`+ data`, `+ prioridade`, `+ projeto`) na tela Tarefas e no Hoje; contagem no
+  main por `tasks:refining` (renderer/src/tasks/refining.ts), que a marca da barra lateral e a linha do Hoje leem.
+- Modo Refinar: `tasks/Refine.tsx` (cartão) + `tasks/refineWalk.ts` (fila, teclas e passos, puros); `S` e `→`
+  pulam, `←` volta. Ao fim: "Inbox em dia." quando nada da fila ficou por refinar, senão "Por ora, é isso.".
+- Lembretes: linha no briefing (também depois do texto da IA), nudge `inbox` (último na ordem, uma vez por dia,
+  dentro dos limites do Herman, botão "Refinar agora" → `refine-inbox`), hora de refinar no relógio dos alarmes
+  (anúncio `refine`; o botão e o clique na notificação do sistema abrem o modo Refinar pelo comando
+  `refine-tasks`, também na paleta) e a marca (um ponto, sem número) no item Tarefas.
+
 ## Fora do escopo
 
 - Estimativas de tempo, dependências entre tarefas, tarefas atribuídas a outras pessoas.

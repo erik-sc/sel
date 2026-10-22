@@ -150,6 +150,16 @@ body.is-resizing .sidebar {
   color: var(--text-secondary);
 }
 
+/* Tasks wait to be refined: a small dot, no number (tasks/refining.ts). */
+.sidebar-mark {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-right: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
 .sidebar-action > span {
   flex: 1;
   min-width: 0;

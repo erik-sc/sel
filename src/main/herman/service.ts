@@ -12,6 +12,7 @@ import {
   type HermanSignals,
   type HermanState
 } from '../../shared/herman'
+import { readRefineSettings } from '../../shared/tasks/refine'
 import * as arg from '../validate'
 import { compose, COUNSEL_DEFAULTS, type CounselEvent, type CounselInput, type CounselTask, type CounselThresholds } from './counsel'
 import { PHRASES } from './lines'
@@ -49,6 +50,8 @@ const STREAK_GAP_MS = 10 * 60_000
 export interface HermanDay {
   tasks: { overdue: readonly CounselTask[]; today: readonly CounselTask[] }
   events: readonly CounselEvent[]
+  /** The Inbox's tasks still to refine after two days or more (shared/tasks/refine.ts). */
+  inbox?: { waiting: number; title: string; days: number } | null
 }
 
 /**
@@ -306,6 +309,8 @@ export class HermanService {
       locale: this.locale(),
       tasks: day.tasks,
       events: day.events,
+      // Settings → Notifications can turn this one off on its own.
+      inbox: readRefineSettings((key) => this.setting(key)).herman ? (day.inbox ?? null) : null,
       firstLaunch: this.firstLaunchDay === localDay(now) && now - this.startedAt < LAUNCH_WINDOW_MS,
       // A streak is of the moment: completions of a while ago no longer count.
       streak: now - (this.completions[this.completions.length - 1] ?? 0) <= STREAK_GAP_MS ? this.completions.length : 0,

@@ -100,7 +100,18 @@ export type HermanLocale = 'en' | 'pt-BR'
 // ---- nudges -------------------------------------------------------------------
 
 /** The kinds of thing he may remark on, the most timely first: when several apply, that order decides. */
-export const HERMAN_NUDGE_KINDS = ['streak', 'long-session', 'reopened', 'morning', 'evening', 'free-block', 'overdue', 'today'] as const
+export const HERMAN_NUDGE_KINDS = [
+  'streak',
+  'long-session',
+  'reopened',
+  'morning',
+  'evening',
+  'free-block',
+  'overdue',
+  'today',
+  // Tasks that have sat in the Inbox for days, still to refine (shared/tasks/refine.ts): the least timely of all.
+  'inbox'
+] as const
 export type HermanNudgeKind = (typeof HERMAN_NUDGE_KINDS)[number]
 
 /** What a nudge can offer to do: each is something the app already does when asked. */
@@ -108,6 +119,8 @@ export type HermanCommand =
   | { type: 'open-today' }
   /** The ritual that closes the day (notebook/route.ts). */
   | { type: 'close-day' }
+  /** The Tasks screen's refine mode, over the Inbox (tasks/Refine.tsx). */
+  | { type: 'refine-inbox' }
   | { type: 'open-page'; pageId: string }
   /** A meeting page for a calendar event that is about to start. */
   | { type: 'new-meeting'; event: { title: string; start: number; end: number } }

@@ -12,12 +12,13 @@ import {
   type Announcement
 } from '../../shared/alarms'
 import type { Briefing, BriefingEvent, BriefingTask } from '../../shared/briefing'
+import { REFINE_DEFAULTS, REFINE_SETTING } from '../../shared/tasks/refine'
 import type { Block, BlockProps } from '../../shared/types'
 import { expandCalendar, parseCalendar } from '../briefing/ical'
 import { composeBriefing, composeEvents, composeReminder } from './compose'
 import { asksToRecord, dueEventAlarms, eventAlarmsOf, nextEventAlarmAt, readSnoozed, snoozeOf } from './events'
 import { dueReminders, momentOf, nextReminderAt, remindersOf, tasksDatabase } from './reminders'
-import { AlarmsService, PREPARE_MS, type AlarmsDeps } from './service'
+import { AlarmsService, PREPARE_MS, REFINE_ALARM_ID, type AlarmsDeps } from './service'
 import { isQuickAddUrl } from './windows'
 
 const MIN = 60_000
@@ -384,6 +385,105 @@ describe('the clock', () => {
     expect(h.said.length).toBe(1)
     expect(h.said[0].sound).toBe(false)
     expect(h.store.get(ALARMS_FIRED_KEY)).toBeUndefined()
+  })
+})
+
+// ---- refining (shared/tasks/refine.ts) ----
+
+describe('refining', () => {
+  const bare = (n: number): Block[] => Array.from({ length: n }, (_, i) => row(`Task ${i + 1}`, {}))
+  const off = { [REFINE_SETTING.time]: { ...REFINE_DEFAULTS.time, enabled: false } }
+
+  it('adds a line to the briefing when tasks wait to be refined', () => {
+    const facts = { now: local(2026, 10, 15, 8, 30), name: '', events: [], tasks: { overdue: [], today: [] } }
+    expect(composeBriefing({ ...facts, locale: 'pt-BR', refine: 4 }).text).toBe(
+      'Bom dia. Nada na agenda hoje. Nenhuma tarefa para hoje. Há 4 tarefas esperando refino. É isso.'
+    )
+    expect(composeBriefing({ ...facts, locale: 'en', refine: 1 }).text).toContain('There is one task waiting to be refined. That is all.')
+    expect(composeBriefing({ ...facts, locale: 'en', refine: 0 }).text).not.toContain('refine')
+  })
+
+  it('says the line at the briefing time, and not when it is turned off', async () => {
+    const on = harness({ [ALARMS_SETTING.times]: times, ...off }, { now: local(2026, 10, 15, 8, 0), rows: bare(3) })
+    on.service.plan()
+    await on.advance(local(2026, 10, 15, 8, 31))
+    expect(on.said[0].text).toContain('There are 3 tasks waiting to be refined.')
+    const quiet = harness(
+      { [ALARMS_SETTING.times]: times, [REFINE_SETTING.briefing]: false, ...off },
+      { now: local(2026, 10, 15, 8, 0), rows: bare(3) }
+    )
+    quiet.service.plan()
+    await quiet.advance(local(2026, 10, 15, 8, 31))
+    expect(quiet.said[0].text).not.toContain('refine')
+  })
+
+  it('adds the line after the AI briefing too', async () => {
+    const write = vi.fn(async () => 'Morning. One report.')
+    const h = harness(
+      { [ALARMS_SETTING.times]: times, [ALARMS_SETTING.ai]: true, ...off },
+      { now: local(2026, 10, 15, 8, 0), rows: bare(2), write }
+    )
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 8, 31))
+    expect(h.said[0]).toMatchObject({ text: 'Morning. One report. There are 2 tasks waiting to be refined.', ai: true })
+  })
+
+  it('rings the refine time on weekdays at 17:00 when there is something to refine', async () => {
+    // Thursday 15 October 2026.
+    const h = harness({}, { now: local(2026, 10, 15, 16, 0), rows: bare(4), locale: 'pt-BR' })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 16, 59))
+    expect(h.said).toEqual([])
+    await h.advance(local(2026, 10, 15, 17, 1))
+    expect(h.said.length).toBe(1)
+    expect(h.said[0]).toMatchObject({
+      kind: 'refine',
+      title: 'Hora de refinar',
+      text: 'Hora de refinar: 4 tarefas estão esperando.',
+      at: local(2026, 10, 15, 17, 0)
+    })
+    expect(h.said[0].snooze).toBeUndefined()
+    expect(h.store.get(ALARMS_FIRED_KEY)).toEqual({ [`a:${REFINE_ALARM_ID}`]: local(2026, 10, 15, 17, 0) })
+    // Once that day; not on the weekend; again on Monday.
+    await h.advance(local(2026, 10, 18, 18, 0))
+    expect(h.said.length).toBe(2)
+    expect(h.said[1].at).toBe(local(2026, 10, 16, 17, 0))
+    await h.advance(local(2026, 10, 19, 17, 5))
+    expect(h.said.map((a) => a.at)).toEqual([local(2026, 10, 15, 17, 0), local(2026, 10, 16, 17, 0), local(2026, 10, 19, 17, 0)])
+  })
+
+  it('passes quietly when there is nothing to refine then', async () => {
+    const rows: Block[] = []
+    const h = harness({}, { now: local(2026, 10, 15, 16, 0), rows })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 17, 1))
+    expect(h.said).toEqual([])
+    // It counted as rung: a task added a minute later does not bring it back that day.
+    rows.push(...bare(1))
+    await h.advance(local(2026, 10, 15, 17, 20))
+    expect(h.said).toEqual([])
+  })
+
+  it('follows its setting: its own time, or none', async () => {
+    const at = { [REFINE_SETTING.time]: { enabled: true, time: '09:15', days: [4] } }
+    const h = harness(at, { now: local(2026, 10, 15, 9, 0), rows: bare(1) })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 9, 16))
+    expect(h.said).toMatchObject([{ kind: 'refine', text: 'Time to refine: one task is waiting.' }])
+    const none = harness(off, { now: local(2026, 10, 15, 16, 0), rows: bare(1) })
+    none.service.plan()
+    await none.advance(local(2026, 10, 15, 18, 0))
+    expect(none.said).toEqual([])
+  })
+
+  it('waits while a meeting is recorded', async () => {
+    const h = harness({}, { now: local(2026, 10, 15, 17, 0), rows: bare(1), recording: true })
+    h.service.plan()
+    await h.advance(local(2026, 10, 15, 17, 0))
+    expect(h.said).toEqual([])
+    h.setRecording(false)
+    await h.advance(local(2026, 10, 15, 17, 2))
+    expect(h.said.map((a) => a.kind)).toEqual(['refine'])
   })
 })
 

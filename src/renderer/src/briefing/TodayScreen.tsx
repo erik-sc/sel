@@ -24,7 +24,11 @@ import {
   taskGroups,
   updatedLabel
 } from './format'
+import { useHome } from '@/home/store'
+import { TASK_COPY } from '@/tasks/copy'
+import { startRefine } from '@/tasks/gate'
 import { TaskPanel } from '@/tasks/lazy'
+import { initRefining, useRefining } from '@/tasks/refining'
 import { useTaskRows } from '@/tasks/TaskRow'
 import { BriefingTaskItem, EventRow, Lines, openSettings, useCompleteTask, useLive, useNow, useTaskViews } from './parts'
 import './today.css'
@@ -329,6 +333,7 @@ function Tasks({ briefing, today }: { briefing: Briefing; today: string }): JSX.
           and {hidden} more…
         </button>
       )}
+      <RefineLine />
       {panel && (
         <TaskPanel
           overlay
@@ -343,6 +348,26 @@ function Tasks({ briefing, today }: { briefing: Briefing; today: string }): JSX.
         />
       )}
     </section>
+  )
+}
+
+/**
+ * One quiet line under the tasks while some wait to be refined: "4 to refine · Refine", which
+ * starts the refine mode. Nothing at all otherwise.
+ */
+function RefineLine(): JSX.Element | null {
+  const count = useRefining((state) => state.count)
+  const words = TASK_COPY[useHome((state) => state.locale)]
+  useEffect(() => initRefining(), [])
+  if (count <= 0) return null
+  return (
+    <p className="today-refine">
+      <span>{words.todayLine(count)}</span>
+      <span aria-hidden="true"> · </span>
+      <button type="button" className="today-link is-inline" onClick={() => startRefine('refine')}>
+        {words.refine}
+      </button>
+    </p>
   )
 }
 
