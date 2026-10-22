@@ -17,6 +17,7 @@ import { CLOSE_COPY, dayHeading, type CloseCopy } from './copy'
 import { openNotebook } from './route'
 import './notebook.css'
 import './close.css'
+import { RestHill } from '@/sky/RestHill'
 
 const STEPS = 4
 
@@ -114,6 +115,7 @@ function Rest({
     >
       <div className="close-rest-inner">
         {sky && <RestSky day={day} />}
+        <RestHill day={day} />
         <p className="close-rest-words">{copy.rest}</p>
         <p className="close-rest-hint">{copy.restHint}</p>
       </div>

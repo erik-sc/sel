@@ -5,7 +5,6 @@ describe('the sections of Settings', () => {
   it('are listed in this order, each with its own place', () => {
     expect(SETTINGS_SECTIONS.map((section) => [section.id, section.label])).toEqual([
       ['general', 'General'],
-      ['appearance', 'Appearance'],
       ['sidebar', 'Sidebar'],
       ['history', 'History'],
       ['ai', 'AI'],
@@ -24,7 +23,6 @@ describe('the sections of Settings', () => {
   it('fetch with the window the panels that used to be part of it', () => {
     expect(SETTINGS_SECTIONS.filter((section) => section.withDialog).map((section) => section.id)).toEqual([
       'general',
-      'appearance',
       'history',
       'ai',
       'today'

@@ -280,8 +280,9 @@
 }
 
 .close-rest-sky {
-  width: 100%;
-  margin-bottom: 10px;
+  /* the year's sky, then Herman on his hill below it: both kept to the hill's width so the words stay on screen */
+  width: min(480px, 100%);
+  margin: 0 auto 4px;
   animation: close-dim calc(var(--duration) * 5) var(--ease) calc(var(--duration) * 4) both;
 }
 

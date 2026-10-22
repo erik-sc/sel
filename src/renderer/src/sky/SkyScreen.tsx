@@ -22,6 +22,7 @@ import { useReducedMotion } from './motion'
 import { SkyChart } from './SkyChart'
 import type { SkyPlay } from './timeline'
 import './sky.css'
+import { RARE_FRAMES, rareOf, SkySprite } from './Sprite'
 
 const newest = (scene: SkyScene): string | null => {
   let day: string | null = null
@@ -182,6 +183,7 @@ export function SkyScreen(): JSX.Element {
   const echo = echoOf(view, view.today)
   const empty = view.meditations.length === 0
   const caption = other ? null : empty ? null : echo ? echo : scene.event ? copy.eventCaption(scene.event) : null
+  const rare = other || empty ? null : rareOf(scene.event, !!echo)
 
   return (
     <div className="sky is-opening">
@@ -206,6 +208,11 @@ export function SkyScreen(): JSX.Element {
         onPlayed={done}
       />
 
+      {rare && (
+        <div className="sky-rare">
+          <SkySprite name={`rare-${rare}`} frames={RARE_FRAMES} />
+        </div>
+      )}
       <p className="sky-caption">
         {empty && !other ? (
           <>

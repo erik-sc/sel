@@ -4,7 +4,6 @@ import './styles/global.css'
 import './ui/ui.css'
 import './styles/shell.css'
 import { App } from './App'
-import { bootAppearance, initAppearance } from './appearance/store'
 import { bootMark, whenIdle } from './boot'
 import { preloadEditor } from './editor/lazy'
 import { preloadQuickFind } from './shell/QuickFind'
@@ -28,18 +27,18 @@ bootMark('start')
 followLocale(() => useHome.getState().locale)
 watchFailures()
 
-// The first frame is painted from the synchronous mirror of the settings (theme, sidebar
-// geometry, appearance overrides: see boot.ts), so it does not wait for the main process.
+// The first frame is painted from the synchronous mirror of the settings (theme and sidebar
+// geometry: see boot.ts), so it does not wait for the main process. The look is the design
+// system's own (styles/tokens.css): a saved appearance from older versions is not applied.
 // Without a mirror (first run) it starts from the OS theme and waits, as there is no other
 // way to avoid a visible jump.
 document.documentElement.dataset.theme = resolveTheme('system')
-const mirrored = [bootUi(), bootAppearance()].every(Boolean)
+const mirrored = bootUi()
 
 // Everything the shell needs is requested at once; nothing below waits for anything else.
-const settings = Promise.all([
-  initUi().catch((error) => console.error('could not load ui settings', error)),
-  initAppearance().catch((error) => console.error('could not load appearance', error))
-]).then(() => bootMark('settings'))
+const settings = initUi()
+  .catch((error) => console.error('could not load ui settings', error))
+  .then(() => bootMark('settings'))
 // The small window of the system-wide quick add (tasks/QuickAddWindow.tsx) shows that input
 // alone: none of the workspace below is loaded there, and its tabs are not touched.
 if (isQuickAddWindow()) void settings.finally(() => void import('./tasks/QuickAddWindow').then((module) => module.mountQuickAddWindow()))

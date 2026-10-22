@@ -58,7 +58,6 @@ describe('the built-in commands', () => {
       'page-ai-title',
       'open-settings',
       'settings-general',
-      'settings-appearance',
       'settings-sidebar',
       'settings-history',
       'settings-ai',
