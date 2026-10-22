@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { shallow } from 'zustand/shallow'
 import type { Block, Op } from '@shared/types'
 import { sourceIdOf } from '../../../shared/linked'
-import { applyOpsToMap, type BlockMap } from './ops'
+import { planOps, type BlockMap } from './ops'
 
 /*
  * The block cache.
@@ -32,13 +32,57 @@ import { applyOpsToMap, type BlockMap } from './ops'
  * predate that write. A reconcile never overwrites a block that a later write touched.
  */
 
+/*
+ * Writes. The cache holds tens of thousands of blocks, and copying the whole map on every
+ * keystroke cost more than everything else an edit does. So `blocks` is written in place: a
+ * block itself is never mutated (a change stores a new object, so `===` still tells a block
+ * changed), but the map that holds them stays the same object. Every write bumps `version`
+ * and names the ids it touched (blocks or `missing` entries) in `changed`; selectors over many
+ * ids (`blocksSelector`, `watchSelector`) use them to skip the ids nothing touched. Whoever
+ * replaces `blocks` with another object (tests do) makes every selector start over.
+ */
 export interface BlockState {
   blocks: BlockMap
   /** Ids that were requested and do not exist in the database. */
   missing: Record<string, true>
+  /** Bumped by every write to `blocks` or `missing`. */
+  version: number
+  /** The ids whose block or `missing` entry the write that made `version` changed; null when unknown. */
+  changed: ReadonlySet<string> | null
 }
 
-export const useBlockStore = create<BlockState>(() => ({ blocks: {}, missing: {} }))
+export const useBlockStore = create<BlockState>(() => ({ blocks: {}, missing: {}, version: 0, changed: null }))
+
+/**
+ * Writes blocks (null: drop) and `missing` entries in one store update. Each change keeps the
+ * block's identity rules: a new object per changed block, the same map.
+ */
+function commit(blocks: Iterable<[string, Block | null]>, missing: Iterable<[string, boolean]> = []): void {
+  useBlockStore.setState((state) => {
+    const map = state.blocks
+    const changed = new Set<string>()
+    for (const [id, block] of blocks) {
+      if (block) {
+        if (map[id] === block && Object.hasOwn(map, id)) continue
+        map[id] = block
+      } else {
+        if (!Object.hasOwn(map, id)) continue
+        delete map[id]
+      }
+      changed.add(id)
+    }
+    let nextMissing = state.missing
+    for (const [id, isMissing] of missing) {
+      if (Object.hasOwn(nextMissing, id) === isMissing) continue
+      if (nextMissing === state.missing) nextMissing = { ...nextMissing }
+      if (isMissing) nextMissing[id] = true
+      else delete nextMissing[id]
+      changed.add(id)
+    }
+    if (!changed.size) return state
+    return { blocks: map, missing: nextMissing, version: state.version + 1, changed }
+  })
+}
 
 /** How long after a write its own change event may still arrive (and needs no refetch). */
 const OWN_ECHO_MS = 2000
@@ -61,32 +105,19 @@ export function putBlocks(list: Block[]): void {
   if (!list.length) return
   touch(list.map((block) => block.id))
   noteGrowth(list.length)
-  useBlockStore.setState((state) => {
-    const blocks = { ...state.blocks }
-    let missing = state.missing
-    for (const block of list) {
-      blocks[block.id] = block
-      if (lookup(missing, block.id)) {
-        if (missing === state.missing) missing = { ...missing }
-        delete missing[block.id]
-      }
-    }
-    return { blocks, missing }
-  })
+  commit(
+    list.map((block) => [block.id, block]),
+    list.map((block) => [block.id, false])
+  )
 }
 
 function dropBlocks(ids: string[]): void {
   if (!ids.length) return
   for (const id of ids) touched.delete(id)
-  useBlockStore.setState((state) => {
-    const blocks = { ...state.blocks }
-    const missing = { ...state.missing }
-    for (const id of ids) {
-      delete blocks[id]
-      missing[id] = true
-    }
-    return { blocks, missing }
-  })
+  commit(
+    ids.map((id) => [id, null]),
+    ids.map((id) => [id, true])
+  )
 }
 
 // ---- bookkeeping for writes and reads in flight ----
@@ -214,13 +245,114 @@ export function useBlock(id: string | null | undefined): Block | undefined {
   return block
 }
 
-/** The blocks of `ids`, in order, as one selector: the same array while none of them changes. */
+/** What a selector last saw, to tell which writes came after. */
+interface Seen {
+  blocks: BlockMap
+  missing: BlockState['missing']
+  version: number
+}
+
+function seen(state: BlockState): Seen {
+  return { blocks: state.blocks, missing: state.missing, version: state.version }
+}
+
+/**
+ * How `state` follows what a selector saw: 'same' state, the 'next' write (whose ids are in
+ * `state.changed`), or 'other' (several writes, or a map replaced from outside: start over).
+ */
+function since(last: Seen | undefined, state: BlockState): 'same' | 'next' | 'other' {
+  if (!last || last.blocks !== state.blocks) return 'other'
+  if (last.version === state.version) return last.missing === state.missing ? 'same' : 'other'
+  return last.version + 1 === state.version && state.changed ? 'next' : 'other'
+}
+
+/**
+ * The blocks of `ids`, in order, as one selector: the same array while none of them changes.
+ * After a write it looks only at the ids that write touched, so a database's 5,000 rows cost
+ * nothing when something else changes, and one entry when one of them does.
+ */
 export function blocksSelector(ids: readonly string[]): (state: BlockState) => (Block | undefined)[] {
   let prev: (Block | undefined)[] | undefined
+  let last: Seen | undefined
+  let positions: Map<string, number[]> | undefined
+  const positionsOf = (id: string): number[] | undefined => {
+    if (!positions) {
+      positions = new Map()
+      ids.forEach((each, index) => {
+        const list = positions!.get(each)
+        if (list) list.push(index)
+        else positions!.set(each, [index])
+      })
+    }
+    return positions.get(id)
+  }
   return (state) => {
+    const how = since(last, state)
+    if (prev && how === 'same') return prev
+    if (prev && how === 'next') {
+      let out = prev
+      for (const id of state.changed!) {
+        for (const index of positionsOf(id) ?? []) {
+          const block = lookup(state.blocks, id)
+          if (out[index] === block) continue
+          if (out === prev) out = prev.slice()
+          out[index] = block
+        }
+      }
+      last = seen(state)
+      return (prev = out)
+    }
+    last = seen(state)
     const next = ids.map((id) => lookup(state.blocks, id))
     return prev && shallow(prev, next) ? prev : (prev = next)
   }
+}
+
+/** Reads blocks for `watchSelector`, remembering which ids were read. */
+export interface WatchedReader {
+  get(id: string | null | undefined): Block | undefined
+  isMissing(id: string): boolean
+}
+
+/**
+ * A selector computed from a few blocks read through `read`, recomputed only after a write
+ * that touched one of the ids it read last time. `equal` (shallow by default) keeps the
+ * previous result when a recomputation gives the same thing.
+ */
+export function watchSelector<T>(compute: (read: WatchedReader) => T, equal: (a: T, b: T) => boolean = shallow): (state: BlockState) => T {
+  let prev: { value: T } | undefined
+  let last: Seen | undefined
+  let read = new Set<string>()
+  return (state) => {
+    const how = since(last, state)
+    if (prev && (how === 'same' || (how === 'next' && !touches(state.changed!, read)))) {
+      last = seen(state)
+      return prev.value
+    }
+    const ids = new Set<string>()
+    const value = compute({
+      get: (id) => {
+        if (!id) return undefined
+        ids.add(id)
+        return lookup(state.blocks, id)
+      },
+      isMissing: (id) => {
+        ids.add(id)
+        return lookup(state.missing, id) === true
+      }
+    })
+    read = ids
+    last = seen(state)
+    if (prev && equal(prev.value, value)) return prev.value
+    prev = { value }
+    return value
+  }
+}
+
+function touches(changed: ReadonlySet<string>, read: ReadonlySet<string>): boolean {
+  const [small, big] = changed.size <= read.size ? [changed, read] : [read, changed]
+  for (const id of small) if (big.has(id)) return true
+  return false
 }
 
 export function useBlocks(ids: string[]): (Block | undefined)[] {
@@ -289,17 +421,32 @@ export async function loadChildren(id: string): Promise<void> {
 }
 
 /** Last resort after a failed write whose refetch failed too: put back what was there before. */
-function restoreSnapshot(before: BlockMap, ids: string[]): void {
-  useBlockStore.setState((state) => {
-    const blocks = { ...state.blocks }
-    for (const id of ids) {
-      if (pending.has(id)) continue
-      const previous = lookup(before, id)
-      if (previous) blocks[id] = previous
-      else delete blocks[id]
-    }
-    return { blocks }
-  })
+function restoreSnapshot(before: ReadonlyMap<string, Block | undefined>, ids: string[]): void {
+  commit(ids.filter((id) => !pending.has(id)).map((id) => [id, before.get(id) ?? null]))
+}
+
+/** How far apart the optimistic and the stored edit time of one write may be (both stamp the same edit). */
+const SAME_EDIT_MS = 1_000
+
+/**
+ * True when the backend's copy of a block says what the optimistic one does. Only the edit
+ * time may differ, and by a moment.
+ */
+function sameWrite(local: Block | undefined, stored: Block): boolean {
+  if (!local) return false
+  if (local === stored) return true
+  if (
+    Math.abs(local.updatedAt - stored.updatedAt) > SAME_EDIT_MS ||
+    local.type !== stored.type ||
+    local.parentId !== stored.parentId ||
+    local.trashedAt !== stored.trashedAt ||
+    local.createdAt !== stored.createdAt ||
+    local.content.length !== stored.content.length ||
+    local.content.some((id, i) => id !== stored.content[i])
+  ) {
+    return false
+  }
+  return local.props === stored.props || JSON.stringify(local.props) === JSON.stringify(stored.props)
 }
 
 /**
@@ -309,24 +456,21 @@ function restoreSnapshot(before: BlockMap, ids: string[]): void {
  */
 export async function applyOps(ops: Op[]): Promise<Block[]> {
   if (!ops.length) return []
-  const before = useBlockStore.getState().blocks
-  const result = applyOpsToMap(before, ops)
+  const current = useBlockStore.getState().blocks
+  const result = planOps(current, ops)
   const written = [...result.affected, ...result.removed]
+  // What a failed write puts back when even the refetch fails.
+  const before = new Map(written.map((id) => [id, lookup(current, id)]))
   const seq = ++writeSeq
   for (const id of written) lastWrite.set(id, seq)
   touch(result.affected)
   for (const id of result.removed) forget(id)
   noteGrowth(result.affected.length)
-  useBlockStore.setState((state) => {
-    // A block created here exists, whatever an earlier lookup concluded.
-    let missing = state.missing
-    for (const id of result.affected) {
-      if (!lookup(missing, id)) continue
-      if (missing === state.missing) missing = { ...missing }
-      delete missing[id]
-    }
-    return { blocks: result.map, missing }
-  })
+  // A block created here exists, whatever an earlier lookup concluded.
+  commit(
+    result.changes,
+    result.affected.map((id) => [id, false])
+  )
   bump(pending, written, 1)
   bump(recentOwn, written, 1)
   try {
@@ -335,7 +479,9 @@ export async function applyOps(ops: Op[]): Promise<Block[]> {
     // Blocks with newer optimistic writes keep their local version: still in flight, they
     // reconcile themselves; already settled (replies out of order), they are refetched.
     const superseded = returned.filter((b) => !pending.has(b.id) && (lastWrite.get(b.id) ?? 0) > seq)
-    putBlocks(returned.filter((b) => !pending.has(b.id) && (lastWrite.get(b.id) ?? 0) <= seq))
+    // What the backend stored is usually what was written here already: keeping the block on
+    // screen then saves every view a second pass over its rows.
+    putBlocks(returned.filter((b) => !pending.has(b.id) && (lastWrite.get(b.id) ?? 0) <= seq && !sameWrite(getBlock(b.id), b)))
     if (superseded.length) {
       refreshBlocks(superseded.map((b) => b.id)).catch((error) => console.error('refresh after write failed', error))
     }
@@ -558,16 +704,11 @@ export function sweepCache(now: number = Date.now()): number {
   }
   if (!dropped.length && !staleMissing.length) return 0
 
-  useBlockStore.setState((current) => {
-    // Re-checked against the current map: nothing written since `state` was read is lost.
-    const blocks = { ...current.blocks }
-    for (const id of dropped) {
-      if (current.blocks[id] === state.blocks[id]) delete blocks[id]
-    }
-    const missing = { ...current.missing }
-    for (const id of staleMissing) delete missing[id]
-    return { blocks, missing }
-  })
+  // `keep` was computed from this very state, synchronously: nothing was written in between.
+  commit(
+    dropped.map((id) => [id, null]),
+    staleMissing.map((id) => [id, false])
+  )
   return dropped.length
 }
 

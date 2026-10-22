@@ -731,4 +731,149 @@ describe('formulas on big tables', () => {
     expect(first).toBeLessThan(1500)
     expect(second).toBeLessThan(Math.max(first, 50))
   })
+
+  /** 5,000 tasks, each linked (two-way) to one of 200 projects, with rollups and formulas over them. */
+  function linkedWorld(): { blocks: Map<string, Block>; ctx: () => CellContext; schema: Schema; rows: () => Block[] } {
+    const count = 5000
+    const projects = 200
+    const taskSchema: Schema = {
+      title: BASE.title,
+      hours: { id: 'hours', name: 'Hours', type: 'number' },
+      project: { id: 'project', name: 'Project', type: 'relation', relation: { databaseId: 'projects', syncedPropertyId: 'tasks' } },
+      budget: { id: 'budget', name: 'Budget', type: 'rollup', rollup: { relationId: 'project', propertyId: 'budget', function: 'sum' } },
+      cost: formula('cost', 'Cost', 'prop("Hours") * prop("Budget") / 100'),
+      where: formula('where', 'Where', 'join(prop("Project"), ", ") + " · " + format(prop("Cost"))')
+    }
+    const projectSchema: Schema = {
+      title: BASE.title,
+      budget: { id: 'budget', name: 'Budget', type: 'number' },
+      tasks: { id: 'tasks', name: 'Tasks', type: 'relation', relation: { databaseId: 'tasks', syncedPropertyId: 'project' } },
+      open: { id: 'open', name: 'Open', type: 'rollup', rollup: { relationId: 'tasks', function: 'count' } }
+    }
+    const tasks: Block[] = []
+    const linked: string[][] = Array.from({ length: projects }, () => [])
+    for (let i = 0; i < count; i++) {
+      const p = (i * 7) % projects
+      linked[p].push(`t${i}`)
+      tasks.push(row(`t${i}`, 'tasks', `Task ${i}`, { hours: 1 + (i % 40), project: [`p${p}`] }))
+    }
+    const projectRows = linked.map((ids, p) => row(`p${p}`, 'projects', `Project ${p}`, { budget: 100 + p, tasks: ids }))
+    const blocks = new Map<string, Block>(
+      [
+        db(
+          'tasks',
+          taskSchema,
+          tasks.map((t) => t.id)
+        ),
+        db(
+          'projects',
+          projectSchema,
+          projectRows.map((p) => p.id)
+        ),
+        ...tasks,
+        ...projectRows
+      ].map((b) => [b.id, b])
+    )
+    // A new context per call, as the views get one whenever a related block changes.
+    const ctx = (): CellContext => cellContext({ get: (id) => blocks.get(id) })
+    return {
+      blocks,
+      ctx,
+      schema: ctx().schemaOf('tasks') as Schema,
+      rows: () => (blocks.get('tasks') as Block).content.map((id) => blocks.get(id) as Block)
+    }
+  }
+
+  it('filter and sort thousands of rows by rollups and formulas over relations, and reuse them in a new context', () => {
+    const w = linkedWorld()
+    const view: DatabaseView = {
+      id: 'v',
+      name: 'V',
+      type: 'table',
+      visibleProperties: [],
+      filters: [{ propertyId: 'budget', operator: 'gt', value: 150 }],
+      sorts: [
+        { propertyId: 'cost', direction: 'desc' },
+        { propertyId: 'project', direction: 'asc' }
+      ]
+    }
+    let ctx = w.ctx()
+    const started = performance.now()
+    const result = queryRows(w.rows(), w.schema, view, '', ctx)
+    for (const r of result) cellText(r, w.schema.where, ctx)
+    const first = performance.now() - started
+
+    // Projects 51..199 pass the filter; the most expensive task is 40 hours on project 199 or close.
+    expect(result.length).toBe(w.rows().filter((r) => ((Number(r.id.slice(1)) * 7) % 200) + 100 > 150).length)
+    const top = result[0]
+    const topProject = (Number(top.id.slice(1)) * 7) % 200
+    expect(readCell(top, w.schema.budget, ctx)).toBe(100 + topProject)
+    expect(readCell(top, w.schema.cost, ctx)).toBe(((1 + (Number(top.id.slice(1)) % 40)) * (100 + topProject)) / 100)
+    expect(cellText(top, w.schema.where, ctx)).toBe(`Project ${topProject} · ${readCell(top, w.schema.cost, ctx)}`)
+    for (let i = 1; i < result.length; i++) {
+      expect(readCell(result[i - 1], w.schema.cost, ctx) as number).toBeGreaterThanOrEqual(
+        readCell(result[i], w.schema.cost, ctx) as number
+      )
+    }
+
+    // A new context, nothing changed in it: every rollup and formula is reused.
+    const unlinked = w.rows().find((r) => (r.props.values as Values).project?.toString() !== 'p199') as Block
+    const kept = computeFormula(unlinked, w.schema.cost, ctx)
+    ctx = w.ctx()
+    const again = performance.now()
+    expect(queryRows(w.rows(), w.schema, view, '', ctx)).toEqual(result)
+    for (const r of result) cellText(r, w.schema.where, ctx)
+    const second = performance.now() - again
+    expect(computeFormula(unlinked, w.schema.cost, ctx)).toBe(kept)
+
+    // One project changes: the tasks linked to it follow, the others keep their results.
+    const project = w.blocks.get('p199') as Block
+    w.blocks.set('p199', { ...project, props: { ...project.props, values: { ...(project.props.values as Values), budget: 1 } } })
+    ctx = w.ctx()
+    const afterEdit = performance.now()
+    const edited = queryRows(w.rows(), w.schema, view, '', ctx)
+    const third = performance.now() - afterEdit
+    expect(edited.length).toBe(result.length - 25)
+    expect(edited.some((r) => (r.props.values as Values).project?.toString() === 'p199')).toBe(false)
+    const linkedTask = w.blocks.get('t1') as Block // 1 * 7 % 200 = 7
+    expect(computeFormula(unlinked, w.schema.cost, ctx)).toBe(kept)
+    const t = w.rows().find((r) => (r.props.values as Values).project?.toString() === 'p199') as Block
+    expect(readCell(t, w.schema.budget, ctx)).toBe(1)
+    expect(readCell(t, w.schema.cost, ctx)).toBe((1 + (Number(t.id.slice(1)) % 40)) / 100)
+    expect(readCell(linkedTask, w.schema.budget, ctx)).toBe(107)
+
+    // Generous bounds for a slow machine; in practice the first pass takes a few tens of ms
+    // and the others a few.
+    expect(first).toBeLessThan(3000)
+    expect(second).toBeLessThan(Math.max(first, 50))
+    expect(third).toBeLessThan(Math.max(first, 50))
+  })
+
+  it('rollups and formulas on the other side of a relation count thousands of rows', () => {
+    const w = linkedWorld()
+    const ctx = w.ctx()
+    const projectSchema = ctx.schemaOf('projects') as Schema
+    const projects = (w.blocks.get('projects') as Block).content.map((id) => w.blocks.get(id) as Block)
+    const byCount = queryRows(
+      projects,
+      projectSchema,
+      {
+        id: 'v',
+        name: 'V',
+        type: 'table',
+        visibleProperties: [],
+        filters: [],
+        sorts: [{ propertyId: 'open', direction: 'desc' }]
+      },
+      '',
+      ctx
+    )
+    expect(byCount.map((p) => readCell(p, projectSchema.open, ctx))).toEqual(Array(200).fill(25))
+    // Trashing a task takes it out of its project's count.
+    const task = w.blocks.get('t0') as Block
+    w.blocks.set('t0', { ...task, trashedAt: 5 })
+    const next = w.ctx()
+    expect(readCell(w.blocks.get('p0') as Block, projectSchema.open, next)).toBe(24)
+    expect(readCell(w.blocks.get('p1') as Block, projectSchema.open, next)).toBe(25)
+  })
 })

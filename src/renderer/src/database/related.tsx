@@ -3,9 +3,8 @@
 // as a `CellContext` that changes whenever any of them (or their rows) does. Formulas read
 // their own database's schema through it too.
 import { createContext, useContext, useEffect, useMemo } from 'react'
-import { shallow } from 'zustand/shallow'
 import type { Block } from '@shared/types'
-import { type BlockState, fetchBlocks, getBlock, pinTree, refreshBlocks, loadChildren, useBlockStore } from '@/store/blocks'
+import { type BlockState, fetchBlocks, getBlock, pinTree, refreshBlocks, loadChildren, useBlockStore, watchSelector } from '@/store/blocks'
 import * as L from './logic'
 
 export interface RelatedValue {
@@ -33,21 +32,20 @@ const MAX_DEPTH = 100
  * reads does: a related database, its rows, the pages above it, or whether it is missing.
  */
 export function relatedWatcher(targets: readonly string[]): (state: BlockState) => unknown {
-  let prev: unknown[] | undefined
-  return (state) => {
+  return watchSelector((read) => {
     const out: unknown[] = []
     for (const id of targets) {
-      const db = own(state.blocks, id)
-      out.push(db, own(state.missing, id))
-      for (const rowId of L.contentOf(db)) out.push(own(state.blocks, rowId))
-      let cursor: Block | undefined = db?.parentId ? own(state.blocks, db.parentId) : undefined
+      const db = read.get(id)
+      out.push(db, read.isMissing(id))
+      for (const rowId of L.contentOf(db)) out.push(read.get(rowId))
+      let cursor: Block | undefined = read.get(db?.parentId)
       for (let depth = 0; cursor && depth < MAX_DEPTH; depth++) {
         out.push(cursor)
-        cursor = cursor.parentId ? own(state.blocks, cursor.parentId) : undefined
+        cursor = read.get(cursor.parentId)
       }
     }
-    return prev && shallow(prev, out) ? prev : (prev = out)
-  }
+    return out
+  })
 }
 
 /**

@@ -178,6 +178,8 @@ function mountTasks(timings: Timings): { rows: () => Block[]; unmount: () => voi
   let shown = new Map<string, Block>()
   let shownCtx: L.CellContext | undefined
   const visible = L.visibleProps(VIEW, schema)
+  // As DatabaseView runs it: with a memory of the last result.
+  const query = L.createRowQuery()
 
   const render = (): void => {
     const started = performance.now()
@@ -195,7 +197,7 @@ function mountTasks(timings: Timings): { rows: () => Block[]; unmount: () => voi
       changed = true
     }
     if (changed) {
-      rows = L.queryRows(allRows, schema, VIEW, '', cells)
+      rows = query(allRows, schema, VIEW, '', cells)
       L.groupRows(rows, STATUS, cells)
     }
     // Memoised rows: a row draws again when its block or the cell context changed.

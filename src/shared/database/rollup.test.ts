@@ -424,3 +424,59 @@ describe('rollup rules', () => {
     expect(updateRollup(kept, 'total', { relationId: 'other' }).total.rollup).toEqual({ relationId: 'other', function: 'sum' })
   })
 })
+
+describe('rollups kept from one context to the next', () => {
+  const total = rollup({ relationId: 'items', propertyId: 'price', function: 'sum' })
+  const schema = ordersSchema({ total })
+
+  function blocksOf(items: Block[] = ITEMS, itemsDb: Block = db('items', itemsSchema, ['i1', 'i2', 'i3', 'i4'])): Map<string, Block> {
+    const order = row('o1', 'orders', 'Order', { items: ['i1', 'i2', 'i3'] })
+    return new Map([itemsDb, db('orders', schema, ['o1']), order, ...items].map((b) => [b.id, b]))
+  }
+  const contextOf = (blocks: Map<string, Block>): CellContext => cellContext({ get: (id) => blocks.get(id) })
+
+  it('gives the same result object while nothing it read changed', () => {
+    const blocks = blocksOf()
+    const order = blocks.get('o1') as Block
+    const first = computeRollup(order, total, contextOf(blocks))
+    expect(first).toEqual({ kind: 'number', value: 7.5, format: 'currency' })
+    // A new context, and a change to an item the order does not link to.
+    blocks.set('i4', { ...(blocks.get('i4') as Block), updatedAt: 2 })
+    expect(computeRollup(order, total, contextOf(blocks))).toBe(first)
+  })
+
+  it('computes again when a linked row, the related database or the trash above it changes', () => {
+    const blocks = blocksOf()
+    const order = blocks.get('o1') as Block
+    const first = computeRollup(order, total, contextOf(blocks))
+    const bread = blocks.get('i1') as Block
+    blocks.set('i1', { ...bread, props: { ...bread.props, values: { price: 10 } } })
+    const second = computeRollup(order, total, contextOf(blocks))
+    expect(second).toEqual({ kind: 'number', value: 15, format: 'currency' })
+    expect(second).not.toBe(first)
+
+    // The related property becomes text: the sum no longer fits it.
+    const itemsDb = blocks.get('items') as Block
+    const textual = { ...itemsSchema, price: { ...itemsSchema.price, type: 'text' as const } }
+    blocks.set('items', { ...itemsDb, props: { ...itemsDb.props, schema: textual } })
+    expect(computeRollup(order, total, contextOf(blocks))).toBeNull()
+
+    blocks.set('items', { ...itemsDb, trashedAt: 3 })
+    expect(computeRollup(order, total, contextOf(blocks))).toBeNull()
+    blocks.set('items', itemsDb)
+    expect(computeRollup(order, total, contextOf(blocks))).toEqual(second)
+  })
+
+  it('follows a linked row that goes to the trash or comes back', () => {
+    const blocks = blocksOf()
+    const order = blocks.get('o1') as Block
+    expect(rollupValue(computeRollup(order, total, contextOf(blocks)))).toBe(7.5)
+    const eggs = blocks.get('i3') as Block
+    blocks.set('i3', { ...eggs, trashedAt: 4 })
+    expect(rollupValue(computeRollup(order, total, contextOf(blocks)))).toBe(3.5)
+    blocks.delete('i3')
+    expect(rollupValue(computeRollup(order, total, contextOf(blocks)))).toBe(3.5)
+    blocks.set('i3', eggs)
+    expect(rollupValue(computeRollup(order, total, contextOf(blocks)))).toBe(7.5)
+  })
+})

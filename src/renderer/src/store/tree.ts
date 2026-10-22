@@ -93,6 +93,17 @@ export function refreshTree(): Promise<void> {
   return running
 }
 
+/** Whether an own change to `id` can change what the tree lists. */
+function changesTree(id: string): boolean {
+  const block = getBlock(id)
+  if (!block) return true
+  if (block.type === 'database') return true
+  if (block.type !== 'page') return false
+  const parent = block.parentId ? getBlock(block.parentId) : undefined
+  // A page under a database is one of its rows; one whose parent is not loaded may be anything.
+  return !parent || parent.type !== 'database'
+}
+
 /** Change events arrive in bursts while typing; one refresh per burst is enough. */
 const REFRESH_DELAY = 200
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -105,14 +116,11 @@ export function initTree(): Promise<void> {
   if (!subscribed) {
     subscribed = true
     window.api.onChange((event) => {
-      // Own edits to ordinary blocks (typing in a page) cannot change the tree.
-      if (event.origin === window.api.clientId) {
-        const relevant = event.ids.some((id) => {
-          const block = getBlock(id)
-          return !block || block.type === 'page' || block.type === 'database'
-        })
-        if (!relevant) return
-      }
+      // Own edits to ordinary blocks (typing in a page) and to the rows of a database (pages the
+      // tree never lists: a database does not expand) cannot change the tree. Moving a row in or
+      // out of a database touches a page or a database too, and favourites and the trash refresh
+      // the tree themselves.
+      if (event.origin === window.api.clientId && !event.ids.some(changesTree)) return
       clearTimeout(timer)
       timer = setTimeout(() => void refreshTree(), REFRESH_DELAY)
     })

@@ -1,10 +1,11 @@
 // Rollup properties: a value computed from the rows one of the row's relations links to.
 // A rollup stores nothing; it is computed whenever it is read, so it follows the related
-// rows as they change (the views get a new `CellContext` when they do).
+// rows as they change (the views get a new `CellContext` when they do). Results are kept per
+// row version and checked against what they were computed from (`computeRollup`).
 import type { Block, PropertySchema, PropertyType, PropertyValue, RollupConfig, RollupFunction, SelectOption, ViewFilter } from '../types'
 import { dayKey, type DateValue } from './dates'
 import { applyFilters } from './query'
-import { linkedRows, relatedDatabaseState, type CellContext } from './relation'
+import { linkedRows, relatedDatabaseState, type CellContext, type RelatedDatabaseState } from './relation'
 import { findOption, formatValue, getCellValue, isEmptyValue, isPlainObject, isSafeKey, propOf, type Schema } from './values'
 
 export const ROLLUP_FUNCTIONS: RollupFunction[] = [
@@ -254,15 +255,77 @@ export function aggregateRollup(fn: RollupFunction, rows: readonly Block[], targ
  */
 export function computeRollup(row: Block, prop: PropertySchema, ctx: CellContext): RollupResult | null {
   if (prop.type !== 'rollup' || !row.parentId) return null
-  const resolved = resolveRollup(prop, ctx.schemaOf(row.parentId), ctx)
-  if (!resolved.ready || !resolved.relation?.relation) return null
-  const databaseId = resolved.relation.relation.databaseId
-  if (relatedDatabaseState(databaseId, ctx) !== 'ok') return null
+  const schema = ctx.schemaOf(row.parentId)
+  let perRow = rollupMemo.get(row)
+  const hit = perRow?.get(prop.id)
+  if (hit && hit.prop === prop && hit.schema === schema && (hit.ctx === ctx || stillValid(hit, ctx))) {
+    hit.ctx = ctx
+    return hit.result
+  }
+  const memo: RollupMemo = {
+    prop,
+    schema,
+    ctx,
+    databaseId: undefined,
+    targetSchema: undefined,
+    state: 'ok',
+    linkedIds: [],
+    linked: [],
+    result: null
+  }
+  memo.result = rollupOf(row, prop, schema, ctx, memo)
+  if (!perRow) rollupMemo.set(row, (perRow = new Map()))
+  perRow.set(prop.id, memo)
+  return memo.result
+}
+
+/**
+ * What a rollup was computed from, besides the row itself: enough to tell whether a new
+ * context (the views get one whenever a related database changes) would give the same
+ * result. Filters, sorts and the cells read each rollup many times per context, and a
+ * change to one related row leaves the rollups of the rows not linked to it as they were.
+ */
+interface RollupMemo {
+  prop: PropertySchema
+  schema: Schema | undefined
+  ctx: CellContext
+  /** The related database, once the rollup got as far as reading it. */
+  databaseId: string | undefined
+  targetSchema: Schema | undefined
+  state: RelatedDatabaseState
+  /** The ids the relation cell held, and the blocks they pointed at. */
+  linkedIds: string[]
+  linked: (Block | undefined)[]
+  result: RollupResult | null
+}
+
+/** Per row version, per property: rows are immutable, so a new version of the row is a new key. */
+const rollupMemo = new WeakMap<Block, Map<string, RollupMemo>>()
+
+function stillValid(memo: RollupMemo, ctx: CellContext): boolean {
+  if (memo.databaseId === undefined) return true
+  if (ctx.schemaOf(memo.databaseId) !== memo.targetSchema || relatedDatabaseState(memo.databaseId, ctx) !== memo.state) return false
+  const ids = memo.linkedIds
+  for (let i = 0; i < memo.linked.length; i++) if (ctx.get(ids[i]) !== memo.linked[i]) return false
+  return true
+}
+
+function rollupOf(row: Block, prop: PropertySchema, schema: Schema | undefined, ctx: CellContext, memo: RollupMemo): RollupResult | null {
+  const resolved = resolveRollup(prop, schema, ctx)
+  const databaseId = resolved.relation?.relation?.databaseId
+  if (!databaseId) return null
+  // From here on the result depends on the related database: what it is, and its rows.
+  memo.databaseId = databaseId
+  memo.targetSchema = ctx.schemaOf(databaseId)
+  memo.state = relatedDatabaseState(databaseId, ctx)
+  if (!resolved.ready || !resolved.relation || memo.state !== 'ok') return null
+  const ids = getCellValue(row, resolved.relation)
+  memo.linkedIds = Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : []
+  memo.linked = memo.linkedIds.map((id) => ctx.get(id))
   const rows = linkedRows(row, resolved.relation, ctx)
-  const targetSchema = ctx.schemaOf(databaseId)
-  const rules = rollupFilters(resolved.config, targetSchema)
+  const rules = rollupFilters(resolved.config, memo.targetSchema)
   // No context for the rules: they only read what the related rows store.
-  const kept = rules.length && targetSchema ? applyFilters(rows, targetSchema, rules) : rows
+  const kept = rules.length && memo.targetSchema ? applyFilters(rows, memo.targetSchema, rules) : rows
   return aggregateRollup(resolved.config.function, kept, resolved.target)
 }
 
