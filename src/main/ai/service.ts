@@ -4,14 +4,17 @@ import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import { AI_DEFAULTS, AI_MODEL_RE, AI_TIMEOUT_LIMITS, isAiLanguage, type AiLanguage, type AiRequest, type AiStatus } from '../../shared/ai'
-import { buildArgs, buildEnv, buildSpawn, type SpawnSpec } from './command'
+import type { AiSent } from '../../shared/aiContext'
+import type { ExternalPlan } from './claudeMcp'
+import { buildArgs, buildEnv, buildSpawn, type ExternalArgs, type SpawnSpec } from './command'
 import { classifyFailure, failure, type Failure } from './errors'
 import { envValue, locateCli, type CliLocation, type LocateResult } from './locate'
 import { activeVoice } from '../../shared/herman'
 import { selectPassages, type PersonaVoice } from './herman'
 import { NdjsonParser, readEvent } from './ndjson'
-import type { ToolGrant } from './toolhost'
+import type { GrantExtra, ToolGrant } from './toolhost'
 import { buildPrompt, type PromptContext } from './prompts'
+import { sentOf } from './standing'
 
 /**
  * Runs AI requests by driving the Claude Code program installed on this computer: one child
@@ -52,6 +55,8 @@ export interface AiResult {
   text: string
   truncated: boolean
   durationMs: number
+  /** What went along from Settings → AI (the context, pinned pages, the user's servers), when anything did. */
+  sent?: AiSent
 }
 
 /** Where one request's outcome goes. Exactly one of `done` / `error` is called, once. */
@@ -77,7 +82,12 @@ export interface AiServiceOptions {
   /** Tests: overrides `ai.timeoutSec`. */
   timeoutMs?: number
   /** The workspace tools (see toolhost.ts), for requests whose target asks for them. */
-  tools?: { grant(listener?: (activity: string) => void): Promise<ToolGrant> }
+  tools?: { grant(listener?: (activity: string) => void, extra?: GrantExtra): Promise<ToolGrant> }
+  /**
+   * The user's own MCP servers that are on (Settings → AI → Claude's tools), for requests whose
+   * target asks for them; null when none is.
+   */
+  external?: () => ExternalPlan | null | Promise<ExternalPlan | null>
 }
 
 /** Builds a whole prompt in the main process; it is told the language answers default to, the voice that is on, and whether the workspace tools were granted. */
@@ -89,8 +99,16 @@ export interface RunTarget {
    * Claude Code may read the workspace through the tools, taking up to this many turns. When
    * the tools cannot be granted the request runs without them.
    */
-  tools?: { maxTurns: number; onActivity?: (activity: string) => void }
+  tools?: {
+    maxTurns: number
+    onActivity?: (activity: string) => void
+    /** The user's servers that are on may come along (see ./claudeMcp.ts); they need the tools to be granted. */
+    external?: boolean
+  }
 }
+
+/** Turns a request with the user's servers gets at least: calling another service takes a few. */
+export const EXTERNAL_TURNS = 16
 
 /** A request that looks things up in the workspace before it answers gets at least this long. */
 export const TOOL_TIMEOUT_MS = 300_000
@@ -113,6 +131,8 @@ interface Job {
   release?: () => void
   /** The request was given the workspace tools: it may take several turns, and more time. */
   tools?: boolean
+  /** What went along with it, for the window. */
+  sent?: AiSent
 }
 
 /** Kills a child and everything it started. Never throws. */
@@ -311,6 +331,64 @@ export class AiService {
     return entry.status.then((status) => ({ status, cli: entry.cli }))
   }
 
+  // ---- other commands -----------------------------------------------------
+
+  /**
+   * Runs the program once with `args` (fixed words and paths sel wrote, never content) outside
+   * the request queue: `claude mcp list`, or a start that is stopped as soon as the line
+   * `stopWhen` looks for has come. Resolves with what it printed; rejects when the program is not
+   * there or does not finish in time.
+   */
+  async runCli(
+    args: readonly string[],
+    options: { stdin?: string; timeoutMs: number; stopWhen?: (line: string) => boolean }
+  ): Promise<{ stdout: string; code: number | null; stopped: boolean }> {
+    const found = await this.resolve()
+    if (!found.status.available || !found.cli) throw new Error('Claude Code was not found on this computer.')
+    await mkdir(this.options.sandboxDir, { recursive: true })
+    const child = this.start(this.spawnSpec(found.cli, args))
+    return new Promise((resolve, reject) => {
+      let stdout = ''
+      let pending = ''
+      let settled = false
+      let stopped = false
+      const cap = 1024 * 1024
+      const finish = (error: Error | null, code: number | null = null): void => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        if (error) reject(error)
+        else resolve({ stdout, code, stopped })
+      }
+      const timer = setTimeout(() => {
+        killTree(child, this.platform, this.env, this.limits.killGraceMs)
+        finish(new Error('Claude Code took too long to answer.'))
+      }, options.timeoutMs)
+      child.stdout?.setEncoding('utf8').on('data', (chunk: string) => {
+        if (settled) return
+        if (stdout.length < cap) stdout += chunk.slice(0, cap - stdout.length)
+        if (!options.stopWhen) return
+        pending += chunk
+        let end: number
+        while ((end = pending.indexOf('\n')) >= 0) {
+          const line = pending.slice(0, end)
+          pending = pending.slice(end + 1)
+          if (options.stopWhen(line)) {
+            stopped = true
+            killTree(child, this.platform, this.env, this.limits.killGraceMs)
+            return finish(null)
+          }
+        }
+        if (pending.length > cap) pending = ''
+      })
+      child.stderr?.resume()
+      child.on('error', () => finish(new Error('Claude Code could not be started.')))
+      child.on('close', (code) => finish(null, code))
+      child.stdin?.on('error', () => undefined)
+      child.stdin?.end(options.stdin ?? '', 'utf8')
+    })
+  }
+
   // ---- requests -----------------------------------------------------------
 
   /**
@@ -439,7 +517,7 @@ export class AiService {
   private finish(job: Job, text: string, truncated: boolean): void {
     if (!this.settle(job)) return
     try {
-      job.sink.done({ text, truncated, durationMs: Date.now() - job.startedAt })
+      job.sink.done({ text, truncated, durationMs: Date.now() - job.startedAt, ...(job.sent ? { sent: job.sent } : {}) })
     } catch (err) {
       console.error('[ai] sink failed', err)
     }
@@ -468,15 +546,34 @@ export class AiService {
       await mkdir(this.options.sandboxDir, { recursive: true })
       if (job.state !== 'starting') return
       // The workspace tools, when the target asks for them: granted before the prompt is written, which says whether there are any.
-      let tools: { configPath: string; maxTurns: number } | null = null
+      let tools: { configPath: string; maxTurns: number; external: ExternalArgs | null } | null = null
+      let plan: ExternalPlan | null = null
       const wanted = job.target?.tools
       if (wanted && this.options.tools) {
+        if (wanted.external && this.options.external) {
+          try {
+            plan = await this.options.external()
+          } catch (err) {
+            // The user's servers could not be worked out: the request goes without them.
+            console.error('[ai] the servers turned on in Settings could not be read', err)
+          }
+          if (job.state !== 'starting') return
+        }
         try {
-          const grant = await this.options.tools.grant(wanted.onActivity)
+          const grant = await this.options.tools.grant(
+            wanted.onActivity,
+            plan ? { servers: plan.servers, settings: plan.settings } : undefined
+          )
           job.release = grant.release
           if (job.state !== 'starting') return grant.release()
-          tools = { configPath: grant.configPath, maxTurns: wanted.maxTurns }
+          if (!grant.settingsPath) plan = null
+          tools = {
+            configPath: grant.configPath,
+            maxTurns: plan ? Math.max(wanted.maxTurns, EXTERNAL_TURNS) : wanted.maxTurns,
+            external: plan && grant.settingsPath ? { settingsPath: grant.settingsPath, connectors: plan.connectors } : null
+          }
         } catch (err) {
+          plan = null
           // Without its tools the request is still answered, from what the prompt carries.
           console.error('[ai] the workspace tools could not be offered', err)
         }
@@ -495,8 +592,11 @@ export class AiService {
         prompt = buildPrompt(job.request, context, {
           defaultLanguage: language,
           ...(speaks ? { voice, passageIds } : {}),
-          ...(tools ? { tools: true } : {})
+          ...(tools ? { tools: true } : {}),
+          ...(plan ? { external: { names: plan.names, writes: plan.writes } } : {})
         })
+        const sent = sentOf(context, plan?.names)
+        if (sent) job.sent = sent
       }
       if (job.state !== 'starting') return
       spec = this.spawnSpec(cli, buildArgs({ model: this.model(), tools }))

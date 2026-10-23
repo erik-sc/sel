@@ -30,6 +30,7 @@ import { aiReady, openAiSetup, toggleAssistant, useAiGate } from './gate'
 import { errorLines, statusText } from './labels'
 import { IDLE, isBusy, reduceRun, type RunEvent, type RunState } from './machine'
 import { MarkdownView } from './MarkdownView'
+import { SentNote } from './SentNote'
 import { AI_GLYPH } from './session'
 import './ai.css'
 
@@ -455,6 +456,7 @@ export function AssistantPanel(): JSX.Element {
                   </div>
                 )}
                 {run.truncated && <p className="ai-note">The answer was cut off because it got too long.</p>}
+                {run.status === 'done' && <SentNote sent={run.sent} />}
                 {!working && (
                   <div className="assistant-actions">
                     {hasText && (

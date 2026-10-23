@@ -15,6 +15,7 @@ import { Segmented } from '@/appearance/controls'
 import { Button } from '@/ui/Button'
 import { notifyError } from '@/ui/toast'
 import { refreshAiStatus, setAiEnabled, useAiGate } from './gate'
+import { ClaudeSettings } from './ClaudeSettings'
 import { INSTALL_COMMAND, unavailableText } from './labels'
 import './ai.css'
 
@@ -275,6 +276,8 @@ export function AiSection(): JSX.Element {
           </p>
         )}
       </section>
+
+      <ClaudeSettings enabled={enabled} />
     </div>
   )
 }

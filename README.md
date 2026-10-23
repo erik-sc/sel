@@ -90,6 +90,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
 
+**Tell him once.** Settings → AI → Context holds what Claude should know in every request: who you are, your work, the names that come up, how you like answers. A page's ⋯ menu pins up to five pages to go along too. Below Context, Claude's tools lists the MCP servers and claude.ai connectors you already set up in Claude Code (Veleiro, Gmail, Notion…). All start off; turn one on and Herman may use it when you ask him something, read-only unless you choose its tools or allow them all. sel stores only which ones are on, never their addresses or keys, and each answer says what went along with it.
+
 **Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. Playing the recording back marks the paragraph being heard. A meeting made from a calendar event lists who was invited. The audio never leaves the computer.
 
 | | |

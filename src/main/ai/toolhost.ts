@@ -58,8 +58,18 @@ export interface ToolHostOptions {
 export interface ToolGrant {
   /** The `--mcp-config` file for this request. */
   configPath: string
-  /** Ends the grant: the token stops working and the file is removed. */
+  /** The `--settings` file for this request, when it was given servers of the user's (see ./claudeMcp.ts). */
+  settingsPath?: string
+  /** Ends the grant: the token stops working and the files are removed. */
   release(): void
+}
+
+/** What a grant carries besides sel's own server: the user's servers that are on, and the settings that fence them in. */
+export interface GrantExtra {
+  /** More entries for the request's MCP configuration, by name (never `sel`). */
+  servers?: Record<string, unknown>
+  /** The request's `--settings` file, as an object. */
+  settings?: unknown
 }
 
 /** What the window may be told while tools are used: which one, about what. */
@@ -141,12 +151,16 @@ export class ToolHost {
   }
 
   /** A grant for one request. Rejects when the pipe cannot be opened: the request then runs without tools. */
-  async grant(listener?: ToolListener): Promise<ToolGrant> {
+  async grant(listener?: ToolListener, extra: GrantExtra = {}): Promise<ToolGrant> {
     const address = await this.listen()
     const token = randomBytes(24).toString('hex')
-    const configPath = join(this.options.dir, `tools-${randomBytes(8).toString('hex')}.json`)
+    const stem = randomBytes(8).toString('hex')
+    const configPath = join(this.options.dir, `tools-${stem}.json`)
+    const others = Object.fromEntries(Object.entries(extra.servers ?? {}).filter(([name]) => name !== TOOL_SERVER))
     const config = {
       mcpServers: {
+        // The user's servers hold their own tokens: the file is readable by this account only and goes with the request.
+        ...others,
         [TOOL_SERVER]: {
           type: 'stdio',
           command: this.options.execPath,
@@ -156,15 +170,27 @@ export class ToolHost {
       }
     }
     await writeFile(configPath, JSON.stringify(config), { encoding: 'utf8', mode: 0o600 })
+    let settingsPath: string | undefined
+    if (extra.settings !== undefined) {
+      settingsPath = join(this.options.dir, `settings-${stem}.json`)
+      try {
+        await writeFile(settingsPath, JSON.stringify(extra.settings), { encoding: 'utf8', mode: 0o600 })
+      } catch (err) {
+        await rm(configPath, { force: true }).catch(() => undefined)
+        throw err
+      }
+    }
     this.grants.set(token, listener ? { calls: 0, listener } : { calls: 0 })
     let released = false
     return {
       configPath,
+      ...(settingsPath ? { settingsPath } : {}),
       release: () => {
         if (released) return
         released = true
         this.grants.delete(token)
         void rm(configPath, { force: true }).catch(() => undefined)
+        if (settingsPath) void rm(settingsPath, { force: true }).catch(() => undefined)
       }
     }
   }

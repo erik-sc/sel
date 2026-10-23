@@ -1,13 +1,30 @@
+import { readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app, dialog, type BrowserWindow, type WebContents } from 'electron'
 import { AI_CHANNELS, type AiDone, type AiError, type AiRequest, type AiStatus } from '../../shared/ai'
+import { AI_MCP_CATALOG_KEY, AI_MCP_SERVERS_KEY, isMcpServerId, mcpChoices, type ClaudeServerList } from '../../shared/aiContext'
 import type { Repository } from '../db/repository'
+import {
+  claudeConfigFile,
+  listServers,
+  parseMcpList,
+  planExternal,
+  readCatalog,
+  readLocalServers,
+  toolsOfServer,
+  type ExternalPlan,
+  type LocalServer,
+  type McpCatalog
+} from './claudeMcp'
+import { buildArgs } from './command'
 import { buildWorkspace } from './context'
 import { inspectCli } from './locate'
 import { loadMeeting, prepareMeeting, type MeetingSource } from './meeting'
 import { buildPrompt, type BriefingPromptData, type PromptContext } from './prompts'
 import { aiRequest, loadContext } from './request'
 import { AiService, type PromptBuilder, type RunTarget } from './service'
+import { loadStanding } from './standing'
 import { ToolHost, toolScript } from './toolhost'
 import { repositorySource, type ToolSource } from './tools'
 
@@ -21,6 +38,11 @@ const DELTA_FLUSH_MS = 40
 
 /** Turns Herman may take to look around the workspace through the tools before he answers. */
 const HERMAN_TURNS = 10
+
+/** How long `claude mcp list` may take: it checks every server it knows, and a slow one takes half a minute. */
+const SCAN_TIMEOUT_MS = 120_000
+/** How long a start may take to list a server's tools. */
+const TOOLS_TIMEOUT_MS = 90_000
 
 /**
  * A stand-in for the program, for development and automated checks of the UI. Only an
@@ -57,14 +79,15 @@ export class AiBridge {
       // Empty and dedicated: the program's file tools are off, and there is nothing here to read but the configuration of its one MCP server.
       sandboxDir,
       tools: {
-        grant: async (listener) => {
+        grant: async (listener, extra) => {
           this.markdown ??= await import('../markdown')
-          return this.tools.grant(listener)
+          return this.tools.grant(listener, extra)
         }
       },
       getSetting: (key) => (key === 'ai.cliPath' && override && !script ? override : repo.getSetting(key)),
       devScript: script,
-      loadContext: (request) => this.context(request)
+      loadContext: (request) => this.context(request),
+      external: () => this.externalPlan()
     })
   }
 
@@ -77,7 +100,7 @@ export class AiBridge {
     const repo = this.repo
     // The Markdown converter is shared with export/import and loaded on first use.
     const markdown = await import('../markdown')
-    const base: PromptContext = request.today
+    const loaded: PromptContext = request.today
       ? {}
       : loadContext(
           {
@@ -87,6 +110,13 @@ export class AiBridge {
           },
           request
         )
+    // Settings → AI → Context goes along with every request: the written context and the pinned pages.
+    const standing = loadStanding({
+      getSetting: (key) => repo.getSetting(key),
+      get: (id) => repo.get(id),
+      pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id)
+    })
+    const base: PromptContext = standing ? { ...loaded, standing } : loaded
     if (request.action !== 'ask') return base
     let day: BriefingPromptData | null = null
     try {
@@ -128,7 +158,9 @@ export class AiBridge {
     if (request.action === 'consolidate' && !request.transcript?.trim() && request.pageId)
       return this.startMeeting(request, request.pageId, sender)
     // A question may be answered from anywhere in the workspace: the tools let the answer look.
-    if (request.action === 'ask') return this.start(request, sender, undefined, undefined, { tools: { maxTurns: HERMAN_TURNS } })
+    // The servers the user turned on in Settings (Veleiro, Gmail…) come along with a question only.
+    if (request.action === 'ask')
+      return this.start(request, sender, undefined, undefined, { tools: { maxTurns: HERMAN_TURNS, external: true } })
     return this.start(request, sender)
   }
 
@@ -271,6 +303,107 @@ export class AiBridge {
       this.service.invalidate()
     }
     return status
+  }
+
+  // ---- Claude's MCP servers (Settings → AI → Claude's tools) ----------------
+
+  /** Claude Code's configuration file, read now. What it holds never leaves this process except into a request's own files. */
+  private async localServers(): Promise<{ servers: LocalServer[]; error?: string }> {
+    let text: string
+    try {
+      text = await readFile(claudeConfigFile(process.env, homedir()), 'utf8')
+    } catch (err) {
+      // No file: Claude Code has no servers of its own here.
+      return (err as NodeJS.ErrnoException).code === 'ENOENT' ? { servers: [] } : { servers: [], error: 'unreadable' }
+    }
+    try {
+      return { servers: readLocalServers(JSON.parse(text)) }
+    } catch {
+      return { servers: [], error: 'unreadable' }
+    }
+  }
+
+  private catalog(): McpCatalog {
+    return readCatalog(this.repo.getSetting(AI_MCP_CATALOG_KEY))
+  }
+
+  /** The servers that are on, for one request; null when none is. */
+  private async externalPlan(): Promise<ExternalPlan | null> {
+    const choices = mcpChoices(this.repo.getSetting(AI_MCP_SERVERS_KEY))
+    if (!Object.keys(choices).length) return null
+    const { servers } = await this.localServers()
+    return planExternal({ choices, local: servers, catalog: this.catalog() })
+  }
+
+  async servers(): Promise<ClaudeServerList> {
+    const { servers, error } = await this.localServers()
+    const catalog = this.catalog()
+    return { servers: listServers(servers, catalog), connectorsAt: catalog.connectorsAt, ...(error ? { error } : {}) }
+  }
+
+  /** Asks Claude Code for the claude.ai connectors of the account and keeps their names and addresses. */
+  async scanServers(): Promise<ClaudeServerList> {
+    const { stdout } = await this.service.runCli(['mcp', 'list'], { timeoutMs: SCAN_TIMEOUT_MS })
+    const connectors = parseMcpList(stdout)
+    this.repo.setSetting(AI_MCP_CATALOG_KEY, { ...this.catalog(), connectors, connectorsAt: Date.now() } satisfies McpCatalog)
+    return this.servers()
+  }
+
+  /**
+   * Starts Claude Code with sel's server and this one only, reads the tools it lists once it is
+   * ready, and stops it there. The prompt is a one-word one, in case the stop comes late.
+   */
+  async serverTools(rawId: unknown): Promise<ClaudeServerList> {
+    if (!isMcpServerId(rawId)) throw new Error('Unknown server')
+    const id = rawId
+    const { servers } = await this.localServers()
+    const catalog = this.catalog()
+    const server = listServers(servers, catalog).find((entry) => entry.id === id)
+    const plan = planExternal({ choices: { [id]: { access: 'all' } }, local: servers, catalog })
+    if (!plan || !server) throw new Error('That server is no longer set up in Claude Code.')
+    this.markdown ??= await import('../markdown')
+    const grant = await this.tools.grant(undefined, { servers: plan.servers, settings: plan.settings })
+    const seen: { init: Record<string, unknown> | null } = { init: null }
+    try {
+      const args = buildArgs({
+        model: 'haiku',
+        tools: {
+          configPath: grant.configPath,
+          maxTurns: 2,
+          external: grant.settingsPath ? { settingsPath: grant.settingsPath, connectors: plan.connectors } : null
+        }
+      })
+      await this.service.runCli(args, {
+        stdin: 'Reply with the single word ok.',
+        timeoutMs: TOOLS_TIMEOUT_MS,
+        stopWhen: (line) => {
+          try {
+            const event = JSON.parse(line) as Record<string, unknown>
+            if (event['type'] === 'system' && event['subtype'] === 'init') seen.init = event
+          } catch {
+            /* not an event */
+          }
+          return seen.init !== null
+        }
+      })
+    } finally {
+      grant.release()
+    }
+    const event = seen.init
+    if (!event) throw new Error('Claude Code did not say which tools the server has.')
+    const listed = Array.isArray(event['mcp_servers']) ? (event['mcp_servers'] as { name?: unknown; status?: unknown }[]) : []
+    const status = listed.find((entry) => entry.name === server.name)?.status
+    const names = toolsOfServer(event['tools'], server.name)
+    if (!names.length && status !== 'connected') {
+      throw new Error(
+        status === 'needs-auth'
+          ? 'The server needs you to sign in again in Claude Code (run /mcp there).'
+          : `The server did not connect${typeof status === 'string' ? ` (${status.slice(0, 40)})` : ''}.`
+      )
+    }
+    const fresh = this.catalog()
+    this.repo.setSetting(AI_MCP_CATALOG_KEY, { ...fresh, tools: { ...fresh.tools, [id]: { names, at: Date.now() } } } satisfies McpCatalog)
+    return this.servers()
   }
 
   dispose(): void {
