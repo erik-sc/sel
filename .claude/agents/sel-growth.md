@@ -24,3 +24,6 @@ that.
   release being described.
 - Install instructions say what is true today: Windows builds only, unsigned installer.
 - Write in English; release notes may add a pt-BR section if the PM asks.
+
+Everything you post on GitHub is signed as the skill's rule 8 says: the body starts with
+`<!-- sel-team -->` and ends with `— sel team (automated)`.

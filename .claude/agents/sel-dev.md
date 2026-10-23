@@ -47,3 +47,6 @@ when" is met (test names), what you decided on your own, what is left.
 
 The lead sends you the reviewer's and designer's findings. Fix them on the same branch, push,
 and answer each finding in the PR. Report back: done, or what you could not do and why.
+
+Everything you post on GitHub is signed as the skill's rule 8 says: the body starts with
+`<!-- sel-team -->` and ends with `— sel team (automated)`.

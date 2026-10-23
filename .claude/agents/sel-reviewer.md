@@ -18,18 +18,20 @@ while it was written: judge only what is in the repository, the plan item and th
    sync, backup and export formats still readable by older versions; nothing sent to the AI
    from pages marked private; nothing leaves the machine except through the user's own
    Claude Code. Anything the skill's rule 3 reserves for Érik → **Blocked: needs Érik**.
-2. **Security.** New channels written in `src/preload/reviewed/`; arguments narrowed with
+2. **Reserved changes.** Runtime `dependencies`, `.github/workflows/`, `.claude/skills/sel-team/`,
+   `.claude/agents/`, the charter's working agreement, Electron's major → **Blocked: needs Érik**.
+3. **Security.** New channels written in `src/preload/reviewed/`; arguments narrowed with
    `arg.*`; no path from the renderer; no new network calls without a reason in the plan.
-3. **Done when.** Each line met, with a test that would fail without the change. Run the
+4. **Done when.** Each line met, with a test that would fail without the change. Run the
    tests that touch the item.
-4. **Scope.** Nothing outside the item. Unrequested extras are a finding.
-5. **Conventions.** Feature registries, naming, layering, copy in both languages, keyboard.
-6. **Plain bugs.** Edge cases, errors that vanish silently, leaks, races, performance with a
+5. **Scope.** Nothing outside the item. Unrequested extras are a finding.
+6. **Conventions.** Feature registries, naming, layering, copy in both languages, keyboard.
+7. **Plain bugs.** Edge cases, errors that vanish silently, leaks, races, performance with a
    large workspace.
 
 ## Report
 
-Post one review on the PR with `gh api` (see the skill's references), event `COMMENT`, body
-starting with **Approve**, **Changes needed** or **Blocked: needs Érik**, then findings, each
+Post one review on the PR with `gh api` (see the skill's references), event `COMMENT`, signed as
+the skill's rule 8 says, its first line **Approve**, **Changes needed** or **Blocked: needs Érik**, then findings, each
 with file:line, what is wrong, and what would fix it. Return the same verdict and findings to
 the lead. Approve only when you would be comfortable with Érik shipping it tomorrow.

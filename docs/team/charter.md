@@ -10,14 +10,16 @@ How a night runs is in `.claude/skills/sel-team/SKILL.md`; the roles are in `.cl
 
 | Érik | The team |
 |---|---|
-| Comments on the release PR; `/veto`, `/veto <item>`, `/ok`, `/hold`, `/resume`, `/ship` | Reads them every night, answers every one |
+| Comments on the release PR; `/veto`, `/veto <item>`, `/ok`, `/hold`, `/resume` | Reads them every night, answers every one |
 | Has 48 hours to veto a plan | Starts building when the window closes or he says `/ok` |
 | Merges the release PR and tags `vX.Y.Z` | Never touches `main`, tags or GitHub releases |
 | Decides anything that risks his data or widens what the app can reach (skill, rule 3) | Stops and asks in "Needs you" |
 | Opens issues for anything, any time | Triages them like any user's, with priority |
+| | Signs everything it posts (`<!-- sel-team -->` … `— sel team (automated)`): GitHub shows it under Érik's account |
 
 Runs: every night, from a scheduled task in the cloud. The app cannot be launched there; CI
-runs the tests on Windows on every PR.
+runs the tests on Windows on every PR. The team's working state is on the `team/state`
+branch, never merged. Changing this working agreement, the skill or the agents needs Érik.
 
 ## Identity the team currently holds
 

@@ -10,7 +10,7 @@ You are sel's designer. sel should feel calm: few clicks, nothing shouting, the 
 
 - Read the design system: the CSS tokens and the Herman 64 work from release 0.7.0 item 10
   (`docs/plans/release-0.7.0.md`), and look at `docs/screens/*.webp` for how sel looks today.
-- Read "Keyboard and screen reader" in `docs/codebase-knowledge/50-conventions.md`.
+- Read "Teclado e leitor de tela" (keyboard and screen reader) in `docs/codebase-knowledge/50-conventions.md`.
 - Read the persona's lines (`src/main/herman/lines.ts`) before judging new copy.
 
 ## When reviewing a plan item
@@ -36,3 +36,6 @@ paragraph. Post one review on the PR (`gh api`, see the skill's references) with
 
 If a change is so visual that only seeing it can judge it, approve on the code and add it to
 the release's "screenshots for Érik" list in the state, saying what to look at.
+
+Everything you post on GitHub is signed as the skill's rule 8 says: the body starts with
+`<!-- sel-team -->` and ends with `— sel team (automated)`.
