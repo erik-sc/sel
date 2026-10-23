@@ -76,6 +76,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 |---|---|
 | ![Today: a phrase from Herman, the agenda from your calendar, and the open tasks](docs/screens/today.webp) | ![The calendar week, hour by hour, with the tasks that are due](docs/screens/calendar-week.webp) |
 | ![A task written in plain words, with the repeat, time, priority and project it was read as](docs/screens/tasks.webp) | ![Tasks by project](docs/screens/tasks-board.webp) |
+| ![Plan: the calendar and blocks of time for three tasks, side by side, hour by hour](docs/screens/plan.webp) | ![A project with a direction: its objective, next action, progress and milestones](docs/screens/project.webp) |
+| ![The weekly review: projects without a next action, one step of six](docs/screens/review.webp) | |
 
 ### A line a day
 
@@ -108,12 +110,19 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 | | |
 |---|---|
-| ![Herman answers a question about the page](docs/screens/herman.webp) | ![Herman proposes a page; nothing is made until Apply](docs/screens/herman-apply.webp) |
+| ![Herman answers a question about the page in a balloon beside him](docs/screens/balloon.webp) | ![Herman proposes a page; nothing is made until Apply](docs/screens/balloon-apply.webp) |
+| ![Hermine, on Today, says where to start the day](docs/screens/balloon-hermine.webp) | ![The introduction: Herman or Hermine, and an outfit](docs/screens/onboarding.webp) |
+| ![Settings → AI → Context: what goes along with every request, and the pinned pages](docs/screens/settings-ai.webp) | ![Settings → AI → Memory: the facts the persona keeps, each to edit or delete](docs/screens/settings-memory.webp) |
+| ![Settings → AI → Routines: plan the day, check in, close the day, the weekly review, unstick a task](docs/screens/settings-routines.webp) | ![A page marked Private from AI, with its lock by the title and in the sidebar](docs/screens/private.webp) |
 | ![A meeting page: its details, the recorder and the notes](docs/screens/meeting.webp) | |
 
 ### See how you move
 
 **Flows.** sel keeps a small log of your own activity, on your computer only: which screens and pages you open, when you write, when tasks get done, your pomodoros. Flows draws it as a year of ink squares and a week by the hour, shows the moves you make most between screens and pages, the time you spend in each, and the pages that keep pulling you back. No totals, no streaks, no records. Once a week, if you like, the persona says one gentle thing about your rhythm. Settings → General → Data turns the log off or deletes it.
+
+| | |
+|---|---|
+| ![Flows: a year of ink squares and the week by the hour](docs/screens/flows.webp) | ![Flows: the moves you make most, and the time spent in each area](docs/screens/flows-moves.webp) |
 
 ### Sync and settings
 
@@ -127,7 +136,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 |---|---|
 | ![A page in the light theme](docs/screens/page.webp) | ![A page in the dark theme](docs/screens/page-dark.webp) |
 | ![Settings → Sync: a git repository of your own, encrypted if you like](docs/screens/settings-sync.webp) | ![Report a bug or suggest a feature](docs/screens/feedback.webp) |
-| ![Settings → Herman](docs/screens/settings-herman.webp) | ![Settings → Notifications](docs/screens/settings-notifications.webp) |
+| ![Settings → Herman, here as Hermine: the persona and her outfits](docs/screens/settings-persona.webp) | ![Settings → Notifications](docs/screens/settings-notifications.webp) |
+| ![Settings → General → Data: backups, restore, import and export, the activity history](docs/screens/settings-data.webp) | ![Settings → General: light, dark or the system's](docs/screens/settings-general.webp) |
 
 ## Principles
 
