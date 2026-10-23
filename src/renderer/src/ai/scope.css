@@ -1,0 +1,188 @@
+/* A project's or database's own context for the AI (ScopeContextDialog.tsx, 0.8.0 A4). */
+
+.ui-modal.ai-scope {
+  width: min(calc(var(--sidebar-width) * 2), 100%);
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+}
+
+.ai-scope-head {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding: 16px 14px 4px 22px;
+}
+
+.ai-scope-head h2 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  font-weight: var(--weight-subheading);
+  letter-spacing: var(--tracking-title);
+}
+
+.ai-scope-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 22px 4px;
+  overflow-y: auto;
+}
+
+.ai-scope-lead {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  line-height: var(--leading-body);
+}
+
+.ai-scope-private {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  background: var(--fill-4);
+  font-size: var(--text-md);
+}
+
+.ai-scope-label {
+  margin: 8px 0 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.ai-scope-help,
+.ai-scope-count {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+}
+
+.ai-scope-help.is-error {
+  color: var(--danger);
+}
+
+.ai-scope-count {
+  align-self: flex-end;
+}
+
+.ai-scope-field {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: var(--control-height);
+  padding: 0 10px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-s);
+  outline: 0;
+  background: var(--bg-solid);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-ui);
+}
+
+.ai-scope-field:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.ai-scope-field.ai-scope-text {
+  height: auto;
+  min-height: calc(var(--control-height) * 4);
+  padding: 8px 10px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.ai-scope-pages,
+.ai-scope-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-scope-page {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-scope-page-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-scope-search {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 8px;
+}
+
+.ai-scope-results {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ai-scope-result {
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ai-scope-result:hover,
+.ai-scope-result:focus-visible {
+  background: var(--fill-4);
+}
+
+.ai-scope-foot {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+  gap: 8px;
+  padding: 14px 22px 20px;
+}
+
+/* The list in Settings → AI → Context. */
+.claude-scopes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.claude-scope {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.claude-scope-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claude-scope-kind {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}

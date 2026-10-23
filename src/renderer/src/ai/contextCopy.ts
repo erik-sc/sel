@@ -3,6 +3,7 @@
 // and in Brazilian Portuguese, chosen like the home's. Pure: no React, no DOM.
 import type { AiSent, McpAccess, McpScope } from '@shared/aiContext'
 import type { AiPrivacyReason } from '@shared/aiPrivate'
+import type { ScopeKind } from '@shared/aiScope'
 import type { PersonaId } from '@shared/herman'
 import { personifyCopy } from '@shared/persona'
 import type { HomeLocale } from '@/home/copy'
@@ -76,6 +77,39 @@ export interface ContextCopy {
   sentContext: string
   sentPages: (count: number) => string
   sentServers: (names: string) => string
+  /** A project's or database's own context that went along (0.8.0 A4). */
+  sentScope: (kind: ScopeKind, name: string, pages: number) => string
+
+  /** A project's or database's own context (0.8.0 A4): the editor, its triggers and the list in Settings. */
+  scopeTitle: (kind: ScopeKind, name: string) => string
+  scopeIntro: (kind: ScopeKind) => string
+  scopeTextLabel: string
+  scopePlaceholder: (kind: ScopeKind) => string
+  scopePagesLabel: (cap: number) => string
+  scopePagesNone: string
+  scopeSearch: string
+  scopeSearchNone: string
+  scopePinPage: (title: string) => string
+  scopeUnpinPage: (title: string) => string
+  scopeFull: (cap: number) => string
+  scopeSaved: string
+  scopeSaveFailed: string
+  scopePrivate: (kind: ScopeKind) => string
+  scopeKept: (kind: ScopeKind) => string
+  cancel: string
+  /** The database's ⋯ menu. */
+  scopeMenu: string
+  /** The project's head on Tasks. */
+  scopeHeaderLabel: string
+  scopeEdit: string
+  scopeNone: string
+  /** "340 characters · 2 pinned pages". */
+  scopeSummary: (chars: number, pages: number) => string
+  scopeListLabel: string
+  scopeListHelp: string
+  scopeListNone: string
+  scopeKind: Record<ScopeKind, string>
+  scopeOpen: (name: string) => string
 }
 
 export const CONTEXT_COPY: Record<HomeLocale, ContextCopy> = {
@@ -157,7 +191,50 @@ export const CONTEXT_COPY: Record<HomeLocale, ContextCopy> = {
     sentLabel: 'Sent along',
     sentContext: 'your context',
     sentPages: (count) => (count === 1 ? '1 pinned page' : `${count} pinned pages`),
-    sentServers: (names) => `tools: ${names}`
+    sentServers: (names) => `tools: ${names}`,
+    sentScope: (kind, name, pages) =>
+      `${kind === 'project' ? 'project' : 'database'} “${name}”${pages ? ` (${pages === 1 ? '1 page' : `${pages} pages`})` : ''}`,
+
+    scopeTitle: (kind, name) => `Context for the ${kind === 'project' ? 'project' : 'database'} “${name}”`,
+    scopeIntro: (kind) =>
+      kind === 'project'
+        ? 'Goes along with every request made from a task of this project (or a page inside one), after your general context.'
+        : 'Goes along with every request made from this database or one of its rows (or a page inside one), after your general context.',
+    scopeTextLabel: 'What Claude should know here',
+    scopePlaceholder: (kind) =>
+      kind === 'project'
+        ? 'Who the client is, the names that come up, decisions already taken, how this project likes its writing…'
+        : 'What this database is for, what its properties mean, how its entries are written…',
+    scopePagesLabel: (cap) => `Pinned pages (up to ${cap}), read fresh with each request`,
+    scopePagesNone: 'No page pinned.',
+    scopeSearch: 'Find a page to pin',
+    scopeSearchNone: 'No page found.',
+    scopePinPage: (title) => `Pin “${title}”`,
+    scopeUnpinPage: (title) => `Unpin “${title}”`,
+    scopeFull: (cap) => `Up to ${cap} pages can be pinned here.`,
+    scopeSaved: 'Context saved.',
+    scopeSaveFailed: 'The context could not be saved.',
+    scopePrivate: (kind) =>
+      kind === 'project'
+        ? 'This project is private from the AI: its context is kept, and never sent.'
+        : 'This database is private from the AI: its context is kept, and never sent.',
+    scopeKept: (kind) =>
+      `Kept with the ${kind === 'project' ? 'project' : 'database'}, so it syncs with it. Pages private from the AI are never sent.`,
+    cancel: 'Cancel',
+    scopeMenu: 'Context for Claude…',
+    scopeHeaderLabel: 'Context for Claude',
+    scopeEdit: 'Edit',
+    scopeNone: 'None yet',
+    scopeSummary: (chars, pages) =>
+      [chars ? `${chars.toLocaleString('en')} characters` : '', pages ? (pages === 1 ? '1 pinned page' : `${pages} pinned pages`) : '']
+        .filter(Boolean)
+        .join(' · '),
+    scopeListLabel: 'Projects and databases',
+    scopeListHelp:
+      'A project or database can carry a context of its own, sent only with requests made from inside it. Edit it at the head of a project on Tasks, or from a database’s ⋯ menu.',
+    scopeListNone: 'None has a context of its own yet.',
+    scopeKind: { project: 'Project', database: 'Database' },
+    scopeOpen: (name) => `Open ${name}`
   },
   'pt-BR': {
     contextTitle: 'Contexto',
@@ -240,7 +317,53 @@ export const CONTEXT_COPY: Record<HomeLocale, ContextCopy> = {
     sentLabel: 'Foi junto',
     sentContext: 'seu contexto',
     sentPages: (count) => (count === 1 ? '1 página fixada' : `${count} páginas fixadas`),
-    sentServers: (names) => `ferramentas: ${names}`
+    sentServers: (names) => `ferramentas: ${names}`,
+    sentScope: (kind, name, pages) =>
+      `${kind === 'project' ? 'projeto' : 'database'} “${name}”${pages ? ` (${pages === 1 ? '1 página' : `${pages} páginas`})` : ''}`,
+
+    scopeTitle: (kind, name) => `Contexto ${kind === 'project' ? 'do projeto' : 'do database'} “${name}”`,
+    scopeIntro: (kind) =>
+      kind === 'project'
+        ? 'Vai junto em todo pedido feito a partir de uma tarefa deste projeto (ou de uma página dentro dela), depois do seu contexto geral.'
+        : 'Vai junto em todo pedido feito a partir deste database ou de uma linha dele (ou de uma página dentro dela), depois do seu contexto geral.',
+    scopeTextLabel: 'O que o Claude deve saber aqui',
+    scopePlaceholder: (kind) =>
+      kind === 'project'
+        ? 'Quem é o cliente, os nomes que aparecem, decisões já tomadas, como este projeto gosta dos textos…'
+        : 'Para que serve este database, o que as propriedades querem dizer, como as entradas são escritas…',
+    scopePagesLabel: (cap) => `Páginas fixadas (até ${cap}), lidas na hora a cada pedido`,
+    scopePagesNone: 'Nenhuma página fixada.',
+    scopeSearch: 'Buscar uma página para fixar',
+    scopeSearchNone: 'Nenhuma página encontrada.',
+    scopePinPage: (title) => `Fixar “${title}”`,
+    scopeUnpinPage: (title) => `Desafixar “${title}”`,
+    scopeFull: (cap) => `Dá para fixar até ${cap} páginas aqui.`,
+    scopeSaved: 'Contexto salvo.',
+    scopeSaveFailed: 'Não foi possível salvar o contexto.',
+    scopePrivate: (kind) =>
+      kind === 'project'
+        ? 'Este projeto é privado para a AI: o contexto fica guardado e nunca é enviado.'
+        : 'Este database é privado para a AI: o contexto fica guardado e nunca é enviado.',
+    scopeKept: (kind) =>
+      `Fica junto ${kind === 'project' ? 'do projeto' : 'do database'}, então sincroniza com ele. Páginas privadas para a AI nunca são enviadas.`,
+    cancel: 'Cancelar',
+    scopeMenu: 'Contexto para o Claude…',
+    scopeHeaderLabel: 'Contexto para o Claude',
+    scopeEdit: 'Editar',
+    scopeNone: 'Nenhum ainda',
+    scopeSummary: (chars, pages) =>
+      [
+        chars ? `${chars.toLocaleString('pt-BR')} caracteres` : '',
+        pages ? (pages === 1 ? '1 página fixada' : `${pages} páginas fixadas`) : ''
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    scopeListLabel: 'Projetos e databases',
+    scopeListHelp:
+      'Um projeto ou database pode ter um contexto próprio, enviado só nos pedidos feitos de dentro dele. Edite no topo de um projeto em Tarefas, ou pelo menu ⋯ de um database.',
+    scopeListNone: 'Nenhum tem contexto próprio ainda.',
+    scopeKind: { project: 'Projeto', database: 'Database' },
+    scopeOpen: (name) => `Abrir ${name}`
   }
 }
 
@@ -250,6 +373,7 @@ export function sentLine(sent: AiSent | undefined, copy: ContextCopy): string | 
   const parts: string[] = []
   if (sent.context) parts.push(copy.sentContext)
   if (sent.pages.length) parts.push(copy.sentPages(sent.pages.length))
+  for (const scope of sent.scopes ?? []) parts.push(copy.sentScope(scope.kind, scope.name, scope.pages.length))
   if (sent.servers.length) parts.push(copy.sentServers(sent.servers.join(', ')))
   return parts.length ? `${copy.sentLabel}: ${parts.join(' · ')}` : null
 }

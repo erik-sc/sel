@@ -28,6 +28,7 @@ import { setHome, useHome } from '@/home/store'
 import { requestPageAi, toggleContextPage, useAiGate } from '@/ai/gate'
 import { aiPrivacyNow, toggleAiPrivate } from '@/ai/privacy'
 import { CONTEXT_COPY } from '@/ai/contextCopy'
+import { openScopeContext } from '@/ai/scopeContext'
 import { AI_CONTEXT_CAPS } from '@shared/aiContext'
 import { notifyError, toast } from '@/ui/toast'
 import { IS_MAC } from '@/ui/platform'
@@ -110,6 +111,17 @@ function contextItem(id: string): MenuItem {
 }
 
 /**
+ * "Context for Claude…" on a database: its own context, sent with requests made from its rows
+ * (shared/aiScope.ts). A linked view edits its source's. None while it is private from the AI.
+ */
+function scopeItems(block: Block): MenuItem[] {
+  const target = sourceIdOf(block) ?? block.id
+  if (aiPrivacyNow(target)) return []
+  const copy = CONTEXT_COPY[useHome.getState().locale]
+  return [{ id: 'ai-scope', label: copy.scopeMenu, icon: <Sparkle />, onSelect: () => openScopeContext({ kind: 'database', id: target }) }]
+}
+
+/**
  * "Private from AI": nothing of the page (or database) and what is under it reaches the AI or the
  * connected apps (shared/aiPrivate.ts). Checked when it is; when a page above it is (or its project,
  * or its source database), checked and greyed out: the mark to take off is there.
@@ -166,6 +178,7 @@ export function sidebarPageMenu(block: Block): MenuItem[] {
     homeItem(block),
     privateItem(block)
   ]
+  if (block.type === 'database' && !block.trashedAt && useAiGate.getState().enabled) items.push(...scopeItems(block))
   // A LaTeX document's content is its source: nothing goes inside it.
   if (block.type === 'page' && !isLatexDocument(block)) {
     items.push(
@@ -220,7 +233,7 @@ export function topBarPageMenu(block: Block, ai = false): MenuItem[] {
       items.push(privateItem(block), { separator: true })
     }
   } else if (!block.trashedAt && block.type === 'database') {
-    if (ai) items.push(contextItem(id))
+    if (ai) items.push(contextItem(id), ...scopeItems(block))
     items.push(privateItem(block), { separator: true })
   }
   items.push(

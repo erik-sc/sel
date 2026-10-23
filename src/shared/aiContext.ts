@@ -46,6 +46,11 @@ export interface AiSent {
   pages: string[]
   /** Display names of the user's own MCP servers the request could use. */
   servers: string[]
+  /**
+   * The context of the project or database the request's page belongs to (0.8.0 A4, see
+   * ./aiScope.ts), when one went along: its name, whether its text did, and its pages that did.
+   */
+  scopes?: { kind: 'project' | 'database'; name: string; context: boolean; pages: string[] }[]
 }
 
 // ---- Claude's MCP servers ---------------------------------------------------------

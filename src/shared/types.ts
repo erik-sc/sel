@@ -70,6 +70,11 @@ export interface BlockProps {
   aiPrivate?: boolean
   /** database (the Tasks database): the project option ids whose rows are private from the AI. */
   aiPrivateProjects?: string[]
+  /**
+   * database: what goes along to the AI with a request about its rows (`{ text, pages }`, 0.8.0 A4).
+   * Read through shared/aiScope.ts. A project's own is in `projects[optionId].context`.
+   */
+  aiContext?: unknown
   /** database only */
   schema?: Record<string, PropertySchema>
   views?: DatabaseView[]
