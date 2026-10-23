@@ -1,4 +1,4 @@
-import type { HermanLocale, HermanNudgeKind } from '../../shared/herman'
+import type { HermanLocale, HermanNudgeKind, PersonaId } from '../../shared/herman'
 
 /**
  * What Herman says unasked: a small bank of lines per kind of nudge, in English and in
@@ -293,6 +293,23 @@ export const PHRASES: Record<
     askFirst: 'O que devo fazer primeiro hoje?',
     askPage: 'Sobre o que é esta página, de verdade?'
   }
+}
+
+/** The phrases that name the persona, written for each: the rest of PHRASES serves both. */
+const NAMED: Record<PersonaId, Record<HermanLocale, { ask: string; greeting: string }>> = {
+  herman: {
+    en: { ask: PHRASES.en.ask, greeting: PHRASES.en.greeting },
+    'pt-BR': { ask: PHRASES['pt-BR'].ask, greeting: PHRASES['pt-BR'].greeting }
+  },
+  hermine: {
+    en: { ask: 'Ask Hermine', greeting: 'Hello. I am Hermine.' },
+    'pt-BR': { ask: 'Perguntar à Hermine', greeting: 'Olá. Sou a Hermine.' }
+  }
+}
+
+/** The words around the lines of the chosen persona. The lines themselves never name or gender the one who says them. */
+export function phrasesOf(locale: HermanLocale, persona: PersonaId = 'herman'): (typeof PHRASES)[HermanLocale] {
+  return { ...PHRASES[locale], ...NAMED[persona][locale] }
 }
 
 // ---- words --------------------------------------------------------------------

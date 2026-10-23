@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, MoreHorizontal, Sparkle, Star, StarFilled } 
 import { MOD_KEY } from '@/ui/platform'
 import { useAiGate } from '@/ai/gate'
 import { preloadAssistant } from '@/ai/Host'
-import { useHerman } from '@/herman/gate'
+import { useHerman, usePersona } from '@/herman/gate'
 import { RecordingIndicator } from '@/meetings/slot'
 import { logError, reportError, toggleFavorite } from './actions'
 import { usePageTitle } from './linked'
@@ -120,6 +120,7 @@ export const TopBar = memo(function TopBar() {
   const ai = useAiGate((state) => state.enabled)
   const assistantOpen = useAiGate((state) => state.panelOpen)
   const herman = useHerman((state) => state.on)
+  const { name } = usePersona()
 
   return (
     <div className="topbar">
@@ -161,7 +162,7 @@ export const TopBar = memo(function TopBar() {
       {ai && (
         <div className="topbar-actions">
           <IconButton
-            label={herman ? (assistantOpen ? 'Hide Herman' : 'Herman') : assistantOpen ? 'Hide assistant' : 'Assistant'}
+            label={herman ? (assistantOpen ? `Hide ${name}` : name) : assistantOpen ? 'Hide assistant' : 'Assistant'}
             shortcut={`${MOD_KEY}J`}
             active={assistantOpen}
             aria-pressed={assistantOpen}

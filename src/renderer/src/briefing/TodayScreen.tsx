@@ -8,7 +8,7 @@ import { NOTEBOOK_ID, type NotebookLocale } from '@shared/notebook'
 import { CLOSE_COPY } from '@/notebook/copy'
 import { aiReady, useAiGate } from '@/ai/gate'
 import { Herman64 } from '@/herman/Herman64'
-import { noteAiEvent, useHerman } from '@/herman/gate'
+import { noteAiEvent, useHerman, usePersona } from '@/herman/gate'
 import { refreshTree } from '@/store/tree'
 import { openPage } from '@/store/tabs'
 import { notifyError, toast } from '@/ui/toast'
@@ -108,6 +108,7 @@ function Phrase({
   onChange: (phrase: BriefingPhrase | null) => void
 }): JSX.Element | null {
   const herman = useHerman((state) => state.on)
+  const { name } = usePersona()
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -178,7 +179,7 @@ function Phrase({
       {herman && (
         <div className="today-herman">
           <Herman64 pose="resting" />
-          <span>For today, from Herman</span>
+          <span>For today, from {name}</span>
         </div>
       )}
       <figure className="today-figure">
@@ -393,6 +394,7 @@ type BriefState = { phase: 'idle' } | { phase: 'running' | 'done'; id: string; t
 function BriefMe(): JSX.Element | null {
   const enabled = useAiGate((state) => state.enabled)
   const herman = useHerman((state) => state.on)
+  const { name } = usePersona()
   const [state, setState] = useState<BriefState>({ phase: 'idle' })
   const current = useRef<string | null>(null)
 
@@ -445,7 +447,7 @@ function BriefMe(): JSX.Element | null {
     <section className="today-section today-brief" aria-label="Summary of the day">
       {state.phase === 'idle' && (
         <button type="button" className="today-link" onClick={run}>
-          {herman ? 'Ask Herman about today' : 'Brief me'}
+          {herman ? `Ask ${name} about today` : 'Brief me'}
         </button>
       )}
       {(state.phase === 'running' || state.phase === 'done') && (

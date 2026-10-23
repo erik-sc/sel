@@ -2,6 +2,8 @@
 // Herman's own lines are written in, chosen the same way, by the main process (an announcement
 // carries its locale; Settings asks Herman's state). Pure: no React, no DOM.
 import type { AskRecord, EventLead } from '@shared/alarms'
+import type { PersonaId } from '@shared/herman'
+import { personifyCopy } from '@shared/persona'
 
 export type AlarmsLocale = 'en' | 'pt-BR'
 
@@ -167,6 +169,7 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
   }
 }
 
-export function alarmsCopy(locale: string | null | undefined): AlarmsCopy {
-  return locale === 'pt-BR' ? ALARMS_COPY['pt-BR'] : ALARMS_COPY.en
+export function alarmsCopy(locale: string | null | undefined, persona: PersonaId = 'herman'): AlarmsCopy {
+  const chosen: AlarmsLocale = locale === 'pt-BR' ? 'pt-BR' : 'en'
+  return personifyCopy(ALARMS_COPY[chosen], persona, chosen)
 }

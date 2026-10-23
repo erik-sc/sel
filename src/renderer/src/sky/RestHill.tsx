@@ -1,6 +1,7 @@
 // "Até amanhã": Herman 64 on his hill under tonight's sky, at the end of Close the day. The hill is
 // one still picture (scripts/sky64, 240 × 136, shown at 2×); the moon is drawn here in its real
-// phase, in the slot the picture leaves for it; Herman wears the user's outfit and sleeps.
+// phase, in the slot the picture leaves for it; Herman (or Hermine, when she is the persona) wears
+// the user's outfit and sleeps.
 import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import type { Hemisphere } from '@shared/sky'

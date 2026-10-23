@@ -15,7 +15,7 @@ import {
 import { readRefineSettings } from '../../shared/tasks/refine'
 import * as arg from '../validate'
 import { compose, COUNSEL_DEFAULTS, type CounselEvent, type CounselInput, type CounselTask, type CounselThresholds } from './counsel'
-import { PHRASES } from './lines'
+import { phrasesOf } from './lines'
 import {
   decide,
   feedback,
@@ -197,7 +197,8 @@ export class HermanService {
 
   state(): HermanState {
     const locale = this.locale()
-    const phrases = PHRASES[locale]
+    const persona = hermanSetting('persona', this.setting('herman.persona'))
+    const phrases = phrasesOf(locale, persona)
     const memory = this.memory()
     const quietHours = hermanSetting('quietHours', this.setting('herman.quietHours'))
     return {
@@ -210,6 +211,8 @@ export class HermanService {
       corner: hermanSetting('corner', this.setting('herman.corner')),
       skin: hermanSetting('skin', this.setting('herman.skin')),
       seasonalSkins: hermanSetting('seasonalSkins', this.setting('herman.seasonalSkins')),
+      persona,
+      hermineSkin: hermanSetting('hermineSkin', this.setting('herman.hermineSkin')),
       locale,
       greeting: memory.met ? null : phrases.greeting,
       quiet: !this.deps.fast && isQuiet(quietHours, this.now()),
@@ -307,6 +310,7 @@ export class HermanService {
     const input: CounselInput = {
       now,
       locale: this.locale(),
+      persona: hermanSetting('persona', this.setting('herman.persona')),
       tasks: day.tasks,
       events: day.events,
       // Settings → Notifications can turn this one off on its own.
