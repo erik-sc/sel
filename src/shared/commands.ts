@@ -19,6 +19,7 @@ import { POMODORO_COMMANDS } from './pomodoro'
 import type { AppShortcut } from './shortcuts'
 import { SKY_COMMANDS } from './sky'
 import { TASKS_COMMANDS } from './tasks/api'
+import { WEEK_COMMANDS } from './tasks/week'
 import { TEMPLATES_COMMANDS } from './templates/model'
 
 /** The menus of the menu bar a command can sit in; `app` is macOS's application menu. */
@@ -192,6 +193,7 @@ export const COMMANDS = [
   ...HOME_COMMANDS,
   ...BRIEFING_COMMANDS,
   ...TASKS_COMMANDS,
+  ...WEEK_COMMANDS,
   ...NOTEBOOK_COMMANDS,
   ...SKY_COMMANDS,
   ...ACTIVITY_COMMANDS,

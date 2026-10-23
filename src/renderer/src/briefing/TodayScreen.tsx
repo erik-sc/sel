@@ -27,6 +27,7 @@ import {
 import { openFlows } from '@/flows/route'
 import { useHome } from '@/home/store'
 import { TASK_COPY } from '@/tasks/copy'
+import { TodayWeek } from '@/review/TodayWeek'
 import { startRefine } from '@/tasks/gate'
 import { TaskPanel } from '@/tasks/lazy'
 import { initRefining, useRefining } from '@/tasks/refining'
@@ -350,6 +351,7 @@ function Tasks({
         </button>
       )}
       <RefineLine />
+      <TodayWeek today={today} onOpenTask={setPanel} />
       {panel && (
         <TaskPanel
           overlay

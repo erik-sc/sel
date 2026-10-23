@@ -61,6 +61,7 @@ const VIEW = [
   'Calendar (CmdOrCtrl+Alt+C)',
   'Tasks (CmdOrCtrl+Alt+K)',
   'Add a Task… (CmdOrCtrl+Alt+A)',
+  'Weekly Review',
   'Meditations (CmdOrCtrl+Alt+N)',
   'Sky (CmdOrCtrl+Alt+G)',
   'Flows',

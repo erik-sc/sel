@@ -12,6 +12,7 @@ import { homeFeature } from './home/feature'
 import { meetingsFeature } from './meetings/feature'
 import { notebookFeature } from './notebook/feature'
 import { pomodoroFeature } from './pomodoro/feature'
+import { reviewFeature } from './review/feature'
 import { shellFeature } from './shell/feature'
 import { skyFeature } from './sky/feature'
 import { syncFeature } from './sync/feature'
@@ -35,6 +36,7 @@ export const FEATURES = [
   briefingFeature,
   tasksFeature,
   notebookFeature,
+  reviewFeature,
   feedbackFeature,
   activityFeature,
   transferFeature,

@@ -19,6 +19,7 @@ describe('the screens', () => {
     expect(routeTitle(ROUTES.NOTEBOOK_ROUTE)).toBe('Meditations')
     expect(routeTitle(NOTEBOOK_ID)).toBe('Meditations')
     expect(routeTitle(ROUTES.CLOSE_ROUTE)).toBe('Close the day')
+    expect(routeTitle(ROUTES.REVIEW_ROUTE)).toBe('Weekly review')
     expect(routeTitle(ROUTES.SKY_ROUTE)).toBe('Sky')
     expect(routeTitle(SKY_ID)).toBe('Sky')
     for (const notOne of ['a1b2c3', '', null, undefined]) expect(routeTitle(notOne)).toBeNull()
