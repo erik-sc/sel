@@ -102,7 +102,23 @@ function cleanSent(value: unknown): AiSent | undefined {
   if (!isObject(value)) return undefined
   const names = (list: unknown): string[] => lines(list).slice(0, 20)
   const memory = typeof value.memory === 'number' && Number.isInteger(value.memory) && value.memory > 0 ? Math.min(value.memory, 999) : 0
-  return { context: value.context === true, pages: names(value.pages), servers: names(value.servers), ...(memory ? { memory } : {}) }
+  const scopes = (Array.isArray(value.scopes) ? value.scopes : [])
+    .filter(isObject)
+    .filter((scope) => (scope.kind === 'project' || scope.kind === 'database') && typeof scope.name === 'string')
+    .slice(0, 4)
+    .map((scope) => ({
+      kind: scope.kind as 'project' | 'database',
+      name: String(scope.name).slice(0, 200),
+      context: scope.context === true,
+      pages: names(scope.pages)
+    }))
+  return {
+    context: value.context === true,
+    pages: names(value.pages),
+    servers: names(value.servers),
+    ...(scopes.length ? { scopes } : {}),
+    ...(memory ? { memory } : {})
+  }
 }
 
 function cleanScope(value: unknown): StoredScope | undefined {

@@ -76,7 +76,15 @@ describe('stored conversations', () => {
               at: 2,
               status: 'error',
               error: { code: 'timeout', message: 'Too slow', bogus: 1 },
-              sent: { context: true, pages: ['A', 3], servers: ['Veleiro'] },
+              sent: {
+                context: true,
+                pages: ['A', 3],
+                servers: ['Veleiro'],
+                scopes: [
+                  { kind: 'project', name: 'Auxiliadora', context: true, pages: ['Brief'] },
+                  { kind: 'bogus', name: 'x' }
+                ]
+              },
               proposal: { state: 'applied', done: ['x'], skipped: [], open: 'p1', logId: 'a1' }
             }
           ]
@@ -89,7 +97,12 @@ describe('stored conversations', () => {
       at: 2,
       status: 'error',
       error: { code: 'timeout', message: 'Too slow' },
-      sent: { context: true, pages: ['A'], servers: ['Veleiro'] },
+      sent: {
+        context: true,
+        pages: ['A'],
+        servers: ['Veleiro'],
+        scopes: [{ kind: 'project', name: 'Auxiliadora', context: true, pages: ['Brief'] }]
+      },
       proposal: { state: 'applied', done: ['x'], skipped: [], open: 'p1', logId: 'a1' }
     })
   })
