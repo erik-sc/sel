@@ -77,6 +77,8 @@ export interface ContextCopy {
   sentContext: string
   sentPages: (count: number) => string
   sentServers: (names: string) => string
+  /** The persona's remembered facts that went along (0.8.0 A3). */
+  sentMemory: (count: number) => string
   /** A project's or database's own context that went along (0.8.0 A4). */
   sentScope: (kind: ScopeKind, name: string, pages: number) => string
 
@@ -192,6 +194,7 @@ export const CONTEXT_COPY: Record<HomeLocale, ContextCopy> = {
     sentContext: 'your context',
     sentPages: (count) => (count === 1 ? '1 pinned page' : `${count} pinned pages`),
     sentServers: (names) => `tools: ${names}`,
+    sentMemory: (count) => (count === 1 ? '1 remembered fact' : `${count} remembered facts`),
     sentScope: (kind, name, pages) =>
       `${kind === 'project' ? 'project' : 'database'} “${name}”${pages ? ` (${pages === 1 ? '1 page' : `${pages} pages`})` : ''}`,
 
@@ -318,6 +321,7 @@ export const CONTEXT_COPY: Record<HomeLocale, ContextCopy> = {
     sentContext: 'seu contexto',
     sentPages: (count) => (count === 1 ? '1 página fixada' : `${count} páginas fixadas`),
     sentServers: (names) => `ferramentas: ${names}`,
+    sentMemory: (count) => (count === 1 ? '1 fato lembrado' : `${count} fatos lembrados`),
     sentScope: (kind, name, pages) =>
       `${kind === 'project' ? 'projeto' : 'database'} “${name}”${pages ? ` (${pages === 1 ? '1 página' : `${pages} páginas`})` : ''}`,
 
@@ -374,6 +378,7 @@ export function sentLine(sent: AiSent | undefined, copy: ContextCopy): string | 
   if (sent.context) parts.push(copy.sentContext)
   if (sent.pages.length) parts.push(copy.sentPages(sent.pages.length))
   for (const scope of sent.scopes ?? []) parts.push(copy.sentScope(scope.kind, scope.name, scope.pages.length))
+  if (sent.memory) parts.push(copy.sentMemory(sent.memory))
   if (sent.servers.length) parts.push(copy.sentServers(sent.servers.join(', ')))
   return parts.length ? `${copy.sentLabel}: ${parts.join(' · ')}` : null
 }

@@ -7,6 +7,7 @@ import { useAiGate } from './gate'
 const loadBalloon = (): Promise<typeof import('./Balloon')> => import('./Balloon')
 const Balloon = lazy(() => loadBalloon().then((module) => ({ default: module.Balloon })))
 const SetupSheet = lazy(() => import('./SetupSheet').then((module) => ({ default: module.SetupSheet })))
+const Onboarding = lazy(() => import('./Onboarding').then((module) => ({ default: module.Onboarding })))
 
 /** Starts fetching the balloon; call it when its trigger is about to be used. */
 export function preloadAssistant(): void {
@@ -36,6 +37,17 @@ export function AiSetup(): JSX.Element | null {
   return (
     <Suspense fallback={null}>
       <SetupSheet />
+    </Suspense>
+  )
+}
+
+/** The persona's introduction (0.8.0 A1): fetched the first time it opens. */
+export function OnboardingHost(): JSX.Element | null {
+  const open = useAiGate((state) => state.enabled && state.onboarding !== null)
+  if (!open) return null
+  return (
+    <Suspense fallback={null}>
+      <Onboarding />
     </Suspense>
   )
 }

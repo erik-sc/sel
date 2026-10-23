@@ -37,7 +37,7 @@ import { useAiPrivacy } from './privacy'
 import './scope.css'
 
 /** The language of these settings: the one set for AI answers when it is one of the two, else the system's. */
-function useLocale(): HomeLocale {
+export function useLocale(): HomeLocale {
   const [locale, setLocale] = useState<HomeLocale>(() => homeLocale(null, navigator.language))
   useEffect(() => {
     let alive = true

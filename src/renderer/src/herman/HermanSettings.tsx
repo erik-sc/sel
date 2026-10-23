@@ -7,37 +7,29 @@ import {
   HERMAN_CORNERS,
   HERMAN_DEFAULTS,
   HERMAN_FREQUENCIES,
-  HERMAN_SEASONAL_SKINS,
   HERMAN_SIZES,
-  HERMAN_SKINS,
   HERMAN_VOICES,
   HERMAN_VOICE_LABELS,
-  HERMINE_SEASONAL_SKINS,
-  HERMINE_SKINS,
-  PERSONA_NAMES,
-  PERSONAS,
   type HermanCorner,
   type HermanFrequency,
   type HermanSettings,
   type HermanSize,
   type HermanSkinId,
   type HermanVoice,
-  type HermineSkinId,
-  type PersonaId
+  type HermineSkinId
 } from '@shared/herman'
 import { ConfirmButton, Segmented } from '@/appearance/controls'
 import { notifyError, toast } from '@/ui/toast'
 import { AlarmSettings } from '@/alarms/AlarmSettings'
 import { Herman64 } from './Herman64'
-import { spriteUrl } from './sprites'
-import { useHerman, usePersona } from './gate'
+import { usePersona } from './gate'
+import { PERSONA_OPTIONS, saveHermanSetting, SkinChoice, WARDROBES } from './wardrobe'
 import { fromClock, toClock } from './mood'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'On' },
   { value: 'off', label: 'Off' }
 ]
-const PERSONA_OPTIONS = PERSONAS.map((value) => ({ value, label: PERSONA_NAMES[value] }))
 const SIZES: { value: HermanSize; label: string }[] = HERMAN_SIZES.map((value) => ({
   value,
   label: value === 'small' ? 'Small' : 'Medium'
@@ -55,40 +47,6 @@ const CORNER_LABELS: Record<HermanCorner, string> = {
   'top-right': 'Top right',
   'top-left': 'Top left'
 }
-const SKIN_LABELS: Record<HermanSkinId, string> = {
-  classic: 'Classic',
-  wizard: 'Star wizard',
-  monk: 'Zen monk',
-  hacker: 'Hacker',
-  gardener: 'Gardener',
-  astronaut: 'Astronaut',
-  pirate: 'Pirate',
-  detective: 'Detective',
-  scribe: 'Scribe',
-  stone: 'Stone',
-  santa: 'Santa',
-  pumpkin: 'Pumpkin'
-}
-const HERMINE_SKIN_LABELS: Record<HermineSkinId, string> = {
-  classic: 'Classic',
-  astronomer: 'Astronomer',
-  gardener: 'Gardener',
-  hacker: 'Hacker',
-  monk: 'Zen monk',
-  aviator: 'Aviator',
-  painter: 'Painter',
-  librarian: 'Librarian',
-  captain: 'Captain',
-  astronaut: 'Astronaut',
-  witch: 'Witch',
-  winter: 'Winter'
-}
-/** Each persona's wardrobe: the everyday skins, those of a season (with their month), and their names. */
-const WARDROBES: Record<PersonaId, { skins: readonly string[]; seasons: Partial<Record<string, number>>; labels: Record<string, string> }> =
-  {
-    herman: { skins: HERMAN_SKINS, seasons: HERMAN_SEASONAL_SKINS, labels: SKIN_LABELS },
-    hermine: { skins: HERMINE_SKINS, seasons: HERMINE_SEASONAL_SKINS, labels: HERMINE_SKIN_LABELS }
-  }
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 const VOICE_HELP: Record<HermanVoice, string> = {
@@ -118,21 +76,10 @@ export function HermanSection(): JSX.Element {
   const change = <K extends keyof HermanSettings>(name: K, value: HermanSettings[K]): void => {
     const previous = values[name]
     setValues((current) => ({ ...current, [name]: value }))
-    window.api.app.setSetting(`herman.${name}`, value).then(
-      () =>
-        useHerman.setState((state) => ({
-          version: state.version + 1,
-          ...(name === 'enabled' ? { on: value === true } : {}),
-          ...(name === 'skin' ? { skin: value as HermanSkinId } : {}),
-          ...(name === 'hermineSkin' ? { hermineSkin: value as HermineSkinId } : {}),
-          ...(name === 'persona' ? { persona: value as PersonaId } : {}),
-          ...(name === 'seasonalSkins' ? { seasonal: value === true } : {})
-        })),
-      (error: unknown) => {
-        setValues((current) => ({ ...current, [name]: previous }))
-        notifyError('The setting could not be saved.', error)
-      }
-    )
+    saveHermanSetting(name, value).catch((error: unknown) => {
+      setValues((current) => ({ ...current, [name]: previous }))
+      notifyError('The setting could not be saved.', error)
+    })
   }
 
   const reset = (): void => {
@@ -369,29 +316,5 @@ export function HermanSection(): JSX.Element {
 
       <AlarmSettings />
     </div>
-  )
-}
-
-function SkinChoice({
-  persona,
-  skin,
-  label,
-  chosen,
-  note,
-  onChoose
-}: {
-  persona: PersonaId
-  skin: string
-  label: string
-  chosen: boolean
-  note?: string
-  onChoose: () => void
-}): JSX.Element {
-  return (
-    <button type="button" className={chosen ? 'herman-skin is-chosen' : 'herman-skin'} aria-pressed={chosen} onClick={onChoose}>
-      <img src={spriteUrl(skin as HermanSkinId | HermineSkinId, 'still', persona)} alt="" width={84} height={84} />
-      <span className="herman-skin-name">{label}</span>
-      {note && <span className="herman-skin-note">{note}</span>}
-    </button>
   )
 }

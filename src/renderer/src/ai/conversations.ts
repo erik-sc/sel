@@ -32,6 +32,11 @@ export interface Message {
   /** User messages: what the question was about, and whether a selection went with it. */
   scope?: StoredScope
   withSelection?: boolean
+  /**
+   * User messages, in memory only: the tab route the question was asked from. On a page private
+   * from the AI the question goes without the page, and this is how the memory still knows.
+   */
+  route?: string
   /** Assistant messages: what became of the proposal in the answer. */
   proposal?: Outcome
 }
@@ -310,7 +315,11 @@ function answer(conversationId: string, question: string, request: AiRequest): v
     if (run.status !== 'done') return
     const conversation = conversationOf(conversationId)
     const index = conversation?.messages.findIndex((message) => message.id === id) ?? -1
+    const asked = index > 0 ? conversation?.messages[index - 1] : undefined
+    const route =
+      asked?.route ?? Object.entries(useConversations.getState().active).find(([, active]) => active === conversationId)?.[0] ?? null
     emitReplyDone({
+      route: route || null,
       conversationId,
       messageId: id,
       question,
@@ -349,6 +358,7 @@ export function ask(key: string, question: string, scope: AskScope, selection: s
         role: 'user',
         text,
         at: Date.now(),
+        ...(key ? { route: key } : {}),
         ...(stored ? { scope: stored } : {}),
         ...(selection ? { withSelection: true } : {})
       }

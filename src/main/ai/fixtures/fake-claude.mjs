@@ -119,6 +119,18 @@ function answer(prompt) {
       '- [ ] Write the migration guide'
     ].join('\n')
   }
+  // The persona's memory: one fact from the user's last line when it speaks of them, as strict JSON.
+  if (task.startsWith('Pick out of the CONVERSATION')) {
+    const said = section(prompt, 'CONVERSATION')
+      .split('\n\n')
+      .filter((turn) => turn.startsWith('User: '))
+      .pop()
+      ?.slice(6)
+      .replace(/\[\[fake:[a-z-]+\]\]/g, '')
+      .trim()
+    const about = said && /\b(I|my|me|eu|meu|minha|prefiro|trabalho)\b/i.test(said)
+    return JSON.stringify({ facts: about ? [`Said: ${said.slice(0, 120)}`] : [] })
+  }
   if (task.startsWith('Suggest five titles')) {
     return [
       '🚀 Spring release plan',

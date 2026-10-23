@@ -25,6 +25,7 @@ describe('the built-in commands', () => {
       'close-day',
       'new-meeting',
       'toggle-assistant',
+      'ai-onboarding',
       'new-tab',
       'close-tab',
       'reopen-tab',

@@ -9,7 +9,7 @@
  * Pure data: free of Electron and the DOM.
  */
 import { ACTIVITY_COMMANDS } from './activity'
-import { AI_COMMANDS } from './ai'
+import { AI_COMMANDS, AI_ONBOARDING_COMMANDS } from './ai'
 import { BRIEFING_COMMANDS } from './briefing'
 import { FEEDBACK_COMMANDS } from './feedback'
 import { HOME_COMMANDS } from './home'
@@ -200,6 +200,7 @@ export const COMMANDS = [
   ...POMODORO_COMMANDS,
   ...MEETINGS_COMMANDS,
   ...AI_COMMANDS,
+  ...AI_ONBOARDING_COMMANDS,
   ...FEEDBACK_COMMANDS
 ] as const satisfies readonly CommandSpec[]
 
