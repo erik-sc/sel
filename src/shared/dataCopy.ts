@@ -23,7 +23,6 @@ export interface DataCopy {
   restore: string
   restoreHelp: string
   chooseBackup: string
-  restarting: string
   exportAll: string
   exportHelp: string
   chooseFolder: string
@@ -38,10 +37,6 @@ export interface DataCopy {
   // ---- native dialogs (main process)
   chooseBackupTitle: string
   backupFilter: string
-  restoreQuestion: (when: string) => string
-  restoreDetail: (pages: number, synced: boolean) => string
-  restoreAndRestart: string
-  cancel: string
   exportTitle: string
   exportFolder: (day: string) => string
   /** The folder of pages that are archived, in an export. */
@@ -72,9 +67,8 @@ export const DATA_COPY: Record<DataLocale, DataCopy> = {
     backingUp: 'Backing up…',
     showFolder: 'Show folder',
     restore: 'Restore a backup',
-    restoreHelp: 'Bring everything back to how it was in a backup. sel restarts.',
+    restoreHelp: 'See what changed since a backup, then bring back one page or everything.',
     chooseBackup: 'Choose backup…',
-    restarting: 'Restarting…',
     exportAll: 'Export everything',
     exportHelp: 'Every page as a Markdown file, with its images, in a folder you choose.',
     chooseFolder: 'Choose folder…',
@@ -99,12 +93,6 @@ export const DATA_COPY: Record<DataLocale, DataCopy> = {
     openLogs: 'Open logs folder',
     chooseBackupTitle: 'Choose a backup',
     backupFilter: 'sel backups',
-    restoreQuestion: (when) => `Restore the backup of ${when}?`,
-    restoreDetail: (pages, synced) =>
-      `It holds ${pages} ${pages === 1 ? 'page' : 'pages'}. sel first keeps a backup of everything as it is now, so this can be undone, then restarts with the one you chose.` +
-      (synced ? '\n\nSync is on: the next sync brings back what changed on your other devices since then.' : ''),
-    restoreAndRestart: 'Restore and restart',
-    cancel: 'Cancel',
     exportTitle: 'Export everything to a folder',
     exportFolder: (day) => `sel export ${day}`,
     archiveFolder: 'Archive',
@@ -134,9 +122,8 @@ export const DATA_COPY: Record<DataLocale, DataCopy> = {
     backingUp: 'Fazendo backup…',
     showFolder: 'Mostrar pasta',
     restore: 'Restaurar um backup',
-    restoreHelp: 'Volta tudo ao que era em um backup. O sel reinicia.',
+    restoreHelp: 'Veja o que mudou desde um backup e traga de volta uma página ou tudo.',
     chooseBackup: 'Escolher backup…',
-    restarting: 'Reiniciando…',
     exportAll: 'Exportar tudo',
     exportHelp: 'Cada página como um arquivo Markdown, com as imagens, numa pasta que você escolhe.',
     chooseFolder: 'Escolher pasta…',
@@ -161,12 +148,6 @@ export const DATA_COPY: Record<DataLocale, DataCopy> = {
     openLogs: 'Abrir pasta de logs',
     chooseBackupTitle: 'Escolha um backup',
     backupFilter: 'Backups do sel',
-    restoreQuestion: (when) => `Restaurar o backup de ${when}?`,
-    restoreDetail: (pages, synced) =>
-      `Ele tem ${pages} ${pages === 1 ? 'página' : 'páginas'}. Antes, o sel guarda um backup de tudo como está agora, para que isso possa ser desfeito; depois reinicia com o backup escolhido.` +
-      (synced ? '\n\nO sync está ligado: o próximo sync traz de volta o que mudou nos seus outros aparelhos desde então.' : ''),
-    restoreAndRestart: 'Restaurar e reiniciar',
-    cancel: 'Cancelar',
     exportTitle: 'Exportar tudo para uma pasta',
     exportFolder: (day) => `sel exportação ${day}`,
     archiveFolder: 'Arquivo',

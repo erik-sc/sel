@@ -13,6 +13,7 @@ import {
   type RestoreMode,
   type RestoreResult,
   type SnapshotBlock,
+  type SnapshotContent,
   type VersionInfo,
   type VersionSnapshot,
   type VersionStats
@@ -44,7 +45,7 @@ import { ACTIVITY_ENABLED_KEY } from '../../shared/activity'
 import { configure, migrate } from './schema'
 import { backlinksTo, searchBlocks, type SearchSource } from './search'
 import { searchText } from './text'
-import { buildSnapshot, BulkChange, formatStamp, RESTORE_LABEL_PREFIX, VersionStore } from './versions'
+import { buildSnapshot, BulkChange, formatStamp, RESTORE_LABEL_PREFIX, snapshotTextSize, VersionStore } from './versions'
 import { archivedFilter, byIdsSql, LINEAGE_SQL, liveFilter, pagesAbove, pick, subtreeSql, walk, type Link, type TreeNode } from './tree'
 
 export { BLOCK_TYPES, isBlockType, isPageLike, isValidId, MAX_SETTING_CHARS } from './blocks'
@@ -74,6 +75,23 @@ export interface SyncChange {
   settings: Record<string, unknown>
   /** Runs last, inside the transaction. */
   finish?: () => void
+}
+
+/** A page as a backup has it, for Repository.restoreFromBackup (read by ../data/pageRestore.ts). */
+export interface BackupPage {
+  /** Its own content, in the shape of a version; a database comes with its rows (`rows`). */
+  snapshot: SnapshotContent
+  /** The block that held it in the backup. */
+  parentId: string | null
+  /** `replace`: made equal to the backup. `missing`: only brought back when it no longer exists. */
+  mode: 'replace' | 'missing'
+}
+
+/** Why a page cannot be brought back from a backup. */
+export class BackupRestoreError extends Error {
+  constructor(readonly problem: 'notebook' | 'kind-changed') {
+    super(problem === 'notebook' ? 'Past days of Meditations never change' : 'That page is now another kind of block')
+  }
 }
 
 /** The columns of a row that structural checks need: no JSON, nothing to parse. */
@@ -1765,6 +1783,152 @@ export class Repository {
     if (views) notes.push(`${views} linked ${views === 1 ? 'view was' : 'views were'} left out because the database no longer exists.`)
     if (lost) notes.push(`${lost} ${lost === 1 ? 'row was' : 'rows were'} deleted forever and could not be copied.`)
     return { pageId: copy.id, backupId: null, notes }
+  }
+
+  // ----------------------------------------------------------- from a backup
+
+  /**
+   * Brings pages back as a backup has them (see ../data/pageRestore.ts, which reads them out of
+   * the backup), in one transaction, and touches nothing else. `pages` come with the chosen page
+   * first and every other one after the page above it.
+   * - A page that no longer exists comes back first, under its own ids where they are free, and
+   *   where it was when that block is still there (the root of the workspace otherwise).
+   * - A page that exists (in the Trash too) is made equal to the backup the way a version is
+   *   restored (restoreReplace): it keeps a `restore` version of what it was, and the pages made
+   *   since are kept at its end. Without `adoptAll`, the nested pages it held are only put back
+   *   when they are still inside it: one moved elsewhere or put in the Trash since is left alone.
+   * - A page in `missing` mode only comes back when it no longer exists (the rows of a database).
+   */
+  restoreFromBackup(
+    pages: readonly BackupPage[],
+    at: number,
+    adoptAll: boolean
+  ): { pageId: string; title: string; pages: number; notes: string[] } {
+    if (!pages.length) throw new Error('Nothing to restore')
+    return this.transaction(() => {
+      const rootId = pages[0].snapshot.rootId
+      if (rootId === NOTEBOOK_ID || this.isNotebookPage(this.head(rootId)?.parent_id ?? null)) throw new BackupRestoreError('notebook')
+      const missing = new Set<string>()
+      for (const p of pages) if (!this.head(p.snapshot.rootId)) missing.add(p.snapshot.rootId)
+      const created = new Set<string>()
+      const idMap = new Map<string, string>()
+      const notes: string[] = []
+      let written = 0
+      for (const [i, p] of pages.entries()) {
+        if (!missing.has(p.snapshot.rootId)) continue
+        this.insertBackupPage(p, i === 0 ? null : rootId, missing, created, idMap)
+        written++
+      }
+      for (const [i, p] of pages.entries()) {
+        const id = p.snapshot.rootId
+        if (missing.has(id) || p.mode !== 'replace') continue
+        const cur = this.row(id)
+        const was = p.snapshot.blocks[0]
+        const sameKind = !!cur && cur.type === was.type && (sourceIdOf(cur) === null) === (sourceIdOf(was) === null)
+        if (!cur || !sameKind || id === NOTEBOOK_ID) {
+          if (i === 0) throw new BackupRestoreError(id === NOTEBOOK_ID ? 'notebook' : 'kind-changed')
+          notes.push(`"${plainText(was.props.title) || 'Untitled'}" is now another kind of block and was left as it is.`)
+          continue
+        }
+        if (cur.trashedAt !== null) this.restore(id)
+        const snapshot = adoptAll ? p.snapshot : this.withOwnRefs(p.snapshot, missing)
+        const info: VersionInfo = {
+          id: 'backup',
+          pageId: id,
+          createdAt: at,
+          kind: 'restore',
+          label: null,
+          blockCount: snapshot.blocks.length,
+          textSize: snapshotTextSize(snapshot)
+        }
+        notes.push(...this.restoreReplace({ ...snapshot, info }, this.need(id)).notes)
+        written++
+      }
+      return { pageId: rootId, title: plainText(this.row(rootId)?.props.title), pages: written, notes }
+    })
+  }
+
+  /** The snapshot without the nested pages that are no longer inside the page (moved away, in the Trash): those are left alone. */
+  private withOwnRefs(snapshot: SnapshotContent, missing: ReadonlySet<string>): SnapshotContent {
+    const inside = new Set(this.getTree(snapshot.rootId).map((b) => b.id))
+    const refs = snapshot.refs.filter((ref) => {
+      if (missing.has(ref.id)) return true
+      const h = this.head(ref.id)
+      return !!h && h.trashed_at == null && h.parent_id !== null && inside.has(h.parent_id)
+    })
+    return refs.length === snapshot.refs.length ? snapshot : { ...snapshot, refs }
+  }
+
+  /**
+   * Writes a page that no longer exists as the backup has it: its own blocks under their ids
+   * when those are free (a new id otherwise, in `idMap`). Its child lists name only its own
+   * blocks and the pages also being brought back (`missing`), which are written after it and
+   * find their place in them. `fallback` is where a page goes when the block that held it is
+   * gone (the chosen page); null for the chosen page itself, which then goes to the root.
+   */
+  private insertBackupPage(
+    page: BackupPage,
+    fallback: string | null,
+    missing: ReadonlySet<string>,
+    created: Set<string>,
+    idMap: Map<string, string>
+  ): void {
+    const [root, ...own] = page.snapshot.blocks
+    const now = this.now()
+    const ownIds = new Set(own.map((b) => b.id))
+    for (const b of own) {
+      if (this.head(b.id) || created.has(b.id) || missing.has(b.id)) idMap.set(b.id, randomUUID())
+    }
+    const idOf = (id: string): string => idMap.get(id) ?? id
+    const contentOf = (content: string[]): string[] => content.filter((id) => ownIds.has(id) || missing.has(id)).map(idOf)
+
+    const wanted = page.parentId === null ? null : idOf(page.parentId)
+    let parentId: string | null
+    if (wanted !== null && created.has(wanted)) parentId = wanted
+    else if (wanted !== null && this.canHoldRestored(wanted)) parentId = wanted
+    else parentId = fallback
+
+    const props: BlockProps = { ...root.props }
+    // A built-in block exists once: the one sel made since stays the built-in one.
+    delete props.system
+    this.dirty(parentId)
+    this.insertRow({
+      id: root.id,
+      type: root.type,
+      parentId,
+      content: contentOf(root.content),
+      props: root.type === 'database' && sourceIdOf(root) === null ? defaultDatabaseProps(props) : props,
+      createdAt: root.createdAt || now,
+      updatedAt: now,
+      trashedAt: null
+    })
+    created.add(root.id)
+    for (const b of own) {
+      const id = idOf(b.id)
+      this.insertRow({
+        id,
+        type: b.type,
+        parentId: b.parentId === null ? root.id : idOf(b.parentId),
+        content: contentOf(b.content),
+        props: b.props,
+        createdAt: b.createdAt || now,
+        updatedAt: now,
+        trashedAt: null
+      })
+      created.add(id)
+    }
+    // A block written above already names it in its child list.
+    if (parentId === null || !created.has(parentId)) {
+      this.attach(parentId, root.id, undefined)
+      this.touchPage(parentId)
+    }
+  }
+
+  /** True when `id` is a live block a restored page can be put back into. */
+  private canHoldRestored(id: string): boolean {
+    const h = this.head(id)
+    if (!h || this.isLinked(h) || this.isNotebookPage(id) || this.isNotebookPage(h.parent_id)) return false
+    return liveFilter(this.lineage([id]))(id)
   }
 
   // -------------------------------------------------------------------- sync
