@@ -1,4 +1,5 @@
 import { AI_CONTEXT_CAPS, AI_CONTEXT_KEY, AI_CONTEXT_PAGES_KEY, contextPageIds, type AiSent } from '../../shared/aiContext'
+import { privacyChecker } from '../../shared/aiPrivate'
 import type { Block } from '../../shared/types'
 import { pinnedBody, type PromptContext, type StandingContext } from './prompts'
 
@@ -12,7 +13,8 @@ import { pinnedBody, type PromptContext, type StandingContext } from './prompts'
 export interface StandingSource {
   getSetting(key: string): unknown
   get(id: string): Block | null
-  pageToMarkdown(id: string): { title: string; markdown: string }
+  /** `hidden` names the pages, databases and rows inside to leave out (what is private from the AI). */
+  pageToMarkdown(id: string, hidden?: (id: string) => boolean): { title: string; markdown: string }
 }
 
 /** The standing context, or null when the user set none (or none of it can be read any more). */
@@ -20,12 +22,15 @@ export function loadStanding(source: StandingSource): StandingContext | null {
   const stored = source.getSetting(AI_CONTEXT_KEY)
   const text = typeof stored === 'string' && stored.trim() ? stored.slice(0, AI_CONTEXT_CAPS.text) : undefined
   const pages: NonNullable<StandingContext['pages']> = []
+  const hidden = privacyChecker(source)
   for (const id of contextPageIds(source.getSetting(AI_CONTEXT_PAGES_KEY))) {
     const block = source.get(id)
     // A page in the Trash, or gone, is left out until it is restored.
     if (!block || block.trashedAt !== null || (block.type !== 'page' && block.type !== 'database')) continue
+    // Pinned before it was made private (or on another device): left out while it is (Settings says so).
+    if (hidden(id)) continue
     try {
-      const { title, markdown } = source.pageToMarkdown(id)
+      const { title, markdown } = source.pageToMarkdown(id, hidden)
       pages.push({ id, title, markdown })
     } catch (err) {
       console.error('[ai] a pinned page could not be read', err)

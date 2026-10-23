@@ -13,6 +13,7 @@ import { isTodayRoute } from '@/briefing/route'
 import { routeTitle } from '@/screens'
 import { Herman64 } from '@/herman/Herman64'
 import { useHerman } from '@/herman/gate'
+import { useHome } from '@/home/store'
 import { poseFor } from '@/herman/mood'
 import { pageTitle } from '@/shell/actions'
 import { PageIcon } from '@/shell/PageIcon'
@@ -26,10 +27,13 @@ import { notifyError, toast } from '@/ui/toast'
 import { createdTitles, describeAction, summarizeActions } from './actions'
 import { applyActions, undoApplied } from './applyActions'
 import { startRun, type RunHandle } from './client'
+import { CONTEXT_COPY } from './contextCopy'
 import { aiReady, openAiSetup, toggleAssistant, useAiGate } from './gate'
 import { errorLines, statusText } from './labels'
 import { IDLE, isBusy, reduceRun, type RunEvent, type RunState } from './machine'
 import { MarkdownView } from './MarkdownView'
+import { LockMark } from './PrivateLock'
+import { useAiPrivacy } from './privacy'
 import { SentNote } from './SentNote'
 import { AI_GLYPH } from './session'
 import './ai.css'
@@ -156,6 +160,10 @@ export function AssistantPanel(): JSX.Element {
   const prepared = useHerman((state) => state.prepared)
   const [composing, setComposing] = useState(false)
   const page = useBlock(pageId)
+  // A page private from the AI: nothing of it is sent (not even the selection); a question goes without it.
+  const privacy = useAiPrivacy(pageId, true)
+  const isPrivate = privacy !== null
+  const words = CONTEXT_COPY[useHome((state) => state.locale)]
   const messages = useChats((state) => state.chats[key] ?? NO_MESSAGES)
   const editor = useAiGate((state) => (state.editor && state.editor.pageId === pageId ? state.editor : null))
   const scope = useAiGate((state) => (state.scope && state.scope.pageId === pageId ? state.scope : null))
@@ -165,7 +173,7 @@ export function AssistantPanel(): JSX.Element {
   const handle = useRef<RunHandle | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const selection = scope && scope.text !== dismissed ? scope.text : null
+  const selection = !isPrivate && scope && scope.text !== dismissed ? scope.text : null
   const last = messages[messages.length - 1]
   const busy = !!last?.run && isBusy(last.run)
 
@@ -231,7 +239,7 @@ export function AssistantPanel(): JSX.Element {
       {
         action: 'ask',
         instruction: question,
-        ...(pageId ? { pageId } : today ? { today: true } : {}),
+        ...(pageId && !isPrivate ? { pageId } : today ? { today: true } : {}),
         ...(selectionText ? { selectionText: selectionText.slice(0, AI_LIMITS.selection) } : {}),
         ...(history.length ? { history } : {})
       },
@@ -325,17 +333,19 @@ export function AssistantPanel(): JSX.Element {
       : 'What is on your mind?'
     : today
       ? 'Ask about your day'
-      : pageId
+      : pageId && !isPrivate
         ? 'Ask about this page'
         : 'Ask anything'
-  // Herman does not explain himself: with him on there is no help line, only the openers.
-  const emptyHelp = herman
-    ? null
-    : today
-      ? "The assistant is given today's agenda and open tasks."
-      : pageId
-        ? 'The assistant reads this page and what is around it. Nothing changes unless you insert an answer or apply what it proposes.'
-        : 'Open a page to ask about what is in it.'
+  // Herman does not explain himself: with him on there is no help line, only the openers. A private page is said either way.
+  const emptyHelp = isPrivate
+    ? words.panelPrivate
+    : herman
+      ? null
+      : today
+        ? "The assistant is given today's agenda and open tasks."
+        : pageId
+          ? 'The assistant reads this page and what is around it. Nothing changes unless you insert an answer or apply what it proposes.'
+          : 'Open a page to ask about what is in it.'
 
   return (
     <aside
@@ -392,7 +402,7 @@ export function AssistantPanel(): JSX.Element {
           <div className="assistant-empty">
             <p className="assistant-empty-title">{emptyTitle}</p>
             {emptyHelp && <p className="assistant-empty-help">{emptyHelp}</p>}
-            {(pageId || today) && (
+            {((pageId && !isPrivate) || today) && (
               <div className="assistant-suggestions">
                 {openers.map((suggestion) => (
                   <button key={suggestion} type="button" className="assistant-suggestion" onClick={() => send(suggestion)}>
@@ -502,10 +512,19 @@ export function AssistantPanel(): JSX.Element {
 
       <footer className="assistant-foot">
         <div className="assistant-context" aria-label="In scope">
-          <span className="assistant-chip" title={page ? pageTitle(page) : undefined}>
-            {page ? <PageIcon block={page} size={12} /> : null}
-            <span className="assistant-chip-text">{page ? pageTitle(page) : today ? 'Today: agenda and open tasks' : 'No page open'}</span>
-          </span>
+          {privacy ? (
+            <span className="assistant-chip" title={words.privateWhy[privacy.reason]}>
+              <LockMark why={words.privateWhy[privacy.reason]} />
+              <span className="assistant-chip-text">{words.panelPrivateChip}</span>
+            </span>
+          ) : (
+            <span className="assistant-chip" title={page ? pageTitle(page) : undefined}>
+              {page ? <PageIcon block={page} size={12} /> : null}
+              <span className="assistant-chip-text">
+                {page ? pageTitle(page) : today ? 'Today: agenda and open tasks' : 'No page open'}
+              </span>
+            </span>
+          )}
           {selection && (
             <span className="assistant-chip is-selection" title={selection.slice(0, 300)}>
               <span className="assistant-chip-text">Selection: {selection.replace(/\s+/g, ' ').slice(0, 40)}</span>
@@ -521,7 +540,9 @@ export function AssistantPanel(): JSX.Element {
             rows={2}
             value={draft}
             maxLength={AI_LIMITS.instruction}
-            placeholder={herman ? 'Ask Herman…' : today ? 'Ask about your day…' : pageId ? 'Ask about this page…' : 'Ask anything…'}
+            placeholder={
+              herman ? 'Ask Herman…' : today ? 'Ask about your day…' : pageId && !isPrivate ? 'Ask about this page…' : 'Ask anything…'
+            }
             aria-label="Message"
             onFocus={() => setComposing(true)}
             onBlur={() => setComposing(false)}

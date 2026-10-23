@@ -33,6 +33,14 @@ export const Trash = make(
   </>
 )
 
+/** A padlock: private from the AI. */
+export const Lock = make(
+  <>
+    <rect x="3.5" y="7" width="9" height="6.5" rx="1.2" />
+    <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+  </>
+)
+
 /** A box with its lid: the archive. */
 export const Archive = make(<path d="M2.5 3.5h11v2.8h-11zM3.4 6.3v6.2h9.2V6.3M6.5 8.8h3" />)
 

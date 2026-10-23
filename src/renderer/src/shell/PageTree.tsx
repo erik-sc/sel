@@ -16,6 +16,7 @@ import { createPage, dropPage, isAncestorOrSelf, movePageToRoot, pageTitle, rena
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
 import { sidebarPageMenu } from './pageMenu'
+import { PrivateLock } from '@/ai/PrivateLock'
 
 const DRAG_TYPE = 'application/x-sel-page'
 /** Left padding of a root row, and how much each level adds, in px. */
@@ -354,6 +355,7 @@ export const PageRow = memo(function PageRow({ id, depth, flat }: PageRowProps) 
           )}
         </span>
         {renaming ? <RenameInput id={id} initial={ownTitle === 'Untitled' ? '' : ownTitle} /> : <span className="tree-title">{title}</span>}
+        {!renaming && <PrivateLock id={id} />}
         {!renaming && (
           <span className="tree-actions" onClick={(event) => event.stopPropagation()}>
             <IconButton

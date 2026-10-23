@@ -1,3 +1,4 @@
+import { AI_PRIVATE_MESSAGE, privacyChecker } from '../../shared/aiPrivate'
 import { plainText } from '../../shared/richtext'
 import type { Block, PropertySchema } from '../../shared/types'
 import type { Repository } from '../db/repository'
@@ -23,6 +24,9 @@ export interface ToolSource extends WorkspaceSource {
   /** A row's property value as text. */
   cellText?(schema: PropertySchema, row: Block): string
 }
+
+/** True for what is private from the AI (shared/aiPrivate.ts): a tool skips it, or says it is private. */
+type Hidden = (id: string) => boolean
 
 // ---- text --------------------------------------------------------------------
 
@@ -87,7 +91,7 @@ function cell(source: ToolSource, property: PropertySchema, row: Block): string 
 
 // ---- the tools ---------------------------------------------------------------
 
-function search(source: ToolSource, args: Record<string, unknown>): string {
+function search(source: ToolSource, args: Record<string, unknown>, hidden: Hidden): string {
   const query = typeof args['query'] === 'string' ? args['query'].trim().slice(0, 200) : ''
   if (!query) throw new ToolError('Say what to search for.')
   const limit = clamp(args['limit'], 1, TOOL_CAPS.search, 12)
@@ -97,7 +101,7 @@ function search(source: ToolSource, args: Record<string, unknown>): string {
     if (seen.has(result.pageId) || lines.length >= limit) continue
     seen.add(result.pageId)
     const page = source.get(result.pageId)
-    if (!live(page)) continue
+    if (!live(page) || hidden(page.id)) continue
     const snippet = result.snippet ? oneLine(result.snippet, 200) : ''
     // Archived pages are found only here, by asking; the line says they were put away.
     lines.push(`- ${label(page)}${result.archived ? ' (archived)' : ''}, in ${pathOf(source, page.id)}${snippet ? `: “${snippet}”` : ''}`)
@@ -105,23 +109,24 @@ function search(source: ToolSource, args: Record<string, unknown>): string {
   return lines.length ? lines.join('\n') : `Nothing matches “${query}”.`
 }
 
-function outline(source: ToolSource, args: Record<string, unknown>): string {
+function outline(source: ToolSource, args: Record<string, unknown>, hidden: Hidden): string {
   const depth = clamp(args['depth'], 1, TOOL_CAPS.outlineDepth, 2)
   const rootId = typeof args['root'] === 'string' ? args['root'] : null
   const root = rootId ? source.get(rootId) : null
   if (rootId && !live(root)) throw new ToolError('No page has that id.')
+  if (root && hidden(root.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
   const lines: string[] = []
   let more = false
   const walk = (blocks: readonly Block[], level: number): void => {
     for (const block of blocks) {
-      if (!live(block)) continue
+      if (!live(block) || hidden(block.id)) continue
       if (lines.length >= TOOL_CAPS.outlineLines) {
         more = true
         return
       }
       const notes: string[] = [`edited ${day(block.updatedAt)}`]
       if (block.type === 'database') notes.unshift(`${block.content.length} row${block.content.length === 1 ? '' : 's'}`)
-      const inside = block.type === 'page' ? source.listChildren(block.id).filter(live) : []
+      const inside = block.type === 'page' ? source.listChildren(block.id).filter((child) => live(child) && !hidden(child.id)) : []
       if (block.type === 'page' && !inside.length && isEmpty(source, block)) notes.push('empty')
       lines.push(`${'  '.repeat(level)}- ${label(block)} (${notes.join(', ')})`)
       if (inside.length && level + 1 < depth) walk(inside, level + 1)
@@ -134,14 +139,15 @@ function outline(source: ToolSource, args: Record<string, unknown>): string {
   return `${head}\n${lines.join('\n')}${more ? '\n- (and more: ask for a smaller part with "root")' : ''}`
 }
 
-function database(source: ToolSource, block: Block, offset: number, limit: number): string {
+function database(source: ToolSource, block: Block, offset: number, limit: number, hidden: Hidden): string {
   const schema = block.props.schema ?? {}
   const properties = Object.values(schema).filter(
     (property) => property && property.type !== 'created_time' && property.type !== 'last_edited_time'
   )
   const titleProperty = properties.find((property) => property.type === 'title')
   const others = properties.filter((property) => property.type !== 'title')
-  const rows = source.children(block.id).filter((row) => row.type === 'page' && row.trashedAt === null)
+  // The rows of a project kept private are left out (the project's other rows stay).
+  const rows = source.children(block.id).filter((row) => row.type === 'page' && row.trashedAt === null && !hidden(row.id))
   const lines = [`Database ${label(block)}, in ${pathOf(source, block.id)}. ${rows.length} row${rows.length === 1 ? '' : 's'}.`]
   const shape = describeSchema(block)
   if (shape) lines.push(`Properties: ${shape}`)
@@ -161,39 +167,46 @@ function database(source: ToolSource, block: Block, offset: number, limit: numbe
   return lines.join('\n')
 }
 
-function readPage(source: ToolSource, args: Record<string, unknown>): string {
+function readPage(source: ToolSource, args: Record<string, unknown>, hidden: Hidden): string {
   const id = typeof args['id'] === 'string' ? args['id'] : ''
   const page = id ? source.get(id) : null
   if (!live(page)) throw new ToolError('No page or database has that id.')
-  if (page.type === 'database') return database(source, page, 0, 30)
-  const inside = source.listChildren(page.id).filter(live)
+  if (hidden(page.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
+  if (page.type === 'database') return database(source, page, 0, 30, hidden)
+  const inside = source.listChildren(page.id).filter((child) => live(child) && !hidden(child.id))
   const head = [`Page ${label(page)}, in ${pathOf(source, page.id)}. Edited ${day(page.updatedAt)}.`]
   if (inside.length)
     head.push(`Inside it: ${inside.slice(0, 40).map(label).join('; ')}${inside.length > 40 ? `; and ${inside.length - 40} more` : ''}`)
-  const { markdown } = source.pageToMarkdown(page.id)
+  const { markdown } = source.pageToMarkdown(page.id, hidden)
   return `${head.join('\n')}\n\n${truncateMiddle(markdown.trim(), TOOL_CAPS.page)}`
 }
 
-function readDatabase(source: ToolSource, args: Record<string, unknown>): string {
+function readDatabase(source: ToolSource, args: Record<string, unknown>, hidden: Hidden): string {
   const id = typeof args['id'] === 'string' ? args['id'] : ''
   const block = id ? source.get(id) : null
   if (!live(block) || block.type !== 'database') throw new ToolError('No database has that id.')
-  return database(source, block, clamp(args['offset'], 0, 1_000_000, 0), clamp(args['limit'], 1, TOOL_CAPS.rows, 50))
+  if (hidden(block.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
+  return database(source, block, clamp(args['offset'], 0, 1_000_000, 0), clamp(args['limit'], 1, TOOL_CAPS.rows, 50), hidden)
 }
 
-function recent(source: ToolSource, args: Record<string, unknown>): string {
-  const blocks = source.listRecent(clamp(args['limit'], 1, TOOL_CAPS.recent, 15)).filter(live)
+function recent(source: ToolSource, args: Record<string, unknown>, hidden: Hidden): string {
+  const limit = clamp(args['limit'], 1, TOOL_CAPS.recent, 15)
+  // Asked for a few more: what is private is left out, and the list should still be as long.
+  const blocks = source
+    .listRecent(limit * 2)
+    .filter((block) => live(block) && !hidden(block.id))
+    .slice(0, limit)
   return blocks.length
     ? blocks.map((block) => `- ${label(block)}, in ${pathOf(source, block.id)}, edited ${day(block.updatedAt)}`).join('\n')
     : 'Nothing has been edited yet.'
 }
 
-function audit(source: ToolSource, now: number): string {
+function audit(source: ToolSource, now: number, hidden: Hidden): string {
   const pages: { block: Block; parent: Block | null }[] = []
   const crowded: { parent: Block | null; count: number }[] = []
   let cut = false
   const walk = (blocks: readonly Block[], parent: Block | null): void => {
-    const here = blocks.filter(live)
+    const here = blocks.filter((block) => live(block) && !hidden(block.id))
     if (here.length >= 15) crowded.push({ parent, count: here.length })
     for (const block of here) {
       if (pages.length >= TOOL_CAPS.auditPages) {
@@ -230,7 +243,10 @@ function audit(source: ToolSource, now: number): string {
       `Untitled:\n${list(untitled.map(({ block, parent }) => `- [${block.id}] ${where(parent)}, edited ${day(block.updatedAt)}`))}`
     )
 
-  const empty = pages.filter(({ block }) => block.type === 'page' && !source.listChildren(block.id).some(live) && isEmpty(source, block))
+  const empty = pages.filter(
+    ({ block }) =>
+      block.type === 'page' && !source.listChildren(block.id).some((child) => live(child) && !hidden(child.id)) && isEmpty(source, block)
+  )
   if (empty.length) sections.push(`Empty pages:\n${list(empty.map(({ block, parent }) => `- ${label(block)} ${where(parent)}`))}`)
 
   const stale = pages
@@ -268,19 +284,21 @@ function clamp(value: unknown, min: number, max: number, fallback: number): numb
  */
 export function callTool(source: ToolSource, name: string, rawArgs: unknown, now: number = Date.now()): string {
   const args = rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? (rawArgs as Record<string, unknown>) : {}
+  // What is private from the AI is never read, listed or found (shared/aiPrivate.ts); asked for by id, it is said to be private.
+  const hidden = privacyChecker(source)
   switch (name) {
     case 'search':
-      return search(source, args)
+      return search(source, args, hidden)
     case 'outline':
-      return outline(source, args)
+      return outline(source, args, hidden)
     case 'read_page':
-      return readPage(source, args)
+      return readPage(source, args, hidden)
     case 'read_database':
-      return readDatabase(source, args)
+      return readDatabase(source, args, hidden)
     case 'recent':
-      return recent(source, args)
+      return recent(source, args, hidden)
     case 'audit':
-      return audit(source, now)
+      return audit(source, now, hidden)
     default:
       throw new ToolError(`There is no tool called ${oneLine(String(name), 40)}.`)
   }
@@ -289,9 +307,10 @@ export function callTool(source: ToolSource, name: string, rawArgs: unknown, now
 /** What a tool says a little about, for the window to show while a request works: "reading “Projects”". */
 export function toolActivity(source: Pick<ToolSource, 'get'>, name: string, rawArgs: unknown): string {
   const args = rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? (rawArgs as Record<string, unknown>) : {}
+  const hidden = privacyChecker(source)
   const named = (id: unknown): string => {
     const block = typeof id === 'string' ? source.get(id) : null
-    return live(block) ? `“${titleOf(block).slice(0, 40)}”` : 'a page'
+    return live(block) && !hidden(block.id) ? `“${titleOf(block).slice(0, 40)}”` : 'a page'
   }
   switch (name) {
     case 'search':
@@ -321,7 +340,7 @@ export function repositorySource(repo: Repository, markdown: Pick<typeof import(
     listRecent: (limit) => repo.listRecent(limit),
     listDatabases: () => repo.listDatabases({ archived: false }),
     search: (text, limit) => repo.search(text, limit),
-    pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id),
+    pageToMarkdown: (id, hidden) => markdown.pageToMarkdown(repo, id, hidden ? { hidden } : {}),
     children: (id) => repo.children(id)
   }
 }

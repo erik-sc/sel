@@ -136,8 +136,23 @@
   gap: 16px;
 }
 
-.tasks-heading-row > .tasks-refine {
+.tasks-heading-row > .tasks-refine,
+.tasks-heading-row > .tasks-private {
   flex: none;
+}
+
+/* "Project private from AI": quiet until it is on. */
+.tasks-heading-row > .tasks-private {
+  gap: 6px;
+  color: var(--text-tertiary);
+}
+
+.tasks-heading-row > .tasks-private.is-on {
+  color: var(--text-secondary);
+}
+
+.tasks-nav-item .ai-lock {
+  margin-left: 4px;
 }
 
 .tasks-empty {

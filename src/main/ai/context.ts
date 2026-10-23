@@ -1,4 +1,5 @@
 import type { AiRequest } from '../../shared/ai'
+import { privacyChecker } from '../../shared/aiPrivate'
 import { isRelationId } from '../../shared/relation'
 import { plainText } from '../../shared/richtext'
 import type { Block, SearchResult } from '../../shared/types'
@@ -24,7 +25,8 @@ export interface WorkspaceSource {
   listRecent(limit: number): Block[]
   listDatabases(): Block[]
   search(text: string, limit: number): SearchResult[]
-  pageToMarkdown(id: string): { title: string; markdown: string }
+  /** A page as Markdown; `hidden` names the pages, databases and rows inside it to leave out. */
+  pageToMarkdown(id: string, hidden?: (id: string) => boolean): { title: string; markdown: string }
 }
 
 export const CONTEXT_CAPS = {
@@ -109,13 +111,14 @@ export function describeSchema(database: Block, source?: Pick<WorkspaceSource, '
   return parts.join(', ')
 }
 
-function outline(source: WorkspaceSource, lines: string[], blocks: readonly Block[], depth: number): void {
+function outline(source: WorkspaceSource, lines: string[], blocks: readonly Block[], depth: number, hidden: (id: string) => boolean): void {
   for (const block of blocks) {
     if (lines.length >= CONTEXT_CAPS.outline) return
-    if (!live(block)) continue
+    // What is private from the AI is not listed, nor anything inside it.
+    if (!live(block) || hidden(block.id)) continue
     lines.push(`${'  '.repeat(depth)}- ${label(block)}`)
     // Rows of a database are pages too; they are counted with the database, not listed here.
-    if (block.type === 'page' && depth + 1 < CONTEXT_CAPS.depth) outline(source, lines, source.listChildren(block.id), depth + 1)
+    if (block.type === 'page' && depth + 1 < CONTEXT_CAPS.depth) outline(source, lines, source.listChildren(block.id), depth + 1, hidden)
   }
 }
 
@@ -147,7 +150,12 @@ export function keywords(text: string, max: number = CONTEXT_CAPS.keywords): str
 }
 
 /** Pages other than the one in front that the question seems to be about, the likeliest first. */
-export function relatedPages(source: WorkspaceSource, question: string, exclude: string | null): { id: string; hits: number }[] {
+export function relatedPages(
+  source: WorkspaceSource,
+  question: string,
+  exclude: string | null,
+  hidden: (id: string) => boolean = privacyChecker(source)
+): { id: string; hits: number }[] {
   const scores = new Map<string, number>()
   for (const word of keywords(question)) {
     const seen = new Set<string>()
@@ -159,7 +167,7 @@ export function relatedPages(source: WorkspaceSource, question: string, exclude:
     }
     for (const result of results) {
       // Archived pages come up only when the assistant searches for them, not on their own.
-      if (result.pageId === exclude || seen.has(result.pageId) || result.archived) continue
+      if (result.pageId === exclude || seen.has(result.pageId) || result.archived || hidden(result.pageId)) continue
       seen.add(result.pageId)
       // A hit in a title weighs more than one in the text.
       scores.set(result.pageId, (scores.get(result.pageId) ?? 0) + (result.id === result.pageId ? 2 : 1))
@@ -174,8 +182,18 @@ export function relatedPages(source: WorkspaceSource, question: string, exclude:
 /**
  * The context of one question (`ask`): the WORKSPACE and RELATED section bodies. Never throws:
  * a part that cannot be read is left out, and the question is still answered.
+ *
+ * Nothing private from the AI (shared/aiPrivate.ts) is in either: not listed, not counted, not
+ * excerpted. `privatePage`: the question was asked on a private page, which the request no longer
+ * names; the section says only that there is one, so that the answer does not guess at it.
  */
-export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now: Date = new Date()): WorkspaceContext {
+export function buildWorkspace(
+  source: WorkspaceSource,
+  request: AiRequest,
+  now: Date = new Date(),
+  options: { privatePage?: boolean } = {}
+): WorkspaceContext {
+  const hidden = privacyChecker(source)
   const parts: string[] = []
   const part = (build: () => string | null): void => {
     try {
@@ -190,8 +208,9 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
     `Now: ${new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(now)}`
   )
 
-  const current = request.pageId ? source.get(request.pageId) : null
+  const current = request.pageId && !hidden(request.pageId) ? source.get(request.pageId) : null
   part(() => {
+    if (options.privatePage) return 'Current page: one the user keeps private from the AI. Nothing of it is shared: do not guess at it.'
     if (!live(current)) return 'Current page: none (the user is not on a page)'
     const path = source.ancestors(current.id).filter(live).map(title)
     const lines = [
@@ -204,7 +223,10 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
         `It is a database with ${current.content.length} row${current.content.length === 1 ? '' : 's'}${schema ? `. Properties: ${schema}` : ''}`
       )
     } else {
-      const children = source.listChildren(current.id).filter(live).slice(0, CONTEXT_CAPS.children)
+      const children = source
+        .listChildren(current.id)
+        .filter((child) => live(child) && !hidden(child.id))
+        .slice(0, CONTEXT_CAPS.children)
       if (children.length) lines.push('Inside it:', ...children.map((child) => `- ${label(child)}`))
     }
     return lines.join('\n')
@@ -212,13 +234,16 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
 
   part(() => {
     const lines: string[] = []
-    outline(source, lines, source.listRoot(), 0)
+    outline(source, lines, source.listRoot(), 0, hidden)
     if (!lines.length) return null
     return `Pages of the workspace (the top levels):\n${lines.join('\n')}${lines.length >= CONTEXT_CAPS.outline ? '\n- (and more)' : ''}`
   })
 
   part(() => {
-    const databases = source.listDatabases().filter(live).slice(0, CONTEXT_CAPS.databases)
+    const databases = source
+      .listDatabases()
+      .filter((database) => live(database) && !hidden(database.id))
+      .slice(0, CONTEXT_CAPS.databases)
     if (!databases.length) return null
     const lines = databases.map((database) => {
       const schema = describeSchema(database, source)
@@ -229,8 +254,8 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
 
   part(() => {
     const recent = source
-      .listRecent(CONTEXT_CAPS.recent + 1)
-      .filter((block) => live(block) && block.id !== current?.id)
+      .listRecent(CONTEXT_CAPS.recent * 2 + 1)
+      .filter((block) => live(block) && block.id !== current?.id && !hidden(block.id))
       .slice(0, CONTEXT_CAPS.recent)
     return recent.length ? `Edited lately:\n${recent.map((block) => `- ${label(block)}`).join('\n')}` : null
   })
@@ -241,10 +266,10 @@ export function buildWorkspace(source: WorkspaceSource, request: AiRequest, now:
     // What was asked now, and the question before it: a follow-up often leaves the subject out.
     const earlier = [...(request.history ?? [])].reverse().find((turn) => turn.role === 'user')?.text ?? ''
     const excerpts: string[] = []
-    for (const { id } of relatedPages(source, `${request.instruction ?? ''} ${earlier}`, live(current) ? current.id : null)) {
+    for (const { id } of relatedPages(source, `${request.instruction ?? ''} ${earlier}`, live(current) ? current.id : null, hidden)) {
       const page = source.get(id)
-      if (!live(page)) continue
-      const { markdown } = source.pageToMarkdown(id)
+      if (!live(page) || hidden(id)) continue
+      const { markdown } = source.pageToMarkdown(id, hidden)
       if (!markdown.trim()) continue
       const path = source.ancestors(id).filter(live).map(title)
       excerpts.push(
