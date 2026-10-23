@@ -1,10 +1,18 @@
 // The head of a project's list on the Tasks screen (0.8.0 E3): what the project is for (one
 // sentence), its next action, how far along it is ("3 of 8 tasks done", never a percentage) and
 // its milestones with dates. A project without a next action says so here; the weekly review and
-// the day planning find the same projects through shared/tasks/projects.ts.
-import { useState } from 'react'
+// the day planning find the same projects through shared/tasks/projects.ts. With the AI on, it
+// also shows the project's own context for Claude (0.8.0 A4) and opens its editor.
+import { useMemo, useState } from 'react'
 import type { FormEvent, JSX } from 'react'
+import { projectContextOf } from '@shared/aiScope'
+import { TASKS_DATABASE_ID } from '@shared/tasks'
 import { lateMilestones, OBJECTIVE_MAX, type ProjectSummary } from '@shared/tasks/projects'
+import { contextCopy } from '@/ai/contextCopy'
+import { useAiGate } from '@/ai/gate'
+import { openScopeContext } from '@/ai/scopeContext'
+import { useHerman } from '@/herman/gate'
+import { useBlock } from '@/store/blocks'
 import type { HomeLocale } from '@/home/copy'
 import { useHome } from '@/home/store'
 import { announce } from '@/a11y/announce'
@@ -196,6 +204,8 @@ export function ProjectHeader({
         <span className="project-value project-count">{words.count(summary.done, summary.total)}</span>
       </div>
 
+      <ProjectContextLine projectId={id} />
+
       <div className="project-line is-milestones">
         <span className="project-label" id={`project-milestones-${id}`}>
           {words.milestones}
@@ -261,5 +271,36 @@ export function ProjectHeader({
         </div>
       </div>
     </section>
+  )
+}
+
+/** The project's own context for Claude (shared/aiScope.ts): what it holds, and the way to edit it. Only with the AI on. */
+function ProjectContextLine({ projectId }: { projectId: string }): JSX.Element | null {
+  const enabled = useAiGate((state) => state.enabled)
+  return enabled ? <ProjectContextSummary projectId={projectId} /> : null
+}
+
+function ProjectContextSummary({ projectId }: { projectId: string }): JSX.Element {
+  const locale = useHome((state) => state.locale)
+  const persona = useHerman((state) => state.persona)
+  const copy = useMemo(() => contextCopy(locale, persona), [locale, persona])
+  const database = useBlock(TASKS_DATABASE_ID)
+  const context = projectContextOf(database, projectId)
+  const summary = context ? copy.scopeSummary(context.text.trim().length, context.pages.length) : copy.scopeNone
+  return (
+    <div className="project-line">
+      <span className="project-label">{copy.scopeHeaderLabel}</span>
+      <div className="project-value">
+        <span className="project-count project-context">{summary}</span>
+        <button
+          type="button"
+          className="project-link"
+          aria-label={`${copy.scopeHeaderLabel}: ${copy.scopeEdit}`}
+          onClick={() => openScopeContext({ kind: 'project', id: projectId })}
+        >
+          {copy.scopeEdit}
+        </button>
+      </div>
+    </div>
   )
 }

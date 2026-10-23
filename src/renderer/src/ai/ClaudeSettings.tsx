@@ -16,10 +16,17 @@ import {
   type McpChoice,
   type McpChoices
 } from '@shared/aiContext'
+import { privateProjects } from '@shared/aiPrivate'
+import { scopesWithContext, type ScopeKind } from '@shared/aiScope'
+import { TASKS_DATABASE_ID } from '@shared/tasks'
+import type { Block } from '@shared/types'
 import { Segmented } from '@/appearance/controls'
 import { homeLocale, type HomeLocale } from '@/home/copy'
 import { pageTitle } from '@/shell/actions'
-import { useBlock, useBlockStatus } from '@/store/blocks'
+import { fetchBlocks, getBlock, useBlock, useBlockStatus, useBlockStore } from '@/store/blocks'
+import { openPage } from '@/store/tabs'
+import { setSettingsOpen } from '@/store/ui'
+import { openTasks, showTaskList } from '@/tasks/gate'
 import { Button } from '@/ui/Button'
 import { notifyError, toast } from '@/ui/toast'
 import { contextCopy, type ContextCopy } from './contextCopy'
@@ -27,6 +34,7 @@ import { setContextPages, useAiGate } from './gate'
 import { useHerman } from '@/herman/gate'
 import { LockMark } from './PrivateLock'
 import { useAiPrivacy } from './privacy'
+import './scope.css'
 
 /** The language of these settings: the one set for AI answers when it is one of the two, else the system's. */
 function useLocale(): HomeLocale {
@@ -154,6 +162,7 @@ function ContextGroup({ copy, enabled }: { copy: ContextCopy; enabled: boolean }
             )}
           </div>
         </div>
+        <ScopeList copy={copy} />
       </div>
       <p className="ap-note">{copy.contextNote}</p>
     </section>
@@ -174,6 +183,96 @@ function PinnedPage({ id, copy, onUnpin }: { id: string; copy: ContextCopy; onUn
       {!gone && privacy && <LockMark why={copy.privateWhy[privacy.reason]} label={copy.pinnedPrivate} />}
       <Button variant="ghost" onClick={onUnpin}>
         {copy.unpin}
+      </Button>
+    </li>
+  )
+}
+
+/**
+ * The projects and databases with a context of their own (0.8.0 A4, shared/aiScope.ts), read
+ * only: each leads to where it is edited (the project's head on Tasks, the database).
+ */
+function ScopeList({ copy }: { copy: ContextCopy }): JSX.Element {
+  const [listed, setListed] = useState<readonly string[]>([])
+  useEffect(() => {
+    let alive = true
+    fetchBlocks(() => window.api.databases.list()).then(
+      (blocks) => {
+        if (alive) setListed(blocks.map((block) => block.id))
+      },
+      (error: unknown) => console.error('the databases could not be listed', error)
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+  const tasks = useBlock(TASKS_DATABASE_ID)
+  // Re-read whenever the blocks change (an edit in the editor shows here at once).
+  useBlockStore((state) => state.blocks)
+  const databases = listed.map((id) => getBlock(id)).filter((block): block is Block => block !== undefined)
+  if (tasks && !listed.includes(tasks.id)) databases.unshift(tasks)
+  const scopes = scopesWithContext(tasks, databases)
+  return (
+    <div className="ap-row is-stacked">
+      <div className="ap-row-text">
+        <span className="ap-row-label">{copy.scopeListLabel}</span>
+        <span className="ap-row-help">{copy.scopeListHelp}</span>
+      </div>
+      <div className="ap-row-control claude-pinned">
+        {scopes.length === 0 ? (
+          <span className="ap-row-help">{copy.scopeListNone}</span>
+        ) : (
+          <ul className="claude-scopes">
+            {scopes.map((scope) => (
+              <ScopeRow
+                key={`${scope.kind}:${scope.id}`}
+                kind={scope.kind}
+                id={scope.id}
+                name={scope.name.trim() || 'Untitled'}
+                summary={copy.scopeSummary(scope.context.text.trim().length, scope.context.pages.length)}
+                copy={copy}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ScopeRow({
+  kind,
+  id,
+  name,
+  summary,
+  copy
+}: {
+  kind: ScopeKind
+  id: string
+  name: string
+  summary: string
+  copy: ContextCopy
+}): JSX.Element {
+  const databasePrivacy = useAiPrivacy(kind === 'project' ? TASKS_DATABASE_ID : id)
+  const tasks = useBlock(kind === 'project' ? TASKS_DATABASE_ID : null)
+  const isPrivate = databasePrivacy !== null || (kind === 'project' && privateProjects(tasks).includes(id))
+  const open = (): void => {
+    setSettingsOpen(false)
+    if (kind === 'project') {
+      openTasks()
+      showTaskList({ kind: 'project', id })
+    } else openPage(id)
+  }
+  return (
+    <li className="claude-scope">
+      <span className="claude-scope-kind">{copy.scopeKind[kind]}</span>
+      <span className="claude-scope-name" title={summary}>
+        {name}
+      </span>
+      {isPrivate && <LockMark why={copy.scopePrivate(kind)} />}
+      <span className="ap-row-help">{summary}</span>
+      <Button variant="ghost" aria-label={copy.scopeOpen(name)} onClick={open}>
+        {copy.scopeEdit}
       </Button>
     </li>
   )

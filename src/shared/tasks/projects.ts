@@ -5,6 +5,7 @@
 //
 // Pure: blocks in, summaries out, so the Tasks screen, the weekly review (E1) and the day
 // planning (C2) read projects the same way, in the renderer or the main process.
+import { readScopeContext, type ScopeContext } from '../aiScope'
 import { isPlainObject, optionsOf, propOf, titleOf } from '../database/values'
 import type { Block, SelectOption } from '../types'
 import { TASK_PROPS } from './index'
@@ -32,6 +33,8 @@ export interface ProjectPlan {
   next: string | null
   /** In date order, undated last. */
   milestones: Milestone[]
+  /** What goes along to the AI with a request about the project's tasks (0.8.0 A4, see ../aiScope.ts); absent when none. */
+  context?: ScopeContext
 }
 
 export type ProjectPlans = Record<string, ProjectPlan>
@@ -74,10 +77,12 @@ export function readPlan(raw: unknown): ProjectPlan {
     : []
   const seen = new Set<string>()
   const unique = milestones.filter((item) => (seen.has(item.id) ? false : (seen.add(item.id), true)))
+  const context = readScopeContext(raw.context)
   return {
     objective: cleanObjective(raw.objective),
     next: typeof raw.next === 'string' && raw.next ? raw.next : null,
-    milestones: sortMilestones(unique).slice(0, MILESTONES_MAX)
+    milestones: sortMilestones(unique).slice(0, MILESTONES_MAX),
+    ...(context ? { context } : {})
   }
 }
 
@@ -91,7 +96,7 @@ export function readPlans(raw: unknown): ProjectPlans {
 
 /** Whether a plan says nothing: it need not be stored. */
 export function isEmptyPlan(plan: ProjectPlan): boolean {
-  return !plan.objective && !plan.next && plan.milestones.length === 0
+  return !plan.objective && !plan.next && plan.milestones.length === 0 && !plan.context
 }
 
 /**

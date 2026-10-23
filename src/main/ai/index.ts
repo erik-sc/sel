@@ -25,7 +25,7 @@ import { loadMeeting, prepareMeeting, type MeetingSource } from './meeting'
 import { buildPrompt, type BriefingPromptData, type PromptContext } from './prompts'
 import { aiRequest, loadContext, withoutPrivatePage } from './request'
 import { AiService, type PromptBuilder, type RunTarget } from './service'
-import { loadStanding } from './standing'
+import { loadScopes, loadStanding } from './standing'
 import { ToolHost, toolScript } from './toolhost'
 import { repositorySource, type ToolSource } from './tools'
 
@@ -122,7 +122,16 @@ export class AiBridge {
       get: (id) => repo.get(id),
       pageToMarkdown
     })
-    const base: PromptContext = standing ? { ...loaded, standing } : loaded
+    // The project and database the page belongs to may have a context of their own (shared/aiScope.ts).
+    const scopes = request.today
+      ? []
+      : loadScopes(
+          { get: (id) => repo.get(id), pageToMarkdown },
+          request.pageId,
+          standing?.pages?.map((page) => page.id)
+        )
+    const withStanding: PromptContext = standing ? { ...loaded, standing } : loaded
+    const base: PromptContext = scopes.length ? { ...withStanding, scopes } : withStanding
     if (request.action !== 'ask') return base
     let day: BriefingPromptData | null = null
     try {

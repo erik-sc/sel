@@ -29,6 +29,8 @@ vi.mock('./projects', () => ({
 vi.mock('@/ui/toast', () => ({ toast: () => 'toast', notifyError: () => undefined }))
 
 const { ProjectHeader } = await import('./ProjectHeader')
+const { useAiGate } = await import('@/ai/gate')
+const { useScopeEditor } = await import('@/ai/scopeContext')
 
 const summary = (extra: Partial<ProjectSummary> = {}): ProjectSummary => ({
   id: 'home',
@@ -125,5 +127,26 @@ describe('a project’s head', () => {
     await act(async () => form.requestSubmit())
     expect(calls.added).toEqual([['home', 'Move day', '2026-12-15']])
     expect(await seriousViolations()).toEqual([])
+  })
+
+  it('shows the project’s context for Claude with the AI on, and opens its editor', async () => {
+    await render(<ProjectHeader summary={summary()} open={OPEN} today="2026-10-22" onOpenTask={() => undefined} />)
+    expect(document.querySelector('.project-context')).toBeNull()
+    cleanup()
+    useAiGate.setState({ enabled: true })
+    // The Tasks database is asked for; none is stored here.
+    vi.stubGlobal('api', { blocks: { getMany: async () => [] } })
+    try {
+      await render(<ProjectHeader summary={summary()} open={OPEN} today="2026-10-22" onOpenTask={() => undefined} />)
+      expect(document.querySelector('.project-context')?.textContent).toBe('None yet')
+      const edit = document.querySelector('[aria-label="Context for Claude: Edit"]') as HTMLButtonElement
+      await act(async () => edit.click())
+      expect(useScopeEditor.getState().target).toEqual({ kind: 'project', id: 'home' })
+      expect(await seriousViolations()).toEqual([])
+    } finally {
+      useAiGate.setState({ enabled: false })
+      useScopeEditor.setState({ target: null })
+      vi.unstubAllGlobals()
+    }
   })
 })
