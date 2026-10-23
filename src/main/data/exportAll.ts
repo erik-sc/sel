@@ -1,8 +1,14 @@
 import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { cellText } from '../../shared/database/cell'
+import { normalizeDatabase } from '../../shared/database/normalize'
+import { cellContext } from '../../shared/database/resolve'
+import { sourceIdOf } from '../../shared/linked'
 import type { Block } from '../../shared/types'
 import type { Repository } from '../db/repository'
 import { pageToMarkdown, safeFileName } from '../markdown'
+import { csvCell } from '../transfer/columns'
+import { toCsv } from '../transfer/csv'
 
 /**
  * The whole workspace as Markdown files, for any editor to open: one `.md` per page, the pages
@@ -47,8 +53,43 @@ export function relativeLink(from: readonly string[], to: readonly string[]): st
   return [...Array<string>(up).fill('..'), ...to.slice(common).map(linkSegment)].join('/')
 }
 
-export function planExport(repo: Repository, words: { archive: string }): ExportPlan {
+export interface ExportOptions {
+  /** The name of the folder of archived pages. */
+  archive: string
+  /**
+   * The zip export (src/main/transfer/exportZip.ts): each database also as CSV (`Tasks.csv` next
+   * to `Tasks.md`), linked to from its page rather than written into it, and an `index.md` that
+   * lists every page in order, under this title.
+   */
+  zip?: { indexTitle: string }
+  /** Only this page (or database) and everything under it; no archive folder. */
+  rootId?: string
+}
+
+/** The front matter that marks the index of a zip export, which an import of it leaves out (src/main/transfer/plan.ts). */
+export const INDEX_MARKER = 'sel-export: index'
+
+/** A database as CSV: the title first, then every other property, one line per row. */
+export function databaseCsv(repo: Repository, db: Block): string {
+  const schema = normalizeDatabase(db).schema
+  const ids = Object.keys(schema).sort((a, b) => Number(schema[b].type === 'title') - Number(schema[a].type === 'title'))
+  const seen = new Map<string, Block | null>()
+  const get = (id: string): Block | undefined => {
+    if (!seen.has(id)) seen.set(id, repo.get(id))
+    return seen.get(id) ?? undefined
+  }
+  const ctx = cellContext({ get, isMissing: (id) => get(id) === undefined })
+  const rows = repo.children(db.id).filter((row) => row.type === 'page' && row.trashedAt === null)
+  return toCsv([
+    ids.map((id) => schema[id].name),
+    ...rows.map((row) => ids.map((id) => csvCell(schema[id], row, () => cellText(row, schema[id], ctx))))
+  ])
+}
+
+export function planExport(repo: Repository, words: ExportOptions): ExportPlan {
   const pages: { id: string; path: string[]; markdown: string }[] = []
+  /** Every page written, in order, with how deep it sits: what the index lists. */
+  const listed: { id: string; title: string; depth: number }[] = []
   const where = new Map<string, string[]>()
   /** Names taken in each folder, lower-cased: a page `Notes` claims both `Notes.md` and `Notes/`. */
   const taken = new Map<string, Set<string>>()
@@ -63,13 +104,17 @@ export function planExport(repo: Repository, words: { archive: string }): Export
     return name
   }
 
+  const tables: { path: string[]; text: string }[] = []
   const visit = (block: Block, folder: string[], depth: number): void => {
     if (where.has(block.id)) return
-    const { title, markdown } = pageToMarkdown(repo, block.id)
+    const { title, markdown } = pageToMarkdown(repo, block.id, { databaseLinks: !!words.zip })
     const name = claim(folder, safeFileName(title))
     const path = [...folder, `${name}.md`]
     where.set(block.id, path)
     pages.push({ id: block.id, path, markdown })
+    listed.push({ id: block.id, title, depth })
+    if (words.zip && block.type === 'database' && sourceIdOf(block) === null)
+      tables.push({ path: [...folder, `${name}.csv`], text: databaseCsv(repo, block) })
     let below = repo.listChildren(block.id)
     // A database's rows are in its table; only those with writing of their own need a file.
     if (block.type === 'database') below = below.filter((row) => row.parentId !== block.id || row.content.length > 0)
@@ -79,11 +124,18 @@ export function planExport(repo: Repository, words: { archive: string }): Export
   }
 
   claim([], IMAGES_FOLDER)
-  for (const block of repo.listRoot()) visit(block, [], 0)
-  const archived = repo.listArchived()
-  if (archived.length) {
-    const folder = [claim([], words.archive)]
-    for (const block of archived) visit(block, folder, 1)
+  const index = words.zip ? `${claim([], 'index')}.md` : null
+  if (words.rootId) {
+    const root = repo.get(words.rootId)
+    if (!root || root.trashedAt !== null || (root.type !== 'page' && root.type !== 'database')) throw new Error('The page is not there')
+    visit(root, [], 0)
+  } else {
+    for (const block of repo.listRoot()) visit(block, [], 0)
+    const archived = repo.listArchived()
+    if (archived.length) {
+      const folder = [claim([], words.archive)]
+      for (const block of archived) visit(block, folder, 1)
+    }
   }
 
   const images = new Set<string>()
@@ -99,6 +151,18 @@ export function planExport(repo: Repository, words: { archive: string }): Export
         return `](${relativeLink(path, [IMAGES_FOLDER, name])})`
       })
   }))
+  files.push(...tables)
+  if (index && words.zip) {
+    const lines = ['---', INDEX_MARKER, '---', '', `# ${words.zip.indexTitle}`, '']
+    for (const { id, title, depth } of listed) {
+      const target = where.get(id)
+      if (target)
+        lines.push(
+          `${'    '.repeat(Math.min(depth, MAX_DEPTH))}- [${title.replace(/([\\`*_[\]<>~])/g, '\\$1')}](${relativeLink([index], target)})`
+        )
+    }
+    files.unshift({ path: [index], text: `${lines.join('\n')}\n` })
+  }
   return { files, images: [...images] }
 }
 

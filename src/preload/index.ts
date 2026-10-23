@@ -9,6 +9,7 @@ import { MEETINGS_CHANNELS } from '@shared/meetings'
 import { POMODORO_CHANNELS } from '@shared/pomodoro'
 import { SKY_CHANGED_CHANNEL } from '@shared/sky'
 import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
+import { TRANSFER_PROGRESS_CHANNEL } from '@shared/transfer'
 import type { ChangeEvent } from '@shared/types'
 import { UPDATES_CHANNEL } from '@shared/updates'
 
@@ -113,6 +114,10 @@ const api: Api = {
     onChanged: subscribe(POMODORO_CHANNELS.changed),
     onEnded: subscribe(POMODORO_CHANNELS.ended),
     onCompleted: subscribe(POMODORO_CHANNELS.completed)
+  },
+  transfer: {
+    ...invoke.transfer,
+    onProgress: subscribe(TRANSFER_PROGRESS_CHANNEL)
   },
   sky: {
     ...invoke.sky,

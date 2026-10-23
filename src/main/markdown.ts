@@ -244,7 +244,7 @@ function databaseToMarkdown(repo: Repository, db: Block, withTitle: boolean, hid
   return lines
 }
 
-function blocksToLines(repo: Repository, blocks: Block[], depth: number, hidden: Hidden): string[] {
+function blocksToLines(repo: Repository, blocks: Block[], depth: number, hidden: Hidden, opts: MarkdownOptions = {}): string[] {
   const lines: string[] = []
   let prevList = false
   let number = 0
@@ -253,7 +253,7 @@ function blocksToLines(repo: Repository, blocks: Block[], depth: number, hidden:
     // A page or database private from the AI is left out of what the AI reads, title and all.
     if ((b.type === 'page' || b.type === 'database') && hidden(b.id)) continue
     number = b.type === 'numbered_list' ? number + 1 : 0
-    const chunk = blockToLines(repo, b, number, depth, hidden)
+    const chunk = blockToLines(repo, b, number, depth, hidden, opts)
     if (!chunk.length) continue
     const isList = LIST_TYPES.has(b.type)
     if (lines.length && !(isList && prevList)) lines.push('')
@@ -263,9 +263,9 @@ function blocksToLines(repo: Repository, blocks: Block[], depth: number, hidden:
   return lines
 }
 
-function blockToLines(repo: Repository, b: Block, number: number, depth: number, hidden: Hidden): string[] {
+function blockToLines(repo: Repository, b: Block, number: number, depth: number, hidden: Hidden, opts: MarkdownOptions): string[] {
   // Guard against pathological nesting (and corrupt cyclic content).
-  const kids = (): string[] => (depth < 64 && b.content.length ? blocksToLines(repo, repo.children(b.id), depth + 1, hidden) : [])
+  const kids = (): string[] => (depth < 64 && b.content.length ? blocksToLines(repo, repo.children(b.id), depth + 1, hidden, opts) : [])
   const below = (lines: string[]): string[] => {
     const k = kids()
     return k.length ? [...lines, '', ...k] : lines
@@ -325,6 +325,8 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number,
       return [`[${p.icon && !/^(shape|icon):/.test(p.icon) ? `${p.icon} ` : ''}${title}](sel://page/${b.id})`]
     }
     case 'database':
+      // An export that writes each database on its own (as CSV) links to it, like to a sub-page.
+      if (opts.databaseLinks && sourceIdOf(b) === null) return [`[${inlineToMarkdown(p.title) || 'Untitled'}](sel://page/${b.id})`]
       return databaseToMarkdown(repo, b, true, hidden)
     default:
       return []
@@ -340,6 +342,8 @@ export interface MarkdownOptions {
    * private from it. An export leaves nothing out.
    */
   hidden?: Hidden
+  /** A database the page holds is a link to it (`sel://page/<id>`), not its table: the export writes it as a file of its own. */
+  databaseLinks?: boolean
 }
 
 const SHOW_ALL: Hidden = () => false
@@ -353,14 +357,15 @@ export function pageToMarkdown(repo: Repository, id: string, options: MarkdownOp
   const named = page.props.title?.length ? page : (page.type === 'database' && sourceOf(repo, page)) || page
   const title = plainText(named.props.title).trim() || 'Untitled'
   const lines = [`# ${inlineToMarkdown(named.props.title).replace(/\n/g, ' ') || 'Untitled'}`]
-  const body = page.type === 'database' ? databaseToMarkdown(repo, page, false, hidden) : blocksToLines(repo, repo.children(id), 0, hidden)
+  const body =
+    page.type === 'database' ? databaseToMarkdown(repo, page, false, hidden) : blocksToLines(repo, repo.children(id), 0, hidden, options)
   if (body.length) lines.push('', ...body)
   return { title, markdown: lines.join('\n') + '\n' }
 }
 
 /** Serializes some blocks (each with its content) to Markdown, in the order given: what the AI actions read of a selection. */
 export function blocksToMarkdown(repo: Repository, blocks: Block[], options: MarkdownOptions = {}): string {
-  return blocksToLines(repo, blocks, 0, options.hidden ?? SHOW_ALL).join('\n')
+  return blocksToLines(repo, blocks, 0, options.hidden ?? SHOW_ALL, options).join('\n')
 }
 
 // =================================================================== import

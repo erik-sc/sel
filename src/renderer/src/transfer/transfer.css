@@ -1,0 +1,52 @@
+/* The import dialog (ImportDialog.tsx). */
+
+.ui-modal.tr-dialog {
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  padding: 18px 22px;
+  font-size: var(--text-ui);
+}
+
+.tr-title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  font-weight: var(--weight-subheading);
+  letter-spacing: var(--tracking-title);
+}
+
+.tr-lead {
+  margin: 0 0 8px;
+}
+
+.tr-lead.is-error {
+  color: var(--danger);
+}
+
+.tr-counts {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  color: var(--text-secondary);
+}
+
+.tr-counts li + li {
+  margin-top: 2px;
+}
+
+.tr-note {
+  margin: 0 0 4px;
+  color: var(--text-tertiary);
+}
+
+.tr-progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--accent);
+}
+
+.tr-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}

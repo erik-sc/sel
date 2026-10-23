@@ -16,6 +16,7 @@ import { skyFeature } from './sky/feature'
 import { syncFeature } from './sync/feature'
 import { tasksFeature } from './tasks/feature'
 import { templatesFeature } from './templates/feature'
+import { transferFeature } from './transfer/feature'
 import { updatesFeature } from './updates/feature'
 
 export const FEATURES = [
@@ -34,7 +35,8 @@ export const FEATURES = [
   tasksFeature,
   notebookFeature,
   feedbackFeature,
-  activityFeature
+  activityFeature,
+  transferFeature
 ] as const
 
 /** Runs every feature's start-up, in the order above. */

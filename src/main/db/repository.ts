@@ -1068,14 +1068,21 @@ export class Repository {
           throw new Error('Nothing can be added to Meditations but the line of a day')
       }
       this.dirty(parentId)
-      const rootId = randomUUID()
+      /** A given id must be new: a tree never writes over a block. */
+      const idOf = (node: TreeInput): string => {
+        if (node.id === undefined) return randomUUID()
+        assertId(node.id)
+        if (this.head(node.id)) throw new Error(`Block already exists: ${node.id}`)
+        return node.id
+      }
+      const rootId = idOf(root)
       // Explicit stack (post-order): a row is written once the ids of its children are known.
       const stack: Frame[] = [{ id: rootId, node: root, parentId, content: [], next: 0 }]
       while (stack.length) {
         const frame = stack[stack.length - 1]
         const kids = frame.node.children ?? []
         if (frame.next < kids.length) {
-          const id = randomUUID()
+          const id = idOf(kids[frame.next])
           frame.content.push(id)
           stack.push({ id, node: kids[frame.next++], parentId: frame.id, content: [], next: 0 })
           continue

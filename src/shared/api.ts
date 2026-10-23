@@ -15,6 +15,7 @@ import { POMODORO_INVOKE, type PomodoroApi } from './pomodoro'
 import { SKY_INVOKE, type SkyApi } from './sky'
 import { TEMPLATES_INVOKE, type TemplatesApi } from './templates/model'
 import { DATA_INVOKE, type DataApi } from './data'
+import { TRANSFER_INVOKE, type TransferApi } from './transfer'
 import type { Block, ChangeEvent, CreateBlockInput, DatabaseLocation, Op, SearchResult, Theme, UpdateBlockInput } from './types'
 import { UPDATES_INVOKE, type UpdatesApi } from './updates'
 import type { RestoreMode, RestoreResult, VersionInfo, VersionSnapshot, VersionStats } from './versions'
@@ -178,6 +179,12 @@ export interface Api {
    * Markdown files. Files are chosen in native dialogs; no path crosses over. See shared/data.ts.
    */
   data: DataApi
+
+  /**
+   * Importing a Notion export or an Obsidian vault (shown first, made under one page), and the
+   * workspace or a page as a zip. Files are chosen in native dialogs. See shared/transfer.ts.
+   */
+  transfer: TransferApi
 
   /**
    * Bug reports and suggestions the user writes in the app, kept as files on this computer for
@@ -362,6 +369,7 @@ export const INVOKE = {
   ...NOTEBOOK_INVOKE,
   ...TEMPLATES_INVOKE,
   ...DATA_INVOKE,
+  ...TRANSFER_INVOKE,
   ...FEEDBACK_INVOKE,
   ...TASKS_INVOKE,
   ...UPDATES_INVOKE,
