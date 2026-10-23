@@ -107,7 +107,25 @@ const MIGRATIONS: (string | ((db: SqlDriver) => void))[] = [
     const insert = db.prepare('INSERT OR IGNORE INTO page_links (from_block, to_page) VALUES (?, ?)')
     const rows = db.prepare(`SELECT id, props FROM blocks WHERE instr(props, 'sel://page/') > 0`).all() as { id: string; props: string }[]
     for (const row of rows) for (const to of linkTargets(row.props)) insert.run(row.id, to)
-  }
+  },
+  // Release 0.8.0: the local activity log (see ./activity.ts and shared/activity.ts). Light rows,
+  // no text: what was opened, edited, done, and when. Not a table sync reads; pruned to 12 months.
+  // `edit` rows are one per page per minute, which the partial unique index lets an upsert keep.
+  // Written so that it can run again over its own result (a test rewinds `user_version`).
+  `
+  CREATE TABLE IF NOT EXISTS activity (
+    id      INTEGER PRIMARY KEY,
+    at      INTEGER NOT NULL,
+    kind    TEXT NOT NULL,
+    area    TEXT,
+    page_id TEXT,
+    project TEXT,
+    count   INTEGER NOT NULL DEFAULT 1,
+    minutes INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS activity_at_idx ON activity(at);
+  CREATE UNIQUE INDEX IF NOT EXISTS activity_edit_idx ON activity(page_id, at) WHERE kind = 'edit';
+  `
 ]
 
 /** The `user_version` of a database this build has fully migrated. */

@@ -37,8 +37,10 @@ import {
   type Row,
   type TreeInput
 } from './blocks'
+import { ActivityLog, isTaskRow, type TaskWrite } from './activity'
 import type { SqlDriver, SqlStatement } from './driver'
 import { linkTargets, mayLink } from './links'
+import { ACTIVITY_ENABLED_KEY } from '../../shared/activity'
 import { configure, migrate } from './schema'
 import { backlinksTo, searchBlocks, type SearchSource } from './search'
 import { searchText } from './text'
@@ -142,6 +144,11 @@ export class Repository {
   /** To-dos checked inside the open transaction, announced once it commits (see onTodoChecked). */
   private pendingChecked: string[] = []
   private readonly todoListeners = new Set<(id: string) => void>()
+  /** Pages whose content the open transaction wrote, and the rows of the Tasks database: for the activity log. */
+  private pendingEdited = new Set<string>()
+  private pendingTasks: TaskWrite[] = []
+  /** The local activity log (./activity.ts): what was opened, edited and done, buffered and written in batches. */
+  readonly activity: ActivityLog
 
   constructor(
     private readonly db: SqlDriver,
@@ -161,10 +168,22 @@ export class Repository {
       transaction: (fn) => this.transaction(fn),
       cleanProps: (props) => chartProps(mergeProps({}, props))
     })
+    this.activity = new ActivityLog({
+      stmt: (sql) => this.stmt(sql),
+      transaction: (fn) => this.transaction(fn),
+      clock: () => this.clock(),
+      getSetting: (key) => this.getSetting(key)
+    })
   }
 
   /** Folds the WAL back into the main file and closes the database. */
   close(): void {
+    try {
+      // What the activity log still holds in memory is written before the database closes.
+      this.activity.flush()
+    } catch (err) {
+      console.error('[activity] could not write the log', err)
+    }
     this.stmts.clear()
     try {
       // Refreshes planner statistics only where they look stale, on a bounded sample.
@@ -231,7 +250,11 @@ export class Repository {
     this.pendingResets = new Set()
     this.versions.begin()
     this.pendingChecked = []
+    this.pendingEdited = new Set()
+    this.pendingTasks = []
     let checked: string[] = []
+    let edited: string[] = []
+    let tasks: TaskWrite[] = []
     try {
       const result = fn()
       this.versions.beforeCommit(this.bulkCheck)
@@ -243,6 +266,8 @@ export class Repository {
       if (this.pending.size) this.generation++
       for (const id of this.pendingResets) this.resets.add(id)
       checked = this.pendingChecked
+      edited = [...this.pendingEdited]
+      tasks = this.pendingTasks
       return result
     } catch (err) {
       try {
@@ -261,8 +286,11 @@ export class Repository {
       this.containers = new Map()
       this.pendingResets = new Set()
       this.pendingChecked = []
+      this.pendingEdited = new Set()
+      this.pendingTasks = []
       // Outside the transaction: a listener may write.
       if (checked.length > 0) this.announceChecked(checked)
+      if (edited.length > 0 || tasks.length > 0) this.activity.afterCommit(edited, tasks)
     }
   }
 
@@ -693,6 +721,7 @@ export class Repository {
     const page = this.containerOf(id)
     if (page === null || this.touched.has(page)) return
     this.touched.add(page)
+    this.pendingEdited.add(page)
     this.stmt('UPDATE blocks SET updated_at = ? WHERE id = ?').run(this.now(), page)
   }
 
@@ -812,6 +841,7 @@ export class Repository {
     this.insertRow({ id, type: input.type, parentId, content: [], props, createdAt: now, updatedAt: now, trashedAt: null })
     this.attach(parentId, id, input.afterId)
     this.touchPage(parentId)
+    if (isTaskRow(input.type, parentId)) this.pendingTasks.push({ before: null, after: props })
     return id
   }
 
@@ -885,6 +915,7 @@ export class Repository {
     this.touched.add(id)
     if (!isPageLike(type)) this.touchPage(r.parent_id)
     if (type === 'to_do' && oldType === 'to_do' && before.checked !== true && props.checked === true) this.pendingChecked.push(id)
+    if (patch.props && isTaskRow(type, r.parent_id)) this.pendingTasks.push({ before, after: props })
   }
 
   move(id: string, parentId: string | null, afterId?: string | null): Block {
@@ -1882,6 +1913,7 @@ export class Repository {
     if (value === undefined || value === null) {
       if (key.startsWith('history.')) this.versions.settingsChanged()
       this.stmt('DELETE FROM settings WHERE key = ?').run(key)
+      if (key === ACTIVITY_ENABLED_KEY) this.activity.settingChanged()
       return
     }
     const text = JSON.stringify(value)
@@ -1889,6 +1921,8 @@ export class Repository {
     if (text.length > MAX_SETTING_CHARS) throw new Error('Setting value is too large')
     if (key.startsWith('history.')) this.versions.settingsChanged()
     this.stmt('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, text)
+    // Turned off, the activity log stops at once (and drops what it had not written yet).
+    if (key === ACTIVITY_ENABLED_KEY) this.activity.settingChanged()
   }
 
   isEmpty(): boolean {

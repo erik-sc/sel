@@ -44,6 +44,7 @@ export function registerPomodoroIpc(ctx: PomodoroContext): PomodoroHooks {
     },
     ended: (ended, snapshot) => ring(ended, snapshot),
     completed: (event) => {
+      ctx.repo.activity.record({ kind: 'focus.finish', minutes: event.minutes })
       for (const win of appWindows()) win.webContents.send(POMODORO_CHANNELS.completed, event)
       for (const listener of listeners) {
         try {
@@ -70,7 +71,9 @@ export function registerPomodoroIpc(ctx: PomodoroContext): PomodoroHooks {
       'pomodoro:state': () => service.snapshot(),
       'pomodoro:start': () => {
         watchSleep()
-        return service.start()
+        const snapshot = service.start()
+        ctx.repo.activity.record({ kind: 'focus.start' })
+        return snapshot
       },
       'pomodoro:pause': () => service.pause(),
       'pomodoro:resume': () => service.resume(),

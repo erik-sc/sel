@@ -3,6 +3,7 @@
 | Concept | Meaning here | Where (path:line) | Aliases in code | Notes |
 |---|---|---|---|---|
 | Block | The single unit of data; everything, including pages and databases, is one | src/shared/types.ts:62-74 | `Block`, row of table `blocks` | Table columns at src/main/db/schema.ts:9-20 |
+| Activity log | The local record of how the app is used (opens, edits per minute, task events, focus, AI requests) for the heatmaps; never synced or sent to AI, kept 12 months | src/shared/activity.ts, src/main/db/activity.ts:41, src/main/activity/queries.ts:189 | `ActivityLog`, `activity` table, `activity:*` | Not sync's own `sync.activity` list of cycles |
 | Block type | One of 16 kinds, from `page` to `database` | src/shared/types.ts:3-19 | `BlockType`, `BLOCK_TYPES` | Checked in main at src/main/db/blocks.ts:9-26 |
 | Page | A block of type `page`; may sit at the workspace root | src/shared/types.ts:4 | "page-like" also covers databases | `isPageLike` at src/main/db/blocks.ts:44-46 |
 | Database | A block of type `database` whose `content` is its row pages and whose `props` hold `schema` and `views` | src/shared/types.ts:49-51, src/shared/types.ts:67 | | Not a SQL table; see Naming hazards |

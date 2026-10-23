@@ -154,6 +154,8 @@ export class AiBridge {
   /** Validates a request and starts it for `sender`; the outcome is sent to that window only. */
   run(rawRequest: unknown, sender: WebContents): { id: string } {
     const request = aiRequest(rawRequest)
+    // The local activity log keeps that a request was made and which action: never its text.
+    this.repo.activity.record({ kind: 'ai', area: request.action })
     // "Write up notes" on a meeting page: the transcript is read here, not sent by the window.
     if (request.action === 'consolidate' && !request.transcript?.trim() && request.pageId)
       return this.startMeeting(request, request.pageId, sender)
@@ -214,6 +216,7 @@ export class AiBridge {
 
   /** Starts a prompt built in this process (the briefing) for `sender`, streamed like any request. */
   runPrompt(build: PromptBuilder, sender: WebContents): { id: string } {
+    this.repo.activity.record({ kind: 'ai', area: 'briefing' })
     return this.start({ action: 'custom' }, sender, build)
   }
 

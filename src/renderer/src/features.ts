@@ -1,6 +1,7 @@
 // Every feature of a window, the one list of them: each declares itself in its own folder
 // (`<feature>/feature.ts`, see ./feature.ts). A feature adds itself here, one line. The order is
 // the order their `init` runs in at start-up.
+import { activityFeature } from './activity/feature'
 import { aiFeature } from './ai/feature'
 import { alarmsFeature } from './alarms/feature'
 import { briefingFeature } from './briefing/feature'
@@ -32,7 +33,8 @@ export const FEATURES = [
   briefingFeature,
   tasksFeature,
   notebookFeature,
-  feedbackFeature
+  feedbackFeature,
+  activityFeature
 ] as const
 
 /** Runs every feature's start-up, in the order above. */
