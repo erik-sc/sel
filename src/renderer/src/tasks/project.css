@@ -1,0 +1,187 @@
+/*
+ * The head of a project's list (ProjectHeader.tsx): objective, next action, progress and
+ * milestones, one line each, under mono labels inside an ink frame. Tokens only.
+ */
+
+.project-head {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--frame);
+  font-size: var(--text-ui);
+}
+
+.project-line {
+  display: grid;
+  grid-template-columns: 112px 1fr;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.project-label {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.project-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  min-width: 0;
+}
+
+.project-objective {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: var(--hairline) solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+}
+
+.project-objective:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+
+.project-objective::placeholder {
+  color: var(--text-tertiary);
+}
+
+.project-next {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* No next action: said plainly, in the danger ink, without a badge. */
+.project-flag {
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.project-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.project-link:disabled {
+  color: var(--text-tertiary);
+  cursor: default;
+}
+
+.project-choose,
+.project-add input,
+.project-milestone-date {
+  height: calc(var(--control-height) - 4px);
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.project-choose {
+  max-width: 220px;
+}
+
+.project-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.project-milestones {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-milestone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.project-milestone-name {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.project-milestone-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-milestone.is-done .project-milestone-name span {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.project-milestone.is-late .project-milestone-date,
+.project-late {
+  color: var(--danger);
+}
+
+.project-late {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+.project-remove {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--text-tertiary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.project-remove:hover {
+  color: var(--text);
+}
+
+.project-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.project-add input:first-child {
+  flex: 1 1 160px;
+}

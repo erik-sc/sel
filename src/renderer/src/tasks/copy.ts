@@ -67,7 +67,14 @@ export interface TaskCopy {
   /** The end of the walk, with nothing left to refine; and with something left (skipped). */
   refineDone: string
   refineLeft: string
+  /** The walk's buttons under the card: back, skip, next. */
+  refineBack: string
+  refineSkip: string
+  refineNext: string
   todayLine: (count: number) => string
+  /** The row's menu: make the task its project's next action (shared/tasks/projects.ts). */
+  makeNext: string
+  nextSet: (title: string) => string
 }
 
 const EN: TaskCopy = {
@@ -115,7 +122,12 @@ const EN: TaskCopy = {
   refineKeys: 'Enter next · S skip · Del delete · Esc leave · F2 name · D date · R repeat · 1–4 priority · # project · @ labels',
   refineDone: 'Inbox up to date.',
   refineLeft: 'That is all for now.',
-  todayLine: (count) => `${count} to refine`
+  refineBack: '← Previous',
+  refineSkip: 'Skip',
+  refineNext: 'Next →',
+  todayLine: (count) => `${count} to refine`,
+  makeNext: 'Make next action',
+  nextSet: (title) => `"${title}" is the project's next action.`
 }
 
 const PT: TaskCopy = {
@@ -170,7 +182,12 @@ const PT: TaskCopy = {
   refineKeys: 'Enter próxima · S pular · Del apagar · Esc sair · F2 nome · D data · R repetir · 1–4 prioridade · # projeto · @ rótulos',
   refineDone: 'Inbox em dia.',
   refineLeft: 'Por ora, é isso.',
-  todayLine: (count) => `${count} para refinar`
+  refineBack: '← Anterior',
+  refineSkip: 'Pular',
+  refineNext: 'Próxima →',
+  todayLine: (count) => `${count} para refinar`,
+  makeNext: 'Tornar próxima ação',
+  nextSet: (title) => `"${title}" é a próxima ação do projeto.`
 }
 
 export const TASK_COPY: Record<HomeLocale, TaskCopy> = { en: EN, 'pt-BR': PT }

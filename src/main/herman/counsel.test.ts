@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { HERMAN_NUDGE_KINDS, type HermanLocale, type HermanNudgeKind } from '../../shared/herman'
 import { compose, COUNSEL_DEFAULTS, ONCE_A_DAY, tidyTitle, TITLE_CHARS, type CounselInput } from './counsel'
-import { agoWords, capitalize, LINES, numberWord, PHRASES, sinceWords, spanWords, type Words } from './lines'
+import { agoWords, capitalize, LINES, numberWord, PHRASES, phrasesOf, sinceWords, spanWords, type Words } from './lines'
 
 const MIN = 60_000
 /** A local time on Wednesday 14 October 2026. */
@@ -108,6 +108,10 @@ describe('what he notices', () => {
     expect(counsel).toMatchObject({ kind: 'free-block', variant: 'free-block:0' })
     expect(counsel?.text).toMatch(/^Nothing scheduled until 3:00\sPM\. What deserves it\?$/)
     expect(counsel?.action).toEqual({ label: 'Ask Herman', command: { type: 'ask', question: 'What should I do first today?' } })
+    // With Hermine chosen, the button names her; the line itself is the same.
+    const hers = compose(base({ now: at(13), events: [event('Standup', at(9)), event('Review', at(15))], persona: 'hermine' }))
+    expect(hers?.text).toBe(counsel?.text)
+    expect(hers?.action?.label).toBe('Ask Hermine')
     expect(compose(base({ now: at(13), events: [event('Standup', at(9)), event('Review', at(15))], recent: ['free-block:0'] }))?.text).toBe(
       'Two hours free. Give it to deep work.'
     )
@@ -427,5 +431,24 @@ describe('the bank of lines', () => {
       expect(PHRASES[locale].aiOff.length).toBeLessThanOrEqual(40)
     }
     expect(Object.keys(PHRASES.en).sort()).toEqual(Object.keys(PHRASES['pt-BR']).sort())
+  })
+
+  it('has words of its own for Hermine wherever the persona is named, and the same words elsewhere', () => {
+    expect(phrasesOf('en', 'hermine')).toMatchObject({ ask: 'Ask Hermine', greeting: 'Hello. I am Hermine.' })
+    expect(phrasesOf('pt-BR', 'hermine')).toMatchObject({ ask: 'Perguntar à Hermine', greeting: 'Olá. Sou a Hermine.' })
+    for (const locale of locales) {
+      expect(phrasesOf(locale)).toEqual(PHRASES[locale])
+      expect(phrasesOf(locale, 'herman')).toEqual(PHRASES[locale])
+      for (const text of Object.values(phrasesOf(locale, 'hermine'))) expect(text).not.toMatch(/Herman/)
+    }
+  })
+
+  it('never names or genders the one who says the lines, so both personas can say them', () => {
+    for (const locale of locales)
+      for (const kind of HERMAN_NUDGE_KINDS)
+        for (const line of LINES[locale][kind]) {
+          const text = line.text({ ...sample(locale, false), title: 'Zzz' })
+          expect(text, text).not.toMatch(/Herman|Hermine|\b(I am|I'm|Sou|Estou)\b/)
+        }
   })
 })

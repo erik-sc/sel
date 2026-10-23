@@ -1,14 +1,17 @@
 // Herman's corner: the small figure docked at the edge of the page area, and the bubble he
 // speaks in. He keeps out of the way (steps aside from the caret and from menus, leaves while a
-// dialog is open), can be dragged to any corner, and opens the conversation when clicked.
+// dialog is open), can be dragged to any corner, and opens the conversation balloon (ai/Balloon.tsx)
+// beside him when clicked.
 // What he says unasked is composed by the main process; this file only asks, at quiet moments,
 // whether there is something, and shows it.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import type { HermanCommand, HermanCorner, HermanFeedback, HermanNudge, HermanState } from '@shared/herman'
+import { openInBalloon, setBalloonAnchor, useBalloon } from '@/ai/balloonGate'
 import { toggleAssistant, useAiGate } from '@/ai/gate'
 import { announcementActions, putAway, useAlarms, type AnnouncementAction } from '@/alarms/gate'
 import { openToday } from '@/briefing/route'
+import { openFlows } from '@/flows/route'
 import { newMeeting } from '@/meetings/gate'
 import { openCloseDay } from '@/notebook/route'
 import { startRefine } from '@/tasks/gate'
@@ -17,7 +20,8 @@ import { activeTab, isBlockId, openPage, tabPage, useTabs } from '@/store/tabs'
 import { setSettingsOpen, useUi } from '@/store/ui'
 import { useToasts } from '@/ui/toast'
 import { Herman64 } from './Herman64'
-import { useHerman } from './gate'
+import { caretBox, editable } from './avoid'
+import { useHerman, usePersona } from './gate'
 import { cornerAfterKey, editingSince, near, nearestCorner, poseFor, type Box } from './mood'
 
 /** How long a line of his stays before it leaves by itself. */
@@ -45,28 +49,8 @@ interface Bubble {
   /** Set for a briefing, a reminder or an event (shared/alarms.ts): its id, and what can be done about it. */
   announcement?: string
   choices?: AnnouncementAction[]
-}
-
-function editable(target: EventTarget | null): target is HTMLElement {
-  return target instanceof HTMLElement && (target.isContentEditable || target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')
-}
-
-/** Where the caret is on screen, when it is in the page (not in a panel, a dialog or a field of the shell). */
-function caretBox(area: HTMLElement): Box | null {
-  const active = document.activeElement
-  if (!editable(active) || !area.contains(active)) return null
-  const selection = window.getSelection()
-  if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return null
-  const range = selection.getRangeAt(0)
-  let rect = range.getClientRects()[0] ?? range.getBoundingClientRect()
-  if (!rect || (rect.width === 0 && rect.height === 0)) {
-    // An empty line has no box of its own: the block it is in stands for it.
-    const node = selection.focusNode
-    const element = node instanceof Element ? node : node?.parentElement
-    if (!element) return null
-    rect = element.getBoundingClientRect()
-  }
-  return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom }
+  /** Set for an answer that is ready behind this line (ai/balloon.ts `offerInBalloon`): its id. */
+  offer?: number
 }
 
 const FLOATING = '.ui-popover, .pe-toolbar, .ui-toast'
@@ -75,8 +59,9 @@ const MODAL = '.ui-modal-overlay'
 export function Dock(): JSX.Element | null {
   const version = useHerman((state) => state.version)
   const mood = useHerman((state) => state.mood)
+  const { name } = usePersona()
   const aiOn = useAiGate((state) => state.enabled)
-  const panelOpen = useAiGate((state) => state.enabled && state.panelOpen)
+  const balloonOpen = useAiGate((state) => state.enabled && state.balloonOpen)
   const toasts = useToasts((state) => state.toasts.length)
   const [state, setState] = useState<HermanState | null>(null)
   const [corner, setCorner] = useState<HermanCorner>('bottom-right')
@@ -129,6 +114,7 @@ export function Dock(): JSX.Element | null {
     setBubble(null)
     if (current.id) void window.api.herman.nudge.dismiss(current.id, feedback).catch(() => undefined)
     if (current.announcement) putAway(current.announcement)
+    if (current.offer && useBalloon.getState().offer?.id === current.offer) useBalloon.setState({ offer: null })
   }, [])
 
   // A briefing at one of its times, a task's reminder, an event about to start: said at once, over
@@ -153,17 +139,18 @@ export function Dock(): JSX.Element | null {
     return () => clearTimeout(timer)
   }, [greeting])
 
-  // A line leaves by itself after a while, unless the pointer or the focus is on it.
+  // A line leaves by itself after a while, unless the pointer or the focus is on it, or it waits
+  // behind the open balloon (it shows again when the balloon closes).
   const bubbleKey = bubble ? (bubble.id ?? bubble.text) : null
   const [held, setHeld] = useState(false)
   useEffect(() => {
-    if (!bubbleKey || held) return
+    if (!bubbleKey || held || balloonOpen) return
     const timer = setTimeout(
       () => dismiss(),
-      bubbleRef.current?.greeting ? GREETING_MS : bubbleRef.current?.announcement ? ANNOUNCE_MS : BUBBLE_MS
+      bubbleRef.current?.greeting ? GREETING_MS : bubbleRef.current?.announcement || bubbleRef.current?.offer ? ANNOUNCE_MS : BUBBLE_MS
     )
     return () => clearTimeout(timer)
-  }, [bubbleKey, held, dismiss])
+  }, [bubbleKey, held, balloonOpen, dismiss])
 
   // He speaks for a moment when a line appears, then listens while it is up.
   const [fresh, setFresh] = useState(false)
@@ -180,8 +167,8 @@ export function Dock(): JSX.Element | null {
   // ---- nudges: asking the main process, at quiet moments, whether he has something to say ----
 
   const nudges = !!state?.enabled && state.nudges && !state.greeting
-  const quiet = useRef({ away: false, panelOpen: false })
-  quiet.current = { away, panelOpen }
+  const quiet = useRef({ away: false, balloonOpen: false })
+  quiet.current = { away, balloonOpen }
   useEffect(() => {
     if (!nudges) return
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -222,7 +209,7 @@ export function Dock(): JSX.Element | null {
       if (idleMs < SETTLE_MS) return arm(SETTLE_MS - idleMs)
       // Not while a line of his is up, and not while nobody is looking.
       if (bubbleRef.current || document.visibilityState !== 'visible') return arm(60_000)
-      const busy = quiet.current.away || quiet.current.panelOpen || !document.hasFocus()
+      const busy = quiet.current.away || quiet.current.balloonOpen || !document.hasFocus()
       const page = pageId && isBlockId(pageId) ? pageId : undefined
       window.api.herman.nudge
         .next({
@@ -256,7 +243,7 @@ export function Dock(): JSX.Element | null {
     document.addEventListener('visibilitychange', onVisible)
     // Something he says without being asked just now (a streak of finished tasks).
     const offNudge = window.api.herman.onNudge((nudge) => {
-      if (!bubbleRef.current && !quiet.current.away && !quiet.current.panelOpen) setBubble(nudge)
+      if (!bubbleRef.current && !quiet.current.away && !quiet.current.balloonOpen) setBubble(nudge)
     })
     return () => {
       stopped = true
@@ -267,6 +254,23 @@ export function Dock(): JSX.Element | null {
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [nudges])
+
+  // ---- the conversation balloon: where he is, and an answer that is ready behind a line of his ----
+
+  const anchored = state?.enabled ? state.size : null
+  useEffect(() => {
+    setBalloonAnchor(anchored ? { corner, size: anchored } : null)
+  }, [corner, anchored])
+  useEffect(() => () => setBalloonAnchor(null), [])
+
+  const offer = useBalloon((balloon) => balloon.offer)
+  useEffect(() => {
+    if (!offer || bubbleRef.current?.offer === offer.id) return
+    if (bubbleRef.current) dismiss()
+    const { delivery, run } = offer
+    const act = delivery ? () => openInBalloon(delivery) : run
+    setBubble({ text: offer.line, offer: offer.id, ...(act ? { choices: [{ label: offer.label, primary: true, run: act }] } : {}) })
+  }, [offer, dismiss])
 
   // ---- keeping out of the way ----
 
@@ -402,6 +406,9 @@ export function Dock(): JSX.Element | null {
       case 'refine-inbox':
         startRefine('inbox')
         break
+      case 'open-flows':
+        openFlows()
+        break
       case 'open-page':
         if (isBlockId(command.pageId)) openPage(command.pageId)
         break
@@ -412,7 +419,7 @@ export function Dock(): JSX.Element | null {
         if (!aiOn) break
         // Written into the conversation for the user to send or change: never sent from here.
         useHerman.setState({ prepared: command.question })
-        if (!useAiGate.getState().panelOpen) toggleAssistant()
+        if (!useAiGate.getState().balloonOpen) toggleAssistant()
         break
     }
   }
@@ -431,18 +438,20 @@ export function Dock(): JSX.Element | null {
 
   const pose = poseFor({ mood, attended: attended || (bubble !== null && !fresh), saying: fresh, asleep: state.quiet || !front })
   const classes = ['herman-dock', `is-${corner}`, `is-${state.size}`]
-  if (panelOpen || away) classes.push('is-away')
+  if (away) classes.push('is-away')
   else if (aside && !bubble && !drag) classes.push('is-aside')
-  if (bubble || arriving || mood !== 'idle') classes.push('is-awake')
+  if (bubble || arriving || balloonOpen || mood !== 'idle') classes.push('is-awake')
   if (drag) classes.push('is-dragging')
+  if (balloonOpen) classes.push('is-talking')
 
   return (
     <div ref={dockRef} className={classes.join(' ')} style={drag ? { transform: `translate(${drag.x}px, ${drag.y}px)` } : undefined}>
       <button
         type="button"
         className="herman-button"
-        aria-label="Herman, your assistant"
-        aria-expanded={panelOpen}
+        aria-label={`${name}, your assistant`}
+        aria-haspopup="dialog"
+        aria-expanded={balloonOpen}
         onClick={open}
         onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
@@ -459,13 +468,13 @@ export function Dock(): JSX.Element | null {
       </button>
       {/* Announced politely; nothing here ever takes the focus. */}
       <div className="herman-live" aria-live="polite" aria-atomic="true">
-        {bubble ? `Herman: ${bubble.text}` : ''}
+        {bubble ? `${name}: ${bubble.text}` : ''}
       </div>
       {bubble && (
         <div
           className="herman-bubble"
           role="group"
-          aria-label="Herman says"
+          aria-label={`${name} says`}
           onPointerEnter={() => setHeld(true)}
           onPointerLeave={() => setHeld(false)}
           onFocus={() => setHeld(true)}

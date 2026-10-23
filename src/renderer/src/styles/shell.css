@@ -424,6 +424,29 @@ body.is-resizing .sidebar {
   white-space: nowrap;
 }
 
+/* "Private from AI" (ai/PrivateLock.tsx): a small lock beside a title, its reason on hover. */
+.ai-lock {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+}
+
+.tree-row .ai-lock {
+  margin-left: 4px;
+}
+
+/* The row's actions take the lock's place while they show. */
+.tree-row:hover .ai-lock,
+.tree-row.is-menu-open .ai-lock {
+  display: none;
+}
+
+.ai-lock-label {
+  font-size: var(--text-xs);
+}
+
 .tree-rename {
   flex: 1;
   min-width: 0;
@@ -910,36 +933,6 @@ body.is-resizing .sidebar {
   min-width: 0;
 }
 
-/* The assistant: a third glass panel, to the right of the content sheet and as tall as the
-   window, the way the sidebar is on the left (its insides are styled in ai/ai.css). */
-.assistant {
-  display: flex;
-  flex-direction: column;
-  flex: none;
-  box-sizing: border-box;
-  width: calc(var(--sidebar-width) + var(--control-height) * 3);
-  max-width: 46%;
-  min-height: 0;
-  overflow: hidden;
-  border-radius: var(--radius-l);
-  background: var(--bg);
-  font-family: var(--font-sans);
-  animation: assistant-in var(--duration) var(--ease);
-}
-
-@keyframes assistant-in {
-  from {
-    opacity: 0;
-    transform: translateX(12px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .assistant {
-    animation: none;
-  }
-}
-
 .content,
 .page-host {
   flex: 1;
@@ -1304,7 +1297,7 @@ body.is-resizing .sidebar {
   pointer-events: auto;
 }
 
-.shell.is-focus .assistant,
+.shell.is-focus .ai-balloon,
 .shell.is-focus .herman-dock {
   display: none;
 }

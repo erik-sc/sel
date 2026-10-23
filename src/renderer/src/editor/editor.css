@@ -279,6 +279,11 @@
   line-height: var(--leading-title);
 }
 
+/* "Private from AI", under the title (ai/PrivateLock.tsx). */
+.ai-lock.pe-private {
+  margin: 2px 2px 0;
+}
+
 .pe-rowprops {
   margin-top: 8px;
 }

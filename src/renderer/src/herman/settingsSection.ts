@@ -6,7 +6,7 @@ import { lazyPanel } from '@/ui/lazyPanel'
 export const HERMAN_SECTION = settingsSection({
   id: 'herman',
   label: 'Herman',
-  keywords: ['assistant', 'council'],
+  keywords: ['assistant', 'persona', 'herman', 'hermine'],
   order: 60,
   Section: lazyPanel(() => import('./HermanSettings').then((module) => module.HermanSection))
 })

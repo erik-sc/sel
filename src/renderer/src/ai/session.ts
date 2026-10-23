@@ -253,7 +253,7 @@ export function applyAiTitle(ctrl: EditorController, title: string, emoji: strin
 }
 
 /**
- * For the assistant panel: puts an answer into the page, below the block that last had the
+ * For the conversation balloon: puts an answer into the page, below the block that last had the
  * caret (at the end of the page without one) or over what is selected.
  */
 export function insertFromAssistant(

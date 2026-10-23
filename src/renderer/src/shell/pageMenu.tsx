@@ -8,6 +8,7 @@ import {
   Clock,
   Copy,
   Home,
+  Lock,
   Page,
   Plus,
   Sigma,
@@ -24,7 +25,12 @@ import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/ac
 import { archiveCopy } from '@/archive/locale'
 import { HOME_COPY } from '@/home/copy'
 import { setHome, useHome } from '@/home/store'
-import { requestPageAi } from '@/ai/gate'
+import { requestPageAi, toggleContextPage, useAiGate } from '@/ai/gate'
+import { aiPrivacyNow, toggleAiPrivate } from '@/ai/privacy'
+import { CONTEXT_COPY } from '@/ai/contextCopy'
+import { openScopeContext } from '@/ai/scopeContext'
+import { AI_CONTEXT_CAPS } from '@shared/aiContext'
+import { notifyError, toast } from '@/ui/toast'
 import { IS_MAC } from '@/ui/platform'
 import { openPage } from '@/store/tabs'
 import { setHistoryPage, setRenaming } from '@/store/ui'
@@ -84,6 +90,59 @@ function homeItem(block: Block): MenuItem {
   }
 }
 
+/** "Use as context for Claude": the page goes along with every request (Settings → AI → Context). */
+function contextItem(id: string): MenuItem {
+  const copy = CONTEXT_COPY[useHome.getState().locale]
+  const pinned = useAiGate.getState().contextPages.includes(id)
+  return {
+    id: 'ai-context',
+    label: pinned ? copy.unpinPage : copy.pin,
+    icon: pinned ? <Check /> : <Sparkle />,
+    onSelect: () =>
+      void toggleContextPage(id).then(
+        (result) => {
+          if (result === 'full') toast(copy.pinFull(AI_CONTEXT_CAPS.pages), { kind: 'info', duration: 4000 })
+          // A page private from the AI is never pinned: the toast says why.
+          else if (result === 'private') toast(copy.pinPrivate, { kind: 'info', duration: 6000 })
+        },
+        (error: unknown) => notifyError(copy.pinFailed, error)
+      )
+  }
+}
+
+/**
+ * "Context for Claude…" on a database: its own context, sent with requests made from its rows
+ * (shared/aiScope.ts). A linked view edits its source's. None while it is private from the AI.
+ */
+function scopeItems(block: Block): MenuItem[] {
+  const target = sourceIdOf(block) ?? block.id
+  if (aiPrivacyNow(target)) return []
+  const copy = CONTEXT_COPY[useHome.getState().locale]
+  return [{ id: 'ai-scope', label: copy.scopeMenu, icon: <Sparkle />, onSelect: () => openScopeContext({ kind: 'database', id: target }) }]
+}
+
+/**
+ * "Private from AI": nothing of the page (or database) and what is under it reaches the AI or the
+ * connected apps (shared/aiPrivate.ts). Checked when it is; when a page above it is (or its project,
+ * or its source database), checked and greyed out: the mark to take off is there.
+ */
+function privateItem(block: Block): MenuItem {
+  const copy = CONTEXT_COPY[useHome.getState().locale]
+  const privacy = aiPrivacyNow(block.id)
+  const inherited = privacy !== null && privacy.reason !== 'self'
+  return {
+    id: 'ai-private',
+    label: inherited ? copy.privateWhy[privacy.reason] : copy.private,
+    icon: privacy ? <Check /> : <Lock />,
+    disabled: inherited || !!block.trashedAt,
+    onSelect: () =>
+      void toggleAiPrivate(block.id).then(
+        (now) => toast(now ? copy.privateOn : copy.privateOff, { kind: 'info', duration: 3000 }),
+        (error: unknown) => notifyError(copy.privateFailed, error)
+      )
+  }
+}
+
 function openSourceItems(block: Block): MenuItem[] {
   const sourceId = sourceIdOf(block)
   if (sourceId === null) return []
@@ -116,8 +175,10 @@ export function sidebarPageMenu(block: Block): MenuItem[] {
       icon: block.props.favorite ? <StarFilled /> : <Star />,
       onSelect: () => void toggleFavorite(id).catch(reportError('update Favorites'))
     },
-    homeItem(block)
+    homeItem(block),
+    privateItem(block)
   ]
+  if (block.type === 'database' && !block.trashedAt && useAiGate.getState().enabled) items.push(...scopeItems(block))
   // A LaTeX document's content is its source: nothing goes inside it.
   if (block.type === 'page' && !isLatexDocument(block)) {
     items.push(
@@ -160,13 +221,20 @@ export function topBarPageMenu(block: Block, ai = false): MenuItem[] {
       { separator: true }
     )
     // AI actions run in the page's editor: the answer is previewed there and only goes in when accepted.
-    if (ai && !block.trashedAt) {
-      items.push(
-        { id: 'ai-summarize', label: 'Summarize page', icon: <Sparkle />, onSelect: () => requestPageAi(id, 'summarize') },
-        { id: 'ai-title', label: 'Suggest title', icon: <Sparkle />, onSelect: () => requestPageAi(id, 'title') },
-        { separator: true }
-      )
+    // A page private from the AI has none of them (they would be refused); "Private from AI" is there with AI off too: it also keeps connected apps out.
+    if (!block.trashedAt) {
+      if (ai && !aiPrivacyNow(id)) {
+        items.push(
+          { id: 'ai-summarize', label: 'Summarize page', icon: <Sparkle />, onSelect: () => requestPageAi(id, 'summarize') },
+          { id: 'ai-title', label: 'Suggest title', icon: <Sparkle />, onSelect: () => requestPageAi(id, 'title') }
+        )
+      }
+      if (ai) items.push(contextItem(id))
+      items.push(privateItem(block), { separator: true })
     }
+  } else if (!block.trashedAt && block.type === 'database') {
+    if (ai) items.push(contextItem(id), ...scopeItems(block))
+    items.push(privateItem(block), { separator: true })
   }
   items.push(
     {

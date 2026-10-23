@@ -1,5 +1,6 @@
 // The life of one AI request as the UI sees it. Pure; unit tested.
 import type { AiErrorCode } from '@shared/ai'
+import type { AiSent } from '@shared/aiContext'
 
 export type RunStatus = 'idle' | 'starting' | 'streaming' | 'done' | 'error' | 'cancelled'
 
@@ -18,6 +19,8 @@ export interface RunState {
   error: RunError | null
   /** Counts the requests started, so a view can tell one run from the next. */
   run: number
+  /** What went along with the answer from Settings → AI, once it is done. */
+  sent?: AiSent
 }
 
 export type RunEvent =
@@ -27,7 +30,7 @@ export type RunEvent =
   /** The request was refused before it got an id (invalid, or the bridge failed). */
   | { type: 'rejected'; message: string }
   | { type: 'delta'; id: string; text: string }
-  | { type: 'done'; id: string; text: string; truncated: boolean }
+  | { type: 'done'; id: string; text: string; truncated: boolean; sent?: AiSent }
   | { type: 'error'; id: string; code: AiErrorCode; message: string; detail?: string }
   /** The user stopped it. */
   | { type: 'cancel' }
@@ -63,7 +66,13 @@ export function reduceRun(state: RunState, event: RunEvent): RunState {
     case 'done':
       if (!isBusy(state) || state.id !== event.id) return state
       // The final text is the whole answer; what streamed is kept only when it is empty.
-      return { ...state, status: 'done', text: event.text || state.text, truncated: event.truncated }
+      return {
+        ...state,
+        status: 'done',
+        text: event.text || state.text,
+        truncated: event.truncated,
+        ...(event.sent ? { sent: event.sent } : {})
+      }
     case 'error': {
       if (!isBusy(state) || state.id !== event.id) return state
       if (event.code === 'cancelled') return { ...state, status: 'cancelled' }

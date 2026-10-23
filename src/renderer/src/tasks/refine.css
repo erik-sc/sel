@@ -108,3 +108,11 @@
   font-family: var(--font-display);
   font-size: var(--text-h3);
 }
+
+/* back, skip and next under the card, for the mouse (the keys do the same) */
+.refine-walk {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}

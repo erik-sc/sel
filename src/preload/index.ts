@@ -7,8 +7,10 @@ import { HERMAN_NUDGE_CHANNEL } from '@shared/herman'
 import { buildInvokers, type Invokers } from '@shared/ipc'
 import { MEETINGS_CHANNELS } from '@shared/meetings'
 import { POMODORO_CHANNELS } from '@shared/pomodoro'
+import { ROUTINES_READY_CHANNEL } from '@shared/routines'
 import { SKY_CHANGED_CHANNEL } from '@shared/sky'
 import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
+import { TRANSFER_PROGRESS_CHANNEL } from '@shared/transfer'
 import type { ChangeEvent } from '@shared/types'
 import { UPDATES_CHANNEL } from '@shared/updates'
 
@@ -59,7 +61,7 @@ const api: Api = {
   ai: {
     ...invoke.ai,
     onEvent(listener) {
-      const types = ['delta', 'done', 'error', 'council'] as const
+      const types = ['delta', 'done', 'error'] as const
       const handlers = types.map((type) => {
         const handler = (_: unknown, payload: object): void => listener({ type, ...payload } as AiEvent)
         ipcRenderer.on(AI_CHANNELS[type], handler)
@@ -114,9 +116,17 @@ const api: Api = {
     onEnded: subscribe(POMODORO_CHANNELS.ended),
     onCompleted: subscribe(POMODORO_CHANNELS.completed)
   },
+  transfer: {
+    ...invoke.transfer,
+    onProgress: subscribe(TRANSFER_PROGRESS_CHANNEL)
+  },
   sky: {
     ...invoke.sky,
     onChanged: subscribe(SKY_CHANGED_CHANNEL)
+  },
+  routines: {
+    ...invoke.routines,
+    onReady: subscribe(ROUTINES_READY_CHANNEL)
   },
   app: {
     ...invoke.app,

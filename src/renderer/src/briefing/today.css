@@ -94,6 +94,26 @@
   font-size: var(--text-sm);
 }
 
+/* The week's focus (review/TodayWeek.tsx): one line of up to three tasks, then the review's link. */
+.today-week-focus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin: 16px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.today-week-label {
+  color: var(--text-tertiary);
+}
+
+.today-week-item.is-done {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
 .today-quiet {
   margin: 0;
   color: var(--text-secondary);

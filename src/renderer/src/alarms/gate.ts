@@ -102,7 +102,7 @@ function snooze(announcement: Announcement): void {
   window.api.alarms.snooze(announcement.id).then(
     () => {
       const at = new Intl.DateTimeFormat(announcement.locale, { hour: 'numeric', minute: '2-digit' }).format(Date.now() + 10 * 60_000)
-      toast(alarmsCopy(announcement.locale).snoozedUntil(at))
+      toast(alarmsCopy(announcement.locale, useHerman.getState().persona).snoozedUntil(at))
     },
     (error: unknown) => console.error('the announcement could not be snoozed', error)
   )
@@ -110,7 +110,7 @@ function snooze(announcement: Announcement): void {
 
 /** What the bubble (or the notice) offers for an announcement, the main action first. */
 export function announcementActions(announcement: Announcement): AnnouncementAction[] {
-  const copy = alarmsCopy(announcement.locale)
+  const copy = alarmsCopy(announcement.locale, useHerman.getState().persona)
   const actions: AnnouncementAction[] = []
   const { event } = announcement
   if (announcement.kind === 'briefing') actions.push({ label: copy.openToday, primary: true, run: openToday })

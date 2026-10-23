@@ -61,6 +61,14 @@ export const BASE_ARGS: readonly string[] = [
 export const SYSTEM_PROMPT_TOOLS =
   'You are the writing assistant inside sel, a notes app. You may read the workspace of the user with the sel tools, and you change nothing. Follow the task in the user message exactly and reply with the requested text only.'
 
+/**
+ * The system prompt when the user also turned on servers of their own (Settings → AI → Claude's
+ * tools): sel's workspace is still only read; what the other tools may do is what the user allowed
+ * them. Same character set.
+ */
+export const SYSTEM_PROMPT_EXTERNAL =
+  'You are the writing assistant inside sel, a notes app. You may read the workspace of the user with the sel tools, and you change nothing in it. You may also use the other tools the user turned on for sel, only as the user request asks. Follow the task in the user message exactly and reply with the requested text only.'
+
 export interface CommandOptions {
   /** `ai.model`; ignored unless it matches AI_MODEL_RE. */
   model?: string | null
@@ -68,7 +76,15 @@ export interface CommandOptions {
    * The workspace tools (see toolhost.ts): the MCP configuration file written for this request,
    * and how many turns the model may take to look things up before it answers.
    */
-  tools?: { configPath: string; maxTurns: number } | null
+  tools?: { configPath: string; maxTurns: number; external?: ExternalArgs | null } | null
+}
+
+/** The user's own servers in a request (see ./claudeMcp.ts): its settings file, and whether claude.ai connectors are in. */
+export interface ExternalArgs {
+  /** The `--settings` file written for this request: which servers may load and which tools may run. */
+  settingsPath: string
+  /** A claude.ai connector is on: `--strict-mcp-config` would turn every connector off, so it goes. */
+  connectors: boolean
 }
 
 /** A path that can travel as one argument on any of the command lines built here. */
@@ -76,7 +92,9 @@ const SAFE_PATH_RE = /^[^"%^!&|<>\r\n]+$/
 
 export function buildArgs(options: CommandOptions = {}): string[] {
   const tools = options.tools && SAFE_PATH_RE.test(options.tools.configPath) ? options.tools : null
-  const args = tools ? toolArgs(tools.configPath, tools.maxTurns) : [...BASE_ARGS]
+  // The user's servers only travel with a settings path that is just as safe; otherwise they stay out.
+  const external = tools?.external && SAFE_PATH_RE.test(tools.external.settingsPath) ? tools.external : null
+  const args = tools ? toolArgs(tools.configPath, tools.maxTurns, external) : [...BASE_ARGS]
   if (typeof options.model === 'string' && AI_MODEL_RE.test(options.model)) args.push('--model', options.model)
   return args
 }
@@ -88,12 +106,18 @@ export function buildArgs(options: CommandOptions = {}): string[] {
  * servers; no tool that runs code); that one server is given with `--mcp-config` and its tools
  * are the only ones allowed (`--tools ""` still removes every built-in one); and the model gets
  * a few turns to look things up.
+ *
+ * With `external` (servers the user turned on, see ./claudeMcp.ts) the request also gets its
+ * `--settings` file, which says which servers may load and which of their tools may run; when a
+ * claude.ai connector is among them, `--strict-mcp-config` goes, since it would turn every
+ * connector off, and that file's allow-list keeps out every server it does not name.
  */
-export function toolArgs(configPath: string, maxTurns: number): string[] {
+export function toolArgs(configPath: string, maxTurns: number, external: ExternalArgs | null = null): string[] {
   const args: string[] = []
   for (let index = 0; index < BASE_ARGS.length; index++) {
     const arg = BASE_ARGS[index]
     if (arg === '--safe-mode') continue
+    if (arg === '--strict-mcp-config' && external?.connectors) continue
     if (arg === '--setting-sources') {
       index++
       continue
@@ -104,13 +128,14 @@ export function toolArgs(configPath: string, maxTurns: number): string[] {
       continue
     }
     if (arg === '--system-prompt') {
-      args.push(arg, SYSTEM_PROMPT_TOOLS)
+      args.push(arg, external ? SYSTEM_PROMPT_EXTERNAL : SYSTEM_PROMPT_TOOLS)
       index++
       continue
     }
     args.push(arg)
   }
   args.push('--restricted', '--mcp-config', configPath, '--allowedTools', ALLOWED_TOOLS.join(','))
+  if (external) args.push('--settings', external.settingsPath)
   return args
 }
 
@@ -229,16 +254,10 @@ const ENV_ALLOW: ReadonlySet<string> = new Set(
  * in this process's environment are not passed on; the program signs in with what it stored
  * itself when the user ran it.
  */
-export function buildEnv(
-  env: NodeJS.ProcessEnv = process.env,
-  extra: Record<string, string> = {},
-  alsoAllow: readonly string[] = []
-): Record<string, string> {
+export function buildEnv(env: NodeJS.ProcessEnv = process.env, extra: Record<string, string> = {}): Record<string, string> {
   const out: Record<string, string> = {}
-  // A connected program may need to know where it keeps its own configuration (see agents.ts).
-  const more = new Set(alsoAllow.map((name) => name.toUpperCase()))
   for (const [key, value] of Object.entries(env)) {
-    if (value !== undefined && (ENV_ALLOW.has(key.toUpperCase()) || more.has(key.toUpperCase()))) out[key] = value
+    if (value !== undefined && ENV_ALLOW.has(key.toUpperCase())) out[key] = value
   }
   // Plain output, and no self-update in the middle of a request.
   out['NO_COLOR'] = '1'

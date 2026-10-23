@@ -34,8 +34,6 @@ export interface LocateOptions {
   env?: NodeJS.ProcessEnv
   platform?: NodeJS.Platform
   home?: string
-  /** The program's file name without extension, when it is not `claude` (see agents.ts). A constant, never user text. */
-  name?: string
 }
 
 const NAME = 'claude'
@@ -169,8 +167,7 @@ export function locateCli(options: LocateOptions = {}): LocateResult {
     return found.ok ? found : { ok: false, reason: found.reason === 'not-found' ? 'not-found' : 'not-executable' }
   }
   let blocked = false
-  const base = options.name ?? NAME
-  const names = platform === 'win32' ? WINDOWS_EXTENSIONS.map((ext) => base + ext) : [base]
+  const names = platform === 'win32' ? WINDOWS_EXTENSIONS.map((ext) => NAME + ext) : [NAME]
   for (const dir of candidateDirs(options)) {
     for (const name of names) {
       const found = inspectCli(join(dir, name), platform)

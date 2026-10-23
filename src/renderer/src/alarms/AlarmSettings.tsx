@@ -6,6 +6,7 @@ import { ALARM_DEFAULTS, ALARMS_SETTING, MAX_ALARM_TIMES, readAlarmSettings, typ
 import { Segmented } from '@/appearance/controls'
 import { Button } from '@/ui/Button'
 import { notifyError } from '@/ui/toast'
+import { usePersona } from '@/herman/gate'
 import './alarms.css'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
@@ -22,6 +23,7 @@ function newId(): string {
 }
 
 export function AlarmSettings(): JSX.Element {
+  const { say } = usePersona()
   const [values, setValues] = useState<AlarmSettings>(ALARM_DEFAULTS)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [testing, setTesting] = useState(false)
@@ -88,7 +90,7 @@ export function AlarmSettings(): JSX.Element {
           <div className="ap-row-text">
             <span className="ap-row-label">Brief me at</span>
             <span className="ap-row-help">
-              At these times a chime sounds and Herman tells you about your day: the calendar, what is due and what is overdue.
+              {say('At these times a chime sounds and Herman tells you about your day: the calendar, what is due and what is overdue.')}
             </span>
           </div>
           <div className="ap-row-control alarm-times">
@@ -143,7 +145,7 @@ export function AlarmSettings(): JSX.Element {
         <div className="ap-row">
           <div className="ap-row-text">
             <span className="ap-row-label">Read aloud</span>
-            <span className="ap-row-help">He speaks with a voice of this computer, in the language of his lines.</span>
+            <span className="ap-row-help">{say('He speaks with a voice of this computer, in the language of his lines.')}</span>
           </div>
           <div className="ap-row-control">
             <Segmented
@@ -186,8 +188,9 @@ export function AlarmSettings(): JSX.Element {
           <div className="ap-row-text">
             <span className="ap-row-label">Written by the AI</span>
             <span className="ap-row-help">
-              Herman writes the briefing with the AI a few minutes before its time. Otherwise, and whenever the AI cannot answer, it is in
-              his own few words.
+              {say(
+                'Herman writes the briefing with the AI a few minutes before its time. Otherwise, and whenever the AI cannot answer, it is in his own few words.'
+              )}
             </span>
           </div>
           <div className="ap-row-control">

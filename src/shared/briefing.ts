@@ -150,6 +150,11 @@ export interface BriefingTask {
   due?: string
   /** The wall-clock time it is due at, `HH:mm`, when its date has one. */
   time?: string
+  /**
+   * How long it is blocked for, in minutes, when its date is a time block: a start and an end
+   * on the same day (shared/tasks/blocks.ts). `time` is then when the block starts.
+   */
+  minutes?: number
   /** A row's date property (the one `due` is read from): what rescheduling it writes. */
   dateProperty?: string
   /** `id` is the option's: the built-in Tasks database tells its four priorities apart by it. */

@@ -14,6 +14,8 @@ export interface FailureCopy {
   uncaught: string
   /** What the main process asks the windows to say. */
   notice: Record<AppNotice, string>
+  /** The action of the `database-damaged` notice: Settings → General → Data. */
+  openBackups: string
   /** A screen that could not be drawn (the root error boundary). */
   brokenTitle: string
   brokenText: string
@@ -28,8 +30,11 @@ const EN: FailureCopy = {
   uncaught: 'Something went wrong in this window.',
   notice: {
     crashed: 'Something went wrong. Save your work and restart sel.',
-    'seed-failed': 'The welcome page could not be created. sel will try again next time it starts.'
+    'seed-failed': 'The welcome page could not be created. sel will try again next time it starts.',
+    'database-damaged':
+      'sel found a problem in its database file. Your pages are still open; to be safe, restore a recent backup in Settings → General → Data.'
   },
+  openBackups: 'Open backups',
   brokenTitle: 'Something went wrong',
   brokenText: 'This window could not be drawn. Reloading it keeps everything that was saved.',
   reload: 'Reload'
@@ -43,8 +48,11 @@ const PT: FailureCopy = {
   uncaught: 'Algo deu errado nesta janela.',
   notice: {
     crashed: 'Algo deu errado. Salve e reinicie o sel.',
-    'seed-failed': 'Não foi possível criar a página de boas-vindas. O sel tenta de novo na próxima vez que abrir.'
+    'seed-failed': 'Não foi possível criar a página de boas-vindas. O sel tenta de novo na próxima vez que abrir.',
+    'database-damaged':
+      'O sel encontrou um problema no arquivo do banco de dados. Suas páginas continuam abertas; por segurança, restaure um backup recente em Configurações → General → Data.'
   },
+  openBackups: 'Abrir backups',
   brokenTitle: 'Algo deu errado',
   brokenText: 'Esta janela não pôde ser desenhada. Recarregar mantém tudo o que foi salvo.',
   reload: 'Recarregar'

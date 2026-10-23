@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
+import { projectSummaries, readPlans, readProjectTasks } from '@shared/tasks/projects'
 import { getBlock } from '@/store/blocks'
 import { openPage } from '@/store/tabs'
 import { notifyError, toast } from '@/ui/toast'
@@ -14,10 +15,15 @@ import * as actions from '@/database/actions'
 import { chooseView, DatabaseView } from '@/database/DatabaseView'
 import { useTasksDatabase } from './data'
 import { useHome } from '@/home/store'
+import { CONTEXT_COPY } from '@/ai/contextCopy'
+import { LockMark } from '@/ai/PrivateLock'
+import { toggleProjectPrivate, useProjectsPrivate } from '@/ai/privacy'
 import { Button } from '@/ui/Button'
+import { Lock } from '@/ui/icons'
 import { TASK_COPY } from './copy'
 import { focusQuickAdd, showTaskList, stopRefine, useTasksGate, type RefineFrom, type TaskListKey } from './gate'
 import { dueLabel, emptyChipsOf, listCounts, listTasks, openDescendants, readTasks, type TaskGroup, type TaskItem } from './lists'
+import { ProjectHeader } from './ProjectHeader'
 import { Refine } from './Refine'
 import { refineQueue } from './refineWalk'
 import { QuickAdd } from './QuickAdd'
@@ -168,7 +174,11 @@ export function TasksScreen(): JSX.Element {
   const [panel, setPanel] = useState<string | null>(null)
   const list = useTasksGate((state) => state.list)
   const { pending, complete, reopen } = useCompletion(today)
-  const words = TASK_COPY[useHome((state) => state.locale)]
+  const locale = useHome((state) => state.locale)
+  const words = TASK_COPY[locale]
+  const aiWords = CONTEXT_COPY[locale]
+  // Projects kept private from the AI (shared/aiPrivate.ts): a lock in the list, a toggle on the project.
+  const privateIds = useProjectsPrivate()
   const refining = useTasksGate((state) => state.refining)
 
   const tasks = useMemo(
@@ -187,6 +197,17 @@ export function TasksScreen(): JSX.Element {
   const canRefine = useMemo(() => (refineFrom ? refineQueue(tasks, refineFrom).length > 0 : false), [tasks, refineFrom])
   const projects = L.optionsOf(L.propOf(schema, TASK_PROPS.project))
   const labels = L.optionsOf(L.propOf(schema, TASK_PROPS.labels))
+  // A project's list opens with what the project is for (0.8.0 E3).
+  const projectId = list.kind === 'project' ? list.id : null
+  const rawPlans = db?.props.projects
+  const project = useMemo(() => {
+    const option = projectId ? L.optionsOf(L.propOf(schema, TASK_PROPS.project)).find((each) => each.id === projectId) : undefined
+    if (!option) return null
+    const counted = readProjectTasks(rows)
+    const [summary] = projectSummaries([option], readPlans(rawPlans), counted)
+    const open = counted.filter((task) => task.project === option.id && !task.done).map(({ id, title }) => ({ id, title }))
+    return { summary, open }
+  }, [projectId, schema, rows, rawPlans])
 
   // A project, label or view that is gone falls back to Today.
   const listMissing =
@@ -238,7 +259,7 @@ export function TasksScreen(): JSX.Element {
             ? words.refineList
             : (FIXED.find((item) => item.kind === list.kind)?.name ?? '')
 
-  const navItem = (key: TaskListKey, name: string, count: number | undefined, extra?: JSX.Element): JSX.Element => {
+  const navItem = (key: TaskListKey, name: string, count: number | undefined, extra?: JSX.Element, locked = false): JSX.Element => {
     const active = sameList(key, list)
     return (
       <li key={`${key.kind}:${'id' in key ? key.id : ''}`}>
@@ -254,6 +275,7 @@ export function TasksScreen(): JSX.Element {
         >
           {extra}
           <span className="tasks-nav-name">{name}</span>
+          {locked && <LockMark why={aiWords.privateWhy.self} />}
           {count ? <span className="tasks-nav-count">{count}</span> : null}
         </button>
       </li>
@@ -306,7 +328,8 @@ export function TasksScreen(): JSX.Element {
                   { kind: 'project', id: option.id },
                   option.name,
                   counts.get(`project:${option.id}`),
-                  <span className="tasks-nav-dot" style={{ background: `var(--c-${option.color})` }} aria-hidden="true" />
+                  <span className="tasks-nav-dot" style={{ background: `var(--c-${option.color})` }} aria-hidden="true" />,
+                  privateIds.includes(option.id)
                 )
               )}
             </ul>
@@ -359,12 +382,30 @@ export function TasksScreen(): JSX.Element {
           <div className="tasks-list" {...rowList.listProps}>
             <div className="tasks-heading-row">
               <h1 className="tasks-heading">{heading}</h1>
+              {list.kind === 'project' && (
+                <Button
+                  className={privateIds.includes(list.id) ? 'tasks-private is-on' : 'tasks-private'}
+                  aria-pressed={privateIds.includes(list.id)}
+                  title={privateIds.includes(list.id) ? aiWords.privateWhy.self : undefined}
+                  onClick={() =>
+                    void toggleProjectPrivate(list.id).then(
+                      (now) => toast(now ? aiWords.privateOn : aiWords.privateOff, { kind: 'info', duration: 3000 }),
+                      (error: unknown) => notifyError(aiWords.privateFailed, error)
+                    )
+                  }
+                >
+                  <Lock size={14} /> {aiWords.projectPrivate}
+                </Button>
+              )}
               {refineFrom && canRefine && (
                 <Button className="tasks-refine" onClick={() => useTasksGate.setState({ refining: refineFrom })}>
                   {words.refine}
                 </Button>
               )}
             </div>
+            {project && (
+              <ProjectHeader key={project.summary.id} summary={project.summary} open={project.open} today={today} onOpenTask={setPanel} />
+            )}
             {list.kind !== 'completed' && (
               <QuickAdd key={`${list.kind}:${'id' in list ? list.id : ''}`} list={list} today={today} projects={projects} labels={labels} />
             )}

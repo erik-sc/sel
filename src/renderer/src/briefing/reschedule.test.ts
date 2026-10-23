@@ -21,6 +21,16 @@ describe('moving a task to another day', () => {
     expect(rescheduleValue({ start: '2026-12-30', end: '2026-12-31' }, '2027-01-02')).toEqual({ start: '2027-01-01', end: '2027-01-02' })
   })
 
+  it('keeps a time block as long as it was', () => {
+    const block = { start: '2026-10-15T09:00', end: '2026-10-15T10:30' }
+    expect(rescheduleValue(block, '2026-10-16', '14:15')).toEqual({ start: '2026-10-16T14:15', end: '2026-10-16T15:45' })
+    expect(rescheduleValue(block, '2026-10-20')).toEqual({ start: '2026-10-20T09:00', end: '2026-10-20T10:30' })
+    // Dropped where there is no hour, it is just due that day.
+    expect(rescheduleValue(block, '2026-10-16', null)).toEqual({ start: '2026-10-16' })
+    // Late in the day it ends at 23:59 at the latest.
+    expect(rescheduleValue(block, '2026-10-16', '23:00')).toEqual({ start: '2026-10-16T23:00', end: '2026-10-16T23:59' })
+  })
+
   it('gives a task without a date the day', () => {
     expect(rescheduleValue(undefined, '2026-10-16')).toEqual({ start: '2026-10-16' })
     expect(rescheduleValue(null, '2026-10-16', '08:00')).toEqual({ start: '2026-10-16T08:00' })

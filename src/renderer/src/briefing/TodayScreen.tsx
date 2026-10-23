@@ -8,7 +8,7 @@ import { NOTEBOOK_ID, type NotebookLocale } from '@shared/notebook'
 import { CLOSE_COPY } from '@/notebook/copy'
 import { aiReady, useAiGate } from '@/ai/gate'
 import { Herman64 } from '@/herman/Herman64'
-import { noteAiEvent, useHerman } from '@/herman/gate'
+import { noteAiEvent, useHerman, usePersona } from '@/herman/gate'
 import { refreshTree } from '@/store/tree'
 import { openPage } from '@/store/tabs'
 import { notifyError, toast } from '@/ui/toast'
@@ -24,13 +24,17 @@ import {
   taskGroups,
   updatedLabel
 } from './format'
+import { openFlows } from '@/flows/route'
 import { useHome } from '@/home/store'
 import { TASK_COPY } from '@/tasks/copy'
+import { TodayWeek } from '@/review/TodayWeek'
 import { startRefine } from '@/tasks/gate'
 import { TaskPanel } from '@/tasks/lazy'
 import { initRefining, useRefining } from '@/tasks/refining'
 import { useTaskRows } from '@/tasks/TaskRow'
 import { BriefingTaskItem, EventRow, Lines, openSettings, useCompleteTask, useLive, useNow, useTaskViews } from './parts'
+import { DayPlan, planDragSource, usePlanDrag, type PlanDrag, type PlanPatch } from './DayPlan'
+import { patchTasks } from './plan'
 import './today.css'
 
 const readBriefing = (force: boolean): Promise<Briefing> => window.api.briefing.get(force)
@@ -106,6 +110,7 @@ function Phrase({
   onChange: (phrase: BriefingPhrase | null) => void
 }): JSX.Element | null {
   const herman = useHerman((state) => state.on)
+  const { name } = usePersona()
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -176,7 +181,7 @@ function Phrase({
       {herman && (
         <div className="today-herman">
           <Herman64 pose="resting" />
-          <span>For today, from Herman</span>
+          <span>For today, from {name}</span>
         </div>
       )}
       <figure className="today-figure">
@@ -289,9 +294,20 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
  * The open tasks. Those of the built-in Tasks database are edited where they are (chips, the
  * row's menu and keys) and open in the task panel, over the right side of the screen.
  */
-function Tasks({ briefing, today }: { briefing: Briefing; today: string }): JSX.Element {
+function Tasks({
+  briefing,
+  today,
+  drag,
+  panel,
+  setPanel
+}: {
+  briefing: Briefing
+  today: string
+  drag: PlanDrag
+  panel: string | null
+  setPanel: (id: string | null) => void
+}): JSX.Element {
   const [expanded, setExpanded] = useState(false)
-  const [panel, setPanel] = useState<string | null>(null)
   const { done, complete } = useCompleteTask()
   const { groups, hidden } = useMemo(() => taskGroups(briefing.tasks, expanded, done), [briefing.tasks, expanded, done])
   const shown = useMemo(() => groups.flatMap((group) => group.tasks), [groups])
@@ -322,6 +338,7 @@ function Tasks({ briefing, today }: { briefing: Briefing; today: string }): JSX.
                   panel={panel}
                   onComplete={complete}
                   onOpen={setPanel}
+                  drag={planDragSource(drag, task)}
                 />
               ))}
             </ul>
@@ -334,6 +351,7 @@ function Tasks({ briefing, today }: { briefing: Briefing; today: string }): JSX.
         </button>
       )}
       <RefineLine />
+      <TodayWeek today={today} onOpenTask={setPanel} />
       {panel && (
         <TaskPanel
           overlay
@@ -379,13 +397,13 @@ type BriefState = { phase: 'idle' } | { phase: 'running' | 'done'; id: string; t
 function BriefMe(): JSX.Element | null {
   const enabled = useAiGate((state) => state.enabled)
   const herman = useHerman((state) => state.on)
+  const { name } = usePersona()
   const [state, setState] = useState<BriefState>({ phase: 'idle' })
   const current = useRef<string | null>(null)
 
   useEffect(() => {
     const off = window.api.ai.onEvent((event) => {
-      // The briefing never asks the council.
-      if (event.id !== current.current || event.type === 'council') return
+      if (event.id !== current.current) return
       noteAiEvent(event.type, event.type === 'error' && event.code === 'cancelled')
       if (event.type === 'delta')
         setState((previous) => (previous.phase === 'running' ? { ...previous, text: previous.text + event.text } : previous))
@@ -432,7 +450,7 @@ function BriefMe(): JSX.Element | null {
     <section className="today-section today-brief" aria-label="Summary of the day">
       {state.phase === 'idle' && (
         <button type="button" className="today-link" onClick={run}>
-          {herman ? 'Ask Herman about today' : 'Brief me'}
+          {herman ? `Ask ${name} about today` : 'Brief me'}
         </button>
       )}
       {(state.phase === 'running' || state.phase === 'done') && (
@@ -479,6 +497,13 @@ export function TodayScreen(): JSX.Element {
   const { data, failed, refreshing, refresh, update } = useLive(readBriefing, 'the briefing')
   const setPhrase = useCallback((phrase: BriefingPhrase | null) => update((current) => ({ ...current, phrase })), [update])
   const now = useNow()
+  const drag = usePlanDrag()
+  // The task panel: opened from the open tasks and from the plan's blocks.
+  const [panel, setPanel] = useState<string | null>(null)
+  const patch = useCallback<PlanPatch>(
+    (id, change) => update((current) => ({ ...current, tasks: patchTasks(current.tasks, id, change, current.date) })),
+    [update]
+  )
 
   if (!data) {
     return (
@@ -520,12 +545,16 @@ export function TodayScreen(): JSX.Element {
       <Plans date={data.date} />
       <Phrase phrase={data.phrase} hasPhrases={data.hasPhrases} onChange={setPhrase} />
       <Agenda briefing={data} now={now} />
-      <Tasks briefing={data} today={localDay(now)} />
+      <DayPlan briefing={data} now={now} drag={drag} onPatch={patch} onOpen={setPanel} />
+      <Tasks briefing={data} today={localDay(now)} drag={drag} panel={panel} setPanel={setPanel} />
       <BriefMe />
       <footer className="today-foot">
         <span>{updatedLabel(data.updatedAt, now)}</span>
         <button type="button" className="today-link" disabled={refreshing} onClick={refresh}>
           {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+        <button type="button" className="today-link" onClick={openFlows}>
+          Flows
         </button>
         <button type="button" className="today-link" onClick={openSettings}>
           Settings

@@ -1,7 +1,6 @@
 /*
- * Herman: the figure, the corner he keeps, his speech bubble, his place in the conversation
- * and on the Today screen. Colours, type sizes and weights, radii, shadows and durations come
- * from the tokens only; the motion is slow and made of multiples of --duration.
+ * Herman: the figure, the corner he keeps, his speech bubble, and his place on the Today screen.
+ * Colours, type sizes and weights, radii, shadows and durations come from the tokens only; the motion is slow and made of multiples of --duration.
  */
 
 /* ---- the figure ---- */
@@ -319,37 +318,11 @@
   white-space: nowrap;
 }
 
-/* ---- in the conversation ---- */
+/* ---- while the conversation balloon is open beside him ---- */
 
-.herman-stage {
-  --herman-size: 168;
-  display: flex;
-  flex: none;
-  justify-content: center;
-  padding: 2px 0 6px;
-  transition: padding calc(var(--duration) * 2) var(--ease);
-}
-
-.herman-stage .herman-figure {
-  --herman-stroke: 2.1;
-  transition:
-    transform calc(var(--duration) * 4) var(--ease),
-    width calc(var(--duration) * 2) var(--ease),
-    height calc(var(--duration) * 2) var(--ease);
-}
-
-.herman-stage.is-large {
-  --herman-size: 168;
-  padding: 14px 0 0;
-}
-
-.herman-stage.is-large .herman-figure {
-  --herman-stroke: 2.4;
-}
-
-.assistant.is-herman .assistant-empty {
-  margin: 0;
-  padding-top: 6px;
+/* A line of his waits behind the balloon (its timer is held) and shows again when it closes. */
+.herman-dock.is-talking .herman-bubble {
+  display: none;
 }
 
 /* ---- on the Today screen ---- */
@@ -404,9 +377,7 @@
   .herman-figure,
   .herman-line,
   .herman-halo,
-  .herman-dock,
-  .herman-stage,
-  .herman-stage .herman-figure {
+  .herman-dock {
     transition: none;
   }
 
@@ -449,136 +420,5 @@
 
   .herman-dock.is-aside {
     transform: none;
-  }
-}
-
-/* ---- settings: the council ---- */
-
-.council-row .ap-row-control {
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.ap-field.council-agent,
-.ap-field.council-model {
-  width: calc(var(--control-height) * 4.5);
-}
-
-.council-path {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ---- his council: their faces ---- */
-
-/*
- * A member's face is drawn like him, in a few strokes, in the member's own colour
- * (--member-color, a palette token). --face-size is its height in pixels, as a plain number,
- * so that the line keeps its width at every size (the drawing is 64 units tall).
- */
-.council-face {
-  --face-size: 28;
-  --face-stroke: 1.5;
-  --member-color: var(--accent);
-  display: block;
-  flex: none;
-  width: calc(var(--face-size) * 1px);
-  height: calc(var(--face-size) * 1px);
-  overflow: visible;
-  color: var(--member-color);
-  transition:
-    opacity calc(var(--duration) * 2) var(--ease),
-    color calc(var(--duration) * 2) var(--ease),
-    transform calc(var(--duration) * 3) var(--ease);
-}
-
-.council-face path {
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: calc(var(--face-stroke) * 64 / var(--face-size));
-}
-
-/* The strokes draw themselves in, one after the other. */
-.council-face.is-drawn .council-face-line {
-  stroke-dasharray: 1 2;
-  stroke-dashoffset: 1.02;
-  animation: herman-draw calc(var(--duration) * 3) var(--ease) calc(var(--duration) * 0.35 * var(--stroke-index, 0)) forwards;
-}
-
-.council-face.is-idle {
-  opacity: 0.55;
-}
-
-/* Thinking: the curl turns beside them, as it does beside him, and they lean in a little. */
-.council-face-thought {
-  opacity: 0;
-  stroke-width: calc(var(--face-stroke) * 0.85 * 64 / var(--face-size));
-  transition: opacity calc(var(--duration) * 2) var(--ease);
-}
-
-.council-face.is-thinking .council-face-thought {
-  opacity: 0.9;
-  stroke-dasharray: 0.62 0.38;
-  animation: herman-turn calc(var(--duration) * 9) linear infinite;
-}
-
-.council-face.is-thinking {
-  transform-origin: 50% 95%;
-  transform: rotate(-4deg) translateY(-1px);
-}
-
-/* No answer: drawn faint and grey. */
-.council-face.is-failed {
-  --member-color: var(--text-tertiary);
-  opacity: 0.6;
-}
-
-/* In the conversation: the council sits in a row below Herman while the chip is on. */
-.council-bench {
-  display: flex;
-  flex: none;
-  justify-content: center;
-  gap: 10px;
-  margin: -2px 0 6px;
-}
-
-.council-bench .council-face {
-  --face-size: 34;
-}
-
-.herman-stage.is-large + .council-bench .council-face {
-  --face-size: 40;
-}
-
-/* What each member said: their face beside their name. */
-.council-seat summary .council-face {
-  --face-size: 24;
-  --face-stroke: 1.4;
-  margin-right: 2px;
-}
-
-.council-row .council-face {
-  --face-size: 36;
-  margin-right: 12px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .council-face.is-drawn .council-face-line {
-    stroke-dasharray: none;
-    stroke-dashoffset: 0;
-    animation: none;
-  }
-
-  .council-face.is-thinking {
-    transform: none;
-  }
-
-  .council-face.is-thinking .council-face-thought {
-    stroke-dasharray: none;
-    animation: none;
   }
 }

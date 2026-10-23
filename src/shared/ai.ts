@@ -1,7 +1,18 @@
-import type { AgentKind, AiAgentInfo, CouncilEvent } from './council'
 import type { SettingsSpec } from './settings'
 import type { InvokeChannels } from './ipc'
 import type { CommandSpec } from './commands'
+import {
+  AI_CONTEXT_CAPS,
+  AI_CONTEXT_KEY,
+  AI_CONTEXT_PAGES_KEY,
+  AI_MCP_SERVERS_KEY,
+  cleanMcpChoices,
+  contextPageIds,
+  type AiSent,
+  type ClaudeServerList
+} from './aiContext'
+import { AI_APPLIED_KEY, AI_CONVERSATIONS_KEY, cleanAppliedLog, cleanConversations } from './aiHistory'
+import { AI_MEMORY_ENABLED_KEY, type MemoryFact } from './aiMemory'
 
 /**
  * AI workflows: the shapes shared by the main process (which finds and drives the Claude Code
@@ -97,12 +108,6 @@ export interface AiRequest {
    * agenda and open tasks, as it has them stored; the window sends none of it.
    */
   today?: boolean
-  /**
-   * `ask` only: Herman consults his council first. The seats that are taken each answer the
-   * question from their own point of view (see shared/council.ts), and he answers with their
-   * counsel in front of him. Which seats, programs and models is read from the settings.
-   */
-  council?: boolean
 }
 
 export type AiUnavailableReason = 'not-found' | 'not-executable' | 'unknown-version' | 'disabled'
@@ -126,6 +131,8 @@ export interface AiDone {
   text: string
   truncated: boolean
   durationMs: number
+  /** What went along with the request from Settings → AI: the context, pinned pages and Claude's tools. */
+  sent?: AiSent
 }
 
 export interface AiError {
@@ -136,18 +143,33 @@ export interface AiError {
   detail?: string
 }
 
-export type AiEvent =
-  | ({ type: 'delta' } & AiDelta)
-  | ({ type: 'done' } & AiDone)
-  | ({ type: 'error' } & AiError)
-  | ({ type: 'council' } & CouncilEvent)
+export type AiEvent = ({ type: 'delta' } & AiDelta) | ({ type: 'done' } & AiDone) | ({ type: 'error' } & AiError)
 
-export const AI_CHANNELS = { delta: 'ai:delta', done: 'ai:done', error: 'ai:error', council: 'ai:council' } as const
+export const AI_CHANNELS = { delta: 'ai:delta', done: 'ai:done', error: 'ai:error' } as const
 
 // ---- settings ---------------------------------------------------------------
 
-export const AI_KEYS = ['ai.enabled', 'ai.cliPath', 'ai.model', 'ai.timeoutSec', 'ai.language'] as const
+export const AI_KEYS = [
+  'ai.enabled',
+  'ai.cliPath',
+  'ai.model',
+  'ai.timeoutSec',
+  'ai.language',
+  AI_CONTEXT_KEY,
+  AI_CONTEXT_PAGES_KEY,
+  AI_MCP_SERVERS_KEY,
+  AI_CONVERSATIONS_KEY,
+  AI_APPLIED_KEY,
+  AI_MEMORY_ENABLED_KEY,
+  'ai.onboarded'
+] as const
 export type AiKey = (typeof AI_KEYS)[number]
+
+/**
+ * The persona's introduction (0.8.0 A1) was shown, or skipped: it comes by itself only once (see
+ * renderer/src/ai/onboarding.ts). Settings → AI and the palette show it again.
+ */
+export const AI_ONBOARDED_KEY = 'ai.onboarded'
 
 export const AI_DEFAULTS = { enabled: true, timeoutSec: 120 } as const
 export const AI_TIMEOUT_LIMITS = { min: 10, max: 900 } as const
@@ -172,7 +194,7 @@ export function isAiAction(value: unknown): value is AiAction {
  * `ai.cliPath` is never accepted here: a path only comes from the native file dialog
  * (`ai.pickCli`); a renderer can only clear it (null, handled by the caller).
  */
-export function cleanAiSetting(key: string, value: unknown): boolean | number | string | undefined {
+export function cleanAiSetting(key: string, value: unknown): unknown {
   switch (key) {
     case 'ai.enabled':
       return typeof value === 'boolean' ? value : undefined
@@ -183,6 +205,22 @@ export function cleanAiSetting(key: string, value: unknown): boolean | number | 
       return Math.min(AI_TIMEOUT_LIMITS.max, Math.max(AI_TIMEOUT_LIMITS.min, Math.round(value)))
     case 'ai.language':
       return value === 'auto' || isAiLanguage(value) ? value : undefined
+    case AI_CONTEXT_KEY:
+      return typeof value === 'string' && value.length <= AI_CONTEXT_CAPS.text ? value : undefined
+    case AI_CONTEXT_PAGES_KEY: {
+      if (!Array.isArray(value) || value.length > AI_CONTEXT_CAPS.pages) return undefined
+      const ids = contextPageIds(value)
+      return ids.length === value.length ? ids : undefined
+    }
+    case AI_MCP_SERVERS_KEY:
+      return cleanMcpChoices(value)
+    case AI_CONVERSATIONS_KEY:
+      return cleanConversations(value)
+    case AI_APPLIED_KEY:
+      return cleanAppliedLog(value)
+    case AI_MEMORY_ENABLED_KEY:
+    case AI_ONBOARDED_KEY:
+      return typeof value === 'boolean' ? value : undefined
     default:
       return undefined
   }
@@ -232,16 +270,24 @@ export interface AiApi {
    */
   pickCli(): Promise<AiStatus | null>
   /**
-   * Other programs that can answer for a seat of Herman's council (see shared/council.ts).
-   * A program's path only ever comes from a search of PATH or the native file dialog.
+   * The MCP servers set up for Claude Code on this computer (Settings → AI → Claude's tools):
+   * those in its configuration file, read now, and the claude.ai connectors as last looked up.
    */
-  agents: {
-    list(): Promise<AiAgentInfo[]>
-    /** Connects a program of this kind: found on PATH, or (with `pick`, or when not found) chosen in a file dialog. Null when cancelled. */
-    connect(kind: AgentKind, pick?: boolean): Promise<AiAgentInfo | null>
-    remove(id: string): Promise<AiAgentInfo[]>
-  }
-  /** `ai:delta`, `ai:done`, `ai:error` and `ai:council` for this window's requests. Returns an unsubscribe function. */
+  servers(): Promise<ClaudeServerList>
+  /** Asks Claude Code which claude.ai connectors the account has (`claude mcp list`); takes a while. */
+  scanServers(): Promise<ClaudeServerList>
+  /** Starts Claude Code with one server and notes its tools (it may count as one small request). */
+  serverTools(id: string): Promise<ClaudeServerList>
+  /**
+   * The persona's memory (0.8.0 A3, shared/aiMemory.ts): picks durable facts out of a finished turn
+   * of the balloon with a small request of its own and keeps them, unless the memory is off, the
+   * turn says nothing worth keeping, it was already read, or it is about a page private from the
+   * AI. Resolves with the facts kept now (often none).
+   */
+  remember(input: unknown): Promise<MemoryFact[]>
+  /** Edits, deletes one or deletes all of the remembered facts; resolves with what is kept, or why an edit was refused. */
+  memory(op: unknown): Promise<{ facts: MemoryFact[]; refused?: 'too-long' | 'secret' | 'missing' }>
+  /** `ai:delta`, `ai:done` and `ai:error` for this window's requests. Returns an unsubscribe function. */
   onEvent(listener: (event: AiEvent) => void): () => void
 }
 
@@ -251,12 +297,14 @@ export const AI_INVOKE = {
   'ai:run': true,
   'ai:cancel': true,
   'ai:pickCli': true,
-  'ai:agents.list': true,
-  'ai:agents.connect': true,
-  'ai:agents.remove': true
+  'ai:servers': true,
+  'ai:scanServers': true,
+  'ai:serverTools': true,
+  'ai:remember': true,
+  'ai:memory': true
 } as const satisfies Record<InvokeChannels<{ ai: AiApi }>, true>
 
-/** Herman's panel, the assistant (see ./commands.ts). The palette lists it while AI is on. */
+/** The conversation balloon, by Herman or on its own (see ./commands.ts). The palette lists it while AI is on. */
 export const AI_COMMANDS = [
   {
     id: 'toggle-assistant',
@@ -264,5 +312,17 @@ export const AI_COMMANDS = [
     menu: { submenu: 'view', label: 'Toggle Assistant', order: 310 },
     palette: { title: 'Herman, the assistant', keywords: ['ai', 'ask', 'chat', 'claude'], order: 140 },
     catalog: { group: 'herman', label: 'Talk to Herman, the assistant', keywords: ['ai', 'ask'], order: 10, ai: true }
+  }
+] as const satisfies readonly CommandSpec[]
+
+/** The persona's introduction, again (0.8.0 A1): in the palette while AI is on, and in Settings → AI. */
+export const AI_ONBOARDING_COMMANDS = [
+  {
+    id: 'ai-onboarding',
+    palette: {
+      title: 'Redo the introduction',
+      keywords: ['onboarding', 'introduction', 'setup', 'persona', 'context', 'refazer apresentação', 'apresentação', 'ai'],
+      order: 141
+    }
   }
 ] as const satisfies readonly CommandSpec[]

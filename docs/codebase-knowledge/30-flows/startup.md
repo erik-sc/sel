@@ -15,7 +15,7 @@ Trigger: the main-process module body (src/main/index.ts:422-429)
 9. Every invoke handler checks the sender, then awaits `ready`, then runs — src/main/ipc.ts:70-76
 10. `createWindow()` — src/main/index.ts:355; the window is created hidden — src/main/index.ts:97; with a sandboxed, context-isolated renderer — src/main/index.ts:108-110; it is shown on `ready-to-show` — src/main/index.ts:147-151
 11. The window loads the dev URL or the built file, with an optional `?page=` — src/main/index.ts:155-161
-12. After the window: sync and the daily backup (src/main/data/register.ts, first check a minute later) are scheduled 1.5 s after `show` — src/main/index.ts:357; history housekeeping is scheduled — src/main/index.ts:359; meetings are pruned — src/main/index.ts:360; the menu is built — src/main/index.ts:364-365
+12. After the window: sync and the daily backup (src/main/data/register.ts, first check a minute later; the same `start()` also runs SQLite's `quick_check` on the open database in the backup utility process and raises the `database-damaged` notice when it fails, see [restore from a backup](restore-from-backup.md)) are scheduled 1.5 s after `show` — src/main/index.ts:357; history housekeeping is scheduled — src/main/index.ts:359; meetings are pruned — src/main/index.ts:360; the menu is built — src/main/index.ts:364-365
 
 ## Preload
 

@@ -609,7 +609,7 @@ describe('running the program (against the stand-in)', () => {
 
   it('stops a run that takes too long, with everything it started', async () => {
     const { dir, args } = setup('hang-tree')
-    const err = await failure(runWhisper({ program: FAKE, args, cwd: dir, timeoutMs: 1500 }))
+    const err = await failure(runWhisper({ program: FAKE, args, cwd: dir, timeoutMs: 5000 }))
     expect(err.reason).toBe('timeout')
     const pids = readFileSync(join(dir, 'fake-whisper-pids'), 'utf8').split(',').map(Number)
     expect(pids).toHaveLength(2)

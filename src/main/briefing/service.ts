@@ -18,6 +18,7 @@ import {
   type Tradition
 } from '../../shared/briefing'
 import { CALENDAR_ERROR_TEXT } from '../../shared/briefing'
+import { privacyChecker } from '../../shared/aiPrivate'
 import { plainText } from '../../shared/richtext'
 import { systemKindOf } from '../../shared/system'
 import { completeTaskValues } from '../../shared/tasks/recur'
@@ -526,12 +527,16 @@ export class BriefingService {
     }
     const taskLine = (task: BriefingTask): string =>
       `${task.title}${task.due ? ` (due ${task.due})` : ''}${task.priority ? ` [${task.priority.name}]` : ''}`
+    // This goes to the AI (the question about the day, "Brief me", the alarms' briefing): a task
+    // that is private from it (its page, database or project) is left out (shared/aiPrivate.ts).
+    const hidden = privacyChecker({ get: (id) => this.repo.get(id) })
+    const shared = (tasks: readonly BriefingTask[]): string[] => tasks.filter((task) => !hidden(task.id)).map(taskLine)
     const data: BriefingPromptData = {
       date: new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(now),
       time: time.format(now),
       events: briefing.events.today.map(eventLine),
-      overdue: briefing.tasks.overdue.map(taskLine),
-      today: [...briefing.tasks.today, ...(briefing.tasks.noDate ?? [])].map(taskLine)
+      overdue: shared(briefing.tasks.overdue),
+      today: shared([...briefing.tasks.today, ...(briefing.tasks.noDate ?? [])])
     }
     if (briefing.events.tomorrowFirst) data.tomorrow = eventLine(briefing.events.tomorrowFirst)
     return data

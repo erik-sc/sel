@@ -6,6 +6,7 @@ import { IconGlyph } from '@/ui/IconGlyph'
 import { IconPicker } from '@/ui/IconPicker'
 import { newShapeIcon } from '@/ui/shape'
 import { Image as ImageIcon, Trash } from '@/ui/icons'
+import { PrivateLock } from '@/ai/PrivateLock'
 import { useEditor } from './context'
 import { getBlock } from '@/store/blocks'
 import { COVER_PRESETS } from './blockTypes'
@@ -97,6 +98,7 @@ export function PageHeader({ page }: { page: Block }): JSX.Element {
           className="pe-title"
           onKeyDown={onTitleKey}
         />
+        <PrivateLock id={id} withLabel className="pe-private" />
       </div>
       <Popover open={iconOpen && !!icon} anchor={iconEl} label="Page icon" onClose={() => setIconOpen(false)}>
         <IconPicker

@@ -15,7 +15,7 @@ import {
 import { readRefineSettings } from '../../shared/tasks/refine'
 import * as arg from '../validate'
 import { compose, COUNSEL_DEFAULTS, type CounselEvent, type CounselInput, type CounselTask, type CounselThresholds } from './counsel'
-import { PHRASES } from './lines'
+import { phrasesOf } from './lines'
 import {
   decide,
   feedback,
@@ -88,6 +88,17 @@ export interface HermanDeps {
   random?: () => number
   fast?: HermanFastMode | null
   thresholds?: Partial<CounselThresholds>
+  /**
+   * This week's word about the user's rhythm (main/activity/rhythm.ts weeklyRhythm), or null: it
+   * keeps its own once-a-week rule and its setting (off by default). Asked only when he may speak.
+   */
+  rhythm?: (locale: HermanLocale) => RhythmWord | null | Promise<RhythmWord | null>
+}
+
+/** A word about the rhythm, as the rhythm module hands it over. */
+export interface RhythmWord {
+  text: string
+  action?: HermanNudge['action']
 }
 
 function bounded(value: unknown, max: number, what: string): number | undefined {
@@ -197,7 +208,8 @@ export class HermanService {
 
   state(): HermanState {
     const locale = this.locale()
-    const phrases = PHRASES[locale]
+    const persona = hermanSetting('persona', this.setting('herman.persona'))
+    const phrases = phrasesOf(locale, persona)
     const memory = this.memory()
     const quietHours = hermanSetting('quietHours', this.setting('herman.quietHours'))
     return {
@@ -210,6 +222,8 @@ export class HermanService {
       corner: hermanSetting('corner', this.setting('herman.corner')),
       skin: hermanSetting('skin', this.setting('herman.skin')),
       seasonalSkins: hermanSetting('seasonalSkins', this.setting('herman.seasonalSkins')),
+      persona,
+      hermineSkin: hermanSetting('hermineSkin', this.setting('herman.hermineSkin')),
       locale,
       greeting: memory.met ? null : phrases.greeting,
       quiet: !this.deps.fast && isQuiet(quietHours, this.now()),
@@ -277,6 +291,24 @@ export class HermanService {
     return nudge
   }
 
+  /**
+   * The weekly word about the rhythm, when one is due. Like a line about the Sky it is outside the
+   * counsel: it counts toward the day's limit and the gap, not as a kind he spoke of.
+   */
+  private async rhythm(memory: HermanMemory, now: number): Promise<HermanNudge | null> {
+    if (!this.deps.rhythm) return null
+    let word: RhythmWord | null = null
+    try {
+      word = await this.deps.rhythm(this.locale())
+    } catch (err) {
+      console.error('[herman] could not read the rhythm', err)
+      return null
+    }
+    if (!word) return null
+    this.remember({ ...memory, shown: memory.shown + 1, lastAt: now })
+    return { id: randomUUID(), kind: 'rhythm', text: word.text, ...(word.action ? { action: word.action } : {}) }
+  }
+
   /** A completion was taken back. */
   uncompleted(): void {
     this.completions.pop()
@@ -295,6 +327,11 @@ export class HermanService {
     // Before he has introduced himself there is nothing for him to add.
     if (!stored.met) return { nudge: null, waitMs: RETRY_MS }
     const memory = forDay(stored, now)
+    // Once a week, when turned on: a word about the rhythm comes before the day's counsel.
+    if (!only) {
+      const rhythm = await this.rhythm(memory, now)
+      if (rhythm) return { nudge: rhythm, waitMs: config.gapMs }
+    }
 
     let day: HermanDay = { tasks: { overdue: [], today: [] }, events: [] }
     try {
@@ -307,6 +344,7 @@ export class HermanService {
     const input: CounselInput = {
       now,
       locale: this.locale(),
+      persona: hermanSetting('persona', this.setting('herman.persona')),
       tasks: day.tasks,
       events: day.events,
       // Settings → Notifications can turn this one off on its own.

@@ -2,7 +2,7 @@
 
 ## Naming
 
-- IPC invoke channels are `namespace:method`, nested with a dot, and name the method's place on `window.api`: `api.ai.agents.list` answers on `ai:agents.list` (src/shared/ipc.ts:1-10). Each is declared once, in its feature's fragment of `INVOKE` (src/shared/api.ts; see "Adicionar uma feature").
+- IPC invoke channels are `namespace:method`, nested with a dot, and name the method's place on `window.api`: `api.briefing.calendars.list` answers on `briefing:calendars.list` (src/shared/ipc.ts:1-10). Each is declared once, in its feature's fragment of `INVOKE` (src/shared/api.ts; see "Adicionar uma feature").
 - Settings keys are `area.key` (src/shared/ai.ts:142, src/shared/herman.ts:143-145); the pattern is enforced by a regex (src/main/validate.ts:29).
 - Main-process feature folders use `register.ts` (handlers, loaded at start-up), `index.ts` (the lazy `*Bridge`), `service.ts` (Electron-free) (src/main/briefing/register.ts:9-12, src/main/briefing/index.ts:36-55, src/main/briefing/service.ts:81).
 - Renderer features expose `gate.ts` (always loaded), `Host.tsx` (mount point) and lazy chunks (src/renderer/src/ai/gate.ts:1-3, src/renderer/src/ai/Host.tsx:8-19).
@@ -111,6 +111,9 @@ The helpers are in src/renderer/src/a11y/: `keys.ts` (keys), `announce.ts` (the 
   (`moveCard` in BoardView.tsx, `moveEvent` in CalendarView.tsx, `dropPage`, `moveTab`), says where
   the item went with `announce()`, and keeps the focus on it: the item is drawn again in its new
   place and focused by its id (`data-card-id`, `data-event-id`, `data-tab-id`, the tree's `pending`).
+  The time blocks of Today's plan (briefing/DayPlan.tsx) are the exception that has room for it:
+  plain arrows move a focused block by a quarter hour, Shift+arrows change its length, Delete
+  takes it off the plan, and a "Schedule…" form puts a task on it without a pointer.
 - **Roles**: `list` and `listitem` (board columns and cards, a calendar day and its events),
   `tree`/`treeitem` with `aria-level` and `aria-expanded`, `tablist`/`tab`. A list with nothing in
   it gets no list role: an empty `listbox` or `list` is an error to axe and says nothing.

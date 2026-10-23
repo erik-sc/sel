@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { app, BrowserWindow, Menu, Notification, powerMonitor, Tray, type NativeImage } from 'electron'
 import { ALARMS_CHANNEL, type Announcement } from '../../shared/alarms'
 import type { Briefing, BriefingEvent } from '../../shared/briefing'
+import { hermanSetting, PERSONA_NAMES } from '../../shared/herman'
 import type { BriefingPromptData } from '../ai/prompts'
 import type { AiService } from '../ai/service'
 import type { Repository } from '../db/repository'
@@ -102,7 +103,7 @@ export class AlarmsBridge {
 
   private notify(announcement: Announcement, win: BrowserWindow): void {
     if (!Notification.isSupported()) return
-    const title = announcement.title ?? 'Herman'
+    const title = announcement.title ?? PERSONA_NAMES[hermanSetting('persona', this.ctx.repo.getSetting('herman.persona'))]
     const body = announcement.text.length > 240 ? `${announcement.text.slice(0, 239)}…` : announcement.text
     // The chime is the window's; the system's own sound would ring twice.
     const notification = new Notification({ title, body, silent: true })
@@ -123,6 +124,7 @@ export class AlarmsBridge {
     const [{ service }, { buildBriefingPrompt }] = await Promise.all([this.ctx.ai(), import('../ai/prompts')])
     const data = await this.ctx.promptData()
     if (signal.aborted) throw new Error('aborted')
+    this.ctx.repo.activity.record({ kind: 'ai', area: 'alarm' })
     return new Promise((resolve, reject) => {
       let text = ''
       const id = service.run(
@@ -135,7 +137,7 @@ export class AlarmsBridge {
           error: (failure) => reject(new Error(failure.message))
         },
         null,
-        (language, voice) => buildBriefingPrompt(data, { defaultLanguage: language, voice })
+        (language, voice, _tools, persona) => buildBriefingPrompt(data, { defaultLanguage: language, voice, persona })
       )
       signal.addEventListener('abort', () => {
         service.cancel(id)

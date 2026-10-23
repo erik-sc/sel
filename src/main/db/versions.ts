@@ -90,12 +90,23 @@ function isPlain(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null
 }
 
-/** Props of the root as far as its history is concerned: `favorite` and `archivedAt` describe the sidebar, not the page. */
+/**
+ * Props of the root as far as its history is concerned: `favorite` and `archivedAt` describe the
+ * sidebar, not the page, and `aiPrivate` / `aiPrivateProjects` what the AI may read of it.
+ */
 function rootProps(props: BlockProps): BlockProps {
-  if (props.favorite === undefined && props.archivedAt === undefined) return props
+  if (
+    props.favorite === undefined &&
+    props.archivedAt === undefined &&
+    props.aiPrivate === undefined &&
+    props.aiPrivateProjects === undefined
+  )
+    return props
   const rest = { ...props }
   delete rest.favorite
   delete rest.archivedAt
+  delete rest.aiPrivate
+  delete rest.aiPrivateProjects
   return rest
 }
 

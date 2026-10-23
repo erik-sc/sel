@@ -77,8 +77,9 @@ describe('the preload', () => {
     // A change here changes what a renderer can reach: review it as such.
     expect(Object.fromEntries([...members()].filter(([, what]) => !what.startsWith('invoke ')))).toEqual({
       clientId: 'string',
-      'ai.onEvent': 'on ai:council ai:delta ai:done ai:error',
+      'ai.onEvent': 'on ai:delta ai:done ai:error',
       'sync.onStatus': 'on sync:status',
+      'transfer.onProgress': 'on transfer:progress',
       'briefing.onChanged': 'on briefing:changed',
       'meetings.recording.frames': 'send meetings:recording.frames',
       'meetings.recording.encoded': 'send meetings:recording.encoded',
@@ -92,6 +93,7 @@ describe('the preload', () => {
       'pomodoro.onEnded': 'on pomodoro:ended',
       'pomodoro.onCompleted': 'on pomodoro:completed',
       'sky.onChanged': 'on sky:changed',
+      'routines.onReady': 'on routines:ready',
       'app.platform': 'string',
       'app.log': 'send log:error',
       'app.window.minimize': 'send window:minimize',

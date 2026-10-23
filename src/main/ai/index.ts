@@ -1,30 +1,35 @@
+import { readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app, dialog, type BrowserWindow, type WebContents } from 'electron'
-import { AI_CHANNELS, type AiDone, type AiError, type AiErrorCode, type AiRequest, type AiStatus } from '../../shared/ai'
-import {
-  AGENT_LABELS,
-  AGENT_LIMITS,
-  CLAUDE_AGENT,
-  COUNCIL_KEY,
-  COUNCIL_MEMBERS,
-  councilSeats,
-  isAgentKind,
-  type AiAgentInfo,
-  type CouncilEvent,
-  type CouncilMemberId,
-  type CouncilSeat
-} from '../../shared/council'
+import { AI_CHANNELS, type AiDone, type AiError, type AiRequest, type AiStatus } from '../../shared/ai'
+import { privacyChecker } from '../../shared/aiPrivate'
+import type { MemoryFact } from '../../shared/aiMemory'
+import { addUsage, AI_USAGE_KEY, readUsage } from '../../shared/aiUsage'
+import { localDay } from '../../shared/briefing'
+import { AI_MCP_CATALOG_KEY, AI_MCP_SERVERS_KEY, isMcpServerId, mcpChoices, type ClaudeServerList } from '../../shared/aiContext'
 import type { Repository } from '../db/repository'
-import { AGENT_PROGRAMS, AGENTS_KEY, agentArgs, agentInfo, locateAgent, newAgent, readAgents } from './agents'
+import {
+  claudeConfigFile,
+  listServers,
+  parseMcpList,
+  planExternal,
+  readCatalog,
+  readLocalServers,
+  toolsOfServer,
+  type ExternalPlan,
+  type LocalServer,
+  type McpCatalog
+} from './claudeMcp'
+import { buildArgs } from './command'
 import { buildWorkspace } from './context'
-import { COUNCIL_OPINION_CHARS, HERMAN_TURNS, MEMBER_TURNS, type CouncilOpinion } from './council'
-import type { Failure } from './errors'
-import { selectPassages } from './herman'
-import { inspectCli, type CliLocation } from './locate'
+import { inspectCli } from './locate'
 import { loadMeeting, prepareMeeting, type MeetingSource } from './meeting'
+import { MEMORY_MODEL, PersonaMemory } from './memory'
 import { buildPrompt, type BriefingPromptData, type PromptContext } from './prompts'
-import { aiRequest, loadContext } from './request'
+import { aiRequest, loadContext, withoutPrivatePage } from './request'
 import { AiService, type PromptBuilder, type RunTarget } from './service'
+import { loadScopes, loadStanding } from './standing'
 import { ToolHost, toolScript } from './toolhost'
 import { repositorySource, type ToolSource } from './tools'
 
@@ -36,6 +41,14 @@ import { repositorySource, type ToolSource } from './tools'
 /** Text deltas are gathered for this long before they cross to the renderer. */
 const DELTA_FLUSH_MS = 40
 
+/** Turns Herman may take to look around the workspace through the tools before he answers. */
+const HERMAN_TURNS = 10
+
+/** How long `claude mcp list` may take: it checks every server it knows, and a slow one takes half a minute. */
+const SCAN_TIMEOUT_MS = 120_000
+/** How long a start may take to list a server's tools. */
+const TOOLS_TIMEOUT_MS = 90_000
+
 /**
  * A stand-in for the program, for development and automated checks of the UI. Only an
  * unpackaged build reads it: a shipped app never takes the program to run from the environment.
@@ -44,28 +57,18 @@ export function devCliOverride(raw: string | undefined, isPackaged: boolean): st
   return !isPackaged && raw ? raw : null
 }
 
-/** Why a seat of the council gave no answer, in words that fit any program. */
-const SEAT_FAILURES: Record<AiErrorCode, string> = {
-  'not-installed': 'The program could not be started.',
-  'not-logged-in': 'The program is not signed in.',
-  'rate-limited': 'The program is busy, or over its limit.',
-  timeout: 'It took too long.',
-  cancelled: 'Stopped.',
-  failed: 'It could not answer.'
-}
-
-function seatFailure(failure: Failure): string {
-  return failure.detail ? `${SEAT_FAILURES[failure.code]} ${failure.detail}` : SEAT_FAILURES[failure.code]
-}
-
 export class AiBridge {
   readonly service: AiService
   /** Windows whose requests are cancelled when they go away. */
   private readonly watched = new WeakSet<WebContents>()
-  /** The workspace tools Herman and his council may read through (see ./toolhost.ts). */
+  /** The workspace tools Herman may read through (see ./toolhost.ts). */
   private readonly tools: ToolHost
   /** The Markdown converter, loaded before the first tool is granted: the tools read pages through it. */
   private markdown: typeof import('../markdown') | null = null
+  /** Questions asked on a page private from the AI, sent on without it: their WORKSPACE says there is one. */
+  private readonly privateAsks = new WeakSet<AiRequest>()
+  /** The persona's memory (0.8.0 A3): what it keeps, and the small request that picks it. */
+  readonly memory: PersonaMemory
 
   constructor(
     private readonly repo: Repository,
@@ -85,15 +88,62 @@ export class AiBridge {
       // Empty and dedicated: the program's file tools are off, and there is nothing here to read but the configuration of its one MCP server.
       sandboxDir,
       tools: {
-        grant: async (listener) => {
+        grant: async (listener, extra) => {
           this.markdown ??= await import('../markdown')
-          return this.tools.grant(listener)
+          return this.tools.grant(listener, extra)
         }
       },
       getSetting: (key) => (key === 'ai.cliPath' && override && !script ? override : repo.getSetting(key)),
       devScript: script,
-      loadContext: (request) => this.context(request)
+      loadContext: (request) => this.context(request),
+      external: (readOnly) => this.externalPlan(readOnly),
+      // How much AI was used, by day and by who asked (C5): one setting, on this computer only.
+      onUsage: (usage) => {
+        const stored = readUsage(repo.getSetting(AI_USAGE_KEY))
+        repo.setSetting(
+          AI_USAGE_KEY,
+          addUsage(stored, { day: localDay(Date.now()), origin: usage.origin, ms: usage.durationMs, costUsd: usage.costUsd })
+        )
+      }
     })
+    this.memory = new PersonaMemory(
+      {
+        getSetting: (key) => repo.getSetting(key),
+        setSetting: (key, value) => repo.setSetting(key, value),
+        isPrivate: (id) => privacyChecker({ get: (blockId) => repo.get(blockId) })(id)
+      },
+      (prompt) => this.runMemory(prompt)
+    )
+  }
+
+  /**
+   * The memory's own request: no tools, a small model, the prompt built in this process. Counted
+   * in the activity log as an AI request of origin `memory` (what a usage count reads), never with its text.
+   */
+  private runMemory(prompt: string): Promise<string> {
+    this.repo.activity.record({ kind: 'ai', area: 'memory' })
+    return new Promise((resolve, reject) => {
+      this.service.runPrompt(
+        () => prompt,
+        {
+          delta: () => undefined,
+          done: (result) => resolve(result.text),
+          error: (failure) => reject(new Error(failure.message))
+        },
+        null,
+        { model: MEMORY_MODEL, origin: 'memory' }
+      )
+    })
+  }
+
+  /** Reads a finished turn of the balloon and keeps what is worth keeping (shared/aiMemory.ts). */
+  remember(input: unknown): Promise<MemoryFact[]> {
+    return this.memory.remember(input)
+  }
+
+  /** Edits or deletes remembered facts. */
+  editMemory(op: unknown): { facts: MemoryFact[]; refused?: 'too-long' | 'secret' | 'missing' } {
+    return this.memory.apply(op)
   }
 
   /**
@@ -105,16 +155,38 @@ export class AiBridge {
     const repo = this.repo
     // The Markdown converter is shared with export/import and loaded on first use.
     const markdown = await import('../markdown')
-    const base: PromptContext = request.today
+    // Every reader below leaves out what is private from the AI (shared/aiPrivate.ts), each with a checker of its own.
+    const pageToMarkdown = (id: string, hidden?: (id: string) => boolean): { title: string; markdown: string } =>
+      markdown.pageToMarkdown(repo, id, hidden ? { hidden } : {})
+    const loaded: PromptContext = request.today
       ? {}
       : loadContext(
           {
             get: (id) => repo.get(id),
-            pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id),
-            blocksToMarkdown: (blocks) => markdown.blocksToMarkdown(repo, blocks)
+            pageToMarkdown,
+            blocksToMarkdown: (blocks, hidden) => markdown.blocksToMarkdown(repo, blocks, hidden ? { hidden } : {})
           },
           request
         )
+    // Settings → AI → Context goes along with every request: the written context and the pinned pages.
+    const standing = loadStanding({
+      getSetting: (key) => repo.getSetting(key),
+      get: (id) => repo.get(id),
+      pageToMarkdown
+    })
+    // The project and database the page belongs to may have a context of their own (shared/aiScope.ts).
+    const scopes = request.today
+      ? []
+      : loadScopes(
+          { get: (id) => repo.get(id), pageToMarkdown },
+          request.pageId,
+          standing?.pages?.map((page) => page.id)
+        )
+    const withStanding: PromptContext = standing ? { ...loaded, standing } : loaded
+    const withScopes: PromptContext = scopes.length ? { ...withStanding, scopes } : withStanding
+    // What the persona remembers goes along with every request, unless the memory is off (0.8.0 A3).
+    const memory = this.memory.forPrompt()
+    const base: PromptContext = memory.length ? { ...withScopes, memory } : withScopes
     if (request.action !== 'ask') return base
     let day: BriefingPromptData | null = null
     try {
@@ -132,9 +204,11 @@ export class AiBridge {
         // What the assistant is shown by itself leaves archived pages out; it finds them when it searches.
         listDatabases: () => repo.listDatabases({ archived: false }),
         search: (text, limit) => repo.search(text, limit),
-        pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id)
+        pageToMarkdown
       },
-      request
+      request,
+      new Date(),
+      { privatePage: this.privateAsks.has(request) }
     )
     return { ...base, ...(day ? { day } : {}), ...workspace }
   }
@@ -151,179 +225,19 @@ export class AiBridge {
 
   /** Validates a request and starts it for `sender`; the outcome is sent to that window only. */
   run(rawRequest: unknown, sender: WebContents): { id: string } {
-    const request = aiRequest(rawRequest)
+    // A request about a page private from the AI: a question goes on without the page, anything else is refused here.
+    const { request, privatePage } = withoutPrivatePage(aiRequest(rawRequest), privacyChecker({ get: (id) => this.repo.get(id) }))
+    if (privatePage) this.privateAsks.add(request)
+    // The local activity log keeps that a request was made and which action: never its text.
+    this.repo.activity.record({ kind: 'ai', area: request.action })
     // "Write up notes" on a meeting page: the transcript is read here, not sent by the window.
     if (request.action === 'consolidate' && !request.transcript?.trim() && request.pageId)
       return this.startMeeting(request, request.pageId, sender)
-    if (request.action === 'ask' && request.council) return this.startCouncil(request, sender)
     // A question may be answered from anywhere in the workspace: the tools let the answer look.
-    if (request.action === 'ask') return this.start(request, sender, undefined, undefined, { tools: { maxTurns: HERMAN_TURNS } })
+    // The servers the user turned on in Settings (Veleiro, Gmail…) come along with a question only.
+    if (request.action === 'ask')
+      return this.start(request, sender, undefined, undefined, { tools: { maxTurns: HERMAN_TURNS, external: true } })
     return this.start(request, sender)
-  }
-
-  // ---- council ------------------------------------------------------------
-
-  /** The seats that are taken, in the order of the council. */
-  private seats(): { member: CouncilMemberId; seat: CouncilSeat }[] {
-    const seats = councilSeats(this.repo.getSetting(COUNCIL_KEY))
-    return COUNCIL_MEMBERS.filter((member) => seats[member].enabled).map((member) => ({ member, seat: seats[member] }))
-  }
-
-  /** Who answers for a seat: Claude Code with the seat's model, or a connected program, checked again now. */
-  private target(seat: CouncilSeat, onActivity?: (activity: string) => void): RunTarget {
-    // Claude Code, as sel starts it, can be given the workspace tools; another program cannot.
-    if (seat.agent === CLAUDE_AGENT) return { model: seat.model, tools: { maxTurns: MEMBER_TURNS, ...(onActivity ? { onActivity } : {}) } }
-    const agent = readAgents(this.repo.getSetting(AGENTS_KEY)).find((entry) => entry.id === seat.agent)
-    if (!agent) throw new Error('The program chosen for this seat is no longer connected.')
-    const found = inspectCli(agent.path)
-    if (!found.ok) throw new Error(`${agent.name} is no longer where it was.`)
-    return { program: { cli: found.cli, args: agentArgs(agent.kind, seat.model), envAllow: AGENT_PROGRAMS[agent.kind].envAllow } }
-  }
-
-  /**
-   * A question put to the council first. Each seat that is taken answers it from its own point
-   * of view, as a request of its own through the same service and at the same time as the
-   * others; a seat answered by Claude Code may first read the workspace through the tools, and
-   * may draft changes. Herman then answers with what they said in front of him, and he alone
-   * proposes. The window is told how each member fares, and what they are reading. A member
-   * that fails is left out; stopping the request stops them all.
-   */
-  private startCouncil(request: AiRequest, sender: WebContents): { id: string } {
-    const seats = this.seats()
-    if (!seats.length) return this.start(request, sender)
-    const inner = new Set<string>()
-    const outer = { id: '' }
-    let over = false
-    const tell = (event: Omit<CouncilEvent, 'id'>): void => {
-      if (!over && !sender.isDestroyed()) sender.send(AI_CHANNELS.council, { id: outer.id, ...event } satisfies CouncilEvent)
-    }
-    const consult = (member: CouncilMemberId, seat: CouncilSeat, prompt: string): Promise<CouncilOpinion | null> =>
-      new Promise((resolve) => {
-        let target: RunTarget
-        let settled = false
-        try {
-          // While they look around, the window hears what they are looking at.
-          target = this.target(seat, (activity) => {
-            if (!settled) tell({ member, status: 'thinking', text: activity })
-          })
-        } catch (err) {
-          tell({
-            member,
-            status: 'failed',
-            text: err instanceof Error && err.message ? err.message.slice(0, 160) : 'This seat could not be asked.'
-          })
-          return resolve(null)
-        }
-        tell({ member, status: 'thinking' })
-        const id = this.service.runPrompt(
-          () => prompt,
-          {
-            delta: () => undefined,
-            done: (result) => {
-              settled = true
-              inner.delete(id)
-              const text = result.text.trim().slice(0, COUNCIL_OPINION_CHARS)
-              tell(text ? { member, status: 'done', text } : { member, status: 'failed', text: 'It said nothing.' })
-              resolve(text ? { member, text } : null)
-            },
-            error: (failure) => {
-              settled = true
-              inner.delete(id)
-              tell({ member, status: 'failed', text: seatFailure(failure) })
-              resolve(null)
-            }
-          },
-          sender.id,
-          target
-        )
-        inner.add(id)
-      })
-    const build: PromptBuilder = async (language, voice, tools) => {
-      const context = await this.context(request)
-      const asked = await Promise.all(
-        seats.map(({ member, seat }) =>
-          consult(member, seat, buildPrompt(request, context, { defaultLanguage: language, member, tools: seat.agent === CLAUDE_AGENT }))
-        )
-      )
-      const council = asked.filter((opinion): opinion is CouncilOpinion => opinion !== null)
-      const passageIds = voice
-        ? selectPassages(`${request.instruction ?? ''}\n${request.selectionText ?? ''}`).map((quote) => quote.id)
-        : []
-      return buildPrompt(request, context, {
-        defaultLanguage: language,
-        council,
-        ...(tools ? { tools: true } : {}),
-        ...(voice ? { voice, passageIds } : {})
-      })
-    }
-    const started = this.start(
-      request,
-      sender,
-      build,
-      () => {
-        over = true
-        for (const id of [...inner]) this.service.cancel(id)
-      },
-      { tools: { maxTurns: HERMAN_TURNS } }
-    )
-    outer.id = started.id
-    return started
-  }
-
-  // ---- other programs -----------------------------------------------------
-
-  agents(): AiAgentInfo[] {
-    return readAgents(this.repo.getSetting(AGENTS_KEY)).map((agent) => agentInfo(agent))
-  }
-
-  /**
-   * Connects another program. Its path enters the settings in one of two ways only: it was
-   * found where programs are installed, or the user picked the file in the native dialog. It is
-   * kept only if it is a regular file this platform can start. Null when the dialog was cancelled.
-   */
-  async connectAgent(kind: unknown, pick: unknown, win: BrowserWindow | null): Promise<AiAgentInfo | null> {
-    if (!isAgentKind(kind)) throw new Error('Unknown kind of program')
-    const agents = readAgents(this.repo.getSetting(AGENTS_KEY))
-    if (agents.length >= AGENT_LIMITS.agents) throw new Error('Too many programs are connected. Remove one first.')
-    let cli: CliLocation | null = null
-    if (pick !== true) {
-      const found = locateAgent(kind)
-      if (found.ok) cli = found.cli
-    }
-    if (!cli) {
-      const windows = process.platform === 'win32'
-      const options: Electron.OpenDialogOptions = {
-        title: `Choose the program for ${AGENT_LABELS[kind]}`,
-        buttonLabel: 'Choose',
-        properties: ['openFile'],
-        filters: windows
-          ? [
-              { name: 'Programs', extensions: ['exe', 'cmd', 'bat', 'ps1'] },
-              { name: 'All files', extensions: ['*'] }
-            ]
-          : undefined
-      }
-      const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
-      const file = result.filePaths[0]
-      if (result.canceled || !file) return null
-      const found = inspectCli(file)
-      if (!found.ok) throw new Error('That file is not a program this computer can start.')
-      cli = found.cli
-    }
-    const path = cli.path
-    const same = agents.find((agent) => agent.kind === kind && agent.path === path)
-    if (same) return agentInfo(same)
-    const agent = newAgent(kind, path, agents)
-    this.repo.setSetting(AGENTS_KEY, [...agents, agent])
-    return agentInfo(agent)
-  }
-
-  removeAgent(id: unknown): AiAgentInfo[] {
-    if (typeof id !== 'string' || id.length > 64) throw new Error('Invalid program id')
-    const agents = readAgents(this.repo.getSetting(AGENTS_KEY))
-    const kept = agents.filter((agent) => agent.id !== id)
-    if (kept.length !== agents.length) this.repo.setSetting(AGENTS_KEY, kept)
-    return kept.map((agent) => agentInfo(agent))
   }
 
   /**
@@ -358,7 +272,9 @@ export class AiBridge {
       const source: MeetingSource = {
         get: (id) => this.repo.get(id),
         children: (id) => this.repo.children(id),
-        blocksToMarkdown: (blocks) => markdown.blocksToMarkdown(this.repo, blocks)
+        // A private page or database kept among the notes stays out of them.
+        blocksToMarkdown: (blocks) =>
+          markdown.blocksToMarkdown(this.repo, blocks, { hidden: privacyChecker({ get: (id) => this.repo.get(id) }) })
       }
       const meeting = loadMeeting(source, pageId)
       if (!meeting) throw new Error('This meeting has no transcript yet.')
@@ -376,6 +292,7 @@ export class AiBridge {
 
   /** Starts a prompt built in this process (the briefing) for `sender`, streamed like any request. */
   runPrompt(build: PromptBuilder, sender: WebContents): { id: string } {
+    this.repo.activity.record({ kind: 'ai', area: 'briefing' })
     return this.start({ action: 'custom' }, sender, build)
   }
 
@@ -465,6 +382,113 @@ export class AiBridge {
       this.service.invalidate()
     }
     return status
+  }
+
+  // ---- Claude's MCP servers (Settings → AI → Claude's tools) ----------------
+
+  /** Claude Code's configuration file, read now. What it holds never leaves this process except into a request's own files. */
+  private async localServers(): Promise<{ servers: LocalServer[]; error?: string }> {
+    let text: string
+    try {
+      text = await readFile(claudeConfigFile(process.env, homedir()), 'utf8')
+    } catch (err) {
+      // No file: Claude Code has no servers of its own here.
+      return (err as NodeJS.ErrnoException).code === 'ENOENT' ? { servers: [] } : { servers: [], error: 'unreadable' }
+    }
+    try {
+      return { servers: readLocalServers(JSON.parse(text)) }
+    } catch {
+      return { servers: [], error: 'unreadable' }
+    }
+  }
+
+  private catalog(): McpCatalog {
+    return readCatalog(this.repo.getSetting(AI_MCP_CATALOG_KEY))
+  }
+
+  /**
+   * The servers that are on, for one request; null when none is. `readOnly`: each of them with its
+   * tools that look things up only, whatever access the settings give it.
+   */
+  private async externalPlan(readOnly = false): Promise<ExternalPlan | null> {
+    const stored = mcpChoices(this.repo.getSetting(AI_MCP_SERVERS_KEY))
+    const choices: typeof stored = readOnly
+      ? Object.fromEntries(Object.keys(stored).map((id) => [id, { access: 'read' as const }]))
+      : stored
+    if (!Object.keys(choices).length) return null
+    const { servers } = await this.localServers()
+    return planExternal({ choices, local: servers, catalog: this.catalog() })
+  }
+
+  async servers(): Promise<ClaudeServerList> {
+    const { servers, error } = await this.localServers()
+    const catalog = this.catalog()
+    return { servers: listServers(servers, catalog), connectorsAt: catalog.connectorsAt, ...(error ? { error } : {}) }
+  }
+
+  /** Asks Claude Code for the claude.ai connectors of the account and keeps their names and addresses. */
+  async scanServers(): Promise<ClaudeServerList> {
+    const { stdout } = await this.service.runCli(['mcp', 'list'], { timeoutMs: SCAN_TIMEOUT_MS })
+    const connectors = parseMcpList(stdout)
+    this.repo.setSetting(AI_MCP_CATALOG_KEY, { ...this.catalog(), connectors, connectorsAt: Date.now() } satisfies McpCatalog)
+    return this.servers()
+  }
+
+  /**
+   * Starts Claude Code with sel's server and this one only, reads the tools it lists once it is
+   * ready, and stops it there. The prompt is a one-word one, in case the stop comes late.
+   */
+  async serverTools(rawId: unknown): Promise<ClaudeServerList> {
+    if (!isMcpServerId(rawId)) throw new Error('Unknown server')
+    const id = rawId
+    const { servers } = await this.localServers()
+    const catalog = this.catalog()
+    const server = listServers(servers, catalog).find((entry) => entry.id === id)
+    const plan = planExternal({ choices: { [id]: { access: 'all' } }, local: servers, catalog })
+    if (!plan || !server) throw new Error('That server is no longer set up in Claude Code.')
+    this.markdown ??= await import('../markdown')
+    const grant = await this.tools.grant(undefined, { servers: plan.servers, settings: plan.settings })
+    const seen: { init: Record<string, unknown> | null } = { init: null }
+    try {
+      const args = buildArgs({
+        model: 'haiku',
+        tools: {
+          configPath: grant.configPath,
+          maxTurns: 2,
+          external: grant.settingsPath ? { settingsPath: grant.settingsPath, connectors: plan.connectors } : null
+        }
+      })
+      await this.service.runCli(args, {
+        stdin: 'Reply with the single word ok.',
+        timeoutMs: TOOLS_TIMEOUT_MS,
+        stopWhen: (line) => {
+          try {
+            const event = JSON.parse(line) as Record<string, unknown>
+            if (event['type'] === 'system' && event['subtype'] === 'init') seen.init = event
+          } catch {
+            /* not an event */
+          }
+          return seen.init !== null
+        }
+      })
+    } finally {
+      grant.release()
+    }
+    const event = seen.init
+    if (!event) throw new Error('Claude Code did not say which tools the server has.')
+    const listed = Array.isArray(event['mcp_servers']) ? (event['mcp_servers'] as { name?: unknown; status?: unknown }[]) : []
+    const status = listed.find((entry) => entry.name === server.name)?.status
+    const names = toolsOfServer(event['tools'], server.name)
+    if (!names.length && status !== 'connected') {
+      throw new Error(
+        status === 'needs-auth'
+          ? 'The server needs you to sign in again in Claude Code (run /mcp there).'
+          : `The server did not connect${typeof status === 'string' ? ` (${status.slice(0, 40)})` : ''}.`
+      )
+    }
+    const fresh = this.catalog()
+    this.repo.setSetting(AI_MCP_CATALOG_KEY, { ...fresh, tools: { ...fresh.tools, [id]: { names, at: Date.now() } } } satisfies McpCatalog)
+    return this.servers()
   }
 
   dispose(): void {

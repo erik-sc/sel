@@ -45,7 +45,9 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Go back.** Every page keeps a version history. Compare, restore, or restore as a copy.
 
-**Keep it safe.** Once a day sel makes a copy of your notes and checks that it opens before keeping it; the last few days and weeks are kept. Settings → General → Data restores one, after saving the present state first. If the notes file is ever damaged, sel offers the latest good copy when it starts, and never deletes the damaged file. The same place exports everything as Markdown: a file per page, sub-pages in folders, images alongside, links between pages that still work.
+**Keep it safe.** Once a day sel makes a copy of your notes and checks that it opens before keeping it; the last few days and weeks are kept. Settings → General → Data → Restore a backup compares a copy with now (pages deleted, changed or new since) and brings back one page, with or without the pages under it, or everything; a copy of the present is always saved first. sel checks the notes file each time it starts, and if it is ever damaged, offers the latest good copy and never deletes the damaged file.
+
+**Bring it in, take it out.** Import a Notion export or an Obsidian vault: pages keep their nesting and links, Notion's tables become databases with their columns typed, and you see what will come in before it does. Everything lands under one page, "Imported on…", that Undo takes away. Export the whole workspace, or one page and what is under it, as a zip that opens as an Obsidian vault: Markdown per page, CSV per database, images alongside.
 
 | | |
 |---|---|
@@ -56,11 +58,17 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Start the day.** Today shows your calendar, the tasks that are open and a phrase worth reading: Marcus Aurelius, the Dhammapada, Thoreau, or one of your own. Calendar shows the month, or the week hour by hour: your events and the tasks that are due, day by day. To connect a calendar, paste its secret iCal address in Settings → Today: Google Calendar, Outlook, iCloud, Fastmail and anything else that publishes an `.ics` address work. The address stays in the main process and never reaches the window. At the times you choose, Herman can brief you on the day, with a chime and, if you like, aloud.
 
+**Plan the day in time.** Under the agenda, Plan shows your calendar and your tasks side by side, hour by hour. Drag a task to a free hour to give it a block of time, drag the block's edge to make it longer, `Ctrl+Z` to undo; the keyboard does the same. A quiet note says when the day holds more than fits. Nothing is written to your calendars.
+
 **Keep tasks.** Tasks has a place of its own (`Ctrl+Alt+K`). Write a task the way you would say it, in English or Portuguese, and sel reads the date, the time, the priority, the project, the labels and how it repeats: "pay the card every 5th p1", "ligar pra mãe quinzenalmente". `Ctrl+Alt+A` adds one from anywhere in the app, and a shortcut for the whole system can be turned on. Tasks can have subtasks; a repeating task moves to its next date when you tick it. Todoist's CSV export can be imported.
 
 **Edit them where they are.** On Today, in the Inbox, in Tasks and on the Calendar, a task shows its date, priority, project and labels as small chips: click one to change it. Click the task for a panel with everything, its notes and subtasks; F2 renames it, and the keys D, R, 1–4, # and @ set the date, the repeat, the priority, the project and the labels. A date can be written ("sex 15h", "daqui 3 dias", "next monday") or picked from Today, Tomorrow, Weekend or Next week. Repeats are chosen from every day, weekdays, every week, month or year, or your own rule, and read back in words. On the Calendar, drag a task to another day or hour; click an empty one to add a task there.
 
 **Capture now, refine later.** Write a task down as it comes and leave it in the Inbox. Until it has a date, a priority and a project, it shows what is missing and waits in To refine. Refine walks through them one at a time, by keyboard. sel reminds you: a line in your briefing, a word from Herman when something has waited two days, a refine time on weekdays at 17:00, and a quiet dot on Tasks in the sidebar. Each one can be turned off in Settings → Notifications.
+
+**Give projects a direction.** A project can have an objective in one sentence, milestones with dates, and its next action; one without a next action says so. Progress is "4 of 9 done", never a percentage.
+
+**Review the week.** From Friday, Today offers the weekly review: what got done, what slid (move it, date it or let it go), the Inbox refined to zero, projects without a next action, and up to three things for next week, which then wait on Today.
 
 **Be reminded.** A task with a time or a reminder, and the events of your calendar, a few minutes before they start, bring the window forward with a chime, or a notification when you are elsewhere; any of them can be snoozed for 10 minutes. Before a meeting, sel asks whether to record it, take notes only, or leave it. Settings → Notifications chooses what reminds you and how early. With the window closed nothing rings, unless sel stays in the tray.
 
@@ -68,6 +76,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 |---|---|
 | ![Today: a phrase from Herman, the agenda from your calendar, and the open tasks](docs/screens/today.webp) | ![The calendar week, hour by hour, with the tasks that are due](docs/screens/calendar-week.webp) |
 | ![A task written in plain words, with the repeat, time, priority and project it was read as](docs/screens/tasks.webp) | ![Tasks by project](docs/screens/tasks-board.webp) |
+| ![Plan: the calendar and blocks of time for three tasks, side by side, hour by hour](docs/screens/plan.webp) | ![A project with a direction: its objective, next action, progress and milestones](docs/screens/project.webp) |
+| ![The weekly review: projects without a next action, one step of six](docs/screens/review.webp) | |
 
 ### A line a day
 
@@ -82,22 +92,37 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 | ![Meditations: today's line, and what you wrote on this day in earlier years](docs/screens/meditations.webp) | ![The sky: last month's constellation, named, and the moon of tonight](docs/screens/sky.webp) |
 | ![Close the day: what happened, what is worth keeping, tomorrow, the close](docs/screens/close-day.webp) | ![The calendar month, with events and the tasks that are due](docs/screens/calendar.webp) |
 
-### Herman, and meetings
+### Herman or Hermine, and meetings
 
-**Meet Herman.** The assistant has a face: an old man in 64 pixels, who keeps a corner of the window and has twelve outfits to choose from in Settings → Herman. Ask him about a page or about your day. Now and then he says one short thing he noticed, written in advance and chosen on your computer, with no AI involved. Settings → Herman quiets him or sends him away.
+**Meet Herman, or Hermine.** The assistant has a face in 64 pixels and keeps a corner of the window: Herman, an old man, or Hermine, a young woman, each with twelve outfits, chosen in Settings. Now and then the persona says one short thing noticed about your day, written in advance and chosen on your computer, with no AI involved. Settings quiets them or sends them away. The first time you use the AI, the persona introduces itself in five short steps: Claude Code, who you would like at your side, a few questions that become your context, pages worth pinning, and your tools. Any step can be skipped, and Settings → AI runs it again.
 
-**Let him build.** Herman reads more than the page in front of him: where it sits, what else you keep, your databases and how they are shaped, your day, and the pages that seem to bear on the question. Ask him for a page, a plan, a table or more rows and he proposes it; nothing is created until you press Apply.
+**Talk in a balloon.** Click the persona, or press `Ctrl+J`, and a balloon opens beside it: a few suggestions for the moment (summarise this page, replan what is late, write up a meeting, plan or close the day) and a field for anything else. The persona reads more than the page in front of it: where it sits, what else you keep, your databases, your day, and the pages that seem to bear on the question. Ask for a page, a plan, a table or more rows and it proposes them; nothing is created until you press Apply, and "Undo all of this" takes back everything one Apply did. Earlier keeps your last conversations.
 
-**Ask his council.** Press Council and he first asks a few other voices (a skeptic, a strategist, a builder, an editor, a keeper), each answering from one point of view, then gives you one answer of his own with theirs above it. Each seat can run on a model of its own, or on another program you connect in Settings → Herman: Codex CLI, Gemini CLI, Ollama, or anything that reads a prompt and prints an answer.
+**Let it help through the day.** Routines let the persona work on its own a few times a day, each one off until you turn it on: in the morning it plans the day (three priorities, what can wait, blocks of time in the free hours, reading your calendars and, if you allow, your tools), at midday it checks in, in the evening it drafts the close of the day, on Friday it offers the weekly review, and now and then it offers to unstick a task that has waited too long. Each says one line when something is ready, and the proposal waits in the balloon: nothing changes until you press Apply. Never at night, never while you type. Settings → AI sets the times and a daily limit, and Usage shows how many requests went out, from you and from the routines, and what they cost when Claude reports it.
 
 **Ask.** Summarise, continue or rework text with your own Claude, through the Claude Code app on your machine. Nothing enters a page until you accept it.
+
+**Tell it once.** Settings → AI → Context holds what Claude should know in every request: who you are, your work, the names that come up, how you like answers. A page's ⋯ menu pins up to five pages to go along too. A project, or a database, can have a context of its own, which goes along when you ask from inside it. The persona also remembers: after a conversation it keeps a few short facts about you and your work, says "Remembered: …" with an Undo, and Settings → AI → Memory lists them to edit, delete or turn off. Passwords, keys and document numbers are never kept.
+
+**Keep a page to yourself.** Mark a page, a database or a project Private from AI and nothing in it, or under it, is ever sent: not as context, not to the tools, not to other apps connected to sel. A lock shows on it. Below Context, Claude's tools lists the MCP servers and claude.ai connectors you already set up in Claude Code (Veleiro, Gmail, Notion…). All start off; turn one on and Herman may use it when you ask him something, read-only unless you choose its tools or allow them all. sel stores only which ones are on, never their addresses or keys, and each answer says what went along with it.
 
 **Record meetings.** Record your microphone and what the computer plays while you take notes. The transcript is made on your own machine by whisper.cpp, and your Claude writes up the notes from it. Playing the recording back marks the paragraph being heard. A meeting made from a calendar event lists who was invited. The audio never leaves the computer.
 
 | | |
 |---|---|
-| ![Herman answers a question about the page](docs/screens/herman.webp) | ![The council: what the Skeptic and the Builder said, then one answer from Herman](docs/screens/council.webp) |
-| ![Herman proposes a page; nothing is made until Apply](docs/screens/herman-apply.webp) | ![A meeting page: its details, the recorder and the notes](docs/screens/meeting.webp) |
+| ![Herman answers a question about the page in a balloon beside him](docs/screens/balloon.webp) | ![Herman proposes a page; nothing is made until Apply](docs/screens/balloon-apply.webp) |
+| ![Hermine, on Today, says where to start the day](docs/screens/balloon-hermine.webp) | ![The introduction: Herman or Hermine, and an outfit](docs/screens/onboarding.webp) |
+| ![Settings → AI → Context: what goes along with every request, and the pinned pages](docs/screens/settings-ai.webp) | ![Settings → AI → Memory: the facts the persona keeps, each to edit or delete](docs/screens/settings-memory.webp) |
+| ![Settings → AI → Routines: plan the day, check in, close the day, the weekly review, unstick a task](docs/screens/settings-routines.webp) | ![A page marked Private from AI, with its lock by the title and in the sidebar](docs/screens/private.webp) |
+| ![A meeting page: its details, the recorder and the notes](docs/screens/meeting.webp) | |
+
+### See how you move
+
+**Flows.** sel keeps a small log of your own activity, on your computer only: which screens and pages you open, when you write, when tasks get done, your pomodoros. Flows draws it as a year of ink squares and a week by the hour, shows the moves you make most between screens and pages, the time you spend in each, and the pages that keep pulling you back. No totals, no streaks, no records. Once a week, if you like, the persona says one gentle thing about your rhythm. Settings → General → Data turns the log off or deletes it.
+
+| | |
+|---|---|
+| ![Flows: a year of ink squares and the week by the hour](docs/screens/flows.webp) | ![Flows: the moves you make most, and the time spent in each area](docs/screens/flows-moves.webp) |
 
 ### Sync and settings
 
@@ -111,7 +136,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 |---|---|
 | ![A page in the light theme](docs/screens/page.webp) | ![A page in the dark theme](docs/screens/page-dark.webp) |
 | ![Settings → Sync: a git repository of your own, encrypted if you like](docs/screens/settings-sync.webp) | ![Report a bug or suggest a feature](docs/screens/feedback.webp) |
-| ![Settings → Herman](docs/screens/settings-herman.webp) | ![Settings → Notifications](docs/screens/settings-notifications.webp) |
+| ![Settings → Herman, here as Hermine: the persona and her outfits](docs/screens/settings-persona.webp) | ![Settings → Notifications](docs/screens/settings-notifications.webp) |
+| ![Settings → General → Data: backups, restore, import and export, the activity history](docs/screens/settings-data.webp) | ![Settings → General: light, dark or the system's](docs/screens/settings-general.webp) |
 
 ## Principles
 

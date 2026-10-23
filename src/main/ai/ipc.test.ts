@@ -111,7 +111,10 @@ describe('ai ipc', () => {
         ['ai:status', []],
         ['ai:run', [{ action: 'summarize', pageId }]],
         ['ai:cancel', ['x']],
-        ['ai:pickCli', []]
+        ['ai:pickCli', []],
+        ['ai:servers', []],
+        ['ai:scanServers', []],
+        ['ai:serverTools', ['user:x']]
       ] as const) {
         await expect(invoke(channel, event, ...args)).rejects.toThrow('Forbidden')
       }

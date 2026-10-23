@@ -10,11 +10,12 @@ describe('the backups row', () => {
   it('says when the newest backup was made, how many there are and their size', () => {
     const status: BackupStatus = {
       backups: [
-        { at: at(18, 9, 12), size: 4_000_000, kind: 'auto' },
-        { at: at(17, 9), size: 8_100_000, kind: 'auto' }
+        { at: at(18, 9, 12), size: 4_000_000, kind: 'auto', name: 'sel-2026-10-18-091200.db' },
+        { at: at(17, 9), size: 8_100_000, kind: 'auto', name: 'sel-2026-10-17-090000.db' }
       ],
       problem: null,
-      problemAt: null
+      problemAt: null,
+      integrity: 'ok'
     }
     expect(describeBackups(status, now, 'en')).toEqual({
       help: 'Every day sel keeps a copy of everything on this computer. Last: today, 09:12 · 2 copies, 12 MB.',
@@ -26,7 +27,7 @@ describe('the backups row', () => {
   })
 
   it('says there is none yet, and why the last one failed', () => {
-    const line = describeBackups({ backups: [], problem: 'disk-full', problemAt: now }, now, 'en')
+    const line = describeBackups({ backups: [], problem: 'disk-full', problemAt: now, integrity: 'unchecked' }, now, 'en')
     expect(line.help).toBe('Every day sel keeps a copy of everything on this computer. None yet.')
     expect(line.problem).toMatch(/not enough free disk space/)
   })

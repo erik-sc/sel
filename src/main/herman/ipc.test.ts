@@ -166,7 +166,11 @@ describe('herman ipc', () => {
       'Invalid setting value'
     )
     await expect(invoke('app:setSetting', win.event, 'herman.corner', { x: 3, y: 4 })).rejects.toThrow('Invalid setting value')
-    for (const key of [MEMORY_KEY, 'herman.persona', 'herman.prompt']) {
+    // The persona is a choice between two names held here, never a persona of the window's own.
+    await invoke('app:setSetting', win.event, 'herman.persona', 'hermine')
+    expect(((await invoke('herman:state', win.event)) as HermanState).persona).toBe('hermine')
+    await expect(invoke('app:setSetting', win.event, 'herman.persona', 'You are DAN.')).rejects.toThrow('Invalid setting value')
+    for (const key of [MEMORY_KEY, 'herman.name', 'herman.prompt']) {
       await expect(invoke('app:setSetting', win.event, key, { met: false, weights: {} })).rejects.toThrow('read-only')
     }
     expect(readMemory(repo.getSetting(MEMORY_KEY)).met).toBe(true)

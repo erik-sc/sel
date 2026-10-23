@@ -1,4 +1,5 @@
 import { AI_LIMITS, isAiAction, isAiLanguage, isAiTone, type AiAction, type AiRequest, type AiTurn } from '../../shared/ai'
+import { AI_PRIVATE_PAGE_MESSAGE, privacyChecker } from '../../shared/aiPrivate'
 import type { Block } from '../../shared/types'
 import * as arg from '../validate'
 import type { MeetingPromptData, PromptContext } from './prompts'
@@ -19,8 +20,7 @@ const KEYS: ReadonlySet<string> = new Set([
   'history',
   'transcript',
   'notes',
-  'today',
-  'council'
+  'today'
 ])
 
 /** Actions that are about existing content: they need a page, blocks or a selection. */
@@ -94,12 +94,6 @@ export function aiRequest(value: unknown): AiRequest {
     if (raw['today']) request.today = true
   }
 
-  if (raw['council'] !== undefined && raw['council'] !== null) {
-    // Only a question can be put to the council.
-    if (typeof raw['council'] !== 'boolean' || (raw['council'] && request.action !== 'ask')) throw new Error('Invalid AI request')
-    if (raw['council']) request.council = true
-  }
-
   const { action } = request
   if ((action === 'custom' || action === 'ask') && !request.instruction) throw new Error('The request is empty')
   if (action === 'tone' && !request.tone) throw new Error('Unknown tone')
@@ -116,8 +110,9 @@ export function aiRequest(value: unknown): AiRequest {
 /** What the loader needs of the repository and the Markdown exporter. */
 export interface ContentSource {
   get(id: string): Block | null
-  pageToMarkdown(id: string): { title: string; markdown: string }
-  blocksToMarkdown(blocks: Block[]): string
+  /** `hidden` names the pages, databases and rows inside to leave out (what is private from the AI). */
+  pageToMarkdown(id: string, hidden?: (id: string) => boolean): { title: string; markdown: string }
+  blocksToMarkdown(blocks: Block[], hidden?: (id: string) => boolean): string
   /** What is stored of the meeting a page is: its transcript and notes. Null when it has no transcript. */
   meeting?(pageId: string): MeetingPromptData | null
 }
@@ -139,6 +134,22 @@ function pageOf(source: ContentSource, block: Block): string | null {
 }
 
 /**
+ * A request made on a page that is private from the AI (shared/aiPrivate.ts). A question goes on
+ * without the page: no page, no blocks of it, no selection (the selection is of that page), and
+ * `privatePage` says so. Anything else about the page (summarize, improve, a title, the notes of
+ * a meeting…) is refused with a message that says why. Other requests pass unchanged.
+ */
+export function withoutPrivatePage(request: AiRequest, isPrivate: (id: string) => boolean): { request: AiRequest; privatePage: boolean } {
+  if (!request.pageId || !isPrivate(request.pageId)) return { request, privatePage: false }
+  if (request.action !== 'ask') throw new Error(AI_PRIVATE_PAGE_MESSAGE)
+  const general: AiRequest = { ...request }
+  delete general.pageId
+  delete general.blockIds
+  delete general.selectionText
+  return { request: general, privatePage: true }
+}
+
+/**
  * Reads the content a request names. The renderer only sends ids: what the model sees of the
  * page is what is stored, read here. Blocks must belong to the page the request names.
  */
@@ -147,6 +158,9 @@ export function loadContext(source: ContentSource, request: AiRequest): PromptCo
   if (!request.pageId) return context
   const page = source.get(request.pageId)
   if (!page || (page.type !== 'page' && page.type !== 'database')) throw new Error('The page no longer exists')
+  // The caller strips a question of a private page first (withoutPrivatePage); this is the floor.
+  const hidden = privacyChecker(source)
+  if (hidden(page.id)) throw new Error(AI_PRIVATE_PAGE_MESSAGE)
   // A transcript brings its own content; the page it will be written to is not part of the prompt.
   if (request.action === 'consolidate' && !request.transcript?.trim()) {
     const meeting = source.meeting?.(page.id) ?? null
@@ -154,7 +168,7 @@ export function loadContext(source: ContentSource, request: AiRequest): PromptCo
     context.meeting = meeting
   }
   if (request.action !== 'consolidate') {
-    const { title, markdown } = source.pageToMarkdown(page.id)
+    const { title, markdown } = source.pageToMarkdown(page.id, hidden)
     context.pageTitle = title
     context.pageMarkdown = markdown
   }
@@ -169,7 +183,7 @@ export function loadContext(source: ContentSource, request: AiRequest): PromptCo
       if (block.parentId && wanted.has(block.parentId)) continue
       blocks.push(block)
     }
-    if (blocks.length) context.blocksMarkdown = source.blocksToMarkdown(blocks)
+    if (blocks.length) context.blocksMarkdown = source.blocksToMarkdown(blocks, hidden)
   }
   return context
 }

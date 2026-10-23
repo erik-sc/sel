@@ -298,8 +298,6 @@
     background: var(--bg-elevated); border-right: 0.5px solid var(--border-strong); border-bottom: 0.5px solid var(--border-strong);
     transform: translateX(-50%) rotate(45deg);
   }
-  .council { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 22px; }
-  .council span { font: 13px/1 var(--font-sans); border: 0.5px solid var(--border-strong); border-radius: 999px; padding: 7px 11px; color: var(--text-secondary); }
 
   /* ---- principles ---- */
   .principles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 48px; border-top: 0.5px solid var(--border-strong); }
@@ -553,6 +551,11 @@
           <button type="button" data-src="tasks" data-src-pt="tasks-pt" data-en="A task in plain words: sel marks what it read as the repeat, the time, the priority and the project." data-pt="Uma tarefa em palavras simples: o sel marca o que leu como repetição, hora e prioridade."><span data-l="en">Quick add</span><span data-l="pt">Adicionar</span></button>
           <button type="button" data-src="tasks-board" data-en="Tasks by project, with priorities and labels." data-pt="Tarefas por projeto, com prioridades e etiquetas."><span data-l="en">Projects</span><span data-l="pt">Projetos</span></button>
           <button type="button" data-src="meeting" data-en="A meeting page: record the microphone and the computer's sound while you take notes. whisper.cpp transcribes on your machine." data-pt="Uma página de reunião: grave o microfone e o som do computador enquanto anota. O whisper.cpp transcreve na sua máquina."><span data-l="en">Meeting</span><span data-l="pt">Reunião</span></button>
+          <button type="button" data-src="plan" data-en="Plan: your calendar and blocks of time for your tasks, side by side, hour by hour." data-pt="Plano: sua agenda e blocos de tempo para as tarefas, lado a lado, hora a hora."><span data-l="en">Plan</span><span data-l="pt">Plano</span></button>
+          <button type="button" data-src="project" data-en="A project with a direction: one sentence of objective, the next action, progress and milestones." data-pt="Um projeto com direção: o objetivo numa frase, a próxima ação, o progresso e os marcos."><span data-l="en">Project</span><span data-l="pt">Projeto</span></button>
+          <button type="button" data-src="review" data-en="The weekly review, from Friday: what got done, what slid, the Inbox, projects without a next action, next week." data-pt="A revisão da semana, a partir de sexta: o que foi feito, o que escorregou, a Caixa de entrada, projetos sem próxima ação, a semana que vem."><span data-l="en">Weekly review</span><span data-l="pt">Revisão</span></button>
+          <button type="button" data-src="flows" data-en="Flows: a year of ink squares and the week by the hour, from a log kept only on this computer." data-pt="Fluxos: um ano de quadrados de tinta e a semana hora a hora, de um registro guardado só neste computador."><span data-l="en">Flows</span><span data-l="pt">Fluxos</span></button>
+          <button type="button" data-src="flows-moves" data-en="Flows: the moves you make most between screens and pages, and the time spent in each." data-pt="Fluxos: os caminhos mais comuns entre telas e páginas, e o tempo em cada uma."><span data-l="en">Moves</span><span data-l="pt">Caminhos</span></button>
         </div>
       </figure>
     </div>
@@ -602,7 +605,7 @@
           <p class="reveal"><span data-l="en"><b>Rare nights</b>Now and then a meteor shower, an eclipse, or a comet that stays a week.</span><span data-l="pt"><b>Noites raras</b>De vez em quando uma chuva de meteoros, um eclipse, ou um cometa que fica uma semana.</span></p>
         </div>
         <figure class="viewer wide-viewer reveal" data-viewer>
-          <div class="frame shot"><img src="docs/screens/sky.webp" width="1200" height="800" alt="" loading="lazy"></div>
+          <div class="frame shot"><img src="docs/screens/sky.webp" width="1200" height="1000" alt="" loading="lazy"></div>
           <figcaption></figcaption>
           <div class="picks ui" role="group" aria-label="Screens">
             <button type="button" data-src="sky" data-en="The sky: September's figure, named the Straw Hat, and October's still being drawn around the moon of tonight." data-pt="O céu: a figura de setembro, chamada o Chapéu de palha, e a de outubro ainda sendo desenhada em volta da lua desta noite."><span data-l="en">The sky</span><span data-l="pt">O céu</span></button>
@@ -620,14 +623,14 @@
       <div class="reveal" style="text-align:center">
         <div class="bubble" data-l="en">This page grew three headings since Monday. Want a short summary at the top?</div>
         <div class="bubble" data-l="pt">Esta página ganhou três títulos desde segunda. Quer um resumo curto no topo?</div>
-        <svg class="herman" id="herman-figure" viewBox="0 0 116 116" role="img" aria-label="Herman, an old man drawn in a single line, leaning on a staff."><path class="herman-line" d=""/></svg>
+        <svg class="herman" id="herman-figure" viewBox="0 0 116 116" role="img" aria-label="Herman, an old man leaning on a staff."><path class="herman-line" d=""/></svg>
       </div>
       <div class="head reveal">
         <p class="eyebrow ui"><span data-l="en">The assistant</span><span data-l="pt">O assistente</span></p>
-        <h2><span data-l="en">Meet Herman.</span><span data-l="pt">Conheça o Herman.</span></h2>
+        <h2><span data-l="en">Meet Herman, or Hermine.</span><span data-l="pt">Conheça o Herman, ou a Hermine.</span></h2>
         <p>
-          <span data-l="en">An old man drawn in a single line, who keeps a corner of the window. Ask him about a page or about your day. He runs on your own Claude, through the Claude Code app on your machine.</span>
-          <span data-l="pt">Um velho desenhado numa linha só, que fica num canto da janela. Pergunte sobre uma página ou sobre o seu dia. Ele roda no seu próprio Claude, pelo app Claude Code na sua máquina.</span>
+          <span data-l="en">An old man, or a young woman, in 64 pixels, who keeps a corner of the window. Click and a balloon opens: a few suggestions for the moment and a field for anything else. They run on your own Claude, through the Claude Code app on your machine, and can help through the day with routines you turn on.</span>
+          <span data-l="pt">Um velho, ou uma jovem, em 64 pixels, que fica num canto da janela. Clique e um balão se abre: algumas sugestões para o momento e um campo para o resto. Rodam no seu próprio Claude, pelo app Claude Code na sua máquina, e podem ajudar ao longo do dia com as rotinas que você ligar.</span>
         </p>
         <ul class="points">
           <li>
@@ -635,29 +638,27 @@
             <span data-l="pt"><b>Ele propõe, você aplica.</b> Peça uma página, um plano, uma tabela ou mais linhas. Nada é criado até você apertar Aplicar.</span>
           </li>
           <li>
-            <span data-l="en"><b>His council.</b> Before answering he can ask a few other voices, each on a model of its own, or on Codex CLI, Gemini CLI or Ollama.</span>
-            <span data-l="pt"><b>O conselho.</b> Antes de responder ele pode ouvir outras vozes, cada uma num modelo próprio, ou no Codex CLI, Gemini CLI ou Ollama.</span>
-          </li>
-          <li>
             <span data-l="en"><b>Meetings, on your machine.</b> Record the microphone and what the computer plays. whisper.cpp transcribes locally; the audio never leaves.</span>
             <span data-l="pt"><b>Reuniões, na sua máquina.</b> Grave o microfone e o som do computador. O whisper.cpp transcreve localmente; o áudio nunca sai dali.</span>
           </li>
         </ul>
-        <div class="council ui" aria-label="The council">
-          <span data-l="en">the skeptic</span><span data-l="en">the strategist</span><span data-l="en">the builder</span><span data-l="en">the editor</span><span data-l="en">the keeper</span>
-          <span data-l="pt">o cético</span><span data-l="pt">o estrategista</span><span data-l="pt">o construtor</span><span data-l="pt">o editor</span><span data-l="pt">o guardião</span>
-        </div>
       </div>
     </div>
     <div class="wrap">
       <figure class="viewer wide-viewer reveal" data-viewer>
-        <div class="frame shot"><img src="docs/screens/council.webp" width="1200" height="800" alt="" loading="lazy"></div>
+        <div class="frame shot"><img src="docs/screens/balloon.webp" width="1200" height="800" alt="" loading="lazy"></div>
         <figcaption></figcaption>
         <div class="picks ui" role="group" aria-label="Screens">
-          <button type="button" data-src="council" data-en="The council: Cato the Skeptic and Ada the Builder say their piece, then Herman gives one answer." data-pt="O conselho: Cato, o Cético, e Ada, a Construtora, dizem o que pensam, e o Herman dá uma resposta só."><span data-l="en">Council</span><span data-l="pt">Conselho</span></button>
-          <button type="button" data-src="herman" data-en="Herman answers a question about the page in front of you." data-pt="O Herman responde a uma pergunta sobre a página aberta."><span data-l="en">Answer</span><span data-l="pt">Resposta</span></button>
-          <button type="button" data-src="herman-apply" data-en="Ask for a page and he proposes it. Nothing is made until you press Apply." data-pt="Peça uma página e ele propõe. Nada é criado até você apertar Aplicar."><span data-l="en">Apply</span><span data-l="pt">Aplicar</span></button>
-          <button type="button" data-src="settings-herman" data-en="Settings → Herman: his voice, his size, his corner, and when he speaks." data-pt="Configurações → Herman: a voz, o tamanho, o canto e quando ele fala."><span data-l="en">Settings</span><span data-l="pt">Ajustes</span></button>
+          <button type="button" data-src="balloon" data-en="Click Herman and a balloon opens beside him. Here he answers a question about the page in front of you." data-pt="Clique no Herman e um balão se abre ao lado dele. Aqui ele responde a uma pergunta sobre a página aberta."><span data-l="en">Balloon</span><span data-l="pt">Balão</span></button>
+          <button type="button" data-src="balloon-apply" data-en="Ask for a page and he proposes it. Nothing is made until you press Apply." data-pt="Peça uma página e ele propõe. Nada é criado até você apertar Aplicar."><span data-l="en">Apply</span><span data-l="pt">Aplicar</span></button>
+          <button type="button" data-src="balloon-hermine" data-en="Or Hermine, a young woman: the same voice and habits. Here, on Today, she says where to start." data-pt="Ou a Hermine, uma jovem: a mesma voz e os mesmos hábitos. Aqui, no Hoje, ela diz por onde começar.">Hermine</button>
+          <button type="button" data-src="onboarding" data-en="The introduction, five short steps the first time: Claude Code, Herman or Hermine, about you, pages, tools." data-pt="A apresentação, cinco passos curtos na primeira vez: Claude Code, Herman ou Hermine, sobre você, páginas, ferramentas."><span data-l="en">Introduction</span><span data-l="pt">Apresentação</span></button>
+          <button type="button" data-src="onboarding-about" data-en="A few questions become your context, which you read and change before it is saved." data-pt="Algumas perguntas viram o seu contexto, que você lê e muda antes de salvar."><span data-l="en">About you</span><span data-l="pt">Sobre você</span></button>
+          <button type="button" data-src="settings-ai" data-en="Settings → AI → Context: what Claude should know in every request, and up to five pinned pages." data-pt="Configurações → IA → Contexto: o que o Claude deve saber em todo pedido, e até cinco páginas fixadas."><span data-l="en">Context</span><span data-l="pt">Contexto</span></button>
+          <button type="button" data-src="settings-memory" data-en="Settings → AI → Memory: the short facts the persona kept from your conversations, each to edit or delete." data-pt="Configurações → IA → Memória: os fatos curtos que a persona guardou das conversas, cada um para editar ou apagar."><span data-l="en">Memory</span><span data-l="pt">Memória</span></button>
+          <button type="button" data-src="settings-routines" data-en="Routines: plan the day, a midday check-in, close the day, the weekly review. Each off until you turn it on." data-pt="Rotinas: planejar o dia, um olhar ao meio-dia, fechar o dia, a revisão da semana. Cada uma desligada até você ligar."><span data-l="en">Routines</span><span data-l="pt">Rotinas</span></button>
+          <button type="button" data-src="private" data-en="Private from AI: nothing in this page, or under it, is ever sent. A lock shows on it." data-pt="Privado da IA: nada desta página, nem do que está sob ela, é enviado. Um cadeado aparece nela."><span data-l="en">Private</span><span data-l="pt">Privado</span></button>
+          <button type="button" data-src="settings-persona" data-en="Settings → Herman: Herman or Hermine, twelve outfits each, and when the persona speaks." data-pt="Configurações → Herman: Herman ou Hermine, doze roupas cada, e quando a persona fala.">Persona</button>
         </div>
       </figure>
     </div>
@@ -698,8 +699,8 @@
           <p><span data-l="en">Claude Desktop, Claude Code or any MCP app can search, read and add to your notes, on this computer only, and never delete.</span><span data-l="pt">Claude Desktop, Claude Code ou qualquer app MCP pode buscar, ler e acrescentar às suas notas, só neste computador, e nunca apagar.</span></p>
         </div>
         <div class="card reveal">
-          <h3><span data-l="en">Make it yours</span><span data-l="pt">Do seu jeito</span></h3>
-          <p><span data-l="en">Zen is the default look. Every colour, font, size and radius can be changed in Settings → Appearance.</span><span data-l="pt">Zen é a aparência padrão. Toda cor, fonte, tamanho e borda pode ser mudada em Configurações → Aparência.</span></p>
+          <h3><span data-l="en">One look</span><span data-l="pt">Um visual só</span></h3>
+          <p><span data-l="en">Paper and ink, light or dark: square corners, a printed frame, Newsreader for your words and IBM Plex Mono for the app's. The persona and the sky are drawn in the same inks.</span><span data-l="pt">Papel e tinta, claro ou escuro: cantos retos, uma moldura impressa, Newsreader para as suas palavras e IBM Plex Mono para as do app. A persona e o céu são desenhados nas mesmas tintas.</span></p>
         </div>
         <div class="card reveal">
           <h3><span data-l="en">Reminded, gently</span><span data-l="pt">Lembretes, com calma</span></h3>
@@ -715,10 +716,11 @@
         </div>
       </div>
       <figure class="viewer wide-viewer reveal" data-viewer>
-        <div class="frame shot"><img src="docs/screens/settings-appearance.webp" width="1200" height="800" alt="" loading="lazy"></div>
+        <div class="frame shot"><img src="docs/screens/settings-general.webp" width="1200" height="800" alt="" loading="lazy"></div>
         <figcaption></figcaption>
         <div class="picks ui" role="group" aria-label="Screens">
-          <button type="button" data-src="settings-appearance" data-en="Settings → Appearance: presets, and every colour, font, size and radius, in light and dark." data-pt="Configurações → Aparência: predefinições, e toda cor, fonte, tamanho e borda, no claro e no escuro."><span data-l="en">Appearance</span><span data-l="pt">Aparência</span></button>
+          <button type="button" data-src="settings-general" data-en="Settings → General: paper and ink, light, dark or the system's, and what sel opens with." data-pt="Configurações → Geral: papel e tinta, claro, escuro ou o do sistema, e com o que o sel abre."><span data-l="en">General</span><span data-l="pt">Geral</span></button>
+          <button type="button" data-src="settings-data" data-en="Settings → General → Data: backups, restore a backup, import from Notion or Obsidian, export, the activity history." data-pt="Configurações → Geral → Dados: cópias de segurança, restaurar uma cópia, importar do Notion ou Obsidian, exportar, o histórico de atividade."><span data-l="en">Data</span><span data-l="pt">Dados</span></button>
           <button type="button" data-src="settings-sync" data-en="Settings → Sync: a private git repository of your own, encrypted with a passphrase if you like." data-pt="Configurações → Sincronia: um repositório git privado seu, criptografado com uma senha se você quiser."><span data-l="en">Sync</span><span data-l="pt">Sincronia</span></button>
           <button type="button" data-src="settings-notifications" data-en="Settings → Notifications: what reminds you, how early, and whether sel asks to record a meeting." data-pt="Configurações → Notificações: o que lembra você, com quanta antecedência, e se o sel pergunta se deve gravar uma reunião."><span data-l="en">Notifications</span><span data-l="pt">Notificações</span></button>
           <button type="button" data-src="settings-sidebar" data-en="Settings → Sidebar: drag to reorder, switch off what you don't use." data-pt="Configurações → Barra lateral: arraste para reordenar, desligue o que não usa."><span data-l="en">Sidebar</span><span data-l="pt">Barra lateral</span></button>

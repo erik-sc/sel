@@ -8,16 +8,19 @@
  * `menu` handler (src/renderer/src/features.ts), and every command must have one.
  * Pure data: free of Electron and the DOM.
  */
-import { AI_COMMANDS } from './ai'
+import { ACTIVITY_COMMANDS } from './activity'
+import { AI_COMMANDS, AI_ONBOARDING_COMMANDS } from './ai'
 import { BRIEFING_COMMANDS } from './briefing'
 import { FEEDBACK_COMMANDS } from './feedback'
 import { HOME_COMMANDS } from './home'
 import { MEETINGS_COMMANDS } from './meetings'
 import { NOTEBOOK_COMMANDS } from './notebook'
 import { POMODORO_COMMANDS } from './pomodoro'
+import { ROUTINES_COMMANDS } from './routines'
 import type { AppShortcut } from './shortcuts'
 import { SKY_COMMANDS } from './sky'
 import { TASKS_COMMANDS } from './tasks/api'
+import { WEEK_COMMANDS } from './tasks/week'
 import { TEMPLATES_COMMANDS } from './templates/model'
 
 /** The menus of the menu bar a command can sit in; `app` is macOS's application menu. */
@@ -191,11 +194,15 @@ export const COMMANDS = [
   ...HOME_COMMANDS,
   ...BRIEFING_COMMANDS,
   ...TASKS_COMMANDS,
+  ...WEEK_COMMANDS,
   ...NOTEBOOK_COMMANDS,
   ...SKY_COMMANDS,
+  ...ACTIVITY_COMMANDS,
   ...POMODORO_COMMANDS,
   ...MEETINGS_COMMANDS,
   ...AI_COMMANDS,
+  ...AI_ONBOARDING_COMMANDS,
+  ...ROUTINES_COMMANDS,
   ...FEEDBACK_COMMANDS
 ] as const satisfies readonly CommandSpec[]
 

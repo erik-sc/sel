@@ -222,6 +222,22 @@ describe('selecting tasks', () => {
     expect(byTitle.get('Bad hour')?.time).toBeUndefined()
   })
 
+  it('reads a start and an end on the same day as a time block', () => {
+    const selected = selectTasks(
+      [
+        database('db'),
+        row('block', 'db', 'Write', { due: { start: '2026-10-13T09:00', end: '2026-10-13T10:30' } }),
+        row('backwards', 'db', 'Odd', { due: { start: '2026-10-13T11:00', end: '2026-10-13T10:00' } }),
+        row('range', 'db', 'Trip', { due: { start: '2026-10-12T08:00', end: '2026-10-14T18:00' } })
+      ],
+      { today: TODAY, range: { from: '2026-10-01', to: '2026-10-31' } }
+    )
+    const byTitle = new Map(selected.dated?.map((task) => [task.title, task]))
+    expect(byTitle.get('Write')).toMatchObject({ due: '2026-10-13', time: '09:00', minutes: 90 })
+    expect(byTitle.get('Odd')?.minutes).toBeUndefined()
+    expect(byTitle.get('Trip')?.minutes).toBeUndefined()
+  })
+
   it('does not depend on the order blocks arrive in', () => {
     const forward = selectTasks(blocks(), { today: TODAY })
     const shuffled = blocks().reverse()

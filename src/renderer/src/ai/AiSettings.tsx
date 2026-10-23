@@ -14,7 +14,13 @@ import {
 import { Segmented } from '@/appearance/controls'
 import { Button } from '@/ui/Button'
 import { notifyError } from '@/ui/toast'
-import { refreshAiStatus, setAiEnabled, useAiGate } from './gate'
+import { setSettingsOpen } from '@/store/ui'
+import { maybeOnboard, refreshAiStatus, setAiEnabled, useAiGate } from './gate'
+import { ClaudeSettings, useLocale } from './ClaudeSettings'
+import { HistorySettings } from './HistorySettings'
+import { MemorySettings } from './MemorySettings'
+import { RoutinesSettings } from '@/routines/RoutinesSettings'
+import '@/routines/routines.css'
 import { INSTALL_COMMAND, unavailableText } from './labels'
 import './ai.css'
 
@@ -37,6 +43,7 @@ function save(key: string, value: unknown): Promise<void> {
 
 export function AiSection(): JSX.Element {
   const enabled = useAiGate((state) => state.enabled)
+  const locale = useLocale()
   const [status, setStatus] = useState<AiStatus | null>(null)
   const [checking, setChecking] = useState(false)
   const [values, setValues] = useState<Values>({ model: '', language: 'auto', timeoutSec: AI_DEFAULTS.timeoutSec, chosen: false })
@@ -79,7 +86,11 @@ export function AiSection(): JSX.Element {
   const toggle = (on: boolean): void => {
     setAiEnabled(on)
     save('ai.enabled', on).then(
-      () => check(true),
+      () => {
+        check(true)
+        // Turned on for the first time: the persona introduces itself (0.8.0 A1).
+        if (on && maybeOnboard('settings')) setSettingsOpen(false)
+      },
       (error: unknown) => {
         setAiEnabled(!on)
         failed(error)
@@ -275,6 +286,11 @@ export function AiSection(): JSX.Element {
           </p>
         )}
       </section>
+
+      <ClaudeSettings enabled={enabled} />
+      <MemorySettings enabled={enabled} locale={locale} />
+      <RoutinesSettings enabled={enabled} />
+      <HistorySettings />
     </div>
   )
 }

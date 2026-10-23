@@ -1,0 +1,206 @@
+/* The guided restore (RestoreFlow.tsx): a sheet over Settings. */
+
+.ui-modal.restore-sheet {
+  width: 560px;
+  max-height: min(720px, 100%);
+  font-size: var(--text-ui);
+}
+
+.restore-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: none;
+  padding: 16px 14px 8px 22px;
+}
+
+.restore-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  font-weight: var(--weight-subheading);
+  letter-spacing: var(--tracking-title);
+}
+
+.restore-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 4px 22px 20px;
+  overflow-y: auto;
+}
+
+.restore-intro,
+.restore-group-help {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.restore-group-help {
+  font-size: var(--text-md);
+}
+
+.restore-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.restore-backups,
+.restore-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.restore-backup {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  color: var(--text);
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.restore-backup:hover {
+  background: var(--fill-3);
+}
+
+.restore-backup:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.restore-backup-meta,
+.restore-page-path {
+  color: var(--text-secondary);
+  font-size: var(--text-md);
+}
+
+.restore-actions,
+.restore-summary,
+.restore-all-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.restore-summary {
+  justify-content: flex-start;
+}
+
+.restore-summary-text {
+  color: var(--text-secondary);
+}
+
+.restore-all-row {
+  justify-content: space-between;
+}
+
+.restore-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.restore-group-title {
+  margin: 4px 0 0;
+  font-size: var(--text-ui);
+  font-weight: var(--weight-semibold);
+}
+
+.restore-page {
+  padding: 4px 0;
+}
+
+.restore-page + .restore-page {
+  border-top: var(--hairline) solid var(--border);
+}
+
+.restore-page-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.restore-page-icon {
+  display: inline-flex;
+  flex: none;
+  width: 18px;
+  justify-content: center;
+}
+
+.restore-page-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.restore-page-title,
+.restore-page-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.restore-page-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0 4px 26px;
+}
+
+.restore-page-ask p {
+  margin: 0;
+}
+
+.restore-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.restore-all {
+  padding-top: 12px;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.restore-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-m);
+  background: var(--fill-3);
+}
+
+.restore-confirm p {
+  margin: 0;
+}
+
+.restore-confirm-title {
+  font-weight: var(--weight-semibold);
+}
+
+.restore-done {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-m);
+  background: var(--accent-soft);
+}
+
+.restore-done p {
+  margin: 0;
+}

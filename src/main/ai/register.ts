@@ -29,13 +29,17 @@ export const aiFeature = defineFeature({
         'ai:cancel': async ([a], event) => (await ai()).cancel(a, event.sender),
         // Goes through a native dialog: the renderer never names a path to run.
         'ai:pickCli': async (_args, event) => (await ai()).pickCli(windowOf(event)),
-        'ai:agents.list': async () => (await ai()).agents(),
-        'ai:agents.connect': async ([a, b], event) => (await ai()).connectAgent(a, b, windowOf(event)),
-        'ai:agents.remove': async ([a]) => (await ai()).removeAgent(a)
+        // The MCP servers of the user's own Claude Code, by name (Settings → AI → Claude's tools).
+        'ai:servers': async () => (await ai()).servers(),
+        'ai:scanServers': async () => (await ai()).scanServers(),
+        'ai:serverTools': async ([a]) => (await ai()).serverTools(a),
+        // The persona's memory (0.8.0 A3): a finished turn to read, and the user's edits of what is kept.
+        'ai:remember': async ([a]) => (await ai()).remember(a),
+        'ai:memory': async ([a]) => (await ai()).editMemory(a)
       },
       // Which program runs, and whether any does, is decided by these: the cached answer is stale.
       onSettingChanged(key) {
-        if (key.startsWith('ai.')) bridge?.service.invalidate()
+        if (key === 'ai.enabled' || key === 'ai.cliPath') bridge?.service.invalidate()
       }
     }
   }
