@@ -148,6 +148,48 @@ function answer(prompt) {
       '- Pricing review'
     ].join('\n')
   }
+  // The routines (main/routines/prompts.ts): ids are read back from their sections, as a model would.
+  const ids = (name) => [...section(prompt, name).matchAll(/\[([A-Za-z0-9_-]{8,64})\]/g)].map((match) => match[1])
+  if (task.startsWith('Plan the user')) {
+    const chosen = [...new Set(ids('TASKS'))].slice(0, 3)
+    const free = /(\d{2}:\d{2})–(\d{2}:\d{2})/.exec(section(prompt, 'FREE'))
+    const start = free ? free[1] : '10:00'
+    const [h, m] = start.split(':').map(Number)
+    const end = `${String(Math.min(23, h + 1)).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+    const tasks = chosen.map((id, index) => ({ id, priority: `P${index + 1}`, ...(index === 0 ? { block: { start, end } } : {}) }))
+    const body = [
+      'A full day, but it fits if the first hour goes to what matters most.',
+      '',
+      '## Priorities',
+      '',
+      ...(chosen.length
+        ? chosen.map((_, index) => `${index + 1}. The task ranked ${index + 1}, because it is due.`)
+        : ['Nothing is due today.']),
+      '',
+      '## Postpone',
+      '',
+      '- Nothing needs to move.',
+      '',
+      '## Time blocks',
+      '',
+      `- ${start}–${end}: the first priority.`
+    ].join('\n')
+    return tasks.length
+      ? `${body}\n\nApply sets these priorities and the block.\n\n\`\`\`sel-actions\n${JSON.stringify([{ do: 'update-tasks', tasks }])}\n\`\`\``
+      : body
+  }
+  if (task.startsWith('Check in on the user')) return 'Two things are done and one is left. The afternoon has room for it.'
+  if (task.startsWith('Draft the close of the user')) {
+    const proposal = [
+      { do: 'close-day', line: 'A steady day: the main things got done.', plans: ['Start with the report', 'Call the bank'] }
+    ]
+    return `## Done\n\n- The main tasks.\n\n## Left\n\n- One small thing.\n\n## Tomorrow\n\n- Start with the report.\n\nApply writes the line and the plans in Meditations.\n\n\`\`\`sel-actions\n${JSON.stringify(proposal)}\n\`\`\``
+  }
+  if (task.startsWith('Help the user unstick')) {
+    const id = ids('STALLED TASK')[0]
+    const proposal = [{ do: 'add-subtasks', task: id, titles: ['Find the papers', 'Write the first paragraph', 'Send it'] }]
+    return `It may be stuck because it is too big to start.\n\nBreak it into three steps (or rewrite it as the next action, or let it go).\n\nApply adds the three steps.\n\n\`\`\`sel-actions\n${JSON.stringify(proposal)}\n\`\`\``
+  }
   if (task.startsWith('Continue writing'))
     return 'The next step is to agree on the date with everyone involved, so that the announcement and the release notes can be prepared in time.'
   if (task.startsWith('Answer the question') && /\b(create|make|build|add)\b/i.test(request)) {
@@ -302,7 +344,8 @@ async function main() {
     num_turns: 1,
     result: reply,
     session_id: 'fake',
-    total_cost_usd: 0
+    // A routine's request reports a small cost, so that Settings → AI has one to show.
+    total_cost_usd: prompt.includes('one of the routines the user turned on') ? 0.0123 : 0
   })
 }
 

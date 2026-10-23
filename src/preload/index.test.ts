@@ -93,6 +93,7 @@ describe('the preload', () => {
       'pomodoro.onEnded': 'on pomodoro:ended',
       'pomodoro.onCompleted': 'on pomodoro:completed',
       'sky.onChanged': 'on sky:changed',
+      'routines.onReady': 'on routines:ready',
       'app.platform': 'string',
       'app.log': 'send log:error',
       'app.window.minimize': 'send window:minimize',

@@ -19,6 +19,7 @@ import { NOTEBOOK_SETTINGS } from './notebook'
 import { POMODORO_SETTINGS } from './pomodoro'
 import { SIDEBAR_SETTINGS } from './sidebar'
 import { SKY_SETTINGS } from './sky'
+import { ROUTINES_SETTINGS } from './routines'
 import { REFINE_SETTINGS } from './tasks/refine'
 import { UPDATES_SETTINGS } from './updates'
 import { HISTORY_SETTINGS } from './versions'
@@ -66,7 +67,8 @@ export const SETTINGS: readonly SettingsSpec[] = [
   POMODORO_SETTINGS,
   SKY_SETTINGS,
   REFINE_SETTINGS,
-  ACTIVITY_SETTINGS
+  ACTIVITY_SETTINGS,
+  ROUTINES_SETTINGS
 ]
 
 /** The spec a key is written under: one that names it exactly, else one that owns its namespace; null when none does. */

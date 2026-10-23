@@ -85,7 +85,7 @@ export type StreamSignal =
   /** A whole assistant message (sent after its deltas; the only text when partial messages are off). */
   | { kind: 'message'; text: string }
   /** The last event: the complete answer, or what went wrong. */
-  | { kind: 'result'; text: string; isError: boolean; subtype: string }
+  | { kind: 'result'; text: string; isError: boolean; subtype: string; costUsd?: number }
   | null
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -132,7 +132,11 @@ export function readEvent(event: Record<string, unknown>): StreamSignal {
       const subtype = typeof event['subtype'] === 'string' ? event['subtype'] : ''
       const text = typeof event['result'] === 'string' ? event['result'] : ''
       const isError = event['is_error'] === true || (subtype !== '' && subtype !== 'success')
-      return { kind: 'result', text, isError, subtype }
+      // What the request cost, when the program says (C5): counted on this computer, shown in Settings → AI.
+      const cost = event['total_cost_usd']
+      return typeof cost === 'number' && Number.isFinite(cost) && cost >= 0
+        ? { kind: 'result', text, isError, subtype, costUsd: cost }
+        : { kind: 'result', text, isError, subtype }
     }
     default:
       return null

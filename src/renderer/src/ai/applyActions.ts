@@ -4,6 +4,7 @@
 // touches gets a saved version first, a way back that outlives the toast (page history).
 import type { HermanAction } from '@shared/actions'
 import { sourceIdOf } from '@shared/linked'
+import { NOTEBOOK_TITLES } from '@shared/notebook'
 import type { Op } from '@shared/types'
 import { invertOps } from '@/editor/ops'
 import { logError } from '@/shell/actions'
@@ -51,7 +52,11 @@ export async function applyActions(actions: readonly HermanAction[], currentPage
     return source ? [source] : []
   })
   await refreshBlocks(sources)
-  const plan = planActions(actions, { currentPageId, get: getBlock, newId })
+  // Meditations may have to be started by the close of the day: it takes the title of the app's language.
+  const notebookTitle = actions.some((action) => action.do === 'close-day')
+    ? NOTEBOOK_TITLES[(await import('@/home/store')).useHome.getState().locale]
+    : undefined
+  const plan = planActions(actions, { currentPageId, get: getBlock, newId, ...(notebookTitle ? { notebookTitle } : {}) })
   if (!plan.ops.length) return { ...plan, undo: null }
   await saveVersions([...targets, ...sources])
   // Taken from the blocks as they are right before the batch, like the editor's history.

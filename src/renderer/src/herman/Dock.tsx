@@ -267,8 +267,9 @@ export function Dock(): JSX.Element | null {
   useEffect(() => {
     if (!offer || bubbleRef.current?.offer === offer.id) return
     if (bubbleRef.current) dismiss()
-    const { delivery } = offer
-    setBubble({ text: offer.line, offer: offer.id, choices: [{ label: offer.label, primary: true, run: () => openInBalloon(delivery) }] })
+    const { delivery, run } = offer
+    const act = delivery ? () => openInBalloon(delivery) : run
+    setBubble({ text: offer.line, offer: offer.id, ...(act ? { choices: [{ label: offer.label, primary: true, run: act }] } : {}) })
   }, [offer, dismiss])
 
   // ---- keeping out of the way ----

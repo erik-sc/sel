@@ -50,6 +50,8 @@ Trigger: a click on the persona in its corner (`open` in src/renderer/src/herman
 ## Answers that arrive on their own (for routines)
 
 - `offerInBalloon(line, delivery)` has the persona say a line in its corner bubble with a button; the button calls `openInBalloon`, which opens the balloon on a conversation made from the delivery (`deliver`, src/renderer/src/ai/conversations.ts:390), proposal included; nothing is applied — src/renderer/src/ai/balloonGate.ts:92-109, src/renderer/src/herman/Dock.tsx:269. With the persona off the line is a toast with the same button
+- `sayInCorner(line, action?)` is the same line with a button that does something else (open the weekly review) or none (the routines' daily limit) — src/renderer/src/ai/balloonGate.ts:119
+- Who calls them, when and with what: [a routine of the persona](routines.md)
 
 ## State touched
 

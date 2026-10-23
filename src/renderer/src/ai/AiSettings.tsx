@@ -17,6 +17,8 @@ import { notifyError } from '@/ui/toast'
 import { refreshAiStatus, setAiEnabled, useAiGate } from './gate'
 import { ClaudeSettings } from './ClaudeSettings'
 import { HistorySettings } from './HistorySettings'
+import { RoutinesSettings } from '@/routines/RoutinesSettings'
+import '@/routines/routines.css'
 import { INSTALL_COMMAND, unavailableText } from './labels'
 import './ai.css'
 
@@ -279,6 +281,7 @@ export function AiSection(): JSX.Element {
       </section>
 
       <ClaudeSettings enabled={enabled} />
+      <RoutinesSettings enabled={enabled} />
       <HistorySettings />
     </div>
   )

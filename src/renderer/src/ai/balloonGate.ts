@@ -38,7 +38,10 @@ export interface BalloonOffer {
   line: string
   /** The button that opens it. */
   label: string
-  delivery: BalloonDelivery
+  /** The answer the button opens; absent for a line said by `sayInCorner`. */
+  delivery?: BalloonDelivery
+  /** What the button does instead (`sayInCorner`); no button when neither is there. */
+  run?: () => void
 }
 
 /** One finished answer of the balloon, as `onReplyDone` hears it. */
@@ -106,6 +109,19 @@ export function offerInBalloon(line: string, delivery: BalloonDelivery, label = 
     return
   }
   useBalloon.setState({ offer: { id: ++nextId, line, label, delivery } })
+}
+
+/**
+ * Has the persona say a line in its corner that opens no answer: with a button that does
+ * something else ("Open the review"), or none ("That is all the routines for today"). With the
+ * persona off, the line is a toast.
+ */
+export function sayInCorner(line: string, action?: { label: string; run(): void }): void {
+  if (!useBalloon.getState().anchor) {
+    toast(line, action ? { action: { label: action.label, run: action.run } } : {})
+    return
+  }
+  useBalloon.setState({ offer: { id: ++nextId, line, label: action?.label ?? '', ...(action ? { run: action.run } : {}) } })
 }
 
 /** Takes back an offer not yet taken (the routine that made it was turned off, say). */

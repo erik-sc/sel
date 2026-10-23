@@ -189,6 +189,8 @@ describe('tasks', () => {
       ['task.postponed', 'p1'],
       ['task.completed', 'p1']
     ])
+    // A postponement keeps which task it was: a task put off again and again can be found (C3).
+    expect(stored().map((r) => r.page_id)).toEqual([null, task, null])
   })
 
   it('are read from before and after alone', () => {
