@@ -186,7 +186,7 @@ focus ring; the few exceptions, kept for fidelity to the original, are listed th
 - Development-only environment variables are ignored in packaged builds: `ELECTRON_RENDERER_URL` (src/main/security.ts:17-29), `SEL_AI_CLI` (src/main/ai/index.ts:41-43), `SEL_HERMAN_FAST` (src/main/herman/service.ts:56-58), `SEL_BRIEFING_LOOPBACK` (src/main/briefing/net.ts:53-55), `SEL_WHISPER_PINS` (src/main/meetings/index.ts:29-41), `SEL_UPDATE_FEED` (src/main/updates/register.ts:25).
 - `SEL_TRACE_STARTUP` or `--sel-trace-startup` prints a startup timeline (src/main/trace.ts:10).
 - Features are switched by settings, not build flags: `ai.enabled` and `herman.enabled` (src/shared/ai.ts:142, src/shared/herman.ts:143-145).
-- No linter or formatter is configured; the gates are typecheck and tests (package.json:8-17).
+- The gates are typecheck, lint (Biome: `npm run lint`, `biome.json`) and tests; CI runs all three on every pull request (package.json, .github/workflows/ci.yml).
 
 ## Observed violations
 
@@ -203,6 +203,6 @@ focus ring; the few exceptions, kept for fidelity to the original, are listed th
 | src/main/db/schema.ts:54 | Comment lists four version kinds; `sync` is a fifth (src/main/db/repository.ts:1472) | Stale comment |
 | src/main/briefing/net.ts:9 | Comment claims to be the only network code | Stale comment |
 | src/main/meetings/whisper/download.ts:7 | Binary downloads reuse `validateCalendarUrl` and `CalendarError` | Naming leak, behaviour fine |
-| src/main/security.ts:84 | `eslint-disable` comment with no ESLint configured | Vestigial |
+| src/main/security.ts:84 | `eslint-disable` comment, but the linter is Biome | Vestigial |
 | src/main/ipc.ts:169-172 | Two related settings written without a transaction | Probably harmless |
 | src/main/sync/git.ts:444 | The auth-failure pattern ends in a bare word that could match unrelated errors | Possible misclassification (unverified) |
