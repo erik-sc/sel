@@ -16,6 +16,7 @@ import { Button } from '@/ui/Button'
 import { notifyError } from '@/ui/toast'
 import { refreshAiStatus, setAiEnabled, useAiGate } from './gate'
 import { ClaudeSettings } from './ClaudeSettings'
+import { HistorySettings } from './HistorySettings'
 import { INSTALL_COMMAND, unavailableText } from './labels'
 import './ai.css'
 
@@ -278,6 +279,7 @@ export function AiSection(): JSX.Element {
       </section>
 
       <ClaudeSettings enabled={enabled} />
+      <HistorySettings />
     </div>
   )
 }

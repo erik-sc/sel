@@ -11,6 +11,7 @@ import {
   type AiSent,
   type ClaudeServerList
 } from './aiContext'
+import { AI_APPLIED_KEY, AI_CONVERSATIONS_KEY, cleanAppliedLog, cleanConversations } from './aiHistory'
 
 /**
  * AI workflows: the shapes shared by the main process (which finds and drives the Claude Code
@@ -155,7 +156,9 @@ export const AI_KEYS = [
   'ai.language',
   AI_CONTEXT_KEY,
   AI_CONTEXT_PAGES_KEY,
-  AI_MCP_SERVERS_KEY
+  AI_MCP_SERVERS_KEY,
+  AI_CONVERSATIONS_KEY,
+  AI_APPLIED_KEY
 ] as const
 export type AiKey = (typeof AI_KEYS)[number]
 
@@ -202,6 +205,10 @@ export function cleanAiSetting(key: string, value: unknown): unknown {
     }
     case AI_MCP_SERVERS_KEY:
       return cleanMcpChoices(value)
+    case AI_CONVERSATIONS_KEY:
+      return cleanConversations(value)
+    case AI_APPLIED_KEY:
+      return cleanAppliedLog(value)
     default:
       return undefined
   }
@@ -274,7 +281,7 @@ export const AI_INVOKE = {
   'ai:serverTools': true
 } as const satisfies Record<InvokeChannels<{ ai: AiApi }>, true>
 
-/** Herman's panel, the assistant (see ./commands.ts). The palette lists it while AI is on. */
+/** The conversation balloon, by Herman or on its own (see ./commands.ts). The palette lists it while AI is on. */
 export const AI_COMMANDS = [
   {
     id: 'toggle-assistant',

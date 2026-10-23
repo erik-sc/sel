@@ -118,7 +118,7 @@ export const TopBar = memo(function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false)
   const isPage = !!block && (block.type === 'page' || block.type === 'database')
   const ai = useAiGate((state) => state.enabled)
-  const assistantOpen = useAiGate((state) => state.panelOpen)
+  const assistantOpen = useAiGate((state) => state.balloonOpen)
   const herman = useHerman((state) => state.on)
 
   return (

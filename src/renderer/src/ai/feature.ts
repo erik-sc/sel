@@ -8,9 +8,10 @@ export const aiFeature = defineFeature({
   // Whether the AI entry points exist at all (`ai.enabled`); they stay hidden until this answers.
   init: () => void initAi(),
   overlays: [
-    { slot: 'window', order: 10, Overlay: lazy(() => import('./Host').then((module) => ({ default: module.AssistantDock }))) },
+    // Over the page, after the persona's corner (order 10): the balloon comes out of the figure.
+    { slot: 'content', order: 15, Overlay: lazy(() => import('./Host').then((module) => ({ default: module.BalloonHost }))) },
     { slot: 'window', order: 70, Overlay: lazy(() => import('./Host').then((module) => ({ default: module.AiSetup }))) }
   ],
-  // The palette lists Herman while AI is on; the shortcut opens his panel regardless.
+  // The palette lists the conversation while AI is on; the shortcut opens the balloon regardless.
   menu: { 'toggle-assistant': { run: () => showOrHideAssistant(), when: aiEnabled } }
 })

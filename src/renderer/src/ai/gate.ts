@@ -1,6 +1,6 @@
 // The small part of the AI feature that is always loaded: whether it is on, what is open, and
-// the triggers the shell and the editor call. Everything with a face (assistant panel, setup
-// sheet, inline preview) is in chunks of its own, fetched when one of these triggers asks.
+// the triggers the shell and the editor call. Everything with a face (the conversation balloon,
+// setup sheet, inline preview) is in chunks of its own, fetched when one of these triggers asks.
 import { create } from 'zustand'
 import type { AiStatus } from '@shared/ai'
 import { AI_CONTEXT_CAPS, AI_CONTEXT_PAGES_KEY, contextPageIds } from '@shared/aiContext'
@@ -18,7 +18,7 @@ export interface AiPageCommand {
   nonce: number
 }
 
-/** What the open page offers the assistant panel: the text in scope and a way to put an answer in. */
+/** What the open page offers the conversation balloon: the text in scope and a way to put an answer in. */
 export interface AiEditorBridge {
   pageId: string
   /** Inserts Markdown as blocks: below the caret's block, or over the selection in scope. One undo step. */
@@ -28,12 +28,13 @@ export interface AiEditorBridge {
 interface AiGate {
   /** `ai.enabled`. False until the setting has loaded: no AI entry point shows before that. */
   enabled: boolean
-  panelOpen: boolean
+  /** The conversation balloon (by the persona, or in the corner without it) is open. */
+  balloonOpen: boolean
   setup: AiSetupReason | null
   status: AiStatus | null
   command: AiPageCommand | null
   editor: AiEditorBridge | null
-  /** The selected text of the open page, kept while the focus is in the assistant panel. */
+  /** The selected text of the open page, kept while the focus is in the balloon. */
   scope: { pageId: string; text: string } | null
   /** Pages pinned as context for every request (`ai.contextPages`, Settings → AI → Context). */
   contextPages: string[]
@@ -41,7 +42,7 @@ interface AiGate {
 
 export const useAiGate = create<AiGate>(() => ({
   enabled: false,
-  panelOpen: false,
+  balloonOpen: false,
   setup: null,
   status: null,
   command: null,
@@ -84,12 +85,17 @@ export function toggleContextPage(id: string): Promise<boolean> {
 }
 
 export function setAiEnabled(enabled: boolean): void {
-  useAiGate.setState(enabled ? { enabled } : { enabled, panelOpen: false, setup: null, command: null, status: null })
+  useAiGate.setState(enabled ? { enabled } : { enabled, balloonOpen: false, setup: null, command: null, status: null })
 }
 
+/** Opens or closes the conversation balloon. */
 export function toggleAssistant(): void {
-  const { enabled, panelOpen } = useAiGate.getState()
-  if (enabled) useAiGate.setState({ panelOpen: !panelOpen })
+  const { enabled, balloonOpen } = useAiGate.getState()
+  if (enabled) useAiGate.setState({ balloonOpen: !balloonOpen })
+}
+
+export function closeAssistant(): void {
+  if (useAiGate.getState().balloonOpen) useAiGate.setState({ balloonOpen: false })
 }
 
 export function openAiSetup(reason: AiSetupReason): void {

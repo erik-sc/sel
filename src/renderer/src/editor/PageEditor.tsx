@@ -140,9 +140,9 @@ function PageEditorInner({ pageId, onOpenPage, bodyOnly = false }: PageEditorPro
     else aiOnPage(ctrl, aiCommand.action, null)
   }, [aiCommand, loaded, ctrl])
 
-  // While the assistant panel is open it can see what is selected here and put answers into
-  // the page. The selection is remembered when the focus leaves the editor for the panel.
-  const assistantOpen = useAiGate((state) => state.enabled && state.panelOpen)
+  // While the conversation balloon is open it can see what is selected here and put answers into
+  // the page. The selection is remembered when the focus leaves the editor for the balloon.
+  const assistantOpen = useAiGate((state) => state.enabled && state.balloonOpen)
   useEffect(() => {
     if (!assistantOpen) return
     let scope: AiTarget | null = null

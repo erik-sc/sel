@@ -30,7 +30,7 @@
 | Tradition | A source family for the phrase of the day | src/shared/briefing.ts:8 | `TRADITIONS` | |
 | Herman | The assistant persona; also a source of pre-written nudges chosen without AI | src/main/ai/herman.ts:22, src/main/herman/service.ts:120 | | Two different code areas; see Naming hazards |
 | Nudge | A short pre-written line Herman says, chosen locally | src/shared/herman.ts:67, src/main/herman/lines.ts:240 | `HermanNudgeKind`, "counsel" (src/main/herman/counsel.ts:214) | |
-| Action | Something Herman proposes to build: create a page, append, create a database, add rows | src/shared/actions.ts:44-48 | `HermanAction`, `sel-actions` block | Parsed in the renderer only (src/renderer/src/ai/AssistantPanel.tsx:417) |
+| Action | Something Herman proposes to build: create a page, append, create a database, add rows | src/shared/actions.ts:44-48 | `HermanAction`, `sel-actions` block | Parsed in the renderer only (src/renderer/src/ai/Balloon.tsx:701) |
 | Nonce fencing | Untrusted text is wrapped in markers carrying a random nonce per prompt | src/main/ai/prompts.ts:286-293 | `newNonce` (src/main/ai/prompts.ts:108) | |
 | Sync | One person's devices exchanging a per-page file tree through a private git repository | src/main/sync/engine.ts:239 | `SyncEngine`, `SyncStep` (src/main/sync/engine.ts:77) | |
 | Fingerprint | The hash a page had when last uploaded, kept in `sync_state` | src/main/db/schema.ts:66-70, src/main/sync/engine.ts:834-850 | `hash` | There is no change log; uploads recompute and compare |
@@ -43,7 +43,7 @@
 ## Naming hazards
 
 - **"database" means two things.** The user-facing `database` block (src/shared/types.ts:19) and the SQLite file opened by `openDatabase` (src/main/db/index.ts:12). Folder `src/main/db` is SQLite; folder `src/renderer/src/database` is the block feature (src/renderer/src/database/actions.ts:1-14).
-- **"Herman" lives in two main-process folders.** The AI persona is in src/main/ai/herman.ts:22; the non-AI nudges are in src/main/herman/service.ts:120. In the renderer the chat is the AI panel (src/renderer/src/ai/AssistantPanel.tsx:159) while his drawn figure is under src/renderer/src/herman/poses.ts:14.
+- **"Herman" lives in two main-process folders.** The AI persona is in src/main/ai/herman.ts:22; the non-AI nudges are in src/main/herman/service.ts:120. In the renderer the chat is the conversation balloon of the AI feature (src/renderer/src/ai/Balloon.tsx:288), placed beside his figure, which is under src/renderer/src/herman/ (the Dock and poses.ts:14). The balloon replaced the side panel in 0.8.0.
 - **"sync" is also a verb for other things.** `syncRows` flushes buffered child orders before reading rows for sync (src/main/db/repository.ts:1418-1419), and `PendingOrder` is not sync-specific (src/main/db/repository.ts:93-98).
 - **"actions" has three meanings.** Herman's proposals (src/shared/actions.ts:44), store-backed database mutations (src/renderer/src/database/actions.ts:1-14) and page commands of the shell (src/renderer/src/shell/actions.ts:3-7).
 - **"ops" has two files with the same name.** Pure application at src/renderer/src/store/ops.ts:31 and inversion for undo at src/renderer/src/editor/ops.ts:126.

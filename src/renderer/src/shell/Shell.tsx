@@ -71,11 +71,11 @@ export function Shell() {
   if (focus) classes.push('is-focus')
   if (focus && focusDim) classes.push('is-focus-dim')
 
-  // Focus mode hides the assistant panel; whatever opens it (a page action, a shortcut) ends focus mode.
+  // Focus mode hides the conversation balloon; whatever opens it (a page action, a shortcut) ends focus mode.
   useEffect(
     () =>
       useAiGate.subscribe((state, previous) => {
-        if (state.panelOpen && !previous.panelOpen) setFocusMode(false)
+        if (state.balloonOpen && !previous.balloonOpen) setFocusMode(false)
       }),
     []
   )

@@ -1,9 +1,9 @@
-// Showing and hiding the side panels, the same from a shortcut, the menu or a button.
+// Showing and hiding the sidebar and the conversation balloon, the same from a shortcut, the menu or a button.
 import { toggleAssistant, useAiGate } from '@/ai/gate'
 import { setFocusMode, toggleSidebar, useUi } from '@/store/ui'
 
 /**
- * Focus mode hides the sidebar and the assistant panel without closing them, so asking for one
+ * Focus mode hides the sidebar and the conversation balloon without closing them, so asking for one
  * there means "show it": focus mode ends and the panel is open, rather than a hidden one closing.
  */
 function showOrToggle(open: boolean, toggle: () => void): void {
@@ -13,7 +13,7 @@ function showOrToggle(open: boolean, toggle: () => void): void {
 }
 
 export function showOrHideAssistant(): void {
-  showOrToggle(useAiGate.getState().panelOpen, toggleAssistant)
+  showOrToggle(useAiGate.getState().balloonOpen, toggleAssistant)
 }
 
 export function showOrHideSidebar(): void {
