@@ -31,6 +31,8 @@ import { TaskPanel } from '@/tasks/lazy'
 import { initRefining, useRefining } from '@/tasks/refining'
 import { useTaskRows } from '@/tasks/TaskRow'
 import { BriefingTaskItem, EventRow, Lines, openSettings, useCompleteTask, useLive, useNow, useTaskViews } from './parts'
+import { DayPlan, planDragSource, usePlanDrag, type PlanDrag, type PlanPatch } from './DayPlan'
+import { patchTasks } from './plan'
 import './today.css'
 
 const readBriefing = (force: boolean): Promise<Briefing> => window.api.briefing.get(force)
@@ -289,9 +291,20 @@ function Agenda({ briefing, now }: { briefing: Briefing; now: number }): JSX.Ele
  * The open tasks. Those of the built-in Tasks database are edited where they are (chips, the
  * row's menu and keys) and open in the task panel, over the right side of the screen.
  */
-function Tasks({ briefing, today }: { briefing: Briefing; today: string }): JSX.Element {
+function Tasks({
+  briefing,
+  today,
+  drag,
+  panel,
+  setPanel
+}: {
+  briefing: Briefing
+  today: string
+  drag: PlanDrag
+  panel: string | null
+  setPanel: (id: string | null) => void
+}): JSX.Element {
   const [expanded, setExpanded] = useState(false)
-  const [panel, setPanel] = useState<string | null>(null)
   const { done, complete } = useCompleteTask()
   const { groups, hidden } = useMemo(() => taskGroups(briefing.tasks, expanded, done), [briefing.tasks, expanded, done])
   const shown = useMemo(() => groups.flatMap((group) => group.tasks), [groups])
@@ -322,6 +335,7 @@ function Tasks({ briefing, today }: { briefing: Briefing; today: string }): JSX.
                   panel={panel}
                   onComplete={complete}
                   onOpen={setPanel}
+                  drag={planDragSource(drag, task)}
                 />
               ))}
             </ul>
@@ -478,6 +492,13 @@ export function TodayScreen(): JSX.Element {
   const { data, failed, refreshing, refresh, update } = useLive(readBriefing, 'the briefing')
   const setPhrase = useCallback((phrase: BriefingPhrase | null) => update((current) => ({ ...current, phrase })), [update])
   const now = useNow()
+  const drag = usePlanDrag()
+  // The task panel: opened from the open tasks and from the plan's blocks.
+  const [panel, setPanel] = useState<string | null>(null)
+  const patch = useCallback<PlanPatch>(
+    (id, change) => update((current) => ({ ...current, tasks: patchTasks(current.tasks, id, change, current.date) })),
+    [update]
+  )
 
   if (!data) {
     return (
@@ -519,7 +540,8 @@ export function TodayScreen(): JSX.Element {
       <Plans date={data.date} />
       <Phrase phrase={data.phrase} hasPhrases={data.hasPhrases} onChange={setPhrase} />
       <Agenda briefing={data} now={now} />
-      <Tasks briefing={data} today={localDay(now)} />
+      <DayPlan briefing={data} now={now} drag={drag} onPatch={patch} onOpen={setPanel} />
+      <Tasks briefing={data} today={localDay(now)} drag={drag} panel={panel} setPanel={setPanel} />
       <BriefMe />
       <footer className="today-foot">
         <span>{updatedLabel(data.updatedAt, now)}</span>

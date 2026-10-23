@@ -409,13 +409,13 @@ function WeekDayHours({
 }): JSX.Element {
   const from = dayStart(day) ?? 0
   const to = nextDayStart(from)
-  // Events and the tasks due at an hour share the lanes: a task is half an hour long, as drawn.
+  // Events and the tasks due at an hour share the lanes: a time block as long as it lasts, any other task half an hour.
   const timed = useMemo(() => {
     const items: Slot[] = agenda.events.map((event) => ({ event, start: event.start, end: event.end, allDay: event.allDay }))
     for (const task of agenda.tasks) {
       if (!task.time) continue
       const start = momentOf(day, task.time)
-      items.push({ task, start, end: start + 30 * 60_000, allDay: false })
+      items.push({ task, start, end: start + (task.minutes ?? 30) * 60_000, allDay: false })
     }
     return dayTimeline(items, from, to)
   }, [agenda.events, agenda.tasks, day, from, to])
@@ -495,10 +495,11 @@ type Slot = { start: number; end: number; allDay: boolean } & (
   | { task: BriefingTask; event?: undefined }
 )
 
-/** A task due at an hour, in the week: half an hour tall, with its ring. */
+/** A task due at an hour, in the week: half an hour tall (a time block, as long as it is), with its ring. */
 function TaskBlock({ task, day, today, place }: { task: BriefingTask; day: string; today: string; place: CSSProperties }): JSX.Element {
   const drag = useDragSource(task)
-  const classes = ['cal-block', 'is-task', 'is-short']
+  const classes = ['cal-block', 'is-task']
+  if ((task.minutes ?? 30) < 45) classes.push('is-short')
   if (day < today) classes.push('is-overdue')
   if (drag.draggable) classes.push('is-movable')
   return (

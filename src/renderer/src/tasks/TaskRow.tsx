@@ -8,7 +8,15 @@
 // keys of `rowKeyAction` (model.ts) act on the focused row. The small buttons inside it are for
 // the pointer (tabIndex -1): the keyboard has keys and the menu for all of them.
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
-import type { CSSProperties, FocusEvent, JSX, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import type {
+  CSSProperties,
+  DragEvent as ReactDragEvent,
+  FocusEvent,
+  JSX,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  ReactNode
+} from 'react'
 import { ruleText } from '@shared/rrule'
 import { useHome } from '@/home/store'
 import { openPage } from '@/store/tabs'
@@ -20,6 +28,7 @@ import { Menu, type MenuItem } from '@/ui/Menu'
 import { Popover, type PopoverAnchor } from '@/ui/Popover'
 import { TASK_COPY, type TaskCopy, type TaskField } from './copy'
 import { deleteTask, renameTask, setPriority } from './edit'
+import { setNextAction } from './projects'
 import { dueLabel } from './lists'
 import { nextPriority, rowKeyAction, type Priority, type TaskView } from './model'
 import { preloadTaskEditors, TaskFieldPopover } from './lazy'
@@ -61,12 +70,36 @@ export interface TaskRowProps {
   emptyChips?: readonly TaskField[]
   /** Anything else beside the chips (a source, on Today). */
   extra?: ReactNode
+  /** Makes the row something to drag (onto Today's plan, briefing/DayPlan.tsx). */
+  drag?: RowDrag
+}
+
+/** What lets a row be dragged somewhere. */
+export interface RowDrag {
+  draggable: true
+  onDragStart: (event: ReactDragEvent<HTMLElement>) => void
+  onDragEnd: () => void
 }
 
 type Editing = { field: TaskField; anchor: PopoverAnchor } | null
 
 export function TaskRow(props: TaskRowProps): JSX.Element {
-  const { task, today, heading, depth = 0, tabStop, current, onToggle, onOpen, onLeave, onIndent, onOutdent, emptyChips, extra } = props
+  const {
+    task,
+    today,
+    heading,
+    depth = 0,
+    tabStop,
+    current,
+    onToggle,
+    onOpen,
+    onLeave,
+    onIndent,
+    onOutdent,
+    emptyChips,
+    extra,
+    drag
+  } = props
   const locale = useHome((state) => state.locale)
   const words = TASK_COPY[locale]
   const [editing, setEditing] = useState<Editing>(null)
@@ -105,6 +138,19 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     { id: 'project', label: words.field.project, hint: '#', onSelect: () => edit('project') },
     { id: 'labels', label: words.field.labels, hint: '@', onSelect: () => edit('labels') },
     { id: 'remind', label: words.field.remind, hint: 'L', onSelect: () => edit('remind') },
+    ...(task.project && !task.done
+      ? [
+          {
+            id: 'next',
+            label: words.makeNext,
+            onSelect: () => {
+              if (!task.project) return
+              setNextAction(task.project.id, task.id)
+              announce(words.nextSet(title))
+            }
+          }
+        ]
+      : []),
     { separator: true },
     { id: 'rename', label: words.rename, hint: 'F2', onSelect: () => setRenaming(true) },
     { id: 'open', label: words.openPage, onSelect: () => openPage(task.id) },
@@ -219,6 +265,7 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
       onContextMenu={onContextMenu}
       onPointerEnter={preloadTaskEditors}
       onFocus={preloadTaskEditors}
+      {...(drag && !renaming ? drag : {})}
     >
       <button
         type="button"

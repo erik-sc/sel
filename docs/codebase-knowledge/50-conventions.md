@@ -111,6 +111,9 @@ The helpers are in src/renderer/src/a11y/: `keys.ts` (keys), `announce.ts` (the 
   (`moveCard` in BoardView.tsx, `moveEvent` in CalendarView.tsx, `dropPage`, `moveTab`), says where
   the item went with `announce()`, and keeps the focus on it: the item is drawn again in its new
   place and focused by its id (`data-card-id`, `data-event-id`, `data-tab-id`, the tree's `pending`).
+  The time blocks of Today's plan (briefing/DayPlan.tsx) are the exception that has room for it:
+  plain arrows move a focused block by a quarter hour, Shift+arrows change its length, Delete
+  takes it off the plan, and a "Schedule…" form puts a task on it without a pointer.
 - **Roles**: `list` and `listitem` (board columns and cards, a calendar day and its events),
   `tree`/`treeitem` with `aria-level` and `aria-expanded`, `tablist`/`tab`. A list with nothing in
   it gets no list role: an empty `listbox` or `list` is an error to axe and says nothing.
