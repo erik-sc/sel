@@ -1,0 +1,355 @@
+/*
+ * The Fluxos screen. Ink on paper: a day with something is a square of ink, darker in four steps;
+ * a day with nothing is a dot of the page's grid. Mono labels, one hairline between sections, a
+ * 1px frame around the figures. No traffic-light colours, no number standing out. Every colour,
+ * size and duration is a token from styles/tokens.css.
+ */
+
+.flows {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(820px + var(--page-padding-x) * 2);
+  margin: 0 auto;
+  padding: 72px var(--page-padding-x) 120px;
+  color: var(--text);
+  animation: ui-fade var(--duration) var(--ease);
+}
+
+.flows-head {
+  margin-bottom: 36px;
+}
+
+.flows-kicker {
+  margin: 0 0 8px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.flows-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+}
+
+.flows-lede {
+  margin: 8px 0 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.flows-section {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.flows-label {
+  margin: 0 0 12px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flows-quiet {
+  margin: 0 0 14px;
+  color: var(--text-secondary);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.flows-note {
+  margin: 0 0 10px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.flows-empty {
+  padding: 20px 22px;
+  box-shadow: 0 0 0 1px var(--frame);
+}
+
+.flows-empty .flows-quiet {
+  margin-bottom: 8px;
+}
+
+/* ---- filters ---- */
+
+.flows-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.flows-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.flows-chip {
+  height: var(--control-height);
+  padding: 0 10px;
+  border-radius: var(--radius-s);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  box-shadow: inset 0 0 0 var(--hairline) var(--border);
+  transition:
+    color var(--duration-fast) var(--ease),
+    background var(--duration-fast) var(--ease);
+}
+
+.flows-chip:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.flows-chip.is-on {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--frame);
+}
+
+.flows-chip:disabled {
+  opacity: 0.5;
+}
+
+.flows-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.flows-project select {
+  height: var(--control-height);
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: var(--fill-2);
+  color: var(--text);
+  font: inherit;
+}
+
+/* ---- the figures ---- */
+
+.flows-figure {
+  margin: 0;
+  padding: 16px 16px 12px;
+  box-shadow: 0 0 0 1px var(--frame);
+}
+
+.flows-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.flows-axis {
+  fill: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.flows-dot {
+  fill: var(--grid-dot);
+}
+
+.flows-cell {
+  fill: var(--text);
+}
+
+.flows-cell.is-l1 {
+  fill-opacity: 0.16;
+}
+
+.flows-cell.is-l2 {
+  fill-opacity: 0.36;
+}
+
+.flows-cell.is-l3 {
+  fill-opacity: 0.6;
+}
+
+.flows-cell.is-l4 {
+  fill-opacity: 0.88;
+}
+
+.flows-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+}
+
+/* The tables: what the figures say, for a screen reader or a closer look. */
+.flows-table {
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.flows-table summary {
+  width: max-content;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.flows-table-scroll {
+  overflow-x: auto;
+}
+
+.flows-table table,
+.flows-weeks {
+  margin-top: 8px;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.flows-table th,
+.flows-table td,
+.flows-weeks th,
+.flows-weeks td {
+  padding: 3px 8px 3px 0;
+  font-weight: var(--weight-regular);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.flows-table th,
+.flows-weeks th {
+  color: var(--text-tertiary);
+}
+
+/* ---- where you go ---- */
+
+.flows-moves,
+.flows-back {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flows-move {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 3.5em;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 0;
+  border-bottom: var(--hairline) solid var(--border);
+  font-size: var(--text-ui);
+}
+
+.flows-move-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flows-arrow {
+  color: var(--text-tertiary);
+}
+
+/* A ribbon of ink as long as the move is common, against the most common one. */
+.flows-ribbon {
+  height: 2px;
+  width: calc(var(--share, 0) * 100%);
+  min-width: 2px;
+  background: var(--text);
+  opacity: 0.6;
+}
+
+.flows-count {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.flows-weeks td {
+  height: 22px;
+  vertical-align: bottom;
+}
+
+/* Time in a week: a column of ink, as tall as its share of the busiest cell. */
+.flows-bar {
+  display: block;
+  width: 10px;
+  height: calc(2px + var(--share, 0) * 18px);
+  background: var(--text);
+  opacity: 0.55;
+}
+
+.flows-back li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.flows-link {
+  padding: 2px 0;
+  border-radius: var(--radius-xs);
+  color: var(--text);
+  font-size: var(--text-ui);
+  text-align: left;
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.flows-link:hover,
+.flows-link:focus-visible {
+  color: var(--accent);
+}
+
+.flows-empty .flows-link,
+.flows > .flows-link {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+/* ---- the weekly word ---- */
+
+.flows-rhythm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.flows-rhythm-text {
+  flex: 1 1 320px;
+}
+
+.flows-rhythm .flows-quiet {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flows {
+    animation: none;
+  }
+}

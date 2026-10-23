@@ -2,10 +2,17 @@ import type { WebContents } from 'electron'
 import type { HermanLocale } from '../../shared/herman'
 import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
-import type { HermanDay } from './service'
+import type { HermanDay, RhythmWord } from './service'
 import type { HermanBridge } from './index'
 import { defineFeature, type Registered } from '../feature'
 import { refineFacts } from '../tasks/refine'
+import { TASK_PROPS, TASKS_DATABASE_ID } from '../../shared/tasks'
+
+/** The name of a project (an option of the Tasks database's Project property), or null. */
+function projectName(repo: Repository, id: string): string | null {
+  const options = repo.get(TASKS_DATABASE_ID)?.props.schema?.[TASK_PROPS.project]?.options
+  return (Array.isArray(options) ? options.find((option) => option?.id === id)?.name : null) ?? null
+}
 
 /**
  * The `herman:*` channels. This file is all of Herman that loads at start-up; his lines, the
@@ -20,6 +27,8 @@ export interface HermanIpcContext {
   day: () => Promise<HermanDay>
   /** True while something is being recorded. */
   recording: () => boolean
+  /** This week's word about the rhythm, when one is due (main/activity/rhythm.ts). */
+  rhythm?: (locale: HermanLocale) => Promise<RhythmWord | null>
 }
 
 export interface HermanHooks {
@@ -30,9 +39,9 @@ export interface HermanHooks {
   sky(sender: WebContents, line: (locale: HermanLocale) => string): void
 }
 
-export function registerHermanIpc({ repo, day, recording }: HermanIpcContext): HermanHooks & { handlers: Handlers<'herman'> } {
+export function registerHermanIpc({ repo, day, recording, rhythm }: HermanIpcContext): HermanHooks & { handlers: Handlers<'herman'> } {
   let bridge: HermanBridge | null = null
-  const herman = async (): Promise<HermanBridge> => (bridge ??= new (await import('./index')).HermanBridge(repo, day, recording))
+  const herman = async (): Promise<HermanBridge> => (bridge ??= new (await import('./index')).HermanBridge(repo, day, recording, rhythm))
 
   return {
     handlers: {
@@ -74,6 +83,24 @@ export const hermanFeature = defineFeature({
           inbox: oldest ? { waiting, title: oldest.title, days: oldest.days } : null
         }
       },
-      recording: () => ctx.recording()
+      recording: () => ctx.recording(),
+      // Read from the local activity log on this computer, without AI; loaded when first asked.
+      rhythm: async (locale) => {
+        const { weeklyRhythm } = await import('../activity/rhythm')
+        const log = ctx.repo.activity
+        return weeklyRhythm({
+          getSetting: (key) => ctx.repo.getSetting(key),
+          setSetting: (key, value) => ctx.repo.setSetting(key, value),
+          logEnabled: () => log.enabled(),
+          rows: (from, to) => {
+            log.flush()
+            return log.rows(from, to)
+          },
+          oldest: () => log.oldest(),
+          projectName: (id) => projectName(ctx.repo, id),
+          now: Date.now(),
+          locale
+        })
+      }
     })
 })

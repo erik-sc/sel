@@ -151,6 +151,7 @@ describe('summarize', () => {
     expect(summary.byKind).toEqual({ 'task.completed': 1 })
     expect(summary.byDay).toEqual([{ day: '2026-10-22', count: 1 }])
     expect(summary.transitions).toHaveLength(1)
+    expect(summary.byWeek.map((week) => week.week)).toEqual(['2026-10-19'])
     expect(summary.byProject).toEqual([{ project: 'p', count: 1 }])
     // Aggregates only: nothing in it is a row.
     expect(JSON.stringify(summary)).not.toContain('"kind"')

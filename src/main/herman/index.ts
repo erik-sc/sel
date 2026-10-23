@@ -1,7 +1,7 @@
 import { app, BrowserWindow, type WebContents } from 'electron'
 import { HERMAN_NUDGE_CHANNEL, type HermanLocale, type HermanNudgeReply } from '../../shared/herman'
 import type { Repository } from '../db/repository'
-import { devFastMode, HermanService, type HermanDay } from './service'
+import { devFastMode, HermanService, type HermanDay, type RhythmWord } from './service'
 
 /**
  * Herman wired to the app: the settings store, the system's language and the windows. Loaded
@@ -16,7 +16,8 @@ export class HermanBridge {
   constructor(
     repo: Repository,
     day: () => Promise<HermanDay>,
-    private readonly recording: () => boolean
+    private readonly recording: () => boolean,
+    rhythm?: (locale: HermanLocale) => Promise<RhythmWord | null>
   ) {
     const fast = devFastMode(process.env['SEL_HERMAN_FAST'], app.isPackaged)
     this.fast = fast !== null
@@ -32,7 +33,8 @@ export class HermanBridge {
         )
       },
       systemLocale: () => app.getLocale(),
-      fast
+      fast,
+      ...(rhythm ? { rhythm } : {})
     })
   }
 

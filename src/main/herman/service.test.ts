@@ -575,3 +575,57 @@ describe('a line about the Sky', () => {
     expect(SKY_LINES.en({ kind: 'new-year', year: 2027 })).toBe('Happy new year. The sky of 2027 begins empty, like a page.')
   })
 })
+
+describe('the weekly word about the rhythm', () => {
+  const word = { text: 'Your Tuesday mornings seem to be when the writing happens.' }
+
+  it('comes before the day’s counsel, in his language, and counts toward the day', async () => {
+    const asked: string[] = []
+    const { service, settings, clock } = world({
+      day: overdue,
+      settings: { 'ai.language': 'pt-BR' },
+      deps: {
+        rhythm: (locale) => {
+          asked.push(locale)
+          return asked.length === 1 ? word : null
+        }
+      }
+    })
+    const first = await service.next(idle)
+    expect(first.nudge).toMatchObject({ kind: 'rhythm', text: word.text })
+    expect(asked).toEqual(['pt-BR'])
+    expect(readMemory(settings[MEMORY_KEY])).toMatchObject({ shown: 1, lastAt: clock.now })
+    // Too soon for anything else; later, the counsel again (the rhythm keeps its own week).
+    expect((await service.next(idle)).nudge).toBeNull()
+    clock.now += 2 * 60 * MIN
+    expect((await service.next(idle)).nudge?.kind).toBe('overdue')
+  })
+
+  it('is not asked for when he may not speak, nor for a streak', async () => {
+    let asked = 0
+    const rhythm = (): typeof word => {
+      asked++
+      return word
+    }
+    await world({ settings: { 'herman.nudges': false }, deps: { rhythm } }).service.next(idle)
+    await world({ now: at(14, 23), deps: { rhythm } }).service.next(idle)
+    await world({ met: false, deps: { rhythm } }).service.next(idle)
+    await world({ deps: { rhythm } }).service.next({ idleMs: 0 })
+    expect(asked).toBe(0)
+    const { service } = world({ deps: { rhythm } })
+    for (let i = 0; i < 3; i++) await service.completed()
+    expect(asked).toBe(0)
+  })
+
+  it('leaves the counsel alone when the rhythm cannot be read', async () => {
+    const { service } = world({
+      day: overdue,
+      deps: {
+        rhythm: () => {
+          throw new Error('no log')
+        }
+      }
+    })
+    expect((await service.next(idle)).nudge?.kind).toBe('overdue')
+  })
+})

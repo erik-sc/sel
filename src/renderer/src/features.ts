@@ -6,6 +6,7 @@ import { aiFeature } from './ai/feature'
 import { alarmsFeature } from './alarms/feature'
 import { briefingFeature } from './briefing/feature'
 import { feedbackFeature } from './feedback/feature'
+import { flowsFeature } from './flows/feature'
 import { hermanFeature } from './herman/feature'
 import { homeFeature } from './home/feature'
 import { meetingsFeature } from './meetings/feature'
@@ -34,7 +35,8 @@ export const FEATURES = [
   tasksFeature,
   notebookFeature,
   feedbackFeature,
-  activityFeature
+  activityFeature,
+  flowsFeature
 ] as const
 
 /** Runs every feature's start-up, in the order above. */
