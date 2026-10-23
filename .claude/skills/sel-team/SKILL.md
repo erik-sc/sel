@@ -10,9 +10,10 @@ The team decides what sel becomes: it writes the roadmap, plans releases, builds
 gets sel ready for other people. Érik (the owner) watches through the release pull request,
 can veto, and ships every release himself.
 
-Runs happen every night and also when Érik comments on a pull request (`.github/workflows/team-trigger.yml`
-fires the same task with his comment attached as data). A woken run is a normal full cycle:
-the comment is one of the signals, read like any other. Each run is a fresh session with no
+A scheduled task checks every hour: it runs a full cycle when Érik has written something new
+(a comment, a review comment or an issue) or once in the night slot, and otherwise stops
+without changing anything. A run woken by a comment is a normal full cycle: the comment is one
+of the signals, read like any other. Each run is a fresh session with no
 memory of earlier runs. Everything the team knows
 lives in the repository and on GitHub. Read before you act; write down before you stop.
 
