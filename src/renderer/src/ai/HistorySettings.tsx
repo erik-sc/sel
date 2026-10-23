@@ -8,11 +8,15 @@ import { Button } from '@/ui/Button'
 import { notifyError, toast } from '@/ui/toast'
 import { AppliedLog } from './AppliedLog'
 import { clearAppliedLog, loadAppliedLog, useAppliedLog } from './appliedStore'
-import { BALLOON_COPY } from './balloonCopy'
+import { usePersona } from '@/herman/gate'
+import { balloonCopy } from './balloonCopy'
 import { deleteAllConversations, loadConversations, useConversations } from './conversations'
 
 export function HistorySettings(): JSX.Element {
-  const copy = BALLOON_COPY[useHome((state) => state.locale)]
+  const copy = balloonCopy(
+    useHome((state) => state.locale),
+    usePersona().persona
+  )
   const count = useConversations((state) => state.list.filter((conversation) => conversation.messages.length > 0).length)
   const entries = useAppliedLog((state) => state.entries.length)
   const [confirming, setConfirming] = useState(false)

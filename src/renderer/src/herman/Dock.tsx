@@ -20,7 +20,7 @@ import { setSettingsOpen, useUi } from '@/store/ui'
 import { useToasts } from '@/ui/toast'
 import { Herman64 } from './Herman64'
 import { caretBox, editable } from './avoid'
-import { useHerman } from './gate'
+import { useHerman, usePersona } from './gate'
 import { cornerAfterKey, editingSince, near, nearestCorner, poseFor, type Box } from './mood'
 
 /** How long a line of his stays before it leaves by itself. */
@@ -58,6 +58,7 @@ const MODAL = '.ui-modal-overlay'
 export function Dock(): JSX.Element | null {
   const version = useHerman((state) => state.version)
   const mood = useHerman((state) => state.mood)
+  const { name } = usePersona()
   const aiOn = useAiGate((state) => state.enabled)
   const balloonOpen = useAiGate((state) => state.enabled && state.balloonOpen)
   const toasts = useToasts((state) => state.toasts.length)
@@ -443,7 +444,7 @@ export function Dock(): JSX.Element | null {
       <button
         type="button"
         className="herman-button"
-        aria-label="Herman, your assistant"
+        aria-label={`${name}, your assistant`}
         aria-haspopup="dialog"
         aria-expanded={balloonOpen}
         onClick={open}
@@ -462,13 +463,13 @@ export function Dock(): JSX.Element | null {
       </button>
       {/* Announced politely; nothing here ever takes the focus. */}
       <div className="herman-live" aria-live="polite" aria-atomic="true">
-        {bubble ? `Herman: ${bubble.text}` : ''}
+        {bubble ? `${name}: ${bubble.text}` : ''}
       </div>
       {bubble && (
         <div
           className="herman-bubble"
           role="group"
-          aria-label="Herman says"
+          aria-label={`${name} says`}
           onPointerEnter={() => setHeld(true)}
           onPointerLeave={() => setHeld(false)}
           onFocus={() => setHeld(true)}

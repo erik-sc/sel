@@ -13,7 +13,8 @@ import { AI_LIMITS } from '@shared/ai'
 import { AI_HISTORY_CAPS } from '@shared/aiHistory'
 import { isTodayRoute } from '@/briefing/route'
 import { caretBox } from '@/herman/avoid'
-import { useHerman } from '@/herman/gate'
+import { useHerman, usePersona } from '@/herman/gate'
+import type { HomeLocale } from '@/home/copy'
 import { useHome } from '@/home/store'
 import { routeTitle } from '@/screens'
 import { pageTitle } from '@/shell/actions'
@@ -29,7 +30,8 @@ import { AppliedLog, UndoControls } from './AppliedLog'
 import { loadAppliedLog, recordApplied, useAppliedLog } from './appliedStore'
 import { applyActions } from './applyActions'
 import { useBalloon, type ReplyNote } from './balloonGate'
-import { BALLOON_COPY, whenText, type BalloonCopy } from './balloonCopy'
+import { balloonCopy, whenText, type BalloonCopy } from './balloonCopy'
+import { contextCopy } from './contextCopy'
 import {
   ask,
   cancel,
@@ -51,6 +53,8 @@ import { aiReady, closeAssistant, openAiSetup, requestPageAi, useAiGate } from '
 import { errorLines, statusText } from './labels'
 import { IDLE, isBusy } from './machine'
 import { MarkdownView } from './MarkdownView'
+import { LockMark } from './PrivateLock'
+import { useAiPrivacy } from './privacy'
 import { placeBalloon, type Placement } from './placement'
 import { SentNote } from './SentNote'
 import { AI_GLYPH } from './session'
@@ -169,7 +173,7 @@ function Notes({ conversationId, messageId }: { conversationId: string; messageI
 }
 
 /** The moment the suggestions are chosen for: read when the balloon opens and when the page changes. */
-function useMoment(pageId: string | null, today: boolean): Moment {
+function useMoment(pageId: string | null, today: boolean, isPrivate: boolean): Moment {
   const page = useBlock(pageId)
   const [overdue, setOverdue] = useState(0)
   const [meeting, setMeeting] = useState(false)
@@ -204,7 +208,7 @@ function useMoment(pageId: string | null, today: boolean): Moment {
   const kind = page?.type === 'page' || page?.type === 'database' ? page.type : null
   return {
     hour: new Date().getHours(),
-    page: pageId && page && kind ? { id: pageId, kind, empty: page.content.length === 0 } : null,
+    page: pageId && page && kind ? { id: pageId, kind, empty: page.content.length === 0, private: isPrivate } : null,
     today,
     overdue,
     meeting
@@ -292,11 +296,16 @@ export function Balloon(): JSX.Element {
   const pageId = routeTitle(route) ? null : route
   const key = route ?? ''
   const locale = useHome((state) => state.locale)
-  const copy = BALLOON_COPY[locale]
+  const { persona: chosen, name: personaName } = usePersona()
+  const copy = balloonCopy(locale, chosen)
   const persona = useHerman((state) => state.on)
   const prepared = useHerman((state) => state.prepared)
-  const name = persona ? 'Herman' : copy.assistant
+  const name = persona ? personaName : copy.assistant
   const page = useBlock(pageId)
+  // A page private from the AI: nothing of it is sent (not even the selection); a question goes without it.
+  const privacy = useAiPrivacy(pageId, true)
+  const isPrivate = privacy !== null
+  const words = contextCopy(locale, chosen)
   const conversation = useConversations((state) => {
     const id = state.active[key]
     return id ? state.list.find((entry) => entry.id === id) : undefined
@@ -314,9 +323,9 @@ export function Balloon(): JSX.Element {
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const titleId = useId()
-  const selection = scope && scope.text !== dismissed ? scope.text : null
+  const selection = !isPrivate && scope && scope.text !== dismissed ? scope.text : null
   const busy = isRunning(conversation)
-  const moment = useMoment(pageId, today)
+  const moment = useMoment(pageId, today, isPrivate)
   const placement = usePlacement(ref, expanded)
   const anchor = useBalloon((state) => state.anchor)
 
@@ -365,7 +374,7 @@ export function Balloon(): JSX.Element {
     if (list && stick.current) list.scrollTop = list.scrollHeight
   }, [messages.length, tail, view])
 
-  const currentScope: AskScope = pageId ? { pageId } : today ? { today: true } : {}
+  const currentScope: AskScope = pageId && !isPrivate ? { pageId } : today ? { today: true } : {}
 
   const send = (raw: string, scopeOverride?: AskScope): void => {
     const question = raw.trim().slice(0, AI_LIMITS.instruction)
@@ -469,16 +478,24 @@ export function Balloon(): JSX.Element {
     ? copy.emptyTitle.persona
     : today
       ? copy.emptyTitle.today
-      : pageId
+      : pageId && !isPrivate
         ? copy.emptyTitle.page
         : copy.emptyTitle.none
-  // The persona does not explain itself: with it on there is no help line, only the suggestions.
-  const emptyHelp = persona ? null : today ? copy.emptyHelp.today : pageId ? copy.emptyHelp.page : copy.emptyHelp.none
+  // The persona does not explain itself: with it on there is no help line, only the suggestions. A private page is said either way.
+  const emptyHelp = isPrivate
+    ? words.panelPrivate
+    : persona
+      ? null
+      : today
+        ? copy.emptyHelp.today
+        : pageId
+          ? copy.emptyHelp.page
+          : copy.emptyHelp.none
   const placeholder = persona
-    ? copy.placeholder.persona(name)
+    ? copy.placeholder.persona
     : today
       ? copy.placeholder.today
-      : pageId
+      : pageId && !isPrivate
         ? copy.placeholder.page
         : copy.placeholder.none
 
@@ -617,10 +634,17 @@ export function Balloon(): JSX.Element {
 
           <footer className="ai-balloon-foot">
             <div className="ai-balloon-context" aria-label={copy.inScope}>
-              <span className="ai-chip" title={page ? pageTitle(page) : undefined}>
-                {page ? <PageIcon block={page} size={12} /> : null}
-                <span className="ai-chip-text">{page ? pageTitle(page) : today ? copy.todayChip : copy.noPage}</span>
-              </span>
+              {privacy ? (
+                <span className="ai-chip" title={words.privateWhy[privacy.reason]}>
+                  <LockMark why={words.privateWhy[privacy.reason]} />
+                  <span className="ai-chip-text">{words.panelPrivateChip}</span>
+                </span>
+              ) : (
+                <span className="ai-chip" title={page ? pageTitle(page) : undefined}>
+                  {page ? <PageIcon block={page} size={12} /> : null}
+                  <span className="ai-chip-text">{page ? pageTitle(page) : today ? copy.todayChip : copy.noPage}</span>
+                </span>
+              )}
               {selection && (
                 <span className="ai-chip is-selection" title={selection.slice(0, 300)}>
                   <span className="ai-chip-text">
@@ -781,15 +805,7 @@ function MessageView({
 }
 
 /** "Earlier": the last conversations, newest first; one brings it back. */
-function Earlier({
-  copy,
-  locale,
-  onOpen
-}: {
-  copy: BalloonCopy
-  locale: keyof typeof BALLOON_COPY
-  onOpen(id: string): void
-}): JSX.Element {
+function Earlier({ copy, locale, onOpen }: { copy: BalloonCopy; locale: HomeLocale; onOpen(id: string): void }): JSX.Element {
   const list = useConversations((state) => state.list)
   const loaded = useConversations((state) => state.loaded)
   const [confirming, setConfirming] = useState(false)

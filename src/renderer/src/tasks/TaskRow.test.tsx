@@ -13,7 +13,8 @@ const calls = vi.hoisted(() => ({
   priority: [] as unknown[][],
   deleted: [] as string[],
   opened: [] as unknown[][],
-  editor: [] as string[]
+  editor: [] as string[],
+  next: [] as unknown[][]
 }))
 
 vi.mock('./edit', () => ({
@@ -31,6 +32,7 @@ vi.mock('./lazy', () => ({
     return <div data-editor={field} />
   }
 }))
+vi.mock('./projects', () => ({ setNextAction: (...args: unknown[]) => void calls.next.push(args) }))
 vi.mock('@/store/tabs', () => ({ openPage: (...args: unknown[]) => void calls.opened.push(args) }))
 
 const { TaskRow, useTaskRows } = await import('./TaskRow')
@@ -95,6 +97,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   calls.rename.length = 0
+  calls.next.length = 0
   calls.priority.length = 0
   calls.deleted.length = 0
   calls.opened.length = 0
@@ -236,6 +239,7 @@ describe('a list of task rows', () => {
       'Project',
       'Labels',
       'Reminder',
+      'Make next action',
       'Rename',
       'Open page',
       'Open in new tab',
@@ -246,5 +250,23 @@ describe('a list of task rows', () => {
     await press(menu, 'End')
     await press(menu, 'Enter')
     expect(calls.deleted).toEqual(['a'])
+  })
+
+  it('makes a task of a project its next action from the menu, and offers it only then', async () => {
+    await render(<List onToggle={() => undefined} onOpen={() => undefined} />)
+    await focus(rowOf('a'))
+    await press(rowOf('a'), 'F10', { shiftKey: true })
+    await settle()
+    const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((each) =>
+      each.textContent?.includes('Make next action')
+    )
+    await act(async () => item?.click())
+    expect(calls.next).toEqual([['home', 'a']])
+    await press(document.querySelector('[role="menu"]') ?? document.body, 'Escape')
+    await focus(rowOf('b'))
+    await press(rowOf('b'), 'F10', { shiftKey: true })
+    await settle()
+    const labels = [...document.querySelectorAll('[role="menuitem"]')].map((each) => each.textContent ?? '')
+    expect(labels.some((label) => label.includes('Make next action'))).toBe(false)
   })
 })

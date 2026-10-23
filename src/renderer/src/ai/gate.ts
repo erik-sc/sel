@@ -5,6 +5,7 @@ import { create } from 'zustand'
 import type { AiStatus } from '@shared/ai'
 import { AI_CONTEXT_CAPS, AI_CONTEXT_PAGES_KEY, contextPageIds } from '@shared/aiContext'
 import { notifyError } from '../ui/toast'
+import { aiPrivacyNow, loadAncestors } from './privacy'
 
 /** Which explanation the setup sheet opens with. */
 export type AiSetupReason = 'not-installed' | 'not-logged-in'
@@ -76,12 +77,21 @@ export async function setContextPages(ids: string[]): Promise<void> {
   }
 }
 
-/** Pins a page as context, or unpins it. False when it could not be pinned because the list is full. */
-export function toggleContextPage(id: string): Promise<boolean> {
+/**
+ * Pins a page as context, or unpins it. Says why when it could not be pinned: the list is full,
+ * or the page is private from the AI (itself, or a page it is in: those above it are read first).
+ */
+export async function toggleContextPage(id: string): Promise<'pinned' | 'unpinned' | 'full' | 'private'> {
   const pinned = useAiGate.getState().contextPages
-  if (pinned.includes(id)) return setContextPages(pinned.filter((entry) => entry !== id)).then(() => true)
-  if (pinned.length >= AI_CONTEXT_CAPS.pages) return Promise.resolve(false)
-  return setContextPages([...pinned, id]).then(() => true)
+  if (pinned.includes(id)) {
+    await setContextPages(pinned.filter((entry) => entry !== id))
+    return 'unpinned'
+  }
+  await loadAncestors(id)
+  if (aiPrivacyNow(id)) return 'private'
+  if (pinned.length >= AI_CONTEXT_CAPS.pages) return 'full'
+  await setContextPages([...pinned, id])
+  return 'pinned'
 }
 
 export function setAiEnabled(enabled: boolean): void {

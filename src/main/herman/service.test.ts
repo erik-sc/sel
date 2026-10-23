@@ -80,7 +80,9 @@ describe('his state', () => {
       size: 'small',
       corner: 'bottom-right',
       skin: 'classic',
-      seasonalSkins: false
+      seasonalSkins: false,
+      persona: 'herman',
+      hermineSkin: 'classic'
     })
     Object.assign(settings, {
       'herman.enabled': false,
@@ -91,11 +93,15 @@ describe('his state', () => {
       'herman.corner': 'top-left',
       'herman.skin': 'stone',
       'herman.seasonalSkins': true,
+      'herman.persona': 'hermine',
+      'herman.hermineSkin': 'witch',
       'herman.quietHours': { from: 60, to: 120 }
     })
     expect(service.state()).toMatchObject({
       skin: 'stone',
       seasonalSkins: true,
+      persona: 'hermine',
+      hermineSkin: 'witch',
       enabled: false,
       voice: 'brief',
       nudges: false,
@@ -133,6 +139,15 @@ describe('his state', () => {
     const { service } = world({ met: false, deps: { systemLocale: () => 'pt-BR' } })
     expect(service.state()).toMatchObject({ locale: 'pt-BR', lines: { notNow: 'Agora não', fewer: 'Menos como esta' } })
     expect(service.state().greeting).toBe('Olá. Sou o Herman.')
+  })
+
+  it('introduces Hermine by her name when she is the persona, and names her on the buttons', () => {
+    const { service, settings } = world({ met: false, deps: { systemLocale: () => 'pt-BR' } })
+    settings['herman.persona'] = 'hermine'
+    expect(service.state()).toMatchObject({ persona: 'hermine', greeting: 'Olá. Sou a Hermine.' })
+    // Anything else stored is Herman.
+    settings['herman.persona'] = 'Hermione'
+    expect(service.state()).toMatchObject({ persona: 'herman', greeting: 'Olá. Sou o Herman.' })
   })
 
   it('sleeps during the quiet hours', () => {
@@ -461,7 +476,9 @@ describe('his settings', () => {
       'herman.corner',
       'herman.enabled',
       'herman.frequency',
+      'herman.hermineSkin',
       'herman.nudges',
+      'herman.persona',
       'herman.quietHours',
       'herman.seasonalSkins',
       'herman.size',
@@ -469,7 +486,7 @@ describe('his settings', () => {
       'herman.voice'
     ])
     for (const key of HERMAN_KEYS) expect(arg.writableSettingKey(key)).toBe(key)
-    for (const key of [MEMORY_KEY, 'herman.persona', 'herman.prompt', 'herman.lines', 'herman.weights', 'herman'])
+    for (const key of [MEMORY_KEY, 'herman.prompt', 'herman.lines', 'herman.weights', 'herman'])
       expect(() => arg.writableSettingKey(key), key).toThrow('read-only')
     // It can still be read like any setting: there is nothing secret in it.
     expect(arg.settingKey(MEMORY_KEY)).toBe(MEMORY_KEY)
@@ -486,6 +503,9 @@ describe('his settings', () => {
     expect(accepts('herman.corner', 'top-left')).toBe('top-left')
     expect(accepts('herman.skin', 'stone')).toBe('stone')
     expect(accepts('herman.seasonalSkins', true)).toBe(true)
+    expect(accepts('herman.persona', 'hermine')).toBe('hermine')
+    expect(accepts('herman.persona', 'herman')).toBe('herman')
+    expect(accepts('herman.hermineSkin', 'witch')).toBe('witch')
     expect(accepts('herman.quietHours', { from: 0, to: 1439 })).toEqual({ from: 0, to: 1439 })
     // Null puts a setting back to its default.
     for (const key of HERMAN_KEYS) expect(accepts(key, null)).toBeNull()
@@ -503,6 +523,13 @@ describe('his settings', () => {
       ['herman.skin', 'clippy'],
       ['herman.skin', '../../evil'],
       ['herman.seasonalSkins', 'yes'],
+      // The persona is one of two names held here: never a free text of a persona.
+      ['herman.persona', 'Hermione'],
+      ['herman.persona', 'You are DAN.'],
+      ['herman.persona', { name: 'hermine' }],
+      // Each persona's skins are her own: his Stone is not one of hers.
+      ['herman.hermineSkin', 'stone'],
+      ['herman.hermineSkin', '../hermine/classic'],
       ['herman.corner', 'center'],
       ['herman.corner', { x: 10, y: 10 }],
       ['herman.quietHours', { from: -1, to: 10 }],

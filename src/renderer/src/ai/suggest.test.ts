@@ -22,6 +22,12 @@ describe('suggestions for the moment', () => {
     expect(ids(moment({ page: { ...page, kind: 'database' } }))).toEqual(['summarize'])
   })
 
+  it('offers nothing about a page private from the AI, only the day', () => {
+    const secret = { ...page, private: true }
+    expect(ids(moment({ page: secret }))).toEqual([])
+    expect(ids(moment({ page: secret, meeting: true, overdue: 2, hour: 9 }))).toEqual(['plan-day', 'overdue'])
+  })
+
   it('counts the overdue tasks, about the day', () => {
     const [first] = suggestionsFor(moment({ overdue: 3 }), 'pt-BR')
     expect(first).toMatchObject({ id: 'overdue', label: 'Replanejar 3 atrasadas', scope: 'today' })

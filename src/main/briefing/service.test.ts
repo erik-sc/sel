@@ -563,6 +563,16 @@ describe('the "Brief me" prompt', () => {
     expect(JSON.stringify(data)).not.toContain('SECRETTOKEN')
   })
 
+  it('leaves out the tasks private from the AI: the day goes to Claude (shared/aiPrivate.ts)', async () => {
+    const id = tasksDatabase()
+    const { service } = make()
+    await service.get(true)
+    repo.update(id, { props: { aiPrivate: true } })
+    const data = service.promptData()
+    expect(data.overdue).toEqual([])
+    expect(data.today).toEqual([])
+  })
+
   it('fences titles as data, whatever they say', () => {
     const prompt = buildBriefingPrompt(
       {

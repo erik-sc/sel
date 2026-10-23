@@ -240,6 +240,19 @@ describe('the conversation balloon', () => {
     expect(await seriousViolations()).toEqual([])
   })
 
+  it('speaks of Hermine when she is the persona', async () => {
+    useHerman.setState({ on: true, persona: 'hermine' })
+    try {
+      await render(<Balloon />)
+      await settle()
+      expect(document.getElementById(dialog().getAttribute('aria-labelledby') ?? '')?.textContent).toBe('Hermine')
+      expect(dialog().querySelector('textarea')?.getAttribute('placeholder')).toBe('Ask Hermine…')
+      expect(dialog().textContent).not.toMatch(/\bHerman\b/)
+    } finally {
+      useHerman.setState({ persona: 'herman' })
+    }
+  })
+
   it('keeps Tab inside the balloon', async () => {
     await render(<Balloon />)
     await settle()

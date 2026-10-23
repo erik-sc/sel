@@ -424,6 +424,29 @@ body.is-resizing .sidebar {
   white-space: nowrap;
 }
 
+/* "Private from AI" (ai/PrivateLock.tsx): a small lock beside a title, its reason on hover. */
+.ai-lock {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+}
+
+.tree-row .ai-lock {
+  margin-left: 4px;
+}
+
+/* The row's actions take the lock's place while they show. */
+.tree-row:hover .ai-lock,
+.tree-row.is-menu-open .ai-lock {
+  display: none;
+}
+
+.ai-lock-label {
+  font-size: var(--text-xs);
+}
+
 .tree-rename {
   flex: 1;
   min-width: 0;

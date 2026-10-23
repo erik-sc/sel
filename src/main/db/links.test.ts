@@ -95,7 +95,7 @@ describe('page_links', () => {
     `)
     const reopened = new Repository(db)
     expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(SCHEMA_VERSION)
-    expect(SCHEMA_VERSION).toBe(6)
+    expect(SCHEMA_VERSION).toBe(7)
     expect(table(db)).toEqual(expected)
     expect(table(db)).toEqual([
       'both>p1',

@@ -32,3 +32,9 @@ export function useDataCopy(): { copy: DataCopy; locale: DataLocale } {
   const locale = useDataLocale((state) => state.locale)
   return { copy: DATA_COPY[locale], locale }
 }
+
+/** The language now, for words read outside a component (a command's title in the palette). */
+export function dataLocaleNow(): DataLocale {
+  watch()
+  return useDataLocale.getState().locale
+}

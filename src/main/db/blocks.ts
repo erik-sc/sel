@@ -156,6 +156,11 @@ export function defaultDatabaseProps(props: BlockProps): BlockProps {
 
 /** A node of a block tree to insert in one go (see Repository.createTree). */
 export interface TreeInput {
+  /**
+   * The id the block gets, for a caller that must link to it before it exists (an import whose
+   * pages link to each other); it must be new. Absent: a fresh one.
+   */
+  id?: string
   type: BlockType
   props?: BlockProps
   children?: TreeInput[]

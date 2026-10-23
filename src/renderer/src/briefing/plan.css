@@ -1,0 +1,236 @@
+/*
+ * The day's plan on the Today screen (DayPlan.tsx): the calendar's events and the tasks' blocks
+ * side by side on the same hours. Mono labels, hairlines for the hours, the ink frame around a
+ * block that can be moved. Every value is a token of styles/tokens.css.
+ */
+
+.plan-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plan {
+  --plan-gutter: 44px;
+  font-family: var(--font-mono);
+}
+
+.plan-heads,
+.plan-body {
+  display: grid;
+  grid-template-columns: var(--plan-gutter) 1fr 1fr;
+  column-gap: 8px;
+}
+
+.plan-head {
+  padding-bottom: 6px;
+  color: var(--text-tertiary);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.plan-body {
+  position: relative;
+  height: var(--plan-height);
+  /* An hour line every 48px (PX in DayPlan.tsx). */
+  background-image: repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent 48px);
+  border-top: var(--hairline) solid var(--border);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.plan-body.is-dropping .plan-col.is-blocks {
+  background: var(--fill-4);
+}
+
+.plan-gutter {
+  position: relative;
+}
+
+.plan-hour {
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  font-size: var(--text-2xs);
+  line-height: 1;
+}
+
+.plan-col {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-event,
+.plan-block {
+  position: absolute;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  line-height: 1.3;
+}
+
+.plan-event {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 4px 2px 6px;
+  border-left: 2px solid var(--block);
+  background: linear-gradient(var(--block-bg), var(--block-bg)), var(--bg-solid);
+  outline: 1px solid var(--bg-solid);
+  color: var(--text);
+}
+
+.plan-event.is-past {
+  opacity: 0.55;
+}
+
+.plan-block {
+  border: 1px solid var(--frame);
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  outline: 1px solid var(--bg-solid);
+}
+
+.plan-block.is-point {
+  border-style: dashed;
+}
+
+.plan-block.is-resizing {
+  background: var(--accent-soft);
+}
+
+.plan-block-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 2px 6px;
+  color: var(--text);
+  cursor: grab;
+}
+
+.plan-block-main:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.plan-block.is-short .plan-block-main,
+.plan-event.is-short {
+  flex-direction: row;
+  gap: 6px;
+}
+
+.plan-time,
+.plan-length {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-2xs);
+}
+
+.plan-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-block .plan-title {
+  font-weight: var(--weight-medium);
+}
+
+.plan-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.plan-resize:hover {
+  background: var(--fill-2);
+}
+
+.plan-now {
+  position: absolute;
+  right: 0;
+  left: var(--plan-gutter);
+  height: 0;
+  border-top: 1px solid var(--danger);
+  pointer-events: none;
+}
+
+.plan-guide {
+  position: absolute;
+  right: 0;
+  left: var(--plan-gutter);
+  height: 0;
+  border-top: 1px dashed var(--accent);
+  pointer-events: none;
+}
+
+.plan-guide-time {
+  position: absolute;
+  top: -8px;
+  right: 0;
+  padding: 0 4px;
+  background: var(--bg-solid);
+  color: var(--accent);
+  font-size: var(--text-2xs);
+}
+
+.plan-hint,
+.plan-note {
+  margin-top: 12px;
+}
+
+.plan-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid var(--frame);
+  font-family: var(--font-mono);
+}
+
+.plan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plan-field.is-task {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.plan-field-label {
+  color: var(--text-tertiary);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.plan-field select,
+.plan-field input {
+  height: var(--control-height);
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.plan-form-actions {
+  display: flex;
+  gap: 12px;
+}

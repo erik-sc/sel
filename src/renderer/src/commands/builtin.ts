@@ -8,6 +8,7 @@ import { getBlock } from '@/store/blocks'
 import { activeTab, tabPage } from '@/store/tabs'
 import { setFocusDim, setFocusMode, setHistoryPage, setSettingsOpen, setTheme, useUi, type SettingsSection } from '@/store/ui'
 import { aiEnabled, requestPageAi } from '@/ai/gate'
+import { personaTitle } from '@/herman/gate'
 import { routeTitle } from '@/screens'
 import { IS_MAC } from '@/ui/platform'
 import { preloadVersionHistory } from '@/versions/VersionHistory'
@@ -55,7 +56,20 @@ export function paletteCommand(
   const command = spec.id as MenuCommand
   const { title, keywords, order } = spec.palette
   const shortcut = spec.shortcut && (IS_MAC ? (spec.shortcut.mac ?? spec.shortcut.accelerator) : spec.shortcut.accelerator)
-  return [order, { id: command, title, keywords, shortcut, when: handler.when, run: () => handler.run() }]
+  return [
+    order,
+    {
+      id: command,
+      // Read when the palette lists it: "Herman, the assistant" names the chosen persona.
+      get title() {
+        return personaTitle(title)
+      },
+      keywords,
+      shortcut,
+      when: handler.when,
+      run: () => handler.run()
+    }
+  ]
 }
 
 function openSettings(section: SettingsSection): void {
@@ -243,7 +257,14 @@ const OWN: [number, Command][] = [
   // 480: open-settings, then each section of Settings, where its `order` puts it in their list
   ...SETTINGS_SECTIONS.map(({ id, label, keywords, order }): [number, Command] => [
     490 + order,
-    { id: `settings-${id}`, title: `Settings: ${label}`, keywords: ['preferences', 'options', ...keywords], run: () => openSettings(id) }
+    {
+      id: `settings-${id}`,
+      get title() {
+        return personaTitle(`Settings: ${label}`)
+      },
+      keywords: ['preferences', 'options', ...keywords],
+      run: () => openSettings(id)
+    }
   ])
   // 900: keyboard-shortcuts, 910: send-feedback
 ]

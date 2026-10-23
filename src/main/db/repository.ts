@@ -13,6 +13,7 @@ import {
   type RestoreMode,
   type RestoreResult,
   type SnapshotBlock,
+  type SnapshotContent,
   type VersionInfo,
   type VersionSnapshot,
   type VersionStats
@@ -37,12 +38,14 @@ import {
   type Row,
   type TreeInput
 } from './blocks'
+import { ActivityLog, isTaskRow, type TaskWrite } from './activity'
 import type { SqlDriver, SqlStatement } from './driver'
 import { linkTargets, mayLink } from './links'
+import { ACTIVITY_ENABLED_KEY } from '../../shared/activity'
 import { configure, migrate } from './schema'
 import { backlinksTo, searchBlocks, type SearchSource } from './search'
 import { searchText } from './text'
-import { buildSnapshot, BulkChange, formatStamp, RESTORE_LABEL_PREFIX, VersionStore } from './versions'
+import { buildSnapshot, BulkChange, formatStamp, RESTORE_LABEL_PREFIX, snapshotTextSize, VersionStore } from './versions'
 import { archivedFilter, byIdsSql, LINEAGE_SQL, liveFilter, pagesAbove, pick, subtreeSql, walk, type Link, type TreeNode } from './tree'
 
 export { BLOCK_TYPES, isBlockType, isPageLike, isValidId, MAX_SETTING_CHARS } from './blocks'
@@ -72,6 +75,23 @@ export interface SyncChange {
   settings: Record<string, unknown>
   /** Runs last, inside the transaction. */
   finish?: () => void
+}
+
+/** A page as a backup has it, for Repository.restoreFromBackup (read by ../data/pageRestore.ts). */
+export interface BackupPage {
+  /** Its own content, in the shape of a version; a database comes with its rows (`rows`). */
+  snapshot: SnapshotContent
+  /** The block that held it in the backup. */
+  parentId: string | null
+  /** `replace`: made equal to the backup. `missing`: only brought back when it no longer exists. */
+  mode: 'replace' | 'missing'
+}
+
+/** Why a page cannot be brought back from a backup. */
+export class BackupRestoreError extends Error {
+  constructor(readonly problem: 'notebook' | 'kind-changed') {
+    super(problem === 'notebook' ? 'Past days of Meditations never change' : 'That page is now another kind of block')
+  }
 }
 
 /** The columns of a row that structural checks need: no JSON, nothing to parse. */
@@ -142,6 +162,11 @@ export class Repository {
   /** To-dos checked inside the open transaction, announced once it commits (see onTodoChecked). */
   private pendingChecked: string[] = []
   private readonly todoListeners = new Set<(id: string) => void>()
+  /** Pages whose content the open transaction wrote, and the rows of the Tasks database: for the activity log. */
+  private pendingEdited = new Set<string>()
+  private pendingTasks: TaskWrite[] = []
+  /** The local activity log (./activity.ts): what was opened, edited and done, buffered and written in batches. */
+  readonly activity: ActivityLog
 
   constructor(
     private readonly db: SqlDriver,
@@ -161,10 +186,22 @@ export class Repository {
       transaction: (fn) => this.transaction(fn),
       cleanProps: (props) => chartProps(mergeProps({}, props))
     })
+    this.activity = new ActivityLog({
+      stmt: (sql) => this.stmt(sql),
+      transaction: (fn) => this.transaction(fn),
+      clock: () => this.clock(),
+      getSetting: (key) => this.getSetting(key)
+    })
   }
 
   /** Folds the WAL back into the main file and closes the database. */
   close(): void {
+    try {
+      // What the activity log still holds in memory is written before the database closes.
+      this.activity.flush()
+    } catch (err) {
+      console.error('[activity] could not write the log', err)
+    }
     this.stmts.clear()
     try {
       // Refreshes planner statistics only where they look stale, on a bounded sample.
@@ -231,7 +268,11 @@ export class Repository {
     this.pendingResets = new Set()
     this.versions.begin()
     this.pendingChecked = []
+    this.pendingEdited = new Set()
+    this.pendingTasks = []
     let checked: string[] = []
+    let edited: string[] = []
+    let tasks: TaskWrite[] = []
     try {
       const result = fn()
       this.versions.beforeCommit(this.bulkCheck)
@@ -243,6 +284,8 @@ export class Repository {
       if (this.pending.size) this.generation++
       for (const id of this.pendingResets) this.resets.add(id)
       checked = this.pendingChecked
+      edited = [...this.pendingEdited]
+      tasks = this.pendingTasks
       return result
     } catch (err) {
       try {
@@ -261,8 +304,11 @@ export class Repository {
       this.containers = new Map()
       this.pendingResets = new Set()
       this.pendingChecked = []
+      this.pendingEdited = new Set()
+      this.pendingTasks = []
       // Outside the transaction: a listener may write.
       if (checked.length > 0) this.announceChecked(checked)
+      if (edited.length > 0 || tasks.length > 0) this.activity.afterCommit(edited, tasks)
     }
   }
 
@@ -693,6 +739,7 @@ export class Repository {
     const page = this.containerOf(id)
     if (page === null || this.touched.has(page)) return
     this.touched.add(page)
+    this.pendingEdited.add(page)
     this.stmt('UPDATE blocks SET updated_at = ? WHERE id = ?').run(this.now(), page)
   }
 
@@ -812,6 +859,7 @@ export class Repository {
     this.insertRow({ id, type: input.type, parentId, content: [], props, createdAt: now, updatedAt: now, trashedAt: null })
     this.attach(parentId, id, input.afterId)
     this.touchPage(parentId)
+    if (isTaskRow(input.type, parentId)) this.pendingTasks.push({ before: null, after: props })
     return id
   }
 
@@ -885,6 +933,7 @@ export class Repository {
     this.touched.add(id)
     if (!isPageLike(type)) this.touchPage(r.parent_id)
     if (type === 'to_do' && oldType === 'to_do' && before.checked !== true && props.checked === true) this.pendingChecked.push(id)
+    if (patch.props && isTaskRow(type, r.parent_id)) this.pendingTasks.push({ before, after: props })
   }
 
   move(id: string, parentId: string | null, afterId?: string | null): Block {
@@ -1037,14 +1086,21 @@ export class Repository {
           throw new Error('Nothing can be added to Meditations but the line of a day')
       }
       this.dirty(parentId)
-      const rootId = randomUUID()
+      /** A given id must be new: a tree never writes over a block. */
+      const idOf = (node: TreeInput): string => {
+        if (node.id === undefined) return randomUUID()
+        assertId(node.id)
+        if (this.head(node.id)) throw new Error(`Block already exists: ${node.id}`)
+        return node.id
+      }
+      const rootId = idOf(root)
       // Explicit stack (post-order): a row is written once the ids of its children are known.
       const stack: Frame[] = [{ id: rootId, node: root, parentId, content: [], next: 0 }]
       while (stack.length) {
         const frame = stack[stack.length - 1]
         const kids = frame.node.children ?? []
         if (frame.next < kids.length) {
-          const id = randomUUID()
+          const id = idOf(kids[frame.next])
           frame.content.push(id)
           stack.push({ id, node: kids[frame.next++], parentId: frame.id, content: [], next: 0 })
           continue
@@ -1644,6 +1700,11 @@ export class Repository {
     if (root.props.favorite !== undefined) props.favorite = root.props.favorite
     if (root.props.archivedAt !== undefined) props.archivedAt = root.props.archivedAt
     else delete props.archivedAt
+    // What the AI may read of the page is decided now, not by an older version (shared/aiPrivate.ts).
+    if (root.props.aiPrivate !== undefined) props.aiPrivate = root.props.aiPrivate
+    else delete props.aiPrivate
+    if (root.props.aiPrivateProjects !== undefined) props.aiPrivateProjects = root.props.aiPrivateProjects
+    else delete props.aiPrivateProjects
     const rootNow = this.need(pageId)
     this.putBlock(
       {
@@ -1710,6 +1771,9 @@ export class Repository {
     if (title.length || sourceIdOf(root) === null) props.title = [...title, [` (restored ${stamp})`]]
     delete props.favorite
     delete props.archivedAt
+    // A copy of a page kept private from the AI is private too.
+    if (root.props.aiPrivate === true) props.aiPrivate = true
+    if (root.props.aiPrivateProjects !== undefined) props.aiPrivateProjects = root.props.aiPrivateProjects
     tree.props = props
     const copy = this.createTree(tree, root.parentId, root.id)
     if (pages)
@@ -1719,6 +1783,152 @@ export class Repository {
     if (views) notes.push(`${views} linked ${views === 1 ? 'view was' : 'views were'} left out because the database no longer exists.`)
     if (lost) notes.push(`${lost} ${lost === 1 ? 'row was' : 'rows were'} deleted forever and could not be copied.`)
     return { pageId: copy.id, backupId: null, notes }
+  }
+
+  // ----------------------------------------------------------- from a backup
+
+  /**
+   * Brings pages back as a backup has them (see ../data/pageRestore.ts, which reads them out of
+   * the backup), in one transaction, and touches nothing else. `pages` come with the chosen page
+   * first and every other one after the page above it.
+   * - A page that no longer exists comes back first, under its own ids where they are free, and
+   *   where it was when that block is still there (the root of the workspace otherwise).
+   * - A page that exists (in the Trash too) is made equal to the backup the way a version is
+   *   restored (restoreReplace): it keeps a `restore` version of what it was, and the pages made
+   *   since are kept at its end. Without `adoptAll`, the nested pages it held are only put back
+   *   when they are still inside it: one moved elsewhere or put in the Trash since is left alone.
+   * - A page in `missing` mode only comes back when it no longer exists (the rows of a database).
+   */
+  restoreFromBackup(
+    pages: readonly BackupPage[],
+    at: number,
+    adoptAll: boolean
+  ): { pageId: string; title: string; pages: number; notes: string[] } {
+    if (!pages.length) throw new Error('Nothing to restore')
+    return this.transaction(() => {
+      const rootId = pages[0].snapshot.rootId
+      if (rootId === NOTEBOOK_ID || this.isNotebookPage(this.head(rootId)?.parent_id ?? null)) throw new BackupRestoreError('notebook')
+      const missing = new Set<string>()
+      for (const p of pages) if (!this.head(p.snapshot.rootId)) missing.add(p.snapshot.rootId)
+      const created = new Set<string>()
+      const idMap = new Map<string, string>()
+      const notes: string[] = []
+      let written = 0
+      for (const [i, p] of pages.entries()) {
+        if (!missing.has(p.snapshot.rootId)) continue
+        this.insertBackupPage(p, i === 0 ? null : rootId, missing, created, idMap)
+        written++
+      }
+      for (const [i, p] of pages.entries()) {
+        const id = p.snapshot.rootId
+        if (missing.has(id) || p.mode !== 'replace') continue
+        const cur = this.row(id)
+        const was = p.snapshot.blocks[0]
+        const sameKind = !!cur && cur.type === was.type && (sourceIdOf(cur) === null) === (sourceIdOf(was) === null)
+        if (!cur || !sameKind || id === NOTEBOOK_ID) {
+          if (i === 0) throw new BackupRestoreError(id === NOTEBOOK_ID ? 'notebook' : 'kind-changed')
+          notes.push(`"${plainText(was.props.title) || 'Untitled'}" is now another kind of block and was left as it is.`)
+          continue
+        }
+        if (cur.trashedAt !== null) this.restore(id)
+        const snapshot = adoptAll ? p.snapshot : this.withOwnRefs(p.snapshot, missing)
+        const info: VersionInfo = {
+          id: 'backup',
+          pageId: id,
+          createdAt: at,
+          kind: 'restore',
+          label: null,
+          blockCount: snapshot.blocks.length,
+          textSize: snapshotTextSize(snapshot)
+        }
+        notes.push(...this.restoreReplace({ ...snapshot, info }, this.need(id)).notes)
+        written++
+      }
+      return { pageId: rootId, title: plainText(this.row(rootId)?.props.title), pages: written, notes }
+    })
+  }
+
+  /** The snapshot without the nested pages that are no longer inside the page (moved away, in the Trash): those are left alone. */
+  private withOwnRefs(snapshot: SnapshotContent, missing: ReadonlySet<string>): SnapshotContent {
+    const inside = new Set(this.getTree(snapshot.rootId).map((b) => b.id))
+    const refs = snapshot.refs.filter((ref) => {
+      if (missing.has(ref.id)) return true
+      const h = this.head(ref.id)
+      return !!h && h.trashed_at == null && h.parent_id !== null && inside.has(h.parent_id)
+    })
+    return refs.length === snapshot.refs.length ? snapshot : { ...snapshot, refs }
+  }
+
+  /**
+   * Writes a page that no longer exists as the backup has it: its own blocks under their ids
+   * when those are free (a new id otherwise, in `idMap`). Its child lists name only its own
+   * blocks and the pages also being brought back (`missing`), which are written after it and
+   * find their place in them. `fallback` is where a page goes when the block that held it is
+   * gone (the chosen page); null for the chosen page itself, which then goes to the root.
+   */
+  private insertBackupPage(
+    page: BackupPage,
+    fallback: string | null,
+    missing: ReadonlySet<string>,
+    created: Set<string>,
+    idMap: Map<string, string>
+  ): void {
+    const [root, ...own] = page.snapshot.blocks
+    const now = this.now()
+    const ownIds = new Set(own.map((b) => b.id))
+    for (const b of own) {
+      if (this.head(b.id) || created.has(b.id) || missing.has(b.id)) idMap.set(b.id, randomUUID())
+    }
+    const idOf = (id: string): string => idMap.get(id) ?? id
+    const contentOf = (content: string[]): string[] => content.filter((id) => ownIds.has(id) || missing.has(id)).map(idOf)
+
+    const wanted = page.parentId === null ? null : idOf(page.parentId)
+    let parentId: string | null
+    if (wanted !== null && created.has(wanted)) parentId = wanted
+    else if (wanted !== null && this.canHoldRestored(wanted)) parentId = wanted
+    else parentId = fallback
+
+    const props: BlockProps = { ...root.props }
+    // A built-in block exists once: the one sel made since stays the built-in one.
+    delete props.system
+    this.dirty(parentId)
+    this.insertRow({
+      id: root.id,
+      type: root.type,
+      parentId,
+      content: contentOf(root.content),
+      props: root.type === 'database' && sourceIdOf(root) === null ? defaultDatabaseProps(props) : props,
+      createdAt: root.createdAt || now,
+      updatedAt: now,
+      trashedAt: null
+    })
+    created.add(root.id)
+    for (const b of own) {
+      const id = idOf(b.id)
+      this.insertRow({
+        id,
+        type: b.type,
+        parentId: b.parentId === null ? root.id : idOf(b.parentId),
+        content: contentOf(b.content),
+        props: b.props,
+        createdAt: b.createdAt || now,
+        updatedAt: now,
+        trashedAt: null
+      })
+      created.add(id)
+    }
+    // A block written above already names it in its child list.
+    if (parentId === null || !created.has(parentId)) {
+      this.attach(parentId, root.id, undefined)
+      this.touchPage(parentId)
+    }
+  }
+
+  /** True when `id` is a live block a restored page can be put back into. */
+  private canHoldRestored(id: string): boolean {
+    const h = this.head(id)
+    if (!h || this.isLinked(h) || this.isNotebookPage(id) || this.isNotebookPage(h.parent_id)) return false
+    return liveFilter(this.lineage([id]))(id)
   }
 
   // -------------------------------------------------------------------- sync
@@ -1882,6 +2092,7 @@ export class Repository {
     if (value === undefined || value === null) {
       if (key.startsWith('history.')) this.versions.settingsChanged()
       this.stmt('DELETE FROM settings WHERE key = ?').run(key)
+      if (key === ACTIVITY_ENABLED_KEY) this.activity.settingChanged()
       return
     }
     const text = JSON.stringify(value)
@@ -1889,6 +2100,8 @@ export class Repository {
     if (text.length > MAX_SETTING_CHARS) throw new Error('Setting value is too large')
     if (key.startsWith('history.')) this.versions.settingsChanged()
     this.stmt('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, text)
+    // Turned off, the activity log stops at once (and drops what it had not written yet).
+    if (key === ACTIVITY_ENABLED_KEY) this.activity.settingChanged()
   }
 
   isEmpty(): boolean {

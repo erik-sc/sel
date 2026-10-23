@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react'
 import type { BackupStatus } from '@shared/data'
 import { Button } from '@/ui/Button'
+import { TransferSettingsRows } from '@/transfer/TransferSettings'
 import { describeBackups } from './describe'
 import { useDataCopy } from './locale'
+import { RestoreRow } from './RestoreFlow'
 import './data.css'
 
 type Busy = 'idle' | 'busy' | 'failed'
 
 /**
- * Rows of Settings → General → Data: the backups sel keeps on this computer, restoring one, and
- * the whole workspace as Markdown, and the folder of the local log. The main process does all of it, with native dialogs.
+ * Rows of Settings → General → Data: the backups sel keeps on this computer, restoring one (the
+ * guided restore of ./RestoreFlow.tsx), the whole workspace as Markdown, and the folder of the local log.
  */
 export function DataSettingsRows() {
   const { copy, locale } = useDataCopy()
   const [status, setStatus] = useState<BackupStatus | null>(null)
   const [backing, setBacking] = useState<Busy>('idle')
   const [logs, setLogs] = useState<'idle' | 'failed'>('idle')
-  const [restore, setRestore] = useState<{ state: 'idle' | 'busy' | 'restarting' } | { state: 'error'; message: string }>({ state: 'idle' })
   const [exported, setExported] = useState<{ state: 'idle' | 'busy' | 'failed' } | { state: 'done'; pages: number; images: number }>({
     state: 'idle'
   })
@@ -41,18 +42,6 @@ export function DataSettingsRows() {
         setBacking('idle')
       })
       .catch(() => setBacking('failed'))
-  }
-
-  const chooseBackup = (): void => {
-    setRestore({ state: 'busy' })
-    window.api.data
-      .restore()
-      .then((result) => {
-        if (result.outcome === 'restarting') setRestore({ state: 'restarting' })
-        else if (result.outcome === 'invalid') setRestore({ state: 'error', message: copy.fileProblem[result.problem] })
-        else setRestore({ state: 'idle' })
-      })
-      .catch(() => setRestore({ state: 'error', message: copy.somethingWrong }))
   }
 
   const exportAll = (): void => {
@@ -90,19 +79,7 @@ export function DataSettingsRows() {
           </Button>
         </div>
       </div>
-      <div className="ap-row">
-        <div className="ap-row-text">
-          <span className="ap-row-label">{copy.restore}</span>
-          <span className={restore.state === 'error' ? 'ap-row-help is-error' : 'ap-row-help'}>
-            {restore.state === 'error' ? restore.message : copy.restoreHelp}
-          </span>
-        </div>
-        <div className="ap-row-control">
-          <Button disabled={restore.state === 'busy' || restore.state === 'restarting'} onClick={chooseBackup}>
-            {restore.state === 'restarting' ? copy.restarting : copy.chooseBackup}
-          </Button>
-        </div>
-      </div>
+      <RestoreRow status={status} />
       <div className="ap-row">
         <div className="ap-row-text">
           <span className="ap-row-label">{copy.exportAll}</span>
@@ -120,6 +97,7 @@ export function DataSettingsRows() {
           </Button>
         </div>
       </div>
+      <TransferSettingsRows />
       <div className="ap-row">
         <div className="ap-row-text">
           <span className="ap-row-label">{copy.logs}</span>

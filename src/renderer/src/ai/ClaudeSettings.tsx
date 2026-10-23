@@ -1,5 +1,5 @@
 // Settings → AI → Context and Claude's tools. Part of the AI section's chunk.
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { isAiLanguage } from '@shared/ai'
 import {
@@ -22,8 +22,11 @@ import { pageTitle } from '@/shell/actions'
 import { useBlock, useBlockStatus } from '@/store/blocks'
 import { Button } from '@/ui/Button'
 import { notifyError, toast } from '@/ui/toast'
-import { CONTEXT_COPY, type ContextCopy } from './contextCopy'
+import { contextCopy, type ContextCopy } from './contextCopy'
 import { setContextPages, useAiGate } from './gate'
+import { useHerman } from '@/herman/gate'
+import { LockMark } from './PrivateLock'
+import { useAiPrivacy } from './privacy'
 
 /** The language of these settings: the one set for AI answers when it is one of the two, else the system's. */
 function useLocale(): HomeLocale {
@@ -45,7 +48,8 @@ function useLocale(): HomeLocale {
 
 export function ClaudeSettings({ enabled }: { enabled: boolean }): JSX.Element {
   const locale = useLocale()
-  const copy = CONTEXT_COPY[locale]
+  const persona = useHerman((state) => state.persona)
+  const copy = useMemo(() => contextCopy(locale, persona), [locale, persona])
   return (
     <div lang={locale}>
       <ContextGroup copy={copy} enabled={enabled} />
@@ -159,12 +163,15 @@ function ContextGroup({ copy, enabled }: { copy: ContextCopy; enabled: boolean }
 function PinnedPage({ id, copy, onUnpin }: { id: string; copy: ContextCopy; onUnpin: () => void }): JSX.Element {
   const block = useBlock(id)
   const status = useBlockStatus(id)
+  // Pinned before it was made private (here or on another device): it stays listed and is never sent.
+  const privacy = useAiPrivacy(id, true)
   const gone = (!block && status === 'missing') || Boolean(block?.trashedAt)
   return (
     <li className="claude-pinned-item">
       <span className={gone ? 'ap-row-help is-error' : 'claude-pinned-title'}>
         {gone ? copy.missingPage : block ? pageTitle(block) : '…'}
       </span>
+      {!gone && privacy && <LockMark why={copy.privateWhy[privacy.reason]} label={copy.pinnedPrivate} />}
       <Button variant="ghost" onClick={onUnpin}>
         {copy.unpin}
       </Button>

@@ -8,7 +8,12 @@ export interface Moment {
   /** The local hour, 0–23. */
   hour: number
   /** The page in the active tab, when it is a page or a database. */
-  page: { id: string; kind: 'page' | 'database'; empty: boolean } | null
+  page: {
+    id: string
+    kind: 'page' | 'database'
+    empty: boolean /** Private from the AI: nothing of it is offered. */
+    private?: boolean
+  } | null
   /** The Today screen is in front. */
   today: boolean
   /** Open tasks past their date. */
@@ -92,7 +97,8 @@ export function suggestionsFor(moment: Moment, locale: HomeLocale): Suggestion[]
     ranked.push({ weight, suggestion })
   }
 
-  const page = moment.page
+  // A page private from the AI is never the subject of a suggestion: nothing of it is sent.
+  const page = moment.page && !moment.page.private ? moment.page : null
   // A meeting just transcribed: its notes are what is wanted most.
   if (page && moment.meeting) add(100, { id: 'meeting', label: words.meeting, prompt: words.meeting, scope: 'page', run: 'consolidate' })
   if (moment.overdue > 0) {

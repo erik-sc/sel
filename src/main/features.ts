@@ -1,7 +1,9 @@
+import { activityFeature } from './activity/register'
 import { aiFeature } from './ai/register'
 import { alarmsFeature } from './alarms/register'
 import { briefingFeature } from './briefing/register'
 import { dataFeature } from './data/register'
+import { transferFeature } from './transfer/register'
 import { mcpFeature } from './external/register'
 import { feedbackFeature } from './feedback/register'
 import { hermanFeature } from './herman/register'
@@ -32,10 +34,12 @@ export const FEATURES = [
   skyFeature,
   templatesFeature,
   dataFeature,
+  transferFeature,
   feedbackFeature,
   tasksFeature,
   updatesFeature,
-  mcpFeature
+  mcpFeature,
+  activityFeature
 ] as const
 
 /** The namespace of a feature in the list. */

@@ -96,9 +96,9 @@ export function registerBriefingIpc({
     'briefing:brief': async (_args, event) => {
       const b = await briefing()
       const { buildBriefingPrompt } = await import('../ai/prompts')
-      // With Herman on, he is the one who answers ("Ask Herman about today"): the same request, in his voice.
+      // With Herman on, he is the one who answers ("Ask Herman about today"): the same request, in his voice (or Hermine's).
       return (await ai()).runPrompt(
-        (language, voice) => buildBriefingPrompt(b.service.promptData(), { defaultLanguage: language, voice }),
+        (language, voice, _tools, persona) => buildBriefingPrompt(b.service.promptData(), { defaultLanguage: language, voice, persona }),
         event.sender
       )
     }

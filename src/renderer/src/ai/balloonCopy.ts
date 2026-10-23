@@ -1,6 +1,8 @@
 // The words of the conversation balloon, its "Earlier" list and the log of what the AI applied,
 // in English and in Brazilian Portuguese, chosen like the home's. The persona's name comes in
 // as a parameter. Pure: no React, no DOM.
+import type { PersonaId } from '@shared/herman'
+import { personifyCopy } from '@shared/persona'
 import type { HomeLocale } from '@/home/copy'
 
 export interface BalloonCopy {
@@ -9,7 +11,8 @@ export interface BalloonCopy {
   emptyTitle: { persona: string; today: string; page: string; none: string }
   emptyHelp: { today: string; page: string; none: string }
   suggestions: string
-  placeholder: { persona: (name: string) => string; today: string; page: string; none: string }
+  /** `persona` is in Herman's words: `balloonCopy` says it of the chosen persona. */
+  placeholder: { persona: string; today: string; page: string; none: string }
   message: string
   send: string
   stop: string
@@ -77,7 +80,7 @@ export const BALLOON_COPY: Record<HomeLocale, BalloonCopy> = {
       none: 'Open a page to ask about what is in it.'
     },
     suggestions: 'Suggestions',
-    placeholder: { persona: (name) => `Ask ${name}…`, today: 'Ask about your day…', page: 'Ask about this page…', none: 'Ask anything…' },
+    placeholder: { persona: 'Ask Herman…', today: 'Ask about your day…', page: 'Ask about this page…', none: 'Ask anything…' },
     message: 'Message',
     send: 'Send',
     stop: 'Stop',
@@ -151,7 +154,7 @@ export const BALLOON_COPY: Record<HomeLocale, BalloonCopy> = {
     },
     suggestions: 'Sugestões',
     placeholder: {
-      persona: (name) => `Pergunte a ${name}…`,
+      persona: 'Pergunte ao Herman…',
       today: 'Pergunte sobre o seu dia…',
       page: 'Pergunte sobre esta página…',
       none: 'Pergunte qualquer coisa…'
@@ -213,6 +216,11 @@ export const BALLOON_COPY: Record<HomeLocale, BalloonCopy> = {
     logLabel: 'O que a AI aplicou',
     logHelp: 'Cada Aplicar, com as páginas que mudou e um jeito de desfazer. Só neste aparelho.'
   }
+}
+
+/** The table for a locale, said of the chosen persona (shared/persona.ts). */
+export function balloonCopy(locale: HomeLocale, persona: PersonaId): BalloonCopy {
+  return personifyCopy(BALLOON_COPY[locale], persona, locale)
 }
 
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [

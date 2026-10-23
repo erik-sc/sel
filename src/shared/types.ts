@@ -63,6 +63,13 @@ export interface BlockProps {
    * shown by itself; search still finds it (see Repository.listArchived).
    */
   archivedAt?: number
+  /**
+   * page / database: "Private from AI". It and everything under it never reaches the AI nor the
+   * apps connected over MCP (see shared/aiPrivate.ts).
+   */
+  aiPrivate?: boolean
+  /** database (the Tasks database): the project option ids whose rows are private from the AI. */
+  aiPrivateProjects?: string[]
   /** database only */
   schema?: Record<string, PropertySchema>
   views?: DatabaseView[]
@@ -77,6 +84,11 @@ export interface BlockProps {
    * at the workspace root and cannot be deleted, moved or retyped (see shared/system.ts).
    */
   system?: SystemKind
+  /**
+   * The built-in Tasks database only: what each project is for (objective, next action,
+   * milestones), by the id of its Project option. Read through shared/tasks/projects.ts.
+   */
+  projects?: Record<string, unknown>
   /** page that is a database row: propertyId -> value */
   values?: Record<string, PropertyValue>
   /** database: drawn in one row with the database block before it (see editor/layout.ts) */

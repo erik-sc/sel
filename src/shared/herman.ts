@@ -57,9 +57,50 @@ export const HERMAN_SEASONAL_SKINS: Partial<Record<HermanSkinId, number>> = { sa
 
 /** The skin he wears today: a seasonal skin out of its month, or with seasonal skins off, falls back to the classic one. */
 export function wornSkin(skin: HermanSkinId, seasonal: boolean, today: Date = new Date()): HermanSkinId {
-  const month = HERMAN_SEASONAL_SKINS[skin]
+  return worn(HERMAN_SEASONAL_SKINS, skin, seasonal, today)
+}
+
+function worn<T extends string>(seasons: Partial<Record<T, number>>, skin: T, seasonal: boolean, today: Date): T | 'classic' {
+  const month = seasons[skin]
   if (month === undefined) return skin
   return seasonal && today.getMonth() + 1 === month ? skin : 'classic'
+}
+
+// ---- the persona ---------------------------------------------------------------
+
+/**
+ * Who the assistant is: Herman, or Hermine (his counterpart, from Hesse's Steppenwolf). Only the
+ * figure, the name, the pronoun and the words of the prompt that name and describe the persona
+ * change: the same voices, nudges, rules and animations serve both (see shared/persona.ts).
+ */
+export const PERSONAS = ['herman', 'hermine'] as const
+export type PersonaId = (typeof PERSONAS)[number]
+
+export const PERSONA_NAMES: Record<PersonaId, string> = { herman: 'Herman', hermine: 'Hermine' }
+
+/** What Hermine 64 wears (scripts/hermine64/skins.mjs renders each one). Her classic one is the default. */
+export const HERMINE_SKINS = [
+  'classic',
+  'astronomer',
+  'gardener',
+  'hacker',
+  'monk',
+  'aviator',
+  'painter',
+  'librarian',
+  'captain',
+  'astronaut',
+  'witch',
+  'winter'
+] as const
+export type HermineSkinId = (typeof HERMINE_SKINS)[number]
+
+/** Her skins of a season, under the same rule as his (see wornSkin). */
+export const HERMINE_SEASONAL_SKINS: Partial<Record<HermineSkinId, number>> = { witch: 10, winter: 12 }
+
+/** The skin she wears today: as wornSkin, with her own seasons. */
+export function wornHermineSkin(skin: HermineSkinId, seasonal: boolean, today: Date = new Date()): HermineSkinId {
+  return worn(HERMINE_SEASONAL_SKINS, skin, seasonal, today)
 }
 
 /** The hours he keeps silent, as minutes of the local day. They may span midnight; equal ends mean none. */
@@ -78,6 +119,9 @@ export interface HermanSettings {
   corner: HermanCorner
   skin: HermanSkinId
   seasonalSkins: boolean
+  /** Who the assistant is. Each persona keeps its own skin: `skin` is his, `hermineSkin` hers. */
+  persona: PersonaId
+  hermineSkin: HermineSkinId
 }
 
 export const HERMAN_DEFAULTS: HermanSettings = {
@@ -89,7 +133,9 @@ export const HERMAN_DEFAULTS: HermanSettings = {
   size: 'small',
   corner: 'bottom-right',
   skin: 'classic',
-  seasonalSkins: false
+  seasonalSkins: false,
+  persona: 'herman',
+  hermineSkin: 'classic'
 }
 
 /** The languages his own lines are written in. */
@@ -198,7 +244,9 @@ export const HERMAN_PREFERENCE_KEYS = [
   'herman.quietHours',
   'herman.size',
   'herman.skin',
-  'herman.seasonalSkins'
+  'herman.seasonalSkins',
+  'herman.persona',
+  'herman.hermineSkin'
 ] as const
 /** Device-local state: where he sits in this window. */
 export const HERMAN_DEVICE_KEYS = ['herman.corner'] as const
@@ -225,6 +273,10 @@ export function cleanHermanSetting(key: string, value: unknown): unknown {
       return typeof value === 'boolean' ? value : undefined
     case 'herman.skin':
       return oneOf(HERMAN_SKINS, value)
+    case 'herman.hermineSkin':
+      return oneOf(HERMINE_SKINS, value)
+    case 'herman.persona':
+      return oneOf(PERSONAS, value)
     case 'herman.voice':
       return oneOf(HERMAN_VOICES, value)
     case 'herman.frequency':

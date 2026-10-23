@@ -9,7 +9,8 @@ import { openPage } from '@/store/tabs'
 import { Button } from '@/ui/Button'
 import { notifyError, toast } from '@/ui/toast'
 import { checkUndo, loadAppliedLog, undoAppliedEntry, useAppliedLog } from './appliedStore'
-import { BALLOON_COPY, whenText } from './balloonCopy'
+import { usePersona } from '@/herman/gate'
+import { balloonCopy, whenText } from './balloonCopy'
 import './ai.css'
 
 /** Lines of what was done shown before "+N". */
@@ -20,7 +21,10 @@ const SHOWN_LINES = 4
  * the first press says so and the second ("Undo anyway") undoes.
  */
 export function UndoControls({ id, onUndone }: { id: string; onUndone?: () => void }): JSX.Element {
-  const copy = BALLOON_COPY[useHome((state) => state.locale)]
+  const copy = balloonCopy(
+    useHome((state) => state.locale),
+    usePersona().persona
+  )
   const [changed, setChanged] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const undo = (force: boolean): void => {
@@ -64,7 +68,7 @@ export function UndoControls({ id, onUndone }: { id: string; onUndone?: () => vo
 
 function Entry({ entry, onOpenPage }: { entry: AppliedEntry; onOpenPage?: () => void }): JSX.Element {
   const locale = useHome((state) => state.locale)
-  const copy = BALLOON_COPY[locale]
+  const copy = balloonCopy(locale, usePersona().persona)
   const extra = entry.done.length - SHOWN_LINES
   return (
     <li className={entry.undoneAt ? 'ai-log-entry is-undone' : 'ai-log-entry'}>
@@ -110,7 +114,10 @@ function Entry({ entry, onOpenPage }: { entry: AppliedEntry; onOpenPage?: () => 
 }
 
 export function AppliedLog({ onOpenPage }: { onOpenPage?: () => void }): JSX.Element {
-  const copy = BALLOON_COPY[useHome((state) => state.locale)]
+  const copy = balloonCopy(
+    useHome((state) => state.locale),
+    usePersona().persona
+  )
   const entries = useAppliedLog((state) => state.entries)
   const loaded = useAppliedLog((state) => state.loaded)
   useEffect(() => {

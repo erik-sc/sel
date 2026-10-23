@@ -6,6 +6,7 @@ import { setSettingsOpen, useUi } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
 import { Close } from '@/ui/icons'
 import { Modal } from '@/ui/Modal'
+import { personaTitle, useHerman } from '@/herman/gate'
 import { SETTINGS_SECTIONS, type SettingsSection } from './settingsSections'
 
 /** One Settings window per app window: its title names the dialog. */
@@ -24,6 +25,8 @@ function SettingsBody() {
   const requested = useUi((state) => state.settingsSection)
   const [section, setSection] = useState<SettingsSection>(() => requested ?? takeSettingsSection() ?? 'general')
   const shown = SETTINGS_SECTIONS.find((entry) => entry.id === section) ?? SETTINGS_SECTIONS[0]
+  // The section `herman` is named after the chosen persona: "Herman" or "Hermine".
+  useHerman((state) => state.persona)
 
   // Something outside asked for a section (the sync indicator): show it, once.
   useEffect(() => {
@@ -46,13 +49,13 @@ function SettingsBody() {
             aria-current={entry.id === section ? 'page' : undefined}
             onClick={() => setSection(entry.id)}
           >
-            {entry.label}
+            {personaTitle(entry.label)}
           </button>
         ))}
       </nav>
       <div className="settings2-main">
         <header className="settings2-header">
-          <h2>{shown.label}</h2>
+          <h2>{personaTitle(shown.label)}</h2>
           <IconButton label="Close" tooltip={false} onClick={() => setSettingsOpen(false)}>
             <Close />
           </IconButton>

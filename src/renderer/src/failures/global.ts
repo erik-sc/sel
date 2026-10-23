@@ -1,6 +1,7 @@
 // What a window does about failures nobody caught, and the notices the main process sends.
 // Started once per window by main.tsx.
 import type { AppNotice } from '@shared/api'
+import { setSettingsOpen, useUi } from '@/store/ui'
 import { createThrottle } from '@/ui/throttle'
 import { notifyError, toast } from '@/ui/toast'
 import { failureCopy } from './notify'
@@ -26,8 +27,20 @@ export function watchFailures(): void {
 }
 
 function show(notice: AppNotice): void {
+  const copy = failureCopy()
+  if (notice === 'database-damaged') {
+    // Calm, and there until dismissed: the way back is a backup, one click away.
+    toast(copy.notice[notice], { kind: 'info', duration: 0, action: { label: copy.openBackups, run: openDataSettings } })
+    return
+  }
   // "Save and restart" stays until it is dismissed.
-  toast(failureCopy().notice[notice], { kind: 'error', duration: notice === 'crashed' ? 0 : undefined })
+  toast(copy.notice[notice], { kind: 'error', duration: notice === 'crashed' ? 0 : undefined })
+}
+
+/** Settings → General, where the backups and the guided restore are. */
+function openDataSettings(): void {
+  useUi.setState({ settingsSection: 'general' })
+  setSettingsOpen(true)
 }
 
 /** What the main process has to say: what it said before this window was ready, then as it comes. */
