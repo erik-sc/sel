@@ -10,6 +10,7 @@
  *
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
+import type { CommandSpec } from './commands'
 import type { InvokeChannels } from './ipc'
 import type { SettingsSpec } from './settings'
 
@@ -74,8 +75,22 @@ export function activityEnabled(stored: unknown): boolean {
   return stored !== false
 }
 
+/**
+ * The weekly word about your rhythm (D4): once a week at most, the persona says one short thing it
+ * noticed in the log (main/activity/rhythm.ts), worked out on this computer without AI. Off unless
+ * turned on; not synced.
+ */
+export const ACTIVITY_RHYTHM_KEY = 'activity.rhythm'
+
+export function rhythmEnabled(stored: unknown): boolean {
+  return stored === true
+}
+
+/** The week (its local Monday) and the kind of the last word about the rhythm. Only main writes it. */
+export const ACTIVITY_RHYTHM_SAID_KEY = 'activity.rhythmSaid'
+
 export const ACTIVITY_SETTINGS: SettingsSpec = {
-  keys: [ACTIVITY_ENABLED_KEY],
+  keys: [ACTIVITY_ENABLED_KEY, ACTIVITY_RHYTHM_KEY],
   clean: (_key, value) => (typeof value === 'boolean' ? value : undefined)
 }
 
@@ -122,6 +137,8 @@ export interface ActivitySummary {
   transitions: ActivityTransition[]
   /** Time spent per area, from one `open` to the next (each visit capped, see ACTIVITY_IDLE_MS). */
   timeByArea: { area: string; ms: number }[]
+  /** Time spent per area in each week of the span (weeks start on Monday, local; `week` is its Monday), oldest first. */
+  byWeek: { week: string; areas: { area: string; ms: number }[] }[]
   /** Pages opened on the most days: the ones that pull you back (at most 10). */
   returning: { pageId: string; days: number; opens: number }[]
 }
@@ -154,6 +171,19 @@ export const ACTIVITY_INVOKE = {
   'activity:clear': true
 } as const satisfies Record<InvokeChannels<{ activity: ActivityApi }>, true>
 
+/** The way to the Fluxos screen (see ./commands.ts). */
+export const ACTIVITY_COMMANDS = [
+  {
+    id: 'open-flows',
+    menu: { submenu: 'view', label: 'Flows', order: 265 },
+    palette: {
+      title: 'Flows',
+      keywords: ['fluxos', 'heatmap', 'rhythm', 'ritmo', 'activity', 'atividade', 'where your time goes', 'para onde você vai'],
+      order: 115
+    }
+  }
+] as const satisfies readonly CommandSpec[]
+
 // ---- words ------------------------------------------------------------------------
 
 export interface ActivityCopy {
@@ -166,6 +196,8 @@ export interface ActivityCopy {
   confirm: string
   cleared: string
   failed: string
+  rhythmLabel: string
+  rhythmHelp: string
 }
 
 export const ACTIVITY_COPY: Record<'en' | 'pt-BR', ActivityCopy> = {
@@ -179,7 +211,9 @@ export const ACTIVITY_COPY: Record<'en' | 'pt-BR', ActivityCopy> = {
     clear: 'Delete history',
     confirm: 'Delete it all?',
     cleared: 'History deleted.',
-    failed: 'Something went wrong.'
+    failed: 'Something went wrong.',
+    rhythmLabel: 'A word about your rhythm',
+    rhythmHelp: 'Once a week at most, the assistant mentions one thing it noticed in this history. Worked out on this computer, without AI.'
   },
   'pt-BR': {
     label: 'Histórico de atividade',
@@ -191,6 +225,9 @@ export const ACTIVITY_COPY: Record<'en' | 'pt-BR', ActivityCopy> = {
     clear: 'Apagar histórico',
     confirm: 'Apagar tudo?',
     cleared: 'Histórico apagado.',
-    failed: 'Algo deu errado.'
+    failed: 'Algo deu errado.',
+    rhythmLabel: 'Um comentário sobre o seu ritmo',
+    rhythmHelp:
+      'No máximo uma vez por semana, o assistente comenta uma coisa que notou neste histórico. Calculado neste computador, sem AI.'
   }
 }

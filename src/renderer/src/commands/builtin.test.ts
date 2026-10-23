@@ -20,6 +20,7 @@ describe('the built-in commands', () => {
       'refine-tasks',
       'open-notebook',
       'open-sky',
+      'open-flows',
       'close-day',
       'new-meeting',
       'toggle-assistant',

@@ -200,6 +200,7 @@ export function summarize(rows: readonly ActivityRow[], query: ActivityQuery, no
     byProject: countsByProject(counted),
     transitions: transitions(span),
     timeByArea: timeByArea(span, Math.min(to, now)),
+    byWeek: timeByAreaPerWeek(span, Math.min(to, now)),
     returning: returningPages(span, 10, local)
   }
 }

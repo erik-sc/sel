@@ -63,6 +63,7 @@ const VIEW = [
   'Add a Task… (CmdOrCtrl+Alt+A)',
   'Meditations (CmdOrCtrl+Alt+N)',
   'Sky (CmdOrCtrl+Alt+G)',
+  'Flows',
   'Close the Day',
   'Start a Pomodoro (CmdOrCtrl+Alt+P)',
   '—',

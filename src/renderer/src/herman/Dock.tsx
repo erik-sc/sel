@@ -9,6 +9,7 @@ import type { HermanCommand, HermanCorner, HermanFeedback, HermanNudge, HermanSt
 import { toggleAssistant, useAiGate } from '@/ai/gate'
 import { announcementActions, putAway, useAlarms, type AnnouncementAction } from '@/alarms/gate'
 import { openToday } from '@/briefing/route'
+import { openFlows } from '@/flows/route'
 import { newMeeting } from '@/meetings/gate'
 import { openCloseDay } from '@/notebook/route'
 import { startRefine } from '@/tasks/gate'
@@ -402,6 +403,9 @@ export function Dock(): JSX.Element | null {
         break
       case 'refine-inbox':
         startRefine('inbox')
+        break
+      case 'open-flows':
+        openFlows()
         break
       case 'open-page':
         if (isBlockId(command.pageId)) openPage(command.pageId)
