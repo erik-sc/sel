@@ -211,6 +211,38 @@ export function inspectDatabase(open: ReadOnlyOpener, file: string): DatabaseChe
   }
 }
 
+/** What `checkIntegrity` found: `unreadable` is a file that could not be opened for some other reason (locked, gone). */
+export type Integrity = 'ok' | 'damaged' | 'unreadable'
+
+/**
+ * SQLite's own check of a database file (`PRAGMA quick_check`: every page and index entry is
+ * well formed, without the slower cross-checks of `integrity_check`), on a read-only connection.
+ * What the app runs on the open database once the first window is up (see ./register.ts).
+ */
+export function checkIntegrity(open: ReadOnlyOpener, file: string): Integrity {
+  let db: SqlDriver
+  try {
+    db = open(file)
+  } catch (err) {
+    return isDamageError(err) ? 'damaged' : 'unreadable'
+  }
+  try {
+    const rows = db.prepare('PRAGMA quick_check').all() as { quick_check?: string }[]
+    return rows.length === 1 && rows[0].quick_check === 'ok' ? 'ok' : 'damaged'
+  } catch (err) {
+    // The check itself failing is damage too (a full-text index it cannot read raises a plain
+    // SQLITE_ERROR), unless the file was only busy or could not be read just then.
+    const busy = /busy|locked|i\/o error|unable to open/i.test(err instanceof Error ? err.message : String(err))
+    return busy && !isDamageError(err) ? 'unreadable' : 'damaged'
+  } finally {
+    try {
+      db.close()
+    } catch {
+      /* closing a read-only handle cannot lose anything */
+    }
+  }
+}
+
 /** What a backup needs of the open database. */
 export interface CopySource {
   copyTo(file: string): void

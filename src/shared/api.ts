@@ -254,10 +254,11 @@ export interface Api {
 /**
  * What the main process asks a window to tell the user; the words are the renderer's.
  * `crashed`: an exception nobody caught, the app may be in a bad state. `seed-failed`: the
- * first-run welcome page could not be made (tried again on the next start).
+ * first-run welcome page could not be made (tried again on the next start). `database-damaged`:
+ * SQLite's check of the database at start found a problem (see main/data/register.ts).
  */
-export type AppNotice = 'crashed' | 'seed-failed'
-export const APP_NOTICES: readonly AppNotice[] = ['crashed', 'seed-failed']
+export type AppNotice = 'crashed' | 'seed-failed' | 'database-damaged'
+export const APP_NOTICES: readonly AppNotice[] = ['crashed', 'seed-failed', 'database-damaged']
 
 /** What `app.log` sends: strings only, capped by the main process. */
 export interface RendererLogEntry {
