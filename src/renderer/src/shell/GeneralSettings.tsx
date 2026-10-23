@@ -1,6 +1,7 @@
 // The General section of Settings: the theme, pages, data, updates and what sel is.
 import { useState } from 'react'
 import type { Theme } from '@shared/types'
+import { ActivitySettingsRows } from '@/activity/ActivitySettings'
 import { Segmented } from '@/appearance/controls'
 import { DataSettingsRows } from '@/backup/DataSettings'
 import { HomeSettingsRows } from '@/home/HomeSettings'
@@ -86,6 +87,7 @@ export function GeneralSection() {
         </div>
         <div className="ap-list">
           <DataSettingsRows />
+          <ActivitySettingsRows />
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Import Markdown</span>

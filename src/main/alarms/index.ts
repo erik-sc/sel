@@ -123,6 +123,7 @@ export class AlarmsBridge {
     const [{ service }, { buildBriefingPrompt }] = await Promise.all([this.ctx.ai(), import('../ai/prompts')])
     const data = await this.ctx.promptData()
     if (signal.aborted) throw new Error('aborted')
+    this.ctx.repo.activity.record({ kind: 'ai', area: 'alarm' })
     return new Promise((resolve, reject) => {
       let text = ''
       const id = service.run(

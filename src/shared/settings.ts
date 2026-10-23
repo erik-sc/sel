@@ -7,6 +7,7 @@
  * What changing a setting does in the main process (a timer that follows, a cache that goes
  * stale) belongs to the feature's main side: its `onSettingChanged` in src/main/features.ts.
  */
+import { ACTIVITY_SETTINGS } from './activity'
 import { ALARMS_SETTINGS } from './alarms'
 import { AI_SETTINGS } from './ai'
 import { BRIEFING_SETTINGS } from './briefing'
@@ -64,7 +65,8 @@ export const SETTINGS: readonly SettingsSpec[] = [
   ALARMS_SETTINGS,
   POMODORO_SETTINGS,
   SKY_SETTINGS,
-  REFINE_SETTINGS
+  REFINE_SETTINGS,
+  ACTIVITY_SETTINGS
 ]
 
 /** The spec a key is written under: one that names it exactly, else one that owns its namespace; null when none does. */

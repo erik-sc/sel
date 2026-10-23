@@ -1,3 +1,4 @@
+import { ACTIVITY_INVOKE, type ActivityApi } from './activity'
 import { AI_INVOKE, type AiApi } from './ai'
 import { ALARMS_INVOKE, type AlarmsApi } from './alarms'
 import { SYNC_INVOKE, type SyncApi } from './sync'
@@ -215,6 +216,11 @@ export interface Api {
    * is a sky. Derived from the notes, plus a few happenings written under `sel-sky`. See shared/sky.
    */
   sky: SkyApi
+  /**
+   * The local activity log: screens and pages a window shows go in, aggregates for the heatmaps
+   * come out. Never synced, never sent to AI. See shared/activity.ts.
+   */
+  activity: ActivityApi
 
   app: {
     getTheme(): Promise<Theme>
@@ -362,7 +368,8 @@ export const INVOKE = {
   ...MCP_INVOKE,
   ...ALARMS_INVOKE,
   ...POMODORO_INVOKE,
-  ...SKY_INVOKE
+  ...SKY_INVOKE,
+  ...ACTIVITY_INVOKE
 } as const satisfies Record<InvokeChannel, true>
 
 export const FILE_PROTOCOL = 'sel-file'
