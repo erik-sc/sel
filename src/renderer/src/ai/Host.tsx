@@ -1,35 +1,25 @@
-// Mount points for the AI surfaces that live in the shell. The assistant panel and the setup
+// Mount points for the AI surfaces that live in the shell. The conversation balloon and the setup
 // sheet are fetched the first time they are shown; nothing of them is in the start-up bundle.
 import { Suspense, lazy, useEffect, useState } from 'react'
 import type { JSX } from 'react'
-import { WindowControls } from '@/shell/WindowControls'
 import { useAiGate } from './gate'
 
-const loadPanel = (): Promise<typeof import('./AssistantPanel')> => import('./AssistantPanel')
-const AssistantPanel = lazy(() => loadPanel().then((module) => ({ default: module.AssistantPanel })))
+const loadBalloon = (): Promise<typeof import('./Balloon')> => import('./Balloon')
+const Balloon = lazy(() => loadBalloon().then((module) => ({ default: module.Balloon })))
 const SetupSheet = lazy(() => import('./SetupSheet').then((module) => ({ default: module.SetupSheet })))
 
-/** Starts fetching the assistant panel; call it when its trigger is about to be used. */
+/** Starts fetching the balloon; call it when its trigger is about to be used. */
 export function preloadAssistant(): void {
-  void loadPanel().catch(() => undefined)
+  void loadBalloon().catch(() => undefined)
 }
 
-/** The assistant panel: a third panel of the shell, to the right of the content sheet and as tall as the window. */
-export function AssistantDock(): JSX.Element | null {
-  const open = useAiGate((state) => state.enabled && state.panelOpen)
+/** The conversation balloon, over the page area by the persona's corner. Renders nothing while closed. */
+export function BalloonHost(): JSX.Element | null {
+  const open = useAiGate((state) => state.enabled && state.balloonOpen)
   if (!open) return null
   return (
-    <Suspense
-      fallback={
-        <aside className="assistant glass" aria-busy="true">
-          <header className="assistant-head">
-            <h2 />
-            <WindowControls />
-          </header>
-        </aside>
-      }
-    >
-      <AssistantPanel />
+    <Suspense fallback={null}>
+      <Balloon />
     </Suspense>
   )
 }

@@ -1,7 +1,6 @@
 /*
- * Herman: the figure, the corner he keeps, his speech bubble, his place in the conversation
- * and on the Today screen. Colours, type sizes and weights, radii, shadows and durations come
- * from the tokens only; the motion is slow and made of multiples of --duration.
+ * Herman: the figure, the corner he keeps, his speech bubble, and his place on the Today screen.
+ * Colours, type sizes and weights, radii, shadows and durations come from the tokens only; the motion is slow and made of multiples of --duration.
  */
 
 /* ---- the figure ---- */
@@ -319,37 +318,11 @@
   white-space: nowrap;
 }
 
-/* ---- in the conversation ---- */
+/* ---- while the conversation balloon is open beside him ---- */
 
-.herman-stage {
-  --herman-size: 168;
-  display: flex;
-  flex: none;
-  justify-content: center;
-  padding: 2px 0 6px;
-  transition: padding calc(var(--duration) * 2) var(--ease);
-}
-
-.herman-stage .herman-figure {
-  --herman-stroke: 2.1;
-  transition:
-    transform calc(var(--duration) * 4) var(--ease),
-    width calc(var(--duration) * 2) var(--ease),
-    height calc(var(--duration) * 2) var(--ease);
-}
-
-.herman-stage.is-large {
-  --herman-size: 168;
-  padding: 14px 0 0;
-}
-
-.herman-stage.is-large .herman-figure {
-  --herman-stroke: 2.4;
-}
-
-.assistant.is-herman .assistant-empty {
-  margin: 0;
-  padding-top: 6px;
+/* A line of his waits behind the balloon (its timer is held) and shows again when it closes. */
+.herman-dock.is-talking .herman-bubble {
+  display: none;
 }
 
 /* ---- on the Today screen ---- */
@@ -404,9 +377,7 @@
   .herman-figure,
   .herman-line,
   .herman-halo,
-  .herman-dock,
-  .herman-stage,
-  .herman-stage .herman-figure {
+  .herman-dock {
     transition: none;
   }
 

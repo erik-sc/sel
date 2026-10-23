@@ -9,6 +9,7 @@ import { AI_COMMANDS } from '@shared/ai'
 import { HERMAN_VOICE_LABELS } from '@shared/herman'
 import { personaOf, personify, personifyCopy, type PersonaLocale } from '@shared/persona'
 import { alarmsCopy } from '@/alarms/copy'
+import { balloonCopy } from '@/ai/balloonCopy'
 import { CONTEXT_COPY, contextCopy } from '@/ai/contextCopy'
 import { SHORTCUT_GROUPS } from '@/shortcuts/catalog'
 import { personaTitle, useHerman } from './gate'
@@ -59,6 +60,7 @@ function namingHerman(code: string): string[] {
  */
 const SAID_OF_THE_PERSONA = [
   'ai/applyActions.ts',
+  'ai/balloonCopy.ts',
   'ai/contextCopy.ts',
   'alarms/AlarmSettings.tsx',
   'alarms/copy.ts',
@@ -78,9 +80,16 @@ describe('the copy, with Hermine chosen', () => {
 
   it('names her, and calls her she, in every table that speaks of the assistant', () => {
     for (const locale of LOCALES) {
-      const tables = [contextCopy(locale, 'hermine'), alarmsCopy(locale, 'hermine'), personifyCopy(HERMAN_VOICE_LABELS, 'hermine', locale)]
+      const tables = [
+        contextCopy(locale, 'hermine'),
+        alarmsCopy(locale, 'hermine'),
+        balloonCopy(locale, 'hermine'),
+        personifyCopy(HERMAN_VOICE_LABELS, 'hermine', locale)
+      ]
       for (const text of tables.flatMap(strings)) expect(text, text).not.toMatch(HIS[locale])
     }
+    expect(balloonCopy('en', 'hermine').placeholder.persona).toBe('Ask Hermine…')
+    expect(balloonCopy('pt-BR', 'hermine').placeholder.persona).toBe('Pergunte à Hermine…')
     expect(alarmsCopy('pt-BR', 'hermine').refineHerman).toBe('Pela Hermine')
     expect(alarmsCopy('pt-BR', 'hermine').refineHermanHelp).toContain('a Hermine oferece refinar')
     expect(contextCopy('pt-BR', 'hermine').allWarning).toBe(

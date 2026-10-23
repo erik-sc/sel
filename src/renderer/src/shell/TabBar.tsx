@@ -13,7 +13,6 @@ import { reportError } from './actions'
 import { routeTitle } from '@/screens'
 import { usePageTitle } from './linked'
 import { PageIcon } from './PageIcon'
-import { useAiGate } from '@/ai/gate'
 import { WindowControls } from './WindowControls'
 import { showOrHideSidebar } from './panels'
 
@@ -322,11 +321,9 @@ function useScrollingStrip(activeId: string | null, count: number) {
 
 // Memoised: the shell re-renders on every frame of a sidebar resize; its panels need not.
 export const TabBar = memo(function TabBar() {
-  const assistantOpen = useAiGate((state) => state.enabled && state.panelOpen)
   const tabs = useTabs((state) => state.tabs)
   const activeId = useTabs((state) => state.activeId)
   const sidebarCollapsed = useUi((state) => state.sidebarCollapsed)
-  const focus = useUi((state) => state.focusMode)
   const [dragId, setDragId] = useState<string | null>(null)
   const strip = useScrollingStrip(activeId, tabs.length)
   const listButton = useRef<HTMLButtonElement>(null)
@@ -403,9 +400,7 @@ export const TabBar = memo(function TabBar() {
         <Plus />
       </IconButton>
       <div className="tabbar-drag" aria-hidden="true" onDoubleClick={() => window.api.app.window.toggleMaximize()} />
-      {/* With the assistant open, its panel holds the corner of the window and the buttons with it
-          (except in focus mode, which hides the panel). */}
-      {(!assistantOpen || focus) && <WindowControls />}
+      <WindowControls />
     </div>
   )
 })

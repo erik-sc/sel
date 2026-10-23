@@ -1,5 +1,5 @@
 /*
- * AI surfaces: the inline prompt bar and preview, the assistant panel, the setup sheet.
+ * AI surfaces: the inline prompt bar and preview, the conversation balloon, the setup sheet.
  * Loaded with whichever of them shows first. Every colour, type size, weight, radius, shadow
  * and duration is a token from styles/tokens.css.
  */
@@ -353,73 +353,184 @@
   text-align: center;
 }
 
-/* ---- assistant panel (its box is in shell.css) ---- */
+/* ---- the conversation balloon (ai/Balloon.tsx; where it goes: ai/placement.ts) ---- */
 
-/* The head is the top edge of the window here: it drags the window, and holds its buttons. */
-.assistant-head {
+/*
+ * It comes out of the persona in its corner of the page area: the box is placed by inline
+ * distances from the area's edges, and a small tail points at the figure while it stands beside it.
+ */
+.ai-balloon {
+  position: absolute;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: 0;
+  border-radius: var(--radius-l);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  color: var(--text);
+  font-family: var(--font-sans);
+  pointer-events: auto;
+  animation: ai-balloon-in calc(var(--duration) * 1.6) var(--ease);
+  transition: opacity calc(var(--duration) * 1.2) var(--ease);
+}
+
+.ai-balloon.is-measuring {
+  visibility: hidden;
+}
+
+@keyframes ai-balloon-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+/* The tail: a corner of a turned square, clipped to the half outside the balloon. */
+.ai-balloon.is-beside::after,
+.ai-balloon.is-above::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.ai-balloon.is-beside.is-right::after {
+  right: -6px;
+  clip-path: polygon(-30% -30%, 160% -30%, 160% 160%);
+}
+
+.ai-balloon.is-beside.is-left::after {
+  left: -6px;
+  clip-path: polygon(-30% -30%, -30% 160%, 160% 160%);
+}
+
+/* At the height of his head: two thirds up the figure from the bottom, a third down from the top. */
+.ai-balloon.is-beside.is-bottom::after {
+  bottom: 52px;
+}
+
+.ai-balloon.is-beside.is-top::after {
+  top: 30px;
+}
+
+.ai-balloon.is-beside.is-bottom.is-figure-medium::after {
+  bottom: 110px;
+}
+
+.ai-balloon.is-beside.is-top.is-figure-medium::after {
+  top: 52px;
+}
+
+/* On top of him (a narrow area): the tail points down at him. */
+.ai-balloon.is-above::after {
+  bottom: -6px;
+  clip-path: polygon(160% -30%, 160% 160%, -30% 160%);
+}
+
+.ai-balloon.is-above.is-right::after {
+  right: 41px;
+}
+
+.ai-balloon.is-above.is-left::after {
+  left: 41px;
+}
+
+.ai-balloon.is-above.is-figure-medium.is-right::after {
+  right: 83px;
+}
+
+.ai-balloon.is-above.is-figure-medium.is-left::after {
+  left: 83px;
+}
+
+/* The caret of the page is under it wherever it goes: it all but disappears, like the persona. */
+.ai-balloon.is-aside {
+  opacity: 0.14;
+}
+
+.ai-balloon.is-aside:hover,
+.ai-balloon.is-aside:focus-within {
+  opacity: 1;
+}
+
+.ai-balloon-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
   flex: none;
-  min-height: var(--tabbar-height);
-  padding: 6px 8px 6px 14px;
-  -webkit-app-region: drag;
+  padding: 8px 8px 4px 14px;
 }
 
-.assistant-head button {
-  -webkit-app-region: no-drag;
-}
-
-.assistant-head h2 {
+.ai-balloon-head h2 {
   flex: 1;
-  margin: 0;
+  min-width: 0;
+  margin: 0 0 0 4px;
+  overflow: hidden;
   font-family: var(--font-display);
   font-size: var(--text-ui);
   font-weight: var(--weight-subheading);
   letter-spacing: var(--tracking-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.assistant-list {
-  flex: 1;
+.ai-balloon-head .ai-badge {
+  width: 22px;
+  padding: 0;
+  justify-content: center;
+}
+
+.ai-balloon-body {
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 4px 14px 14px;
+  padding: 4px 14px 12px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
 }
 
-.assistant-empty {
-  margin: auto 0;
-  padding: 12px 4px;
-  text-align: center;
+.ai-balloon-body:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
 }
 
-.assistant-empty-title {
+.ai-balloon-empty {
+  padding: 6px 2px 0;
+}
+
+.ai-balloon-empty-title {
   margin: 0 0 4px;
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: var(--weight-subheading);
 }
 
-.assistant-empty-help {
-  margin: 0 auto 14px;
-  max-width: 260px;
+.ai-balloon-empty-help,
+.ai-balloon-note {
+  margin: 0 0 10px;
   color: var(--text-secondary);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   line-height: var(--leading-ui);
 }
 
-.assistant-suggestions {
+.ai-suggestions {
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
+  margin-top: 8px;
 }
 
-.assistant-suggestion {
+.ai-suggestion {
   height: var(--control-height);
-  padding: 0 14px;
+  padding: 0 12px;
   border-radius: var(--radius-pill);
   background: var(--fill-3);
   color: var(--text);
@@ -428,23 +539,28 @@
   transition: background var(--duration-fast) var(--ease);
 }
 
-.assistant-suggestion:hover {
+.ai-suggestion:hover {
   background: var(--accent-soft);
   color: var(--accent);
 }
 
-.assistant-message {
+.ai-suggestion:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.ai-message {
   min-width: 0;
   font-size: var(--text-ui);
   line-height: var(--leading-body);
 }
 
-.assistant-message.is-user {
+.ai-message.is-user {
   display: flex;
   justify-content: flex-end;
 }
 
-.assistant-bubble {
+.ai-message-bubble {
   max-width: 86%;
   padding: 7px 12px;
   border-radius: var(--radius-l);
@@ -456,32 +572,33 @@
   user-select: text;
 }
 
-.assistant-message .ai-md .blk-heading_1 > .blk-row > .rt {
+.ai-message .ai-md .blk-heading_1 > .blk-row > .rt {
   font-size: var(--text-h3);
 }
 
-.assistant-message .ai-md .blk-heading_2 > .blk-row > .rt {
+.ai-message .ai-md .blk-heading_2 > .blk-row > .rt {
   font-size: var(--text-lg);
 }
 
-.assistant-message .ai-md .blk-heading_3 > .blk-row > .rt {
+.ai-message .ai-md .blk-heading_3 > .blk-row > .rt {
   font-size: var(--text-body);
 }
 
-.assistant-message .ai-md .blk-heading_1,
-.assistant-message .ai-md .blk-heading_2,
-.assistant-message .ai-md .blk-heading_3 {
+.ai-message .ai-md .blk-heading_1,
+.ai-message .ai-md .blk-heading_2,
+.ai-message .ai-md .blk-heading_3 {
   margin-top: 12px;
 }
 
-.assistant-actions {
+.ai-message-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
   margin: 6px 0 0 -6px;
 }
 
-.assistant-actions button {
+.ai-message-actions button,
+.ai-reply-note button {
   height: 24px;
   padding: 0 8px;
   border-radius: var(--radius-pill);
@@ -493,29 +610,44 @@
     color var(--duration-fast) var(--ease);
 }
 
-.assistant-actions button:hover:not(:disabled) {
+.ai-message-actions button:hover:not(:disabled),
+.ai-reply-note button:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
 
-.assistant-actions button:disabled {
+.ai-message-actions button:disabled {
   color: var(--text-tertiary);
 }
 
-.assistant-foot {
+/* A small line under an answer from elsewhere ("Remembered: …"). */
+.ai-reply-notes {
+  margin-top: 6px;
+}
+
+.ai-reply-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.ai-balloon-foot {
   flex: none;
   padding: 8px 10px 10px;
   border-top: var(--hairline) solid var(--border);
 }
 
-.assistant-context {
+.ai-balloon-context {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 8px;
 }
 
-.assistant-chip {
+.ai-chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -529,10 +661,228 @@
   font-weight: var(--weight-medium);
 }
 
-.assistant-chip.is-selection {
+.ai-chip.is-selection {
   padding-right: 3px;
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.ai-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: inherit;
+}
+
+.ai-chip button:hover {
+  background: var(--bg-hover);
+}
+
+.ai-balloon-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.ai-balloon-composer textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 140px;
+  padding: 7px 10px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-m);
+  outline: none;
+  resize: none;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-ui);
+  line-height: var(--leading-ui);
+  transition:
+    border-color var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+.ai-balloon-composer textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.ai-balloon-composer textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+/* ---- "Earlier" ---- */
+
+.ai-earlier {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -6px;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-earlier-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: var(--radius-s);
+  color: var(--text);
+  font-size: var(--text-md);
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease);
+}
+
+.ai-earlier-item:hover {
+  background: var(--bg-hover);
+}
+
+.ai-earlier-item:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.ai-earlier-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-earlier-when {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.ai-earlier-foot,
+.ai-earlier-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-earlier-foot .ai-balloon-note {
+  flex: 1;
+  margin: 0;
+}
+
+/* ---- the log of what the AI applied (here and in Settings → AI) ---- */
+
+.ai-log {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-log-entry {
+  padding: 10px 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-ui);
+}
+
+.ai-log-entry + .ai-log-entry {
+  border-top: var(--hairline) solid var(--border);
+}
+
+.ai-log-entry.is-undone {
+  color: var(--text-secondary);
+}
+
+.ai-log-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 4px;
+}
+
+.ai-log-request {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.ai-log-when {
+  flex: none;
+  color: var(--text-tertiary);
+}
+
+.ai-log-lines {
+  margin: 0 0 4px;
+  padding: 0 0 0 16px;
+  color: var(--text-secondary);
+}
+
+.ai-log-lines .is-more {
+  list-style: none;
+}
+
+.ai-log-pages {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+}
+
+.ai-log-page {
+  color: var(--accent);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ai-log-state,
+.ai-log-empty {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+/* In Settings → AI the log sits in a box like the rows around it. */
+.ap-group > .ai-log {
+  padding: 2px 12px;
+  border-radius: var(--radius-m);
+  background: var(--fill-4);
+}
+
+.ai-undo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-undo-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.ai-undo-warning {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-balloon {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* ---- a proposal: what the answer would build, and the button that builds it ---- */
@@ -572,61 +922,6 @@
   display: flex;
   gap: 6px;
   margin-top: 10px;
-}
-
-.assistant-chip-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.assistant-chip button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  color: inherit;
-}
-
-.assistant-chip button:hover {
-  background: var(--bg-hover);
-}
-
-.assistant-composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.assistant-composer textarea {
-  flex: 1;
-  min-width: 0;
-  max-height: 160px;
-  padding: 7px 10px;
-  border: var(--hairline) solid var(--border);
-  border-radius: var(--radius-m);
-  outline: none;
-  resize: none;
-  background: var(--bg-elevated);
-  color: var(--text);
-  font: inherit;
-  font-size: var(--text-ui);
-  line-height: var(--leading-ui);
-  transition:
-    border-color var(--duration-fast) var(--ease),
-    box-shadow var(--duration-fast) var(--ease);
-}
-
-.assistant-composer textarea::placeholder {
-  color: var(--text-tertiary);
-}
-
-.assistant-composer textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 /* ---- setup sheet ---- */
