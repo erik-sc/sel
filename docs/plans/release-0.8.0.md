@@ -1,6 +1,6 @@
 # Release 0.8.0 — uma persona que te acompanha
 
-Status: **aprovada** (A3 com memória automática) · 2026-10-22 · pedido do Érik: incrementar a persona e o contexto (com
+Status: **pronta para PR** (A3 com memória automática) · 2026-10-22 · pedido do Érik: incrementar a persona e o contexto (com
 onboarding de AI e a Hermine), trocar o painel lateral do Herman por um balão de conversa, fazer a persona rodar AI
 ao longo do dia, um heatmap para entender fluxos, e mais dois épicos para consolidar o app.
 Branch `release/0.8.0`, cortada de `release/0.7.2` (que já tem: o Council removido, o Refine corrigido, o Contexto
@@ -236,3 +236,25 @@ ou tudo, com um backup automático antes. Checagem de integridade do banco na ab
 - Rotinas (C) gastam a conta do usuário: desligadas por padrão, com limite diário (C5).
 - O registro de atividade (D1) é dado sensível: só local, desligável, apagável, nunca sincronizado nem enviado à AI
   sem o usuário pedir.
+
+---
+
+## Entregue (2026-10-23)
+
+Todos os itens entraram em `release/0.8.0`, cada um numa branch `feat/0.8.0-*` com o seu merge: A1 + A3
+(`onboarding-memory`), A2 (`hermine`), A4 (`project-context`), A5 (`private-ai`), B1–B4 (`balloon`), C1–C5
+(`routines`), D1 (`activity`), D2–D4 (`flows`), E1 (`review`), E2 + E3 (`agenda`), F1 + F2 (`import-export`), F3
+(`restore`), e as capturas (`screens`). Mais a 0.7.2 inteira (Council removido, Refine corrigido, Contexto e MCPs).
+
+**Decisões tomadas pelos agentes, para rever se quiser.** O registro de atividade vem ligado (dá para desligar e
+apagar); a memória usa o modelo haiku e vai em todo pedido; as rotinas tratam 08:00–19:00 como dia de trabalho; a
+"semana" vai de segunda a domingo; a próxima ação de um projeto é só a escolhida (sem escolha, o projeto aparece
+marcado); a observação semanal do ritmo vem desligada.
+
+**Falta / para depois.**
+- Títulos de páginas privadas ainda aparecem em células de relação e links dentro de páginas públicas (A5).
+- Ações de AI inline continuam oferecidas no editor de uma página privada (são recusadas ao usar).
+- Respostas de rotinas guardadas só na memória: fechar o app antes de a persona falar perde a resposta do dia.
+- Importação: anexos que não são imagem ficam como texto; relações/rollups do Notion entram como texto.
+- Comparação de backup não medida em workspaces muito grandes.
+- Citações de linha em `docs/codebase-knowledge` merecem um passe do verificador.
