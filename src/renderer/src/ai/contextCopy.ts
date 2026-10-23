@@ -1,7 +1,8 @@
 // The words of Settings → AI → Context and Claude's tools, of the page menu's "pin as context"
-// and of the line under an answer that says what went along, in English and in Brazilian
-// Portuguese, chosen like the home's. Pure: no React, no DOM.
+// and "Private from AI", and of the line under an answer that says what went along, in English
+// and in Brazilian Portuguese, chosen like the home's. Pure: no React, no DOM.
 import type { AiSent, McpAccess, McpScope } from '@shared/aiContext'
+import type { AiPrivacyReason } from '@shared/aiPrivate'
 import type { HomeLocale } from '@/home/copy'
 
 export interface ContextCopy {
@@ -51,6 +52,23 @@ export interface ContextCopy {
   unpinPage: string
   pinFull: (cap: number) => string
   pinFailed: string
+  /** Refusing to pin a page private from the AI, and why. */
+  pinPrivate: string
+  /** A pinned page that is private now: listed, never sent. */
+  pinnedPrivate: string
+
+  /** "Private from AI": the menu toggle, the lock's label. */
+  private: string
+  /** Why it is private, said on the lock (tooltip and screen readers). */
+  privateWhy: Record<AiPrivacyReason, string>
+  privateOn: string
+  privateOff: string
+  privateFailed: string
+  /** A project of Tasks: the toggle and its lock. */
+  projectPrivate: string
+  /** The assistant panel on a private page. */
+  panelPrivate: string
+  panelPrivateChip: string
 
   sentLabel: string
   sentContext: string
@@ -117,6 +135,22 @@ export const CONTEXT_COPY: Record<HomeLocale, ContextCopy> = {
     unpinPage: 'Stop using as context for Claude',
     pinFull: (cap) => `Up to ${cap} pages can be pinned as context. Unpin one in Settings → AI.`,
     pinFailed: 'The page could not be pinned.',
+    pinPrivate: 'This page is private from the AI, so it cannot go along as context. Turn off "Private from AI" in its ⋯ menu first.',
+    pinnedPrivate: 'Private from AI: kept here, never sent',
+
+    private: 'Private from AI',
+    privateWhy: {
+      self: 'Private from AI: nothing of it goes to Claude, nor to the apps connected to sel.',
+      ancestor: 'Private from AI: it is inside a page that is.',
+      project: 'Private from AI: its project is.',
+      source: 'Private from AI: it shows a database that is.'
+    },
+    privateOn: 'Private from AI. Nothing of it goes to Claude, nor to the apps connected to sel.',
+    privateOff: 'No longer private from AI.',
+    privateFailed: 'Could not change "Private from AI".',
+    projectPrivate: 'Project private from AI',
+    panelPrivate: 'This page is private from the AI: nothing of it is sent, not even the selection. You can still ask something general.',
+    panelPrivateChip: 'Private page: not sent',
 
     sentLabel: 'Sent along',
     sentContext: 'your context',
@@ -183,6 +217,23 @@ export const CONTEXT_COPY: Record<HomeLocale, ContextCopy> = {
     unpinPage: 'Deixar de usar como contexto para o Claude',
     pinFull: (cap) => `Dá para fixar até ${cap} páginas como contexto. Desafixe uma em Configurações → AI.`,
     pinFailed: 'Não foi possível fixar a página.',
+    pinPrivate:
+      'Esta página é privada para a AI, então não pode ir junto como contexto. Desligue "Privado para a AI" no menu ⋯ dela antes.',
+    pinnedPrivate: 'Privado para a AI: fica aqui, nunca é enviado',
+
+    private: 'Privado para a AI',
+    privateWhy: {
+      self: 'Privado para a AI: nada disso vai para o Claude nem para os apps conectados ao sel.',
+      ancestor: 'Privado para a AI: está dentro de uma página que é.',
+      project: 'Privado para a AI: o projeto é.',
+      source: 'Privado para a AI: mostra um database que é.'
+    },
+    privateOn: 'Privado para a AI. Nada disso vai para o Claude nem para os apps conectados ao sel.',
+    privateOff: 'Não é mais privado para a AI.',
+    privateFailed: 'Não foi possível mudar "Privado para a AI".',
+    projectPrivate: 'Projeto privado para a AI',
+    panelPrivate: 'Esta página é privada para a AI: nada dela é enviado, nem a seleção. Você ainda pode perguntar algo geral.',
+    panelPrivateChip: 'Página privada: não vai junto',
 
     sentLabel: 'Foi junto',
     sentContext: 'seu contexto',

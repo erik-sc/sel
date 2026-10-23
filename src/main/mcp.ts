@@ -150,8 +150,8 @@ async function call(name: string, args: unknown): Promise<Reply> {
 // ---- MCP -----------------------------------------------------------------------
 
 const INSTRUCTIONS = GRANTED
-  ? "Read-only access to the user's sel workspace: their pages and databases."
-  : "The user's notes in sel, a notes app on this computer: search and read their pages and databases, create pages, add to the end of a page, and add or update rows of a database. Nothing can be deleted. Ids are shown in square brackets after titles; read_database lists the property names and options that rows take. sel must be open for any of it."
+  ? "Read-only access to the user's sel workspace: their pages and databases. What the user keeps private from the AI is left out."
+  : "The user's notes in sel, a notes app on this computer: search and read their pages and databases, create pages, add to the end of a page, and add or update rows of a database. Nothing can be deleted, and what the user keeps private from the AI can be neither read nor changed. Ids are shown in square brackets after titles; read_database lists the property names and options that rows take. sel must be open for any of it."
 
 async function handle(message: Json): Promise<void> {
   const id = message['id']

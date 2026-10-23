@@ -63,6 +63,13 @@ export interface BlockProps {
    * shown by itself; search still finds it (see Repository.listArchived).
    */
   archivedAt?: number
+  /**
+   * page / database: "Private from AI". It and everything under it never reaches the AI nor the
+   * apps connected over MCP (see shared/aiPrivate.ts).
+   */
+  aiPrivate?: boolean
+  /** database (the Tasks database): the project option ids whose rows are private from the AI. */
+  aiPrivateProjects?: string[]
   /** database only */
   schema?: Record<string, PropertySchema>
   views?: DatabaseView[]

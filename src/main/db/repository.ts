@@ -1644,6 +1644,11 @@ export class Repository {
     if (root.props.favorite !== undefined) props.favorite = root.props.favorite
     if (root.props.archivedAt !== undefined) props.archivedAt = root.props.archivedAt
     else delete props.archivedAt
+    // What the AI may read of the page is decided now, not by an older version (shared/aiPrivate.ts).
+    if (root.props.aiPrivate !== undefined) props.aiPrivate = root.props.aiPrivate
+    else delete props.aiPrivate
+    if (root.props.aiPrivateProjects !== undefined) props.aiPrivateProjects = root.props.aiPrivateProjects
+    else delete props.aiPrivateProjects
     const rootNow = this.need(pageId)
     this.putBlock(
       {
@@ -1710,6 +1715,9 @@ export class Repository {
     if (title.length || sourceIdOf(root) === null) props.title = [...title, [` (restored ${stamp})`]]
     delete props.favorite
     delete props.archivedAt
+    // A copy of a page kept private from the AI is private too.
+    if (root.props.aiPrivate === true) props.aiPrivate = true
+    if (root.props.aiPrivateProjects !== undefined) props.aiPrivateProjects = root.props.aiPrivateProjects
     tree.props = props
     const copy = this.createTree(tree, root.parentId, root.id)
     if (pages)

@@ -334,6 +334,31 @@ describe('the endpoint for other apps', () => {
     expect(delivered).toHaveLength(1)
     expect(synced).toBe(1)
   })
+
+  it('keeps what is private from the AI out of reach: not found, not read, not written (shared/aiPrivate.ts)', async () => {
+    const repo = openTestRepository()
+    const open = repo.create({ type: 'page', parentId: null, props: { title: [['Open notes']] } })
+    repo.create({ type: 'text', parentId: open.id, props: { title: [['Shared about the otters']] } })
+    const secret = repo.create({ type: 'page', parentId: open.id, props: { title: [['Walrus journal']], aiPrivate: true } })
+    repo.create({ type: 'text', parentId: secret.id, props: { title: [['Otters and the Walrus plan']] } })
+    const dir = mkdtempSync(join(tmpdir(), 'sel-mcp-'))
+    dirs.push(dir)
+    const endpoint = await createEndpoint(repo, { userData: dir, ...tokenStore(), changed: () => void repo.drainChanges() })
+    endpoints.push(endpoint)
+    await endpoint.start()
+    const { token } = discovery(dir)
+    const ask = (id: number, name: string, args: Record<string, unknown>): { text?: string; error?: string } =>
+      endpoint.answer(JSON.stringify({ token, id, name, args }))
+    const found = ask(1, 'search', { query: 'otters' }).text ?? ''
+    expect(found).toContain('Open notes')
+    expect(found).not.toContain('Walrus')
+    const parent = ask(2, 'read_page', { id: open.id }).text ?? ''
+    expect(parent).toContain('Shared about the otters')
+    expect(parent).not.toContain('Walrus')
+    expect(ask(3, 'read_page', { id: secret.id }).error).toMatch(/private/)
+    expect(ask(4, 'append_to_page', { id: secret.id, markdown: 'more' }).error).toMatch(/private/)
+    expect(repo.children(secret.id)).toHaveLength(1)
+  })
 })
 
 describe('the discovery file and the setup snippets', () => {

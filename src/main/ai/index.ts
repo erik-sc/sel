@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { app, dialog, type BrowserWindow, type WebContents } from 'electron'
 import { AI_CHANNELS, type AiDone, type AiError, type AiRequest, type AiStatus } from '../../shared/ai'
+import { privacyChecker } from '../../shared/aiPrivate'
 import { AI_MCP_CATALOG_KEY, AI_MCP_SERVERS_KEY, isMcpServerId, mcpChoices, type ClaudeServerList } from '../../shared/aiContext'
 import type { Repository } from '../db/repository'
 import {
@@ -22,7 +23,7 @@ import { buildWorkspace } from './context'
 import { inspectCli } from './locate'
 import { loadMeeting, prepareMeeting, type MeetingSource } from './meeting'
 import { buildPrompt, type BriefingPromptData, type PromptContext } from './prompts'
-import { aiRequest, loadContext } from './request'
+import { aiRequest, loadContext, withoutPrivatePage } from './request'
 import { AiService, type PromptBuilder, type RunTarget } from './service'
 import { loadStanding } from './standing'
 import { ToolHost, toolScript } from './toolhost'
@@ -60,6 +61,8 @@ export class AiBridge {
   private readonly tools: ToolHost
   /** The Markdown converter, loaded before the first tool is granted: the tools read pages through it. */
   private markdown: typeof import('../markdown') | null = null
+  /** Questions asked on a page private from the AI, sent on without it: their WORKSPACE says there is one. */
+  private readonly privateAsks = new WeakSet<AiRequest>()
 
   constructor(
     private readonly repo: Repository,
@@ -100,13 +103,16 @@ export class AiBridge {
     const repo = this.repo
     // The Markdown converter is shared with export/import and loaded on first use.
     const markdown = await import('../markdown')
+    // Every reader below leaves out what is private from the AI (shared/aiPrivate.ts), each with a checker of its own.
+    const pageToMarkdown = (id: string, hidden?: (id: string) => boolean): { title: string; markdown: string } =>
+      markdown.pageToMarkdown(repo, id, hidden ? { hidden } : {})
     const loaded: PromptContext = request.today
       ? {}
       : loadContext(
           {
             get: (id) => repo.get(id),
-            pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id),
-            blocksToMarkdown: (blocks) => markdown.blocksToMarkdown(repo, blocks)
+            pageToMarkdown,
+            blocksToMarkdown: (blocks, hidden) => markdown.blocksToMarkdown(repo, blocks, hidden ? { hidden } : {})
           },
           request
         )
@@ -114,7 +120,7 @@ export class AiBridge {
     const standing = loadStanding({
       getSetting: (key) => repo.getSetting(key),
       get: (id) => repo.get(id),
-      pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id)
+      pageToMarkdown
     })
     const base: PromptContext = standing ? { ...loaded, standing } : loaded
     if (request.action !== 'ask') return base
@@ -134,9 +140,11 @@ export class AiBridge {
         // What the assistant is shown by itself leaves archived pages out; it finds them when it searches.
         listDatabases: () => repo.listDatabases({ archived: false }),
         search: (text, limit) => repo.search(text, limit),
-        pageToMarkdown: (id) => markdown.pageToMarkdown(repo, id)
+        pageToMarkdown
       },
-      request
+      request,
+      new Date(),
+      { privatePage: this.privateAsks.has(request) }
     )
     return { ...base, ...(day ? { day } : {}), ...workspace }
   }
@@ -153,7 +161,9 @@ export class AiBridge {
 
   /** Validates a request and starts it for `sender`; the outcome is sent to that window only. */
   run(rawRequest: unknown, sender: WebContents): { id: string } {
-    const request = aiRequest(rawRequest)
+    // A request about a page private from the AI: a question goes on without the page, anything else is refused here.
+    const { request, privatePage } = withoutPrivatePage(aiRequest(rawRequest), privacyChecker({ get: (id) => this.repo.get(id) }))
+    if (privatePage) this.privateAsks.add(request)
     // "Write up notes" on a meeting page: the transcript is read here, not sent by the window.
     if (request.action === 'consolidate' && !request.transcript?.trim() && request.pageId)
       return this.startMeeting(request, request.pageId, sender)
@@ -196,7 +206,9 @@ export class AiBridge {
       const source: MeetingSource = {
         get: (id) => this.repo.get(id),
         children: (id) => this.repo.children(id),
-        blocksToMarkdown: (blocks) => markdown.blocksToMarkdown(this.repo, blocks)
+        // A private page or database kept among the notes stays out of them.
+        blocksToMarkdown: (blocks) =>
+          markdown.blocksToMarkdown(this.repo, blocks, { hidden: privacyChecker({ get: (id) => this.repo.get(id) }) })
       }
       const meeting = loadMeeting(source, pageId)
       if (!meeting) throw new Error('This meeting has no transcript yet.')

@@ -154,13 +154,13 @@ function sourceOf(repo: Repository, db: Block): Block | null {
  * A chart view as the table of numbers it draws, under a caption that says what they are.
  * The view's filters apply, exactly as on screen; the rows themselves are not listed.
  */
-function chartToMarkdown(repo: Repository, db: Block, source: Block, title: string): string[] {
+function chartToMarkdown(repo: Repository, db: Block, source: Block, title: string, hidden: Hidden): string[] {
   const schema = normalizeDatabase(source).schema
   const view = sanitizeViews(db.props.views ?? [], schema)[0]
   // Filter rules, axes and values on relations, rollups and formulas see the related rows.
   const ctx = exportContext(repo)
   const rows = queryRows(
-    repo.children(source.id).filter((row) => row.type === 'page' && row.trashedAt === null),
+    repo.children(source.id).filter((row) => row.type === 'page' && row.trashedAt === null && !hidden(row.id)),
     schema,
     view,
     '',
@@ -183,11 +183,11 @@ function chartToMarkdown(repo: Repository, db: Block, source: Block, title: stri
  * A calculations view as its figures, each computed over the rows the view shows (its
  * filters apply, exactly as on screen); the rows themselves are not listed.
  */
-function calcToMarkdown(repo: Repository, db: Block, source: Block, title: string): string[] {
+function calcToMarkdown(repo: Repository, db: Block, source: Block, title: string, hidden: Hidden): string[] {
   const schema = normalizeDatabase(source).schema
   const view = sanitizeViews(db.props.views ?? [], schema)[0]
   const rows = queryRows(
-    repo.children(source.id).filter((row) => row.type === 'page' && row.trashedAt === null),
+    repo.children(source.id).filter((row) => row.type === 'page' && row.trashedAt === null && !hidden(row.id)),
     schema,
     view
   )
@@ -213,14 +213,16 @@ function calcToMarkdown(repo: Repository, db: Block, source: Block, title: strin
  * A database as a table. A linked view exports its source's rows with the columns
  * of its own first view, under its own title when it has one.
  */
-function databaseToMarkdown(repo: Repository, db: Block, withTitle = true): string[] {
+function databaseToMarkdown(repo: Repository, db: Block, withTitle: boolean, hidden: Hidden): string[] {
   const source = sourceOf(repo, db)
   const ownTitle = inlineToMarkdown(db.props.title)
   if (!source) return withTitle && ownTitle ? [`**${ownTitle}**`] : []
   const schema = source.props.schema ?? {}
   const view = db.props.views?.[0]
-  if (view?.type === 'chart') return chartToMarkdown(repo, db, source, withTitle ? ownTitle || inlineToMarkdown(source.props.title) : '')
-  if (view?.type === 'calc') return calcToMarkdown(repo, db, source, withTitle ? ownTitle || inlineToMarkdown(source.props.title) : '')
+  if (view?.type === 'chart')
+    return chartToMarkdown(repo, db, source, withTitle ? ownTitle || inlineToMarkdown(source.props.title) : '', hidden)
+  if (view?.type === 'calc')
+    return calcToMarkdown(repo, db, source, withTitle ? ownTitle || inlineToMarkdown(source.props.title) : '', hidden)
   let columns = (view?.visibleProperties ?? Object.keys(schema)).filter((id) => schema[id])
   if (!columns.length) columns = Object.keys(schema)
   const titleId = Object.keys(schema).find((id) => schema[id].type === 'title')
@@ -236,20 +238,22 @@ function databaseToMarkdown(repo: Repository, db: Block, withTitle = true): stri
   const ctx = columns.some((id) => isComputedFromContext(schema[id].type)) ? exportContext(repo) : undefined
   const propOf = (id: string): PropertySchema => (Object.hasOwn(clean, id) && clean[id].type === schema[id].type ? clean[id] : schema[id])
   for (const row of repo.children(source.id)) {
-    if (row.trashedAt !== null) continue
+    if (row.trashedAt !== null || hidden(row.id)) continue
     lines.push(`| ${columns.map((id) => cellText(formatValue(propOf(id), row, ctx))).join(' | ')} |`)
   }
   return lines
 }
 
-function blocksToLines(repo: Repository, blocks: Block[], depth: number): string[] {
+function blocksToLines(repo: Repository, blocks: Block[], depth: number, hidden: Hidden): string[] {
   const lines: string[] = []
   let prevList = false
   let number = 0
   for (const b of blocks) {
     if (b.trashedAt !== null) continue
+    // A page or database private from the AI is left out of what the AI reads, title and all.
+    if ((b.type === 'page' || b.type === 'database') && hidden(b.id)) continue
     number = b.type === 'numbered_list' ? number + 1 : 0
-    const chunk = blockToLines(repo, b, number, depth)
+    const chunk = blockToLines(repo, b, number, depth, hidden)
     if (!chunk.length) continue
     const isList = LIST_TYPES.has(b.type)
     if (lines.length && !(isList && prevList)) lines.push('')
@@ -259,9 +263,9 @@ function blocksToLines(repo: Repository, blocks: Block[], depth: number): string
   return lines
 }
 
-function blockToLines(repo: Repository, b: Block, number: number, depth: number): string[] {
+function blockToLines(repo: Repository, b: Block, number: number, depth: number, hidden: Hidden): string[] {
   // Guard against pathological nesting (and corrupt cyclic content).
-  const kids = (): string[] => (depth < 64 && b.content.length ? blocksToLines(repo, repo.children(b.id), depth + 1) : [])
+  const kids = (): string[] => (depth < 64 && b.content.length ? blocksToLines(repo, repo.children(b.id), depth + 1, hidden) : [])
   const below = (lines: string[]): string[] => {
     const k = kids()
     return k.length ? [...lines, '', ...k] : lines
@@ -321,28 +325,42 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
       return [`[${p.icon && !/^(shape|icon):/.test(p.icon) ? `${p.icon} ` : ''}${title}](sel://page/${b.id})`]
     }
     case 'database':
-      return databaseToMarkdown(repo, b)
+      return databaseToMarkdown(repo, b, true, hidden)
     default:
       return []
   }
 }
 
+/** Which blocks to leave out, by id (see shared/aiPrivate.ts). */
+type Hidden = (id: string) => boolean
+
+export interface MarkdownOptions {
+  /**
+   * Pages, databases and rows to leave out, title and all: what the AI reads leaves out what is
+   * private from it. An export leaves nothing out.
+   */
+  hidden?: Hidden
+}
+
+const SHOW_ALL: Hidden = () => false
+
 /** Serializes a page (or database) and its content to Markdown. */
-export function pageToMarkdown(repo: Repository, id: string): { title: string; markdown: string } {
+export function pageToMarkdown(repo: Repository, id: string, options: MarkdownOptions = {}): { title: string; markdown: string } {
+  const hidden = options.hidden ?? SHOW_ALL
   const page = repo.get(id)
   if (!page) throw new Error(`Block not found: ${id}`)
   // A linked view without a title of its own goes by its source's.
   const named = page.props.title?.length ? page : (page.type === 'database' && sourceOf(repo, page)) || page
   const title = plainText(named.props.title).trim() || 'Untitled'
   const lines = [`# ${inlineToMarkdown(named.props.title).replace(/\n/g, ' ') || 'Untitled'}`]
-  const body = page.type === 'database' ? databaseToMarkdown(repo, page, false) : blocksToLines(repo, repo.children(id), 0)
+  const body = page.type === 'database' ? databaseToMarkdown(repo, page, false, hidden) : blocksToLines(repo, repo.children(id), 0, hidden)
   if (body.length) lines.push('', ...body)
   return { title, markdown: lines.join('\n') + '\n' }
 }
 
 /** Serializes some blocks (each with its content) to Markdown, in the order given: what the AI actions read of a selection. */
-export function blocksToMarkdown(repo: Repository, blocks: Block[]): string {
-  return blocksToLines(repo, blocks, 0).join('\n')
+export function blocksToMarkdown(repo: Repository, blocks: Block[], options: MarkdownOptions = {}): string {
+  return blocksToLines(repo, blocks, 0, options.hidden ?? SHOW_ALL).join('\n')
 }
 
 // =================================================================== import

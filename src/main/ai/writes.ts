@@ -1,3 +1,4 @@
+import { AI_PRIVATE_MESSAGE, isPrivateForAi } from '../../shared/aiPrivate'
 import { sourceIdOf } from '../../shared/linked'
 import type { Block, PropertySchema, PropertyValue, RichText } from '../../shared/types'
 import type { Repository } from '../db/repository'
@@ -14,6 +15,9 @@ import { label, live, pathOf, titleOf, ToolError } from './tools'
  * does: its checks apply (built-in blocks among them), the page's previous state goes into its
  * history as for any edit, and the caller tells the windows and sync what changed. Nothing here
  * deletes; a value set to null is cleared, and that is all that is ever taken away.
+ *
+ * What is private from the AI (shared/aiPrivate.ts) is as closed to writing as to reading: a page,
+ * database or row the user keeps private is refused, as "private", whoever asks.
  */
 
 /** What the writing tools need: the repository, and the Markdown importer they write pages with. */
@@ -48,6 +52,7 @@ function markdownArg(value: unknown, required: boolean): string {
 function pageFor(repo: Repository, id: string): Block {
   const block = repo.get(id)
   if (!live(block)) throw new ToolError('No page has that id.')
+  if (isPrivateForAi(repo, block.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
   if (block.type === 'database') throw new ToolError(`${label(block)} is a database: add a row to it with add_database_row.`)
   return block
 }
@@ -56,6 +61,7 @@ function pageFor(repo: Repository, id: string): Block {
 function databaseFor(repo: Repository, id: string): Block {
   const block = repo.get(id)
   if (!live(block) || block.type !== 'database') throw new ToolError('No database has that id.')
+  if (isPrivateForAi(repo, block.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
   const sourceId = sourceIdOf(block)
   if (sourceId === null) return block
   const source = repo.get(sourceId)
@@ -222,6 +228,7 @@ function updateRow({ repo }: WriteTarget, a: Record<string, unknown>): string {
   const database = row?.parentId ? repo.get(row.parentId) : null
   if (!row || row.type !== 'page' || row.trashedAt !== null || !live(database) || database.type !== 'database')
     throw new ToolError('No row of a database has that id.')
+  if (isPrivateForAi(repo, row.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
   const change = rowChange(repo, database, a['values'])
   if (!change.names.length) throw new ToolError('Give at least one value to set.')
   const props: Record<string, unknown> = {}
