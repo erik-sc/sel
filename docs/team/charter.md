@@ -10,7 +10,7 @@ How a night runs is in `.claude/skills/sel-team/SKILL.md`; the roles are in `.cl
 
 | Érik | The team |
 |---|---|
-| Comments on the release PR; `/veto`, `/veto <item>`, `/ok`, `/hold`, `/resume` | Reads them every night, answers every one |
+| Comments on the release PR; `/veto`, `/veto <item>`, `/ok`, `/hold`, `/resume` | Wakes on each comment of his on a PR (and runs every night anyway); answers every one |
 | Has 48 hours to veto a plan | Starts building when the window closes or he says `/ok` |
 | Merges the release PR and tags `vX.Y.Z` | Never touches `main`, tags or GitHub releases |
 | Decides anything that risks his data or widens what the app can reach (skill, rule 3) | Stops and asks in "Needs you" |
