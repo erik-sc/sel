@@ -10,7 +10,10 @@ The team decides what sel becomes: it writes the roadmap, plans releases, builds
 gets sel ready for other people. Érik (the owner) watches through the release pull request,
 can veto, and ships every release himself.
 
-Each run is a fresh session with no memory of earlier nights. Everything the team knows
+Runs happen every night and also when Érik comments on a pull request (`.github/workflows/team-trigger.yml`
+fires the same task with his comment attached as data). A woken run is a normal full cycle:
+the comment is one of the signals, read like any other. Each run is a fresh session with no
+memory of earlier runs. Everything the team knows
 lives in the repository and on GitHub. Read before you act; write down before you stop.
 
 ## The team
