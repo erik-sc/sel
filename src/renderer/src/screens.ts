@@ -5,6 +5,7 @@
 import type { ComponentType } from 'react'
 import { BRIEFING_SCREENS } from './briefing/screens'
 import { NOTEBOOK_SCREENS } from './notebook/screens'
+import { REVIEW_SCREENS } from './review/screens'
 import { SKY_SCREENS } from './sky/screens'
 import { TASKS_SCREENS } from './tasks/screens'
 
@@ -19,7 +20,7 @@ export interface Screen {
   Host: ComponentType
 }
 
-export const SCREENS: readonly Screen[] = [...BRIEFING_SCREENS, ...TASKS_SCREENS, ...NOTEBOOK_SCREENS, ...SKY_SCREENS]
+export const SCREENS: readonly Screen[] = [...BRIEFING_SCREENS, ...TASKS_SCREENS, ...NOTEBOOK_SCREENS, ...REVIEW_SCREENS, ...SKY_SCREENS]
 
 /** The screen a tab showing `pageId` shows: by its route, or by the page it stands for. */
 export function screenOf(pageId: string | null | undefined, screens: readonly Screen[] = SCREENS): Screen | null {

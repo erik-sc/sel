@@ -23,6 +23,7 @@ The whole visible history is 35 commits, all dated 2026-10-13, 30 of them non-me
 | 14 | Herman gets workspace context, a council, other CLIs and proposals | Documented: "nothing is created until Apply is pressed, and the ops go through the same pipeline as the user's own edits"; running limit raised from two to four | commit 8acaec9 |
 | 15 | The council and the connected programs (Codex, Gemini, Ollama, stdin) are removed | The owner asked for it ("remova o council"); a question goes to Herman alone, and a stored `herman.council` setting is ignored | branch release/0.7.2 |
 | 16 | Time blocks on Today and projects with a direction (0.8.0 E2, E3) | Asked in docs/plans/release-0.8.0.md: a block is the due date's own start and end (no new property, older copies read it as a time), never written to a calendar; a project's objective, next action and milestones live on the Tasks database block, progress is a count "without gamified percentage" | branch feat/0.8.0-agenda |
+| 17 | Weekly review (0.8.0 E1) | Asked in docs/plans/release-0.8.0.md: assisted, never autonomous, no score or streak; the week's three priorities are kept as a week focus on the Tasks database (Meditations has no page for a week) instead of rewriting priorities; the AI summary is only a hook | branch feat/0.8.0-review |
 
 ## Hotspots (churn; say "repo is N days old" when churn is meaningless)
 

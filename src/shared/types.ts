@@ -82,6 +82,11 @@ export interface BlockProps {
    * milestones), by the id of its Project option. Read through shared/tasks/projects.ts.
    */
   projects?: Record<string, unknown>
+  /**
+   * The built-in Tasks database only: the week's focus chosen in the weekly review (up to three
+   * tasks and a note, for one week). Read through shared/tasks/week.ts.
+   */
+  week?: Record<string, unknown>
   /** page that is a database row: propertyId -> value */
   values?: Record<string, PropertyValue>
   /** database: drawn in one row with the database block before it (see editor/layout.ts) */

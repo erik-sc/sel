@@ -3,7 +3,7 @@
 // the window comes back to the front (so that moving between windows reads as a move). The main
 // process drops it while the log is off. Ids and screen names only: never what a page says.
 import { type ActivityArea } from '@shared/activity'
-import { CALENDAR_ROUTE, CLOSE_ROUTE, NOTEBOOK_ROUTE, SKY_ROUTE, TASKS_ROUTE, TODAY_ROUTE } from '../routes'
+import { CALENDAR_ROUTE, CLOSE_ROUTE, NOTEBOOK_ROUTE, REVIEW_ROUTE, SKY_ROUTE, TASKS_ROUTE, TODAY_ROUTE } from '../routes'
 import { activeTab, isBlockId, tabKey, tabPage, useTabs } from '../store/tabs'
 
 const SCREENS: Readonly<Record<string, ActivityArea>> = {
@@ -12,6 +12,7 @@ const SCREENS: Readonly<Record<string, ActivityArea>> = {
   [TASKS_ROUTE]: 'tasks',
   [NOTEBOOK_ROUTE]: 'meditations',
   [CLOSE_ROUTE]: 'close-day',
+  [REVIEW_ROUTE]: 'week-review',
   [SKY_ROUTE]: 'sky'
 }
 

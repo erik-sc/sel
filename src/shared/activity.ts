@@ -30,7 +30,7 @@ export type ActivityKind = (typeof ACTIVITY_KINDS)[number]
  * Where an `open` happened: a built-in screen, or a page (`pageId` says which). The renderer maps
  * its routes to these (renderer/src/activity); main takes no other.
  */
-export const ACTIVITY_AREAS = ['today', 'calendar', 'tasks', 'meditations', 'close-day', 'sky', 'page'] as const
+export const ACTIVITY_AREAS = ['today', 'calendar', 'tasks', 'meditations', 'close-day', 'week-review', 'sky', 'page'] as const
 export type ActivityArea = (typeof ACTIVITY_AREAS)[number]
 
 export function isActivityArea(value: unknown): value is ActivityArea {

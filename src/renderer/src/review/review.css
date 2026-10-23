@@ -1,0 +1,449 @@
+/*
+ * The weekly review: the column and the quiet step marks of closing the day (notebook/close.css),
+ * six of them, each a button. Lists in the serif, actions as the rows' chips. Tokens only, so it
+ * follows light, dark and the Glass presets; motion is a fade (none under reduced motion).
+ */
+
+.review {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--page-width) + var(--page-padding-x) * 2);
+  margin: 0 auto;
+  padding: 96px var(--page-padding-x) 140px;
+  color: var(--text);
+  animation: ui-fade var(--duration) var(--ease);
+}
+
+.review-head {
+  margin-bottom: 40px;
+}
+
+.review-kicker {
+  margin: 0 0 8px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-ui);
+}
+
+.review-range {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+}
+
+/* ---- the step marks: six short rules, the current one in ink ---- */
+
+.review-steps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin: 0 0 56px;
+  padding: 0;
+  list-style: none;
+}
+
+.review-step-button {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 0 0 2px;
+  border-radius: var(--radius-xs);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-align: left;
+  transition: color var(--duration) var(--ease);
+}
+
+.review-step-button:hover,
+.review-step-button:focus-visible {
+  color: var(--text-secondary);
+}
+
+.review-step-mark {
+  height: 0;
+  border-top: var(--hairline) solid var(--border-strong);
+  transition: border-color var(--duration) var(--ease);
+}
+
+.review-step.is-past .review-step-mark {
+  border-top-color: var(--text-tertiary);
+}
+
+.review-step.is-current .review-step-button {
+  color: var(--text-secondary);
+}
+
+.review-step.is-current .review-step-mark {
+  border-top: 1px solid var(--accent);
+}
+
+/* ---- one step ---- */
+
+.review-body {
+  animation: ui-fade calc(var(--duration) * 2) var(--ease);
+}
+
+.review-title {
+  margin: 0 0 20px;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: var(--weight-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+  outline: none;
+}
+
+.review-help {
+  margin: 0 0 28px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.review-quiet {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-ui);
+  line-height: var(--leading-body);
+}
+
+.review-activity {
+  margin: 0 0 28px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.review-link {
+  margin-top: 24px;
+  padding: 2px 0;
+  border-radius: var(--radius-xs);
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  transition: color var(--duration-fast) var(--ease);
+}
+
+.review-link.is-inline {
+  margin: 0;
+  font-size: inherit;
+}
+
+.review-link:hover,
+.review-link:focus-visible {
+  color: var(--accent);
+}
+
+.review-groups {
+  display: grid;
+  gap: 28px;
+}
+
+.review-group {
+  margin-top: 28px;
+}
+
+.review-groups .review-group {
+  margin-top: 0;
+}
+
+.review-label {
+  margin: 0 0 10px;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+}
+
+.review-count {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.review-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-list li {
+  padding: 5px 0;
+  color: var(--text-secondary);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.review-list.is-focus {
+  padding-left: 1.4em;
+  list-style: decimal;
+}
+
+.review-page {
+  padding: 0;
+  border-radius: var(--radius-xs);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.review-page:hover,
+.review-page:focus-visible {
+  color: var(--text);
+  text-decoration: underline dotted var(--text-tertiary);
+}
+
+/* ---- tasks with their actions (what slid) ---- */
+
+.review-tasks,
+.review-projects,
+.review-candidates,
+.review-summary {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-task {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 0;
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.review-task.is-handled .review-task-title {
+  color: var(--text-tertiary);
+}
+
+.review-task-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.review-task-title {
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+.review-task-meta {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.review-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.review-chip {
+  padding: 2px 10px;
+  font-family: var(--font-sans);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-pill, 999px);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 20px;
+  transition:
+    color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.review-chip:hover,
+.review-chip:focus-visible {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.review-chip.is-quiet {
+  border-color: transparent;
+  color: var(--text-tertiary);
+}
+
+.review-chip:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ---- the Inbox ---- */
+
+.review-inbox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+/* the refine walk sits in the column, without the Tasks screen's margins; the step's title
+   already names it, so its own heading steps back to a quiet label */
+.review-refine .refine {
+  padding: 0;
+}
+
+.review-refine .refine-head .tasks-heading {
+  margin: 0 0 10px;
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+}
+
+/* ---- projects ---- */
+
+.review-project {
+  display: grid;
+  gap: 10px;
+  padding: 14px 0 18px;
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.review-project-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  font-weight: var(--weight-title);
+}
+
+.review-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.review-select,
+.review-date,
+.review-input,
+.review-textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-s);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.review-select:focus,
+.review-date:focus,
+.review-input:focus,
+.review-textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.review-milestone {
+  font-family: var(--font-sans);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* ---- the week to come ---- */
+
+.review-find {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.review-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.review-candidate label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.review-candidate input {
+  accent-color: var(--accent);
+}
+
+.review-candidate.is-chosen .review-task-title {
+  font-weight: var(--weight-medium, 500);
+}
+
+.review-note {
+  display: grid;
+  gap: 6px;
+  margin-top: 28px;
+}
+
+.review-textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+/* ---- the close ---- */
+
+.review-summary li {
+  color: var(--text-secondary);
+  font-family: var(--font-serif);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.review-echo {
+  margin: 16px 0 0;
+  padding-left: 14px;
+  border-left: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-family: var(--font-serif);
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 48px;
+}
+
+.review-closed {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  animation: ui-fade calc(var(--duration) * 3) var(--ease);
+}
+
+.review-closed-words {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  line-height: var(--leading-title);
+  outline: none;
+}
+
+@media (max-width: 640px) {
+  .review-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

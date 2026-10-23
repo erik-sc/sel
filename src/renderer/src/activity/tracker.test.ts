@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CLOSE_ROUTE, NOTEBOOK_ROUTE, SKY_ROUTE, TASKS_ROUTE, TODAY_ROUTE } from '../routes'
+import { CLOSE_ROUTE, NOTEBOOK_ROUTE, REVIEW_ROUTE, SKY_ROUTE, TASKS_ROUTE, TODAY_ROUTE } from '../routes'
 import { createTracker, DWELL_MS, type Place, placeOf } from './tracker'
 
 describe('placeOf', () => {
@@ -9,6 +9,7 @@ describe('placeOf', () => {
     expect(placeOf(NOTEBOOK_ROUTE)).toEqual({ area: 'meditations', pageId: null })
     expect(placeOf(CLOSE_ROUTE)).toEqual({ area: 'close-day', pageId: null })
     expect(placeOf(SKY_ROUTE)).toEqual({ area: 'sky', pageId: null })
+    expect(placeOf(REVIEW_ROUTE)).toEqual({ area: 'week-review', pageId: null })
     expect(placeOf('3f1c2b9e-0000-4000-8000-000000000001')).toEqual({ area: 'page', pageId: '3f1c2b9e-0000-4000-8000-000000000001' })
     expect(placeOf(null)).toBeNull()
     expect(placeOf('_unknown')).toBeNull()
