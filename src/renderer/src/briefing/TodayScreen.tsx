@@ -24,6 +24,7 @@ import {
   taskGroups,
   updatedLabel
 } from './format'
+import { openFlows } from '@/flows/route'
 import { useHome } from '@/home/store'
 import { TASK_COPY } from '@/tasks/copy'
 import { startRefine } from '@/tasks/gate'
@@ -549,6 +550,9 @@ export function TodayScreen(): JSX.Element {
         <span>{updatedLabel(data.updatedAt, now)}</span>
         <button type="button" className="today-link" disabled={refreshing} onClick={refresh}>
           {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+        <button type="button" className="today-link" onClick={openFlows}>
+          Flows
         </button>
         <button type="button" className="today-link" onClick={openSettings}>
           Settings

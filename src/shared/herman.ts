@@ -165,6 +165,8 @@ export type HermanCommand =
   | { type: 'close-day' }
   /** The Tasks screen's refine mode, over the Inbox (tasks/Refine.tsx). */
   | { type: 'refine-inbox' }
+  /** The Fluxos screen (renderer/src/flows): the heatmaps a word about the rhythm comes from. */
+  | { type: 'open-flows' }
   | { type: 'open-page'; pageId: string }
   /** A meeting page for a calendar event that is about to start. */
   | { type: 'new-meeting'; event: { title: string; start: number; end: number } }
@@ -173,8 +175,11 @@ export type HermanCommand =
 
 export interface HermanNudge {
   id: string
-  /** `sky`: a line of the Sky's (main/herman/lines.ts SKY_LINES), outside the counsel. */
-  kind: HermanNudgeKind | 'sky'
+  /**
+   * `sky`: a line of the Sky's (main/herman/lines.ts SKY_LINES), outside the counsel. `rhythm`: the
+   * weekly word about the user's rhythm (main/activity/rhythm.ts), outside it too.
+   */
+  kind: HermanNudgeKind | 'sky' | 'rhythm'
   text: string
   action?: { label: string; command: HermanCommand }
 }

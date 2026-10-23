@@ -8,6 +8,7 @@
  * `menu` handler (src/renderer/src/features.ts), and every command must have one.
  * Pure data: free of Electron and the DOM.
  */
+import { ACTIVITY_COMMANDS } from './activity'
 import { AI_COMMANDS } from './ai'
 import { BRIEFING_COMMANDS } from './briefing'
 import { FEEDBACK_COMMANDS } from './feedback'
@@ -193,6 +194,7 @@ export const COMMANDS = [
   ...TASKS_COMMANDS,
   ...NOTEBOOK_COMMANDS,
   ...SKY_COMMANDS,
+  ...ACTIVITY_COMMANDS,
   ...POMODORO_COMMANDS,
   ...MEETINGS_COMMANDS,
   ...AI_COMMANDS,

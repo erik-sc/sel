@@ -15,3 +15,5 @@ export const NOTEBOOK_ROUTE = '_notebook'
 export const CLOSE_ROUTE = '_close'
 /** The Sky (see sky/route.ts). */
 export const SKY_ROUTE = '_sky'
+/** The heatmaps and flows of the activity log (see flows/route.ts). */
+export const FLOWS_ROUTE = '_flows'
