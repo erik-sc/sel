@@ -3,6 +3,7 @@
 import type { BriefingTask } from '@shared/briefing'
 import type { Op, PropertyValue } from '@shared/types'
 import { addDays, dayKey, diffDays, normalizeDay, timeOf } from '@shared/database/dates'
+import { blockOf, blockValue, clockOf, minutesOf, type TimeBlock } from '@shared/tasks/blocks'
 import { applyOps, fetchBlocks, getBlock } from '@/store/blocks'
 
 /** The start of a stored date value: `{ start, end? }` or a bare string. */
@@ -31,6 +32,12 @@ export function rescheduleValue(value: PropertyValue | undefined, day: string, t
   if (start && end && startDay && endDay && endDay > startDay) {
     const delta = diffDays(endDay, target)
     return { start: addDays(start, delta), end: addDays(end, delta) }
+  }
+  // A time block keeps its length wherever it goes, unless it is dropped on a day without a time.
+  const block = blockOf(value)
+  if (block && time !== null) {
+    const at = time === undefined ? block.start : minutesOf(time)
+    if (at !== null) return blockValue({ day: target, start: at, minutes: block.minutes }) ?? value ?? null
   }
   const keep = time === undefined ? timeOf(start) : time
   return { start: keep ? `${target}T${keep}` : target }
@@ -83,6 +90,39 @@ export async function moveTask(task: BriefingTask, day: string, time?: string | 
   let changed = false
   const previous = await writeProperty(task.id, property, (current) => {
     next = rescheduleValue(current, day, time)
+    changed = JSON.stringify(next) !== JSON.stringify(current ?? null)
+    return changed ? next : current
+  })
+  return changed ? { rowId: task.id, property, previous, next } : null
+}
+
+/**
+ * Makes the task a time block (shared/tasks/blocks.ts): its due date becomes the block's start
+ * and end. Placing, moving and resizing a block all come here. Null when nothing changed.
+ */
+export async function blockTask(task: BriefingTask, block: TimeBlock): Promise<Move | null> {
+  if (!canMove(task)) return null
+  const next = blockValue(block)
+  if (!next) return null
+  const property = task.dateProperty as string
+  let changed = false
+  const previous = await writeProperty(task.id, property, (current) => {
+    changed = JSON.stringify(next) !== JSON.stringify(current ?? null)
+    return changed ? next : current
+  })
+  return changed ? { rowId: task.id, property, previous, next } : null
+}
+
+/** Takes the block off a task: it stays due that day, at no time (`keepTime`: at its start). */
+export async function unblockTask(task: BriefingTask, day: string, keepTime = false): Promise<Move | null> {
+  if (!canMove(task)) return null
+  const property = task.dateProperty as string
+  let next: PropertyValue = null
+  let changed = false
+  const previous = await writeProperty(task.id, property, (current) => {
+    const block = blockOf(current)
+    const time = keepTime && block ? clockOf(block.start) : null
+    next = { start: time ? `${day}T${time}` : day }
     changed = JSON.stringify(next) !== JSON.stringify(current ?? null)
     return changed ? next : current
   })

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
+import { projectSummaries, readPlans, readProjectTasks } from '@shared/tasks/projects'
 import { getBlock } from '@/store/blocks'
 import { openPage } from '@/store/tabs'
 import { notifyError, toast } from '@/ui/toast'
@@ -18,6 +19,7 @@ import { Button } from '@/ui/Button'
 import { TASK_COPY } from './copy'
 import { focusQuickAdd, showTaskList, stopRefine, useTasksGate, type RefineFrom, type TaskListKey } from './gate'
 import { dueLabel, emptyChipsOf, listCounts, listTasks, openDescendants, readTasks, type TaskGroup, type TaskItem } from './lists'
+import { ProjectHeader } from './ProjectHeader'
 import { Refine } from './Refine'
 import { refineQueue } from './refineWalk'
 import { QuickAdd } from './QuickAdd'
@@ -187,6 +189,17 @@ export function TasksScreen(): JSX.Element {
   const canRefine = useMemo(() => (refineFrom ? refineQueue(tasks, refineFrom).length > 0 : false), [tasks, refineFrom])
   const projects = L.optionsOf(L.propOf(schema, TASK_PROPS.project))
   const labels = L.optionsOf(L.propOf(schema, TASK_PROPS.labels))
+  // A project's list opens with what the project is for (0.8.0 E3).
+  const projectId = list.kind === 'project' ? list.id : null
+  const rawPlans = db?.props.projects
+  const project = useMemo(() => {
+    const option = projectId ? L.optionsOf(L.propOf(schema, TASK_PROPS.project)).find((each) => each.id === projectId) : undefined
+    if (!option) return null
+    const counted = readProjectTasks(rows)
+    const [summary] = projectSummaries([option], readPlans(rawPlans), counted)
+    const open = counted.filter((task) => task.project === option.id && !task.done).map(({ id, title }) => ({ id, title }))
+    return { summary, open }
+  }, [projectId, schema, rows, rawPlans])
 
   // A project, label or view that is gone falls back to Today.
   const listMissing =
@@ -365,6 +378,9 @@ export function TasksScreen(): JSX.Element {
                 </Button>
               )}
             </div>
+            {project && (
+              <ProjectHeader key={project.summary.id} summary={project.summary} open={project.open} today={today} onOpenTask={setPanel} />
+            )}
             {list.kind !== 'completed' && (
               <QuickAdd key={`${list.kind}:${'id' in list ? list.id : ''}`} list={list} today={today} projects={projects} labels={labels} />
             )}

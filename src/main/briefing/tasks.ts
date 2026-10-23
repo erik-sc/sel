@@ -1,6 +1,7 @@
 import type { BriefingTask, BriefingTaskTag } from '../../shared/briefing'
 import { plainText } from '../../shared/richtext'
 import { TASK_PROPS } from '../../shared/tasks'
+import { minutesOf } from '../../shared/tasks/blocks'
 import { readRecurrence } from '../../shared/tasks/recur'
 import type { Block, BlockProps, PropertySchema, PropertyValue } from '../../shared/types'
 
@@ -274,6 +275,13 @@ function timeOf(value: unknown): string | null {
   return match && Number(match[1]) <= 23 && Number(match[2]) <= 59 ? `${match[1]}:${match[2]}` : null
 }
 
+/** The minutes from one `HH:mm` to a later one of the same day, or null. */
+function blockMinutes(from: string | null, to: string | null): number | null {
+  const start = minutesOf(from)
+  const end = minutesOf(to)
+  return start !== null && end !== null && end > start ? end - start : null
+}
+
 function valuesOf(props: BlockProps | undefined | null): Record<string, PropertyValue> {
   const values: unknown = props?.values
   return isObject(values) ? (values as Record<string, PropertyValue>) : {}
@@ -442,6 +450,9 @@ export function selectTasks(blocks: Iterable<TaskBlock>, options: TaskOptions): 
       // The hour it is due at, when it has one: the calendar's week puts it there.
       const time = ranged ? endTime : startTime
       if (time) task.time = time
+      // A start and an end on the same day: a time block (shared/tasks/blocks.ts).
+      const minutes = !ranged && end === start ? blockMinutes(startTime, endTime) : null
+      if (minutes) task.minutes = minutes
     }
     const item: Ranked = { task, rank, seen: order }
     if (range && task.due && task.due >= range.from && task.due <= range.to && dated.length < cap) dated.push(item)

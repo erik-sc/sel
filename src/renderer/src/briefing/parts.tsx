@@ -12,7 +12,7 @@ import { openPage } from '@/store/tabs'
 import * as L from '@/database/logic'
 import { emptyChipsOf, readTasks } from '@/tasks/lists'
 import { viewOfBriefing, type TaskView } from '@/tasks/model'
-import { TaskRow as ListTaskRow, type useTaskRows } from '@/tasks/TaskRow'
+import { TaskRow as ListTaskRow, type RowDrag, type useTaskRows } from '@/tasks/TaskRow'
 import { setSettingsOpen, useUi } from '@/store/ui'
 import { notifyError, toast } from '@/ui/toast'
 import { dueLabel, tickedKey, untilMidnight, type EventMoment } from './format'
@@ -228,7 +228,8 @@ export function BriefingTaskItem({
   rows,
   panel,
   onComplete,
-  onOpen
+  onOpen,
+  drag
 }: {
   task: BriefingTask
   view: TaskView | null | undefined
@@ -239,9 +240,11 @@ export function BriefingTaskItem({
   panel: string | null
   onComplete: (task: BriefingTask) => void
   onOpen: (id: string) => void
+  /** Makes the row something to drag onto the day's plan. */
+  drag?: RowDrag
 }): JSX.Element | null {
   if (view === null) return null
-  if (!view) return <TaskRow task={task} day={day} onComplete={onComplete} />
+  if (!view) return <TaskRow task={task} day={day} onComplete={onComplete} drag={drag} />
   return (
     <ListTaskRow
       task={view}
@@ -253,6 +256,7 @@ export function BriefingTaskItem({
       onOpen={() => onOpen(task.id)}
       onLeave={rows.leave}
       emptyChips={emptyChipsOf(view)}
+      drag={drag}
     />
   )
 }
@@ -261,14 +265,16 @@ export function BriefingTaskItem({
 export function TaskRow({
   task,
   day,
-  onComplete
+  onComplete,
+  drag
 }: {
   task: BriefingTask
   day: string
   onComplete: (task: BriefingTask) => void
+  drag?: RowDrag
 }): JSX.Element {
   return (
-    <li className="today-task">
+    <li className="today-task" {...drag}>
       <button type="button" className="today-check" aria-label={`Mark "${task.title}" as done`} onClick={() => onComplete(task)} />
       <button
         type="button"

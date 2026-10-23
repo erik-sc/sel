@@ -72,6 +72,9 @@ export interface TaskCopy {
   refineSkip: string
   refineNext: string
   todayLine: (count: number) => string
+  /** The row's menu: make the task its project's next action (shared/tasks/projects.ts). */
+  makeNext: string
+  nextSet: (title: string) => string
 }
 
 const EN: TaskCopy = {
@@ -122,7 +125,9 @@ const EN: TaskCopy = {
   refineBack: '← Previous',
   refineSkip: 'Skip',
   refineNext: 'Next →',
-  todayLine: (count) => `${count} to refine`
+  todayLine: (count) => `${count} to refine`,
+  makeNext: 'Make next action',
+  nextSet: (title) => `"${title}" is the project's next action.`
 }
 
 const PT: TaskCopy = {
@@ -180,7 +185,9 @@ const PT: TaskCopy = {
   refineBack: '← Anterior',
   refineSkip: 'Pular',
   refineNext: 'Próxima →',
-  todayLine: (count) => `${count} para refinar`
+  todayLine: (count) => `${count} para refinar`,
+  makeNext: 'Tornar próxima ação',
+  nextSet: (title) => `"${title}" é a próxima ação do projeto.`
 }
 
 export const TASK_COPY: Record<HomeLocale, TaskCopy> = { en: EN, 'pt-BR': PT }

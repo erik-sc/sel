@@ -77,6 +77,11 @@ export interface BlockProps {
    * at the workspace root and cannot be deleted, moved or retyped (see shared/system.ts).
    */
   system?: SystemKind
+  /**
+   * The built-in Tasks database only: what each project is for (objective, next action,
+   * milestones), by the id of its Project option. Read through shared/tasks/projects.ts.
+   */
+  projects?: Record<string, unknown>
   /** page that is a database row: propertyId -> value */
   values?: Record<string, PropertyValue>
   /** database: drawn in one row with the database block before it (see editor/layout.ts) */
