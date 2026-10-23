@@ -1,6 +1,7 @@
 # Release 0.9.0 — Pages and databases you can shape
 
-Status: **veto until 2026-10-25 10:15 (São Paulo)** · 2026-10-23 · branch `release/0.9.0` (from `main` at 8da2eb4, v0.8.0)
+Status: **veto until 2026-10-25 10:42 (São Paulo)** · 2026-10-23 · branch `release/0.9.0` (from `main` at 8da2eb4, v0.8.0)
+· window restarted on 2026-10-23 because item S0 (screenshot job) was added at Érik's request
 
 Érik's second pain, in his words: "the multi-column page layout does not work; too many clicks to
 edit columns". Today only database blocks can sit side by side, so a page cannot put a note
@@ -26,6 +27,147 @@ release PR asks Érik to confirm instead of planning more there.
   (the rest is planned for 0.11.0).
 - Undo (Ctrl+Z) reverses each change as one step.
 - `npm run typecheck`, `npm run lint` and `npx vitest run --dir src` green on Node 24 before the PR.
+- Every item a user sees (A1a, A1b, A1c, B1, B2, B3) shows itself through S0's screenshot job:
+  its PR body carries a `screens` block naming the scenarios in its "Done when", and adding those
+  scenarios to the registry is part of the item (skill, "Screenshots").
+
+## Epic S — See it before it merges
+
+Asked by Érik on the release PR (#82), 2026-10-23: "reviewing visual changes without seeing them
+is a bottleneck". The cloud sessions cannot launch the app (Electron 44 needs a native
+`better-sqlite3` they cannot fetch), so the only place the real app can run is CI's Windows
+runner. This item builds the job that the skill's "Screenshots" section describes; every visible
+item after it relies on it.
+
+### S0. Screenshot job
+
+**Today.** `.github/workflows/ci.yml` typechecks and lints on Ubuntu and runs
+`npx vitest run --dir src` on `windows-latest`; nothing builds or launches the app on a pull
+request (only `release.yml` builds, on a tag: `npm ci --ignore-scripts`, then
+`node node_modules/electron/install.js`, then `npm run dist`). There is no Playwright and no
+`e2e/` folder. The 49 images in `docs/screens/` were taken outside CI, from the Windows app. The app keeps
+everything under Electron's `userData` (`src/main/index.ts`: `sel.db`, `DB_FILE` in
+`src/main/legacy.ts`) and fills an empty database with the welcome page (`seedIfEmpty` in
+`src/main/db/seed.ts`, skipped once the `seeded` setting exists). Tests already open a real
+`Repository` on Node's built-in SQLite (`openTestRepository` in `src/main/db/testing.ts`). The
+built-in Tasks database has fixed ids (`TASKS_DATABASE_ID`, `TASK_PROPS` in
+`src/shared/tasks/index.ts`); view types include `table`, `board` and `calendar`
+(`ViewType` in `src/shared/types.ts`). The theme is the stored `theme` setting
+(`src/shared/settings.ts`).
+
+**Scope.** A new workflow `.github/workflows/screens.yml`, a harness under `e2e/screens/`, and
+no change to the shipped app (`src/` untouched; if the app truly needs a hook, it is a separate
+question in the PR, not part of this item).
+
+- **Trigger.** `pull_request` with types `opened`, `synchronize`, `reopened` and `edited` (so
+  changing the PR body's block re-runs it). Concurrency group per PR number,
+  `cancel-in-progress: true`. Never `pull_request_target`.
+- **The `screens` block.** The first fenced block with the info string `screens` in the PR body;
+  one scenario per line, `<id>: <free text>` (only the id is read; blank lines ignored). The
+  word `all` on a line means every registered scenario (used by the release PR in CLOSE). No
+  block: the job ends green within a couple of minutes, captures nothing, posts nothing.
+- **Scenario registry.** `e2e/screens/scenarios/<area>.ts`, one file per area, each exporting an
+  array; the harness loads every file in the folder (no index to edit), so two items adding
+  scenarios never touch the same file, and ids are checked unique across files. Each entry is
+  `{ id, description, locale?: 'en' | 'pt-BR', themes?: ('light' | 'dark')[], workspace?: (repo) => void, run: async (page) => void }`.
+  `id` is kebab-case and unique; `themes` defaults to both; `locale` defaults to `en` and is
+  written to the home's locale setting before launch; `workspace` adds to the demo workspace for
+  this scenario only; `run` drives the window from the open app to the state to capture, using the
+  UI (palette, clicks, keys) as a user would. The capture is the whole window at 1280×800 after
+  `run` returns, fonts loaded, with Playwright's `animations: 'disabled'` and the caret hidden.
+  Unknown ids in the block fail the capture job with a message that names them.
+- **Starter scenarios** (defined by this item, both themes):
+  - `today`: the Today screen with tasks due today, one overdue, one done.
+  - `page-notes`: the demo notes page (headings, text, a to-do list, a callout, a toggle).
+  - `tasks-table`, `tasks-board`, `tasks-calendar`: the Tasks database in each of its three
+    views (board grouped by priority; calendar on the current month).
+- **Demo workspace seed.** `e2e/screens/seed.ts` writes a fresh `sel.db` into a temporary user
+  data folder through the real `Repository` on `node:sqlite` (as `openTestRepository` does), so
+  the schema and migrations are the app's own: the `seeded` setting set (no welcome page), the
+  AI onboarding and any first-run or "what's new" notice marked seen, the theme setting per
+  capture; a page "Notes" (content above) and a page "Projects" with two sub-pages; the built-in
+  Tasks database with about 12 rows (titles, priority, project, labels, due dates relative to the
+  run's date: overdue, today, this week, next week, none; two done) and three views table, board,
+  calendar. Text is fixed English (pt-BR scenarios change only the UI language). The same seed
+  runs for base and head.
+- **Head vs base.** The capture job checks out the PR head and, beside it, the PR's base commit
+  (`github.event.pull_request.base.sha`). The harness, registry and seed always come **from the
+  head**; the base checkout only supplies the app. Each is installed and built on its own:
+  `npm ci --ignore-scripts`, `node node_modules/electron/install.js`, `better-sqlite3` rebuilt for
+  Electron's ABI (`npm run rebuild`), `npm run build`. Each scenario × theme is captured on both,
+  each launch with Playwright's Electron driver (`_electron.launch` from `@playwright/test`,
+  `args: ['.', '--user-data-dir=<temp>']`, `cwd` the checkout) on a fresh copy of the seeded
+  folder. A scenario whose `run` fails on base (the feature does not exist there yet) is shown as
+  "not in base", not as a failure; one that fails on head is a failure.
+- **Two jobs, so PR code never holds a write token.**
+  - `screens` (`windows-latest`, `timeout-minutes: 40`, `permissions: contents: read`,
+    `persist-credentials: false`): parse the block, build both, capture, and upload the PNGs plus
+    a `manifest.json` (scenario, theme, side, status, first line of any error) as a workflow
+    artifact (kept 14 days). Red when a head capture failed or an id is unknown.
+  - `screens-publish` (`ubuntu-latest`, `needs: screens`, `if: always()` when the block existed,
+    `permissions: contents: write, pull-requests: write`; checks out no PR code): downloads the
+    artifact, commits it to the orphan branch `team/screens` under
+    `pr-<n>/<head-sha-7>/<scenario>-<theme>-<base|head>.png` (the branch is created as an orphan
+    with a one-paragraph README the first time; older `pr-<n>/<sha>/` folders are removed in the
+    same commit, git history keeps them; push retried with `git pull --rebase` up to three times
+    when several PRs publish at once), then posts or updates the comment.
+  - Top-level `permissions: {}`; the only token is `GITHUB_TOKEN`; no secrets.
+- **The comment.** One per PR, found again by its hidden marker and edited on every push (REST
+  `issues/<n>/comments`, then `PATCH`). Body, signed per rule 8:
+  ```
+  <!-- sel-team -->
+  <!-- sel-screens -->
+  ## Screens · head <sha7> vs base <sha7>
+  ### <id> — <description>
+  | | Before (base) | After (head) |
+  |---|---|---|
+  | Light | <img> | <img> |
+  | Dark | <img> | <img> |
+  …
+  Failed: `<id>` (<theme>): <first line of the error>      (only if any)
+  Unknown: `<id>`                                           (only if any)
+  — sel team (automated)
+  ```
+  Images link to `https://github.com/<owner>/<repo>/raw/team/screens/pr-<n>/<sha7>/<file>` (works
+  for anyone who can read the repo). A run with a block but no capture at all (build failed)
+  still updates the comment to say so, with a link to the run.
+- **Fork pull requests.** `GITHUB_TOKEN` is read-only there, so `screens-publish` is skipped
+  (`if: github.event.pull_request.head.repo.full_name == github.repository`); the capture still
+  runs and its artifact is downloadable from the run. Nothing else changes for them.
+- **Docs.** A short "Screens" section in `docs/codebase-knowledge/50-conventions.md`: how to add
+  a scenario, how to run the pure parts locally, why capture runs only on Windows CI.
+
+**Out of scope.** Pixel diffs or failing on visual change (the images are for people);
+macOS or Linux captures; refreshing `docs/screens/` (CLOSE does that by hand from the job's
+output); any change to `ci.yml` or `src/`; video or GIFs.
+
+**Touches.** new `.github/workflows/screens.yml`; new `e2e/screens/` (`playwright.config.ts`,
+`seed.ts`, `scenarios/` (`today.ts`, `pages.ts`, `tasks.ts`), `block.ts` for parsing, `comment.ts` for the body, their tests,
+`README.md`); `package.json` and `package-lock.json` (`@playwright/test` as a pinned
+**devDependency**, a `screens` script); `tsconfig.node.json` and `biome.json` only to include
+`e2e/`; `.gitignore` (output folder); `docs/codebase-knowledge/50-conventions.md`.
+
+**Done when.**
+- Pure tests (run by the `screens` job before capturing, and green locally on Node 24): the
+  block parser (no block, `all`, ids with and without text, blank lines, a second block ignored);
+  the comment builder (pairs, "not in base", failed and unknown lines, both markers, the
+  signature); the seed (opens the result with `Repository` and finds the Notes page, the Tasks
+  database with views `table`, `board` and `calendar`, a row due today, and `seeded` set).
+- On S0's own PR, whose body lists the five starter scenarios: `screens` runs green on
+  `windows-latest`; `team/screens` gets `pr-<n>/<sha7>/` with 20 PNGs (5 scenarios × 2 themes ×
+  base and head); one signed comment shows them in pairs. A second push edits that same comment
+  (still one comment) and replaces the folder.
+- Editing the block to add `nope-not-a-scenario` turns `screens` red and the comment lists it as
+  unknown; removing the block makes the next run green with no new push to `team/screens`.
+- The workflow file shows `permissions: {}` at the top, `contents: read` on `screens`, the fork
+  condition on `screens-publish`, and no `pull_request_target`.
+- **Merging waits for Érik's explicit OK** (skill rule 3: it changes `.github/workflows/`). The
+  item is built, its PR shows its own screenshots, and it stays `blocked: needs Érik` until he
+  says yes on the PR.
+
+**Design.** _(sel-team)_ Not part of the app. The comment is built for Érik reading on GitHub,
+light or dark: one heading per scenario, light row above dark, before on the left; nothing else
+in it but the failures, so a glance says "looks right" or "something broke".
 
 ## Epic A — Columns on a page
 
@@ -79,7 +221,8 @@ a column (A1c); column widths; columns inside a toggle or a callout; the persona
 **Touches.** `src/renderer/src/editor/layout.ts`, `layout.test.ts`, `BlockView.tsx`, `menus.tsx`,
 `controller.ts` (only `setBeside` and the place where commits are built, for the repair),
 `editor.css`, new `editor/copy.ts`; `src/renderer/src/versions/ReadOnlyBlocks.tsx`;
-`src/renderer/src/styles/tokens.css` (one token, `--column-min`).
+`src/renderer/src/styles/tokens.css` (one token, `--column-min`); new
+`e2e/screens/scenarios/columns.ts`.
 
 **Done when.**
 - `layout.test.ts`: two text blocks with the second `beside` form one row; a sub-page block never
@@ -94,6 +237,11 @@ a column (A1c); column widths; columns inside a toggle or a callout; the persona
 - The version viewer draws the same rows (test or a case in an existing ReadOnlyBlocks test).
 - A page saved with columns and opened by the 0.8.0 rules (`canShareRow` for databases only) lists
   the same blocks in the same order: a pure test that runs the old predicate on the new data.
+- Screens (S0; the item adds them in a new `e2e/screens/scenarios/columns.ts`, both themes):
+  `columns-two` (a text head with two children beside a callout, text width),
+  `columns-four` (four blocks in one row, database width), `columns-beside-database` (a text block
+  beside a Tasks database view), `block-menu-beside` (a text block's menu open on "Place beside
+  the previous block"), `block-menu-beside-pt` (the same, locale pt-BR).
 
 **Design.** _(sel-designer)_ Flow: hover the block, click its handle (⋮⋮), "Place beside the
 previous block": 2 clicks, as for databases today. Keys: Esc selects the block, Shift+F10 (or the
@@ -154,7 +302,7 @@ down); column widths; dropping on the side of a nested block.
 
 **Touches.** `src/renderer/src/editor/PageEditor.tsx` (drag handlers), `types.ts` (`DropPos`),
 `structure.ts` and `structure.test.ts` (`placeForDrop`, `moveToOps`), `blockTypes.ts`,
-`editor.css` (side drop line), `editor/copy.ts` (keys added).
+`editor.css` (side drop line), `editor/copy.ts` (keys added), `e2e/screens/scenarios/columns.ts`.
 
 **Done when.**
 - `structure.test.ts`: `moveToOps` with `'left'` and `'right'` gives the right order and `beside`
@@ -162,8 +310,13 @@ down); column widths; dropping on the side of a nested block.
   (repair), a drop that would make a fifth column (refused: no ops), a block dropped beside itself
   (no ops); each undone by its inverse ops leaves the page as before (the file's `applyAndUndo`).
 - The slash items create the row in one commit (test on the plan or the controller).
-- On the built app (scratch profile): drag a paragraph to the right of a heading and see two
-  columns; drag it back out and see one column. Note the result in the PR.
+- On the built app: drag a paragraph to the right of a heading and see two columns; drag it back
+  out and see one column. Proved by the screens below (the drag is driven with Playwright's mouse
+  in the scenario's `run`) instead of a scratch profile.
+- Screens (S0; added by this item to `e2e/screens/scenarios/columns.ts`, both themes): `columns-drag-right` (mid-drag, the vertical drop
+  line on the right of a heading), `columns-dropped` (the two columns after the drop),
+  `slash-columns` (the slash menu filtered by "col", showing "2 columns" and "3 columns"),
+  `slash-columns-pt` (the same, locale pt-BR, filtered by "colunas").
 
 **Design.** _(sel-designer)_ Flow: drag the handle to the side of a block, drop: 1 gesture,
 the shortest path to a column. From scratch: "/2" or "/col", Enter: 3 keys gives an empty
@@ -218,7 +371,7 @@ differently from today.
 **Touches.** `src/renderer/src/editor/structure.ts` and `structure.test.ts` (`splitPlan`,
 `backspacePlan`, `deleteForwardPlan`, `outdentOps`, `indentOps`), `keyboard.ts` only if a plan
 needs a new kind, `typing.test.ts` if the keyboard path is covered there, `editor/copy.ts` or
-`src/renderer/src/a11y/copy.ts` (one announcement).
+`src/renderer/src/a11y/copy.ts` (one announcement), `e2e/screens/scenarios/columns.ts`.
 
 **Done when.** `structure.test.ts` covers each rule above with a page holding a two-column row and
 a block after it: Enter at the end of a lone head; Enter at the end of a head with children;
@@ -226,6 +379,10 @@ Enter on an empty last child (lands after the row, row intact); Shift+Tab on a c
 head (no ops); Backspace in an empty head (deleted, row repaired) and in a non-empty one (no
 merge); Delete at the end of a column (no merge). The plans outside rows give exactly the
 results they give today (existing tests unchanged).
+Screens (S0; added by this item to `e2e/screens/scenarios/columns.ts`, both themes): `columns-enter-inside` (after typing a line and
+Enter at the end of a lone head: the new line under it, inside the column, row intact),
+`columns-enter-out` (after Enter twice on an empty last child: the caret's block under the row,
+the row intact).
 
 **Design.** _(sel-designer)_ The rules match what a list already does, so nothing has to be
 learnt: Enter keeps you in the column, Enter on an empty line leaves it (2 keys out, like leaving
@@ -279,12 +436,16 @@ the database UI; changing `TYPE_LABELS` in shared code (main uses it for Markdow
 
 **Touches.** `src/renderer/src/database/propertyMenus.tsx` (`AddPropertyMenu` only), new
 `src/renderer/src/database/copy.ts`, `views/TableView.tsx` (scroll the new column into view, via
-`onAdded`), a new test file next to them.
+`onAdded`), a new test file next to them, new `e2e/screens/scenarios/database-menus.ts`.
 
 **Done when.** A happy-dom test opens `AddPropertyMenu`, types "Budget", picks Number, and finds a
 Number property named "Budget" in the schema; Enter with "Notes" adds a Text property "Notes";
 an empty field with locale `pt-BR` adds "Número"; the relation path with a typed name keeps it.
 axe finds nothing serious in the open menu (as `TableView.a11y.test.tsx` does).
+Screens (S0; added by this item in a new `e2e/screens/scenarios/database-menus.ts`, both themes): `add-property-empty` (the table's "+" menu just
+opened: name field focused, types below, no hint), `add-property-typed` ("Budget" typed, hint
+shown), `add-property-pt` (the same with locale pt-BR), `add-property-added` (after Enter: the new
+column scrolled into view, its first cell active).
 
 **Design.** _(sel-designer)_ Flow today: "+", type, click the header again, type the name,
 Enter or click away: 3 clicks + typing. New: "+", type the name, Enter (text) or click a type:
@@ -340,12 +501,15 @@ Board, List or Gallery views; "Duplicate property"; translating the rest of `Pro
 **Touches.** `src/renderer/src/database/views/TableView.tsx`, `views/TableView.a11y.test.tsx`,
 `propertyMenus.tsx` (only the two insert entries in `PropertyMenu` and the prop that tells it
 it was opened from a table), `database/copy.ts` (keys added), `database.css` (focus ring on the
-active header), `src/shared/shortcuts.ts` (`PAGE_KEYS`, F2).
+active header), `src/shared/shortcuts.ts` (`PAGE_KEYS`, F2), `e2e/screens/scenarios/database-menus.ts`.
 
 **Done when.** Tests (happy-dom) in `TableView.a11y.test.tsx` or a sibling: ArrowUp from the
 first row reaches the header and Enter opens its menu with the name field focused; F2 does the
 same; Esc returns to the header; End reaches the "+" header; "Insert left" on the second column adds a property that sits between the first and
 second in the view's order; one undo removes it. axe finds nothing serious.
+Screens (S0; added by this item to `e2e/screens/scenarios/database-menus.ts`, both themes): `table-header-focus` (ArrowUp from the first row:
+the header's focus ring), `property-menu-insert` (a header's menu showing "Insert left" and
+"Insert right"), `property-menu-insert-pt` (the same, locale pt-BR).
 
 **Design.** _(sel-designer)_ **Scope change: drop the double-click rename and its tooltip.**
 `PropertyMenu` already opens with the name field focused and selected, so renaming is click,
@@ -404,12 +568,16 @@ list them. There is no way to reorder options except by creating them in order: 
 `relationItems`, `rollupItems`, `rollupRowsItem`), `SelectEditor.tsx` (only if `OptionEditPane`
 needs a prop to sit in this popover), `src/shared/database/mutations.ts` (`moveOption`),
 `src/renderer/src/database/actions.ts`, `database/copy.ts` (keys added), `logic.test.ts` or a
-mutations test, a new component test.
+mutations test, a new component test, `e2e/screens/scenarios/database-menus.ts`.
 
 **Done when.** A pure test of `moveOption` (first to last, last to first, unknown id unchanged);
 a happy-dom test opens the property menu of a select, adds "Groceries", renames it, moves it to
 the top with Alt+ArrowUp, deletes it, and checks the schema after each step; with locale `pt-BR`
 the menu shows "Excluir propriedade" and no English entry. axe finds nothing serious.
+Screens (S0; added by this item to `e2e/screens/scenarios/database-menus.ts`, both themes): `property-menu-options` (the Priority column's
+menu with its Options list and the add field), `property-menu-options-long` (a select with 9
+options, the list scrolling, one long name with ellipsis), `property-menu-option-edit` (an
+option's edit pane with Back), `property-menu-options-pt` (the menu with locale pt-BR).
 
 **Design.** _(sel-designer)_ Flow today: open a cell, open its picker, open an option: 3
 clicks before editing one, and no reordering. New: click the header, click the option: 2 clicks;
@@ -492,9 +660,16 @@ those, the item stops and says so instead of merging.
 
 | Wave | Items | Why (dependencies, overlapping "Touches") |
 |---|---|---|
-| 1 | A1a · B1 · C1 | A1a lays the column model the other A items build on; B1 creates `database/copy.ts`; C1 is the low-risk dependency step. Disjoint files: editor/ + versions/; database/propertyMenus.tsx (AddPropertyMenu), copy.ts, TableView.tsx (`onAdded` only); package files |
+| 0 | S0 | Érik asked for it first, before any visible item. It adds `@playwright/test` to the package files, which C1 and C2 also edit, so it runs alone. Its PR waits for Érik's OK (rule 3, workflows); see Risks for what happens if it is not merged |
+| 1 | A1a · B1 · C1 | Visible items (A1a, B1) start once S0 is merged, so their PRs get screenshots; C1 is not visible and does not depend on S0: it runs after S0 is built, not beside it (same package files), and if S0 is still waiting for Érik, C1 merges first and S0's branch refreshes its lock file. A1a lays the column model the other A items build on; B1 creates `database/copy.ts`; C1 is the low-risk dependency step. Disjoint files: editor/ + versions/; database/propertyMenus.tsx (AddPropertyMenu), copy.ts, TableView.tsx (`onAdded` only); package files |
 | 2 | A1b · B3 · C2 | A1b needs A1a's `canShareRow` and repair; B3 edits `PropertyMenu` and `copy.ts` after B1; C2 edits the package files after C1. A1b touches editor drag files, B3 database menus and shared mutations, C2 the build config: no overlap |
 | 3 | A1c · B2 | A1c needs A1a's rows and touches `structure.ts` after A1b; B2 adds to `PropertyMenu` and `copy.ts` after B3 and edits `TableView.tsx` after B1 |
+
+Every visible item (A1a, A1b, A1c, B1, B2, B3) depends on S0 being merged into `release/0.9.0`:
+a `pull_request` workflow runs from the PR's merge ref, so an item PR gets screenshots only once
+the job is on its base. The A items add scenarios to `e2e/screens/scenarios/columns.ts` and the B
+items to `database-menus.ts`, one wave after the other, so no two items running together edit
+the same scenario file. C1 and C2 are not visible and do not depend on S0.
 
 ## For other people
 
@@ -528,10 +703,12 @@ the branch does not have. Anything an item drops is left out.
   - `property-menu.webp`: a select's column menu with its Options list and the name field.
 
   `blocks.webp` should be re-shot only if the slash menu's first screen now shows the column items.
-  **None of these can be made in the cloud.** The other 50 images come from the Windows app,
-  with its fonts, theme and window frame. A headless Linux build would not match them. So they
-  go in the state's "Screenshots for Érik" list with what to set up for each. Until they exist,
-  the README describes the features in text only.
+  None of these can be made in the cloud. Once S0 is merged they come from its job on the Windows
+  runner (scenarios `columns-two` and `property-menu-options`, light theme), converted to webp in
+  CLOSE. The job's window shows a seeded workspace and may be framed differently from the
+  hand-taken images; if they look out of place, or S0 is not merged, they go in the state's
+  "Screenshots for Érik" list with what to set up for each. Until they exist, the README describes
+  the features in text only. _(updated by sel-pm when S0 was added)_
 - **First run.** Nothing changes. There is no new screen and no change to onboarding or the
   templates (the gallery and list beside it in the kitchen template are already a database row).
   A newcomer finds columns through the `/` menu, which is the path they already know, so the
@@ -547,6 +724,20 @@ the branch does not have. Anything an item drops is left out.
   should come. Nothing is added in 0.9.0.
 
 ## Risks
+
+- **S0 not OK'd, or not working.** S0 changes `.github/workflows/`, so it merges only on Érik's
+  word (rule 3), and its first real run happens only on CI. If it is not merged by the night wave
+  1 would start, C1 and C2 go on; the visible items wait **one** night, then build anyway: each PR
+  keeps its `screens` block (so it is captured as soon as S0 lands) and its scenarios are listed
+  with what to set up in the state's "Screenshots for Érik", as before. If the harness is not on
+  the release branch yet, the item writes its scenario ids and descriptions in the PR, and the
+  scenario code is added right after S0 merges. CLOSE runs the full set (`all`) either way.
+- **The demo is not Érik's workspace.** Screens show a seeded, English workspace at 1280×800 on a
+  Windows runner, not his data or his DPI. Good enough to judge layout, copy and theme; the
+  designer still flags anything that depends on real content (long titles, many rows) by adding
+  a scenario for it.
+- **`team/screens` grows.** Every push of a visible PR adds a commit of PNGs to the orphan
+  branch. It is never merged and can be deleted at any time; the job recreates it.
 
 - **Reading the pain wrong.** "Multi-column page layout does not work" is read as "only databases
   can sit side by side". If Érik meant something else (column widths, full-width pages), his

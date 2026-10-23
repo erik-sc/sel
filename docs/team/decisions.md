@@ -51,3 +51,18 @@ the editor and database UI stays English until 0.11.0.
 **Why.** Translating only what an item touches keeps items one night long, and avoids menus half
 in one language where a whole menu is already being rewritten.
 **To undo.** Ask for English-only menus (drop the pt-BR keys) or for the full translation sooner.
+
+## 2026-10-23 — How the screenshot job (0.9.0 item S0) is shaped
+**Decision.** Érik asked for the job; the team chose its shape: two jobs (capture on Windows with
+a read-only token, publish on Ubuntu with write rights and no PR code), the harness and scenarios
+always taken from the PR head and run against both builds (a scenario that cannot run on base
+shows "not in base"), one scenario file per area under `e2e/screens/scenarios/` so parallel items
+do not collide, an `all` line for the release PR, older `pr-<n>/<sha>/` folders removed from
+`team/screens` on each push, and the scenario ids named in each 0.9.0 item. S0 runs alone as wave
+0; if it is not merged by wave 1, visible items wait one night and then fall back to
+"Screenshots for Érik".
+**Why.** PR code never runs with a token that can push or comment; base builds cannot know the
+head's new scenarios; one registry file would make every visible item conflict with every other.
+**To undo.** Say which part to change on the S0 PR (for example, keep every push's folder, or
+one registry file); `/veto S0` drops the job and the visible items go back to "Screenshots for
+Érik".
