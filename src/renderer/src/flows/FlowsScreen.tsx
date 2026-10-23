@@ -227,7 +227,7 @@ function PageName({ id, copy }: { id: string; copy: FlowsCopy }): JSX.Element {
 
 function PlaceName({ place, copy }: { place: ActivityPlace; copy: FlowsCopy }): JSX.Element {
   if (place.area === 'page' && place.pageId) return <PageName id={place.pageId} copy={copy} />
-  return <>{copy.areas[place.area] ?? place.area}</>
+  return <>{(copy.areas as Record<string, string | undefined>)[place.area] ?? place.area}</>
 }
 
 const placeKey = (place: ActivityPlace): string => `${place.area}:${place.pageId ?? ''}`
@@ -286,7 +286,7 @@ function AreaTime({
         <tbody>
           {table.areas.map((row) => (
             <tr key={row.area}>
-              <th scope="row">{copy.areas[row.area] ?? row.area}</th>
+              <th scope="row">{(copy.areas as Record<string, string | undefined>)[row.area] ?? row.area}</th>
               {row.ms.map((ms, i) => (
                 <td key={table.weeks[i]} title={duration(ms, locale)}>
                   <span className="flows-bar" style={{ '--share': row.share[i] } as CSSProperties} aria-hidden="true" />

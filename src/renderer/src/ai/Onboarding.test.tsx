@@ -223,6 +223,13 @@ describe('the persona’s introduction', () => {
     await act(async () => checkbox('Veleiro').click())
     await settle()
     expect(api.settings[AI_MCP_SERVERS_KEY]).toEqual({ 'claudeai:Veleiro': { access: 'read' } })
+    // …and the routines, each off until ticked.
+    expect(checkbox('Plan the day, in the morning').checked).toBe(false)
+    await act(async () => checkbox('Plan the day, in the morning').click())
+    await settle()
+    const routines = api.settings['ai.routines'] as { routines: Record<string, { on: boolean }> }
+    expect(routines.routines.morning.on).toBe(true)
+    expect(routines.routines.evening.on).toBe(false)
     expect(await seriousViolations()).toEqual([])
     await click(button('Finish'))
     expect(dialog()).toBeNull()

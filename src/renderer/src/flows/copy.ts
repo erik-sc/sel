@@ -1,7 +1,7 @@
 // The words of the Fluxos screen, in English and in Brazilian Portuguese (the language of the
 // Home, see home/copy.ts). Pure: no React, no DOM. No word here keeps score: no streak, no
 // record, no "best"; a count is said only where it helps to read a square.
-import type { ActivityKind } from '@shared/activity'
+import type { ActivityArea, ActivityKind } from '@shared/activity'
 import type { HomeLocale } from '@/home/copy'
 
 /** The kinds the screen filters by, each standing for one or more kinds of the log. */
@@ -50,7 +50,8 @@ export interface FlowsCopy {
   backLede: string
   noBack: string
   days: (days: number) => string
-  areas: Record<string, string>
+  /** Every area of the activity log has a name (a missing one would show its raw id). */
+  areas: Record<ActivityArea, string>
   untitled: string
   emptyTitle: string
   empty: string
@@ -104,6 +105,7 @@ export const FLOWS_COPY: Record<HomeLocale, FlowsCopy> = {
       tasks: 'Tasks',
       meditations: 'Meditations',
       'close-day': 'Close the day',
+      'week-review': 'Weekly review',
       sky: 'Sky',
       page: 'Pages'
     },
@@ -158,6 +160,7 @@ export const FLOWS_COPY: Record<HomeLocale, FlowsCopy> = {
       tasks: 'Tarefas',
       meditations: 'Meditações',
       'close-day': 'Fechar o dia',
+      'week-review': 'Revisão da semana',
       sky: 'Céu',
       page: 'Páginas'
     },
