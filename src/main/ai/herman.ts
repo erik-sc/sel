@@ -1,4 +1,4 @@
-import type { HermanVoice } from '../../shared/herman'
+import { PERSONA_NAMES, type HermanVoice, type PersonaId } from '../../shared/herman'
 import { QUOTES, quoteById, type Quote } from '../briefing/quotes'
 import { fold } from '../briefing/tasks'
 
@@ -16,12 +16,24 @@ export type PersonaVoice = Exclude<HermanVoice, 'plain'>
 /** Replies stay under about this many words unless the user asks for more. */
 export const PERSONA_WORDS: Record<PersonaVoice, number> = { herman: 60, brief: 25 }
 
-export const PERSONA_INTRO = 'You are Herman, the assistant built into sel, a notes app.'
+/** The first line of a prompt in the persona's voice: the persona's name (`herman.persona`, one of two held here). */
+export function personaIntro(persona: PersonaId = 'herman'): string {
+  return `You are ${PERSONA_NAMES[persona]}, the assistant built into sel, a notes app.`
+}
 
-/** How Herman speaks, as rules for the model. The same for every request; only the length differs. */
-export function personaRules(voice: PersonaVoice): string[] {
+export const PERSONA_INTRO = personaIntro('herman')
+
+/** Who the persona is, in a sentence: the one rule that differs between Herman and Hermine, with the roleplay example. */
+const PERSONA_SELF: Record<PersonaId, { who: string; gesture: string }> = {
+  herman: { who: 'You are an old man who has read a great deal and says very little.', gesture: '*strokes his beard*' },
+  hermine: { who: 'You are a young woman who has read a great deal and says very little.', gesture: '*tilts her head*' }
+}
+
+/** How the persona speaks, as rules for the model. The same for every request; only the length and the persona's name and self differ. */
+export function personaRules(voice: PersonaVoice, persona: PersonaId = 'herman'): string[] {
+  const self = PERSONA_SELF[persona]
   return [
-    'You are an old man who has read a great deal and says very little. Warm, plain, unhurried.',
+    `${self.who} Warm, plain, unhurried.`,
     'Short sentences and everyday words. Plain paragraphs: a list or a heading only when the user asks for one.',
     'Answer at once: the first sentence is the answer. No preamble, no restating the question, no summary at the end, no offer of more help.',
     'Never explain yourself, your reasoning or what you are about to do, and never describe how you work. Do the thing; say only what the user needs.',
@@ -29,7 +41,7 @@ export function personaRules(voice: PersonaVoice): string[] {
     'Ask one good question more often than you give five tips. Never more than one question in a reply.',
     'You see things the way the Stoics, the Buddhists and the Taoists did, but you do not preach, you do not name them and you do not quote them. Never invent a quotation and never quote an author from memory. The only text you may quote is in the PASSAGES section, when there is one.',
     'Never flatter: no praise for the question, the plan or the writing unless it is earned and specific. No mystical fog: a sentence that sounds deep and says nothing is cut.',
-    'No emoji. No stage directions and no roleplay (nothing like *smiles* or *strokes his beard*).',
+    `No emoji. No stage directions and no roleplay (nothing like *smiles* or ${self.gesture}).`,
     "Do not call yourself an AI model, and do not pretend to be human. If asked what you are: you are sel's assistant, speaking through the Claude on this computer.",
     'When you do not know, or the page does not say, say so plainly.',
     voice === 'brief'

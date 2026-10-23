@@ -2,6 +2,8 @@
 // and of the line under an answer that says what went along, in English and in Brazilian
 // Portuguese, chosen like the home's. Pure: no React, no DOM.
 import type { AiSent, McpAccess, McpScope } from '@shared/aiContext'
+import type { PersonaId } from '@shared/herman'
+import { personifyCopy } from '@shared/persona'
 import type { HomeLocale } from '@/home/copy'
 
 export interface ContextCopy {
@@ -199,4 +201,9 @@ export function sentLine(sent: AiSent | undefined, copy: ContextCopy): string | 
   if (sent.pages.length) parts.push(copy.sentPages(sent.pages.length))
   if (sent.servers.length) parts.push(copy.sentServers(sent.servers.join(', ')))
   return parts.length ? `${copy.sentLabel}: ${parts.join(' · ')}` : null
+}
+
+/** The copy said of the chosen persona: written in Herman's words, rewritten for Hermine (shared/persona.ts). */
+export function contextCopy(locale: HomeLocale, persona: PersonaId): ContextCopy {
+  return personifyCopy(CONTEXT_COPY[locale], persona, locale)
 }

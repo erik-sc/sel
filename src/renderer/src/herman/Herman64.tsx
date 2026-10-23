@@ -1,10 +1,11 @@
 // Herman 64: Herman as a low-poly figure from a 1997 memory card. Each pose is a strip of pre-rendered
 // frames (sprites.ts) that CSS steps through; the size comes from --herman-size, a whole multiple of
-// the 84px frame so the pixels stay square. He wears the skin chosen in Settings → Herman.
+// the 84px frame so the pixels stay square. He wears the skin chosen in Settings → Herman. With Hermine
+// chosen there, she takes his place: her own strips, the same animations.
 // Nothing moves while the window is hidden or not in front, nor with reduced motion.
 import { useEffect, useState } from 'react'
 import type { CSSProperties, JSX } from 'react'
-import { wornSkin } from '@shared/herman'
+import { wornHermineSkin, wornSkin } from '@shared/herman'
 import type { FigurePose } from './Figure'
 import { useHerman } from './gate'
 import { spriteUrl, TIMING, type HermanAnimation } from './sprites'
@@ -52,7 +53,10 @@ function useAttentive(): boolean {
 }
 
 export function Herman64({ pose, draw = false, alive = true, className }: Herman64Props): JSX.Element {
-  const skin = useHerman((state) => wornSkin(state.skin, state.seasonal))
+  const persona = useHerman((state) => state.persona)
+  const skin = useHerman((state) =>
+    state.persona === 'hermine' ? wornHermineSkin(state.hermineSkin, state.seasonal) : wornSkin(state.skin, state.seasonal)
+  )
   const front = useAttentive()
   // With reduced motion there is no entrance: it would never end, and its first frame is empty.
   const [entering, setEntering] = useState(() => draw && !reducedMotion())
@@ -60,7 +64,7 @@ export function Herman64({ pose, draw = false, alive = true, className }: Herman
   const { frames, fps } = TIMING[animation]
   const style = {
     '--frames': frames,
-    backgroundImage: `url("${spriteUrl(skin, animation)}")`,
+    backgroundImage: `url("${spriteUrl(skin, animation, persona)}")`,
     animationDuration: `${(frames / fps).toFixed(2)}s`
   } as CSSProperties
 

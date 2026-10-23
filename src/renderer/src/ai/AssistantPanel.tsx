@@ -12,7 +12,7 @@ import { AI_LIMITS, type AiTurn } from '@shared/ai'
 import { isTodayRoute } from '@/briefing/route'
 import { routeTitle } from '@/screens'
 import { Herman64 } from '@/herman/Herman64'
-import { useHerman } from '@/herman/gate'
+import { useHerman, usePersona } from '@/herman/gate'
 import { poseFor } from '@/herman/mood'
 import { pageTitle } from '@/shell/actions'
 import { PageIcon } from '@/shell/PageIcon'
@@ -154,6 +154,7 @@ export function AssistantPanel(): JSX.Element {
   const herman = useHerman((state) => state.on)
   const mood = useHerman((state) => state.mood)
   const prepared = useHerman((state) => state.prepared)
+  const { name } = usePersona()
   const [composing, setComposing] = useState(false)
   const page = useBlock(pageId)
   const messages = useChats((state) => state.chats[key] ?? NO_MESSAGES)
@@ -340,7 +341,7 @@ export function AssistantPanel(): JSX.Element {
   return (
     <aside
       className={herman ? 'assistant glass is-herman' : 'assistant glass'}
-      aria-label={herman ? 'Conversation with Herman' : 'Assistant'}
+      aria-label={herman ? `Conversation with ${name}` : 'Assistant'}
       onKeyDown={(event) => {
         // Escape puts Herman back in his corner (unless it just stopped an answer).
         if (herman && event.key === 'Escape' && !event.defaultPrevented && !event.nativeEvent.isComposing) {
@@ -355,7 +356,7 @@ export function AssistantPanel(): JSX.Element {
             {AI_GLYPH}
           </span>
         )}
-        <h2>{herman ? 'Herman' : 'Assistant'}</h2>
+        <h2>{herman ? name : 'Assistant'}</h2>
         <IconButton
           label="New conversation"
           size="small"
@@ -441,7 +442,7 @@ export function AssistantPanel(): JSX.Element {
                 )}
                 {!working && run.status === 'done' && parsed.rejected > 0 && (
                   <p className="ai-status" role="status">
-                    Herman proposed changes I couldn't read ({parsed.rejected})
+                    {name} proposed changes I couldn't read ({parsed.rejected})
                   </p>
                 )}
                 {(working || run.status === 'cancelled') && (
@@ -521,7 +522,7 @@ export function AssistantPanel(): JSX.Element {
             rows={2}
             value={draft}
             maxLength={AI_LIMITS.instruction}
-            placeholder={herman ? 'Ask Herman…' : today ? 'Ask about your day…' : pageId ? 'Ask about this page…' : 'Ask anything…'}
+            placeholder={herman ? `Ask ${name}…` : today ? 'Ask about your day…' : pageId ? 'Ask about this page…' : 'Ask anything…'}
             aria-label="Message"
             onFocus={() => setComposing(true)}
             onBlur={() => setComposing(false)}

@@ -3,7 +3,8 @@ import { AI_LANGUAGE_LABELS, type AiAction, type AiLanguage, type AiRequest, typ
 import { ACTIONS_FENCE } from '../../shared/actions'
 import { AI_CONTEXT_CAPS } from '../../shared/aiContext'
 import { TOOL_LIST } from './toolspecs'
-import { PASSAGES_RULE, PERSONA_INTRO, PERSONA_LANGUAGE_RULE, passagesBody, personaRules, type PersonaVoice } from './herman'
+import type { PersonaId } from '../../shared/herman'
+import { PASSAGES_RULE, PERSONA_LANGUAGE_RULE, passagesBody, personaIntro, personaRules, type PersonaVoice } from './herman'
 
 /**
  * Prompt construction. It lives in the main process on purpose: a renderer names an action and
@@ -76,6 +77,8 @@ export interface PromptOptions {
    * voices this process holds (see ./herman.ts): no text of a persona ever comes in from outside.
    */
   voice?: PersonaVoice | null
+  /** With a voice: who speaks (`herman.persona`), Herman when absent. Only the name and the persona's sentence about itself change. */
+  persona?: PersonaId
   /** `ask` with a voice: ids of bundled passages he may quote. Ids of anything else give nothing. */
   passageIds?: readonly string[]
   /** `ask`: the request may read the workspace through the tools (see ./tools.ts). */
@@ -367,10 +370,14 @@ export function buildPrompt(request: AiRequest, context: PromptContext = {}, opt
   // Herman speaks in the conversation only: the tools that rewrite text have no voice of their own.
   const voice = isAsk ? (options.voice ?? null) : null
   const passages = voice ? passagesBody(options.passageIds) : ''
-  const lines: string[] = [voice ? PERSONA_INTRO : 'You are the writing assistant built into sel, a notes app.', '', `Task: ${spec.task}`]
+  const lines: string[] = [
+    voice ? personaIntro(options.persona) : 'You are the writing assistant built into sel, a notes app.',
+    '',
+    `Task: ${spec.task}`
+  ]
   if (voice) {
     lines.push('', 'Your voice:')
-    for (const rule of personaRules(voice)) lines.push(`- ${rule}`)
+    for (const rule of personaRules(voice, options.persona)) lines.push(`- ${rule}`)
     if (passages) lines.push(`- ${PASSAGES_RULE}`)
   }
   const rules = [...(spec.rules ?? [])]
@@ -589,11 +596,11 @@ export function buildBriefingPrompt(data: BriefingPromptData, options: PromptOpt
   const agenda = `${list(data.events, '(nothing scheduled)')}${data.tomorrow ? `\n\nFirst thing tomorrow:\n- ${line(data.tomorrow)}` : ''}`
   return [
     voice
-      ? `${PERSONA_INTRO} The user opened their morning briefing and asked you about the day.`
+      ? `${personaIntro(options.persona)} The user opened their morning briefing and asked you about the day.`
       : 'You are the assistant built into sel, a notes app. The user opened their morning briefing and asked for a spoken-style summary of the day.',
     '',
     `Task: ${task}`,
-    ...(voice ? ['', 'Your voice:', ...personaRules(voice).map((rule) => `- ${rule}`)] : []),
+    ...(voice ? ['', 'Your voice:', ...personaRules(voice, options.persona).map((rule) => `- ${rule}`)] : []),
     '',
     'Rules:',
     '- Three to five sentences, one paragraph, plain text. No lists, no headings, no Markdown, no emoji, no greeting and no sign-off.',

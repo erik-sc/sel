@@ -9,7 +9,7 @@ import type { ExternalPlan } from './claudeMcp'
 import { buildArgs, buildEnv, buildSpawn, type ExternalArgs, type SpawnSpec } from './command'
 import { classifyFailure, failure, type Failure } from './errors'
 import { envValue, locateCli, type CliLocation, type LocateResult } from './locate'
-import { activeVoice } from '../../shared/herman'
+import { activeVoice, hermanSetting, type PersonaId } from '../../shared/herman'
 import { selectPassages, type PersonaVoice } from './herman'
 import { NdjsonParser, readEvent } from './ndjson'
 import type { GrantExtra, ToolGrant } from './toolhost'
@@ -90,8 +90,16 @@ export interface AiServiceOptions {
   external?: () => ExternalPlan | null | Promise<ExternalPlan | null>
 }
 
-/** Builds a whole prompt in the main process; it is told the language answers default to, the voice that is on, and whether the workspace tools were granted. */
-export type PromptBuilder = (language: AiLanguage | 'auto', voice: PersonaVoice | null, tools: boolean) => string | Promise<string>
+/**
+ * Builds a whole prompt in the main process; it is told the language answers default to, the voice that is on, whether the
+ * workspace tools were granted, and who the persona is (`herman.persona`).
+ */
+export type PromptBuilder = (
+  language: AiLanguage | 'auto',
+  voice: PersonaVoice | null,
+  tools: boolean,
+  persona: PersonaId
+) => string | Promise<string>
 
 /** What a request may do beyond reading its prompt. */
 export interface RunTarget {
@@ -543,6 +551,7 @@ export class AiService {
       const language = isAiLanguage(stored) ? stored : 'auto'
       // Herman's voice: which of the voices held here is on (`herman.*`), never words from a setting.
       const voice = activeVoice(this.setting('herman.enabled'), this.setting('herman.voice'))
+      const persona = hermanSetting('persona', this.setting('herman.persona'))
       await mkdir(this.options.sandboxDir, { recursive: true })
       if (job.state !== 'starting') return
       // The workspace tools, when the target asks for them: granted before the prompt is written, which says whether there are any.
@@ -580,7 +589,7 @@ export class AiService {
       }
       job.tools = tools !== null
       if (job.build) {
-        prompt = await job.build(language, voice, tools !== null)
+        prompt = await job.build(language, voice, tools !== null, persona)
       } else {
         const context = await this.options.loadContext(job.request)
         if (job.state !== 'starting') return
@@ -591,7 +600,7 @@ export class AiService {
           : []
         prompt = buildPrompt(job.request, context, {
           defaultLanguage: language,
-          ...(speaks ? { voice, passageIds } : {}),
+          ...(speaks ? { voice, persona, passageIds } : {}),
           ...(tools ? { tools: true } : {}),
           ...(plan ? { external: { names: plan.names, writes: plan.writes } } : {})
         })

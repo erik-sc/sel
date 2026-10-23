@@ -10,9 +10,10 @@ import { logError } from '@/shell/actions'
 import { applyOps, getBlock, newId, refreshBlocks } from '@/store/blocks'
 import { refreshTree } from '@/store/tree'
 import { setExpanded } from '@/store/ui'
+import { personaTitle } from '@/herman/gate'
 import { actionTargets, planActions, type ActionPlan } from './actions'
 
-/** The label of the version saved before Herman changes a page. */
+/** The label of the version saved before Herman changes a page ("Before Hermine" with her chosen). */
 export const BEFORE_HERMAN = 'Before Herman'
 /** A proposal that touches more pages than this keeps versions of the first ones only. */
 const MAX_VERSIONS = 20
@@ -36,7 +37,7 @@ async function saveVersions(ids: readonly string[]): Promise<void> {
   })
   for (const id of pages.slice(0, MAX_VERSIONS)) {
     // Without the version the change can still be undone from the toast: it is not a reason to stop.
-    await window.api.versions.save(id, BEFORE_HERMAN).catch(logError('save a version before applying'))
+    await window.api.versions.save(id, personaTitle(BEFORE_HERMAN)).catch(logError('save a version before applying'))
   }
 }
 

@@ -1,5 +1,5 @@
-import { HERMAN_NUDGE_KINDS, type HermanLocale, type HermanNudge, type HermanNudgeKind } from '../../shared/herman'
-import { agoWords, capitalize, LINES, numberWord, PHRASES, sinceWords, spanWords, type Words } from './lines'
+import { HERMAN_NUDGE_KINDS, type HermanLocale, type HermanNudge, type HermanNudgeKind, type PersonaId } from '../../shared/herman'
+import { agoWords, capitalize, LINES, numberWord, phrasesOf, sinceWords, spanWords, type Words } from './lines'
 
 /**
  * Herman's counsel without AI: one short line about the user's own day, composed here from what
@@ -64,6 +64,8 @@ export const TITLE_CHARS = 48
 export interface CounselInput {
   now: number
   locale: HermanLocale
+  /** Who says the lines: only the words that name the persona (the "Ask …" button) differ. Herman when absent. */
+  persona?: PersonaId
   tasks: { overdue: readonly CounselTask[]; today: readonly CounselTask[] }
   /** Today's events, in order. */
   events: readonly CounselEvent[]
@@ -157,7 +159,7 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
   const { locale } = input
   const now = new Date(input.now)
   const minuteOfDay = now.getHours() * 60 + now.getMinutes()
-  const phrases = PHRASES[locale]
+  const phrases = phrasesOf(locale, input.persona)
   const out: Partial<Record<HermanNudgeKind, Candidate>> = {}
   const count = (n: number): Partial<Words> => {
     const word = numberWord(n, locale, true)

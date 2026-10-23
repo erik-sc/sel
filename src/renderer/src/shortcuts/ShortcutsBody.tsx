@@ -3,6 +3,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { IS_MAC } from '@/ui/platform'
 import { Search } from '@/ui/icons'
 import { aiEnabled } from '@/ai/gate'
+import { usePersona } from '@/herman/gate'
 import { shownShortcuts, type ShownEntry } from './catalog'
 import { useShortcutsGate } from './gate'
 import './shortcuts.css'
@@ -30,6 +31,9 @@ export function ShortcutsBody() {
   // Whether AI is on is read as the screen opens (the body mounts on every open).
   const [ai] = useState(aiEnabled)
   const groups = useMemo(() => shownShortcuts({ mac: IS_MAC, ai, query }), [ai, query])
+  // The assistant's group is written in Herman's words: said of the chosen persona.
+  const { say } = usePersona()
+  const words = (group: { id: string }, text: string): string => (group.id === 'herman' ? say(text) : text)
 
   // Opening, or pressing Ctrl+/ again while open: the filter takes the focus, its text selected.
   useEffect(() => {
@@ -60,7 +64,7 @@ export function ShortcutsBody() {
           const headingId = `${baseId}-${group.id}`
           return (
             <section key={group.id} className="sc-group">
-              <h3 id={headingId}>{group.title}</h3>
+              <h3 id={headingId}>{words(group, group.title)}</h3>
               <table aria-labelledby={headingId}>
                 <thead className="sc-hidden">
                   <tr>
@@ -71,7 +75,7 @@ export function ShortcutsBody() {
                 <tbody>
                   {group.entries.map((entry) => (
                     <tr key={entry.id}>
-                      <th scope="row">{entry.label}</th>
+                      <th scope="row">{words(group, entry.label)}</th>
                       <td>
                         <Keys entry={entry} />
                       </td>

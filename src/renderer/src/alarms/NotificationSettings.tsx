@@ -10,6 +10,7 @@ import { Segmented } from '@/appearance/controls'
 import { setRefineMark } from '@/tasks/refining'
 import { notifyError } from '@/ui/toast'
 import { alarmsCopy, type AlarmsLocale } from './copy'
+import { useHerman } from '@/herman/gate'
 import './alarms.css'
 
 /** Monday first, as a week is read; the stored days count from Sunday (0). */
@@ -19,7 +20,8 @@ export function NotificationsSection(): JSX.Element {
   const [values, setValues] = useState<AlarmSettings>(ALARM_DEFAULTS)
   const [refine, setRefine] = useState<RefineSettings>(REFINE_DEFAULTS)
   const [locale, setLocale] = useState<AlarmsLocale>('en')
-  const copy = alarmsCopy(locale)
+  const persona = useHerman((state) => state.persona)
+  const copy = alarmsCopy(locale, persona)
 
   useEffect(() => {
     let alive = true
