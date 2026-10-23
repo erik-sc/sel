@@ -2,10 +2,14 @@
 // batch of ops, built here and committed through the same pipeline as the user's own edits.
 // `planActions` is pure (it reads blocks through a getter and returns the ops), so the rules
 // are unit tested without a DOM. Nothing here runs until the user presses Apply.
-import type { ActionCell, ActionRow, HermanAction } from '@shared/actions'
+import type { ActionCell, ActionRow, HermanAction, TaskChange } from '@shared/actions'
 import type { Block, BlockProps, Op, PropertySchema, PropertyValue } from '@shared/types'
 // Relative: this file is unit tested, and the tests resolve no aliases.
+import { localDay } from '../../../shared/briefing'
+import { cleanLine, cleanPlans, entryId, lineTitle, nextDay, NOTEBOOK_ENTRY_TYPE, NOTEBOOK_ID, readEntry } from '../../../shared/notebook'
 import { plainText, toRichText } from '../../../shared/richtext'
+import { TASK_PROPS, TASKS_DATABASE_ID } from '../../../shared/tasks'
+import { blockOf, blockValue, minutesOf } from '../../../shared/tasks/blocks'
 import * as L from '../database/logic'
 import { buildCreateOps } from '../editor/clipboard'
 import { markdownToNodes } from './plan'
@@ -15,6 +19,10 @@ export interface ActionEnv {
   currentPageId: string | null
   get(id: string): Block | undefined
   newId(): string
+  /** The local day, `YYYY-MM-DD`: what "today" is for a time block and for Meditations. Now when absent. */
+  today?: string
+  /** The title Meditations gets when a proposal starts it (in the language of the app). */
+  notebookTitle?: string
 }
 
 export interface ActionPlan {
@@ -42,6 +50,7 @@ export function describeAction(
   created?: ReadonlyMap<string, string>
 ): string {
   const isDatabase = action.do === 'add-rows' || action.do === 'update-rows' || action.do === 'add-properties'
+  const isTask = action.do === 'update-tasks' || action.do === 'add-subtasks'
   const named = (target: string | undefined): string => {
     if (!target) return ''
     if (target.startsWith('@')) {
@@ -49,7 +58,7 @@ export function describeAction(
       return title ? quoted(title) : 'the page created above'
     }
     const block = env.get(target === 'current' ? (env.currentPageId ?? '') : target)
-    return block ? quoted(titleOf(block)) : target === 'current' ? 'this page' : isDatabase ? 'a database' : 'a page'
+    return block ? quoted(titleOf(block)) : target === 'current' ? 'this page' : isDatabase ? 'a database' : isTask ? 'a task' : 'a page'
   }
   switch (action.do) {
     case 'create-page':
@@ -72,7 +81,31 @@ export function describeAction(
       return `Add ${action.properties.map((property) => quoted(property.name)).join(', ')} to ${named(action.database)}`
     case 'trash':
       return `Move ${named(action.page)} to the Trash`
+    case 'update-tasks':
+      return action.tasks.length === 1
+        ? `${taskChangeWords(action.tasks[0])} ${named(action.tasks[0].id)}`.replace(/^./, (first) => first.toUpperCase())
+        : `Change ${count(action.tasks.length, 'task')}`
+    case 'add-subtasks':
+      return `Add ${count(action.titles.length, 'step')} under ${named(action.task)}`
+    case 'close-day':
+      return action.line && action.plans?.length
+        ? `Write today’s line in Meditations and set ${count(action.plans.length, 'plan')} for tomorrow`
+        : action.line
+          ? 'Write today’s line in Meditations'
+          : `Set ${count(action.plans?.length ?? 0, 'plan')} for tomorrow`
   }
+}
+
+/** What a change of a task does, in a few words: "set the date and block a time for". */
+function taskChangeWords(change: TaskChange): string {
+  const parts: string[] = []
+  if (change.title) parts.push('rename')
+  if (change.due === null) parts.push('take the date off')
+  else if (change.due) parts.push(`move to ${change.due}`)
+  if (change.priority) parts.push(`make ${change.priority}`)
+  else if (change.priority === null) parts.push('take the priority off')
+  if (change.block) parts.push(`block ${change.block.start}–${change.block.end} for`)
+  return parts.join(', ') || 'change'
 }
 
 /** What each `ref` of a proposal names: the title of what that action creates. */
@@ -98,12 +131,15 @@ export function summarizeActions(actions: readonly HermanAction[]): string {
     else if (action.do === 'update-page') add('renamed')
     else if (action.do === 'update-rows') add('rows changed', action.rows.length)
     else if (action.do === 'add-properties') add('properties added', action.properties.length)
+    else if (action.do === 'update-tasks') add('tasks changed', action.tasks.length)
+    else if (action.do === 'add-subtasks') add('steps added', action.titles.length)
+    else if (action.do === 'close-day') add('Meditations written')
     else add('to the Trash')
   }
   return [...tally.entries()]
     .map(
       ([key, n]) =>
-        `${n} ${n === 1 ? key.replace(/^(page|database|row|propert)(s|ies)\b/, (_, stem: string) => (stem === 'propert' ? 'property' : stem)) : key}`
+        `${n} ${n === 1 ? key.replace(/^(page|database|row|task|step|propert)(s|ies)\b/, (_, stem: string) => (stem === 'propert' ? 'property' : stem)) : key}`
     )
     .join(', ')
 }
@@ -125,6 +161,17 @@ export function actionTargets(actions: readonly HermanAction[], currentPageId: s
     } else if (action.do === 'move') {
       add(action.page)
       add(action.parent ?? undefined)
+    } else if (action.do === 'update-tasks') {
+      add(TASKS_DATABASE_ID)
+      for (const change of action.tasks) add(change.id)
+    } else if (action.do === 'add-subtasks') {
+      add(TASKS_DATABASE_ID)
+      add(action.task)
+    } else if (action.do === 'close-day') {
+      const today = localDay()
+      add(NOTEBOOK_ID)
+      add(entryId(today))
+      add(entryId(nextDay(today)))
     } else add(action.parent)
   }
   return [...ids]
@@ -246,6 +293,14 @@ export function planActions(actions: readonly HermanAction[], env: ActionEnv): A
   /** Titles of the pages created here: the store does not have them yet. */
   const made = new Map<string, string>()
   const lookup: L.BlockLookup = { get: (id) => env.get(id) }
+  const today = env.today ?? localDay()
+  /** The notebook page was created by an earlier action of this proposal. */
+  let madeNotebook = false
+  /** A live task of the built-in Tasks database, by id. */
+  const taskRow = (id: string): Block | null => {
+    const row = env.get(id)
+    return row && row.type === 'page' && row.parentId === TASKS_DATABASE_ID && !row.trashedAt ? row : null
+  }
 
   /** A page that can hold things: a live page of the store, or one created above. Null when there is none. */
   const page = (target: string | undefined): string | null => {
@@ -475,7 +530,136 @@ export function planActions(actions: readonly HermanAction[], env: ActionEnv): A
         plan.done.push(`Moved ${quoted(nameOf(block))} to the Trash.`)
         break
       }
+      case 'update-tasks': {
+        let changed = 0
+        let missing = 0
+        for (const change of action.tasks) {
+          const row = taskRow(change.id)
+          if (!row || trashed.has(row.id)) {
+            missing++
+            continue
+          }
+          const patch = taskPatch(row, change, today)
+          if (!patch) continue
+          plan.ops.push({ op: 'update', id: row.id, patch: { props: patch } })
+          if (change.title) made.set(row.id, change.title)
+          changed++
+        }
+        if (changed) {
+          plan.done.push(`Changed ${count(changed, 'task')}.`)
+          plan.open ??= TASKS_DATABASE_ID
+        }
+        if (missing) plan.skipped.push(`${count(missing, 'task')} ${missing === 1 ? 'was' : 'were'} not found.`)
+        if (!changed && !missing) plan.skipped.push('No task was changed: nothing new was said about them.')
+        break
+      }
+      case 'add-subtasks': {
+        const parent = taskRow(action.task)
+        if (!parent || trashed.has(parent.id)) {
+          plan.skipped.push('No steps were added: the task was not found.')
+          break
+        }
+        const project = (parent.props.values ?? {})[TASK_PROPS.project]
+        for (const title of action.titles) {
+          const values: Record<string, PropertyValue> = { [TASK_PROPS.parent]: [parent.id] }
+          if (typeof project === 'string' && project) values[TASK_PROPS.project] = project
+          plan.ops.push({
+            op: 'create',
+            input: { id: env.newId(), type: 'page', parentId: TASKS_DATABASE_ID, props: { title: toRichText(title), values } }
+          })
+        }
+        plan.done.push(`Added ${count(action.titles.length, 'step')} under ${quoted(nameOf(parent))}.`)
+        plan.open ??= TASKS_DATABASE_ID
+        break
+      }
+      case 'close-day': {
+        const notebook = env.get(NOTEBOOK_ID)
+        if (notebook && (notebook.type !== 'page' || notebook.trashedAt)) {
+          plan.skipped.push('Meditations could not be written: its page is in the Trash.')
+          break
+        }
+        if (!notebook && !madeNotebook) {
+          // The notebook starts with its fixed id, the same block every device makes (shared/notebook.ts).
+          plan.ops.push({
+            op: 'create',
+            input: {
+              id: NOTEBOOK_ID,
+              type: 'page',
+              parentId: null,
+              props: { system: 'notebook', title: [[env.notebookTitle ?? 'Meditations']] }
+            }
+          })
+          madeNotebook = true
+        }
+        const entry = (day: string): { block: Block | undefined; text: string; plans: string[]; dismissed: boolean } => {
+          const block = env.get(entryId(day))
+          const read = block && block.parentId === NOTEBOOK_ID && !block.trashedAt ? readEntry(block) : null
+          return {
+            block: read ? block : undefined,
+            text: read?.text ?? '',
+            plans: read?.plans ?? [],
+            dismissed: read?.plansDismissed ?? false
+          }
+        }
+        const write = (day: string, existing: Block | undefined, props: Record<string, unknown>): void => {
+          if (existing) plan.ops.push({ op: 'update', id: existing.id, patch: { props: props as BlockProps } })
+          else
+            plan.ops.push({
+              op: 'create',
+              input: {
+                id: entryId(day),
+                type: NOTEBOOK_ENTRY_TYPE,
+                parentId: NOTEBOOK_ID,
+                props: Object.fromEntries(Object.entries(props).filter(([, value]) => value !== null)) as BlockProps
+              }
+            })
+        }
+        if (action.line) {
+          const now = entry(today)
+          // Added after what the day already holds: the line written by hand stays first.
+          const text = cleanLine(now.text ? `${now.text}\n${action.line}` : action.line)
+          write(today, now.block, { title: lineTitle(text) })
+          plan.done.push('Wrote today’s line in Meditations.')
+        }
+        if (action.plans?.length) {
+          const tomorrow = nextDay(today)
+          const then = entry(tomorrow)
+          const plans = cleanPlans([...(then.dismissed ? [] : then.plans), ...action.plans])
+          write(tomorrow, then.block, { plans, plansDismissed: null })
+          plan.done.push(`Set ${count(plans.length, 'plan')} for tomorrow.`)
+        }
+        plan.open ??= NOTEBOOK_ID
+        break
+      }
     }
   }
   return plan
+}
+
+/** The values a change of a task writes, or null when it changes nothing. */
+function taskPatch(row: Block, change: TaskChange, today: string): BlockProps | null {
+  const before = row.props.values ?? {}
+  const values: Record<string, PropertyValue> = { ...before }
+  const current = before[TASK_PROPS.due]
+  if (change.due === null && !change.block) delete values[TASK_PROPS.due]
+  else if (change.due && !change.block) {
+    // A new day keeps the time of day it had: a block moves whole, a time stays the time.
+    const block = blockOf(current)
+    if (block) values[TASK_PROPS.due] = blockValue({ ...block, day: change.due })
+    else if (typeof current === 'string' && current.length > 10) values[TASK_PROPS.due] = `${change.due}${current.slice(10)}`
+    else values[TASK_PROPS.due] = change.due
+  }
+  if (change.block) {
+    const start = minutesOf(change.block.start)
+    const end = minutesOf(change.block.end)
+    // A block is for the day being planned: the day given with it, else today (a late task is done today, not on its old day).
+    const value = start !== null && end !== null ? blockValue({ day: change.due ?? today, start, minutes: end - start }) : null
+    if (value) values[TASK_PROPS.due] = value
+  }
+  if (change.priority === null) delete values[TASK_PROPS.priority]
+  else if (change.priority) values[TASK_PROPS.priority] = `tasks.p${change.priority.slice(1)}`
+  const props: BlockProps = {}
+  if (JSON.stringify(values) !== JSON.stringify(before)) props.values = values
+  if (change.title && change.title !== plainText(row.props.title).trim()) props.title = toRichText(change.title)
+  return Object.keys(props).length ? props : null
 }

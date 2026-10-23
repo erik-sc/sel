@@ -933,7 +933,7 @@ export class Repository {
     this.touched.add(id)
     if (!isPageLike(type)) this.touchPage(r.parent_id)
     if (type === 'to_do' && oldType === 'to_do' && before.checked !== true && props.checked === true) this.pendingChecked.push(id)
-    if (patch.props && isTaskRow(type, r.parent_id)) this.pendingTasks.push({ before, after: props })
+    if (patch.props && isTaskRow(type, r.parent_id)) this.pendingTasks.push({ id, before, after: props })
   }
 
   move(id: string, parentId: string | null, afterId?: string | null): Block {

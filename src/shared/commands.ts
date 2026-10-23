@@ -16,6 +16,7 @@ import { HOME_COMMANDS } from './home'
 import { MEETINGS_COMMANDS } from './meetings'
 import { NOTEBOOK_COMMANDS } from './notebook'
 import { POMODORO_COMMANDS } from './pomodoro'
+import { ROUTINES_COMMANDS } from './routines'
 import type { AppShortcut } from './shortcuts'
 import { SKY_COMMANDS } from './sky'
 import { TASKS_COMMANDS } from './tasks/api'
@@ -201,6 +202,7 @@ export const COMMANDS = [
   ...MEETINGS_COMMANDS,
   ...AI_COMMANDS,
   ...AI_ONBOARDING_COMMANDS,
+  ...ROUTINES_COMMANDS,
   ...FEEDBACK_COMMANDS
 ] as const satisfies readonly CommandSpec[]
 

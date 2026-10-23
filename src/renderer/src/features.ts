@@ -13,6 +13,7 @@ import { meetingsFeature } from './meetings/feature'
 import { notebookFeature } from './notebook/feature'
 import { pomodoroFeature } from './pomodoro/feature'
 import { reviewFeature } from './review/feature'
+import { routinesFeature } from './routines/feature'
 import { shellFeature } from './shell/feature'
 import { skyFeature } from './sky/feature'
 import { syncFeature } from './sync/feature'
@@ -40,7 +41,8 @@ export const FEATURES = [
   feedbackFeature,
   activityFeature,
   transferFeature,
-  flowsFeature
+  flowsFeature,
+  routinesFeature
 ] as const
 
 /** Runs every feature's start-up, in the order above. */

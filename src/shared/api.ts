@@ -12,6 +12,7 @@ import { MCP_INVOKE, type McpApi } from './mcp'
 import { MEETINGS_INVOKE, type MeetingsApi } from './meetings'
 import { NOTEBOOK_INVOKE, type NotebookApi } from './notebook'
 import { POMODORO_INVOKE, type PomodoroApi } from './pomodoro'
+import { ROUTINES_INVOKE, type RoutinesApi } from './routines'
 import { SKY_INVOKE, type SkyApi } from './sky'
 import { TEMPLATES_INVOKE, type TemplatesApi } from './templates/model'
 import { DATA_INVOKE, type DataApi } from './data'
@@ -228,6 +229,11 @@ export interface Api {
    * come out. Never synced, never sent to AI. See shared/activity.ts.
    */
   activity: ActivityApi
+  /**
+   * The persona's routines: answers prepared in the background at a few moments of the day, said
+   * in its corner and opened in the balloon; and how much AI was used. See shared/routines.ts.
+   */
+  routines: RoutinesApi
 
   app: {
     getTheme(): Promise<Theme>
@@ -378,7 +384,8 @@ export const INVOKE = {
   ...ALARMS_INVOKE,
   ...POMODORO_INVOKE,
   ...SKY_INVOKE,
-  ...ACTIVITY_INVOKE
+  ...ACTIVITY_INVOKE,
+  ...ROUTINES_INVOKE
 } as const satisfies Record<InvokeChannel, true>
 
 export const FILE_PROTOCOL = 'sel-file'

@@ -67,6 +67,36 @@ export type HermanAction =
   | { do: 'add-properties'; database: ActionTarget; properties: ActionProperty[] }
   /** Puts a page or database in the Trash, from where it can be restored. */
   | { do: 'trash'; page: ActionTarget }
+  /**
+   * Tasks of the built-in Tasks database changed by what the app knows of them (the routines, C2
+   * and C3): a due day (null clears it), a priority (null clears it), a time block (today, or on
+   * the due day given with it) and a new title. Each task is named by its id.
+   */
+  | { do: 'update-tasks'; tasks: TaskChange[] }
+  /** Steps under a task of the Tasks database: subtasks, in its project (C3). */
+  | { do: 'add-subtasks'; task: string; titles: string[] }
+  /**
+   * Today's line in Meditations (added after what is written there, if anything) and what is set
+   * aside for tomorrow (up to three, kept with those already set): the close of the day (C4).
+   */
+  | { do: 'close-day'; line?: string; plans?: string[] }
+
+/** One task's change in an `update-tasks`. */
+export interface TaskChange {
+  id: string
+  /** `YYYY-MM-DD`, or null to take the date away. */
+  due?: string | null
+  priority?: TaskPriorityName | null
+  /** A time block, `HH:mm` to `HH:mm`: on the `due` given here, else today. */
+  block?: { start: string; end: string }
+  title?: string
+}
+
+export const TASK_PRIORITY_NAMES = ['P1', 'P2', 'P3', 'P4'] as const
+export type TaskPriorityName = (typeof TASK_PRIORITY_NAMES)[number]
+
+/** Limits of the actions on tasks and on the close of the day. */
+export const TASK_ACTION_LIMITS = { tasks: 40, subtasks: 12, line: 600, plans: 3, plan: 160 } as const
 
 export interface ParsedAnswer {
   /** The answer without the proposal block. */
@@ -164,6 +194,39 @@ function properties(value: unknown): ActionProperty[] {
   return out
 }
 
+/** The id of a row that exists: never `current` or a reference to something created in the same proposal. */
+function rowId(value: unknown): string | undefined {
+  const id = target(value)
+  return id && id !== 'current' && !id.startsWith('@') ? id : undefined
+}
+
+const DUE_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
+const CLOCK_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+
+/** One entry of an `update-tasks`, or null when it changes nothing that is understood. */
+function taskChange(value: unknown): TaskChange | null {
+  if (!isObject(value)) return null
+  const id = rowId(value['id'])
+  if (!id) return null
+  const change: TaskChange = { id }
+  if (value['due'] === null) change.due = null
+  else if (typeof value['due'] === 'string' && DUE_RE.test(value['due'])) change.due = value['due']
+  if (value['priority'] === null) change.priority = null
+  else if (typeof value['priority'] === 'string') {
+    const name = value['priority'].trim().toUpperCase()
+    if ((TASK_PRIORITY_NAMES as readonly string[]).includes(name)) change.priority = name as TaskPriorityName
+  }
+  const block = value['block']
+  if (isObject(block)) {
+    const start = typeof block['start'] === 'string' ? block['start'] : ''
+    const end = typeof block['end'] === 'string' ? block['end'] : ''
+    if (CLOCK_RE.test(start) && CLOCK_RE.test(end) && end > start) change.block = { start, end }
+  }
+  const title = oneLine(value['title'], ACTION_LIMITS.title)
+  if (title) change.title = title
+  return Object.keys(change).length > 1 ? change : null
+}
+
 /** One entry of the block as an action, or null when it is not one. */
 export function cleanAction(value: unknown): HermanAction | null {
   if (!isObject(value)) return null
@@ -244,6 +307,36 @@ export function cleanAction(value: unknown): HermanAction | null {
     case 'trash': {
       const page = target(value['page'])
       return page && !page.startsWith('@') ? { do: 'trash', page } : null
+    }
+    case 'update-tasks': {
+      if (!Array.isArray(value['tasks'])) return null
+      const tasks: TaskChange[] = []
+      for (const item of value['tasks'].slice(0, TASK_ACTION_LIMITS.tasks)) {
+        const change = taskChange(item)
+        if (change) tasks.push(change)
+      }
+      return tasks.length ? { do: 'update-tasks', tasks } : null
+    }
+    case 'add-subtasks': {
+      const task = rowId(value['task'])
+      const titles = Array.isArray(value['titles'])
+        ? value['titles']
+            .map((title) => oneLine(title, ACTION_LIMITS.title))
+            .filter(Boolean)
+            .slice(0, TASK_ACTION_LIMITS.subtasks)
+        : []
+      return task && titles.length ? { do: 'add-subtasks', task, titles } : null
+    }
+    case 'close-day': {
+      const line = typeof value['line'] === 'string' ? oneLine(value['line'], TASK_ACTION_LIMITS.line) : ''
+      const plans = Array.isArray(value['plans'])
+        ? value['plans']
+            .map((plan) => oneLine(plan, TASK_ACTION_LIMITS.plan))
+            .filter(Boolean)
+            .slice(0, TASK_ACTION_LIMITS.plans)
+        : []
+      if (!line && !plans.length) return null
+      return { do: 'close-day', ...(line ? { line } : {}), ...(plans.length ? { plans } : {}) }
     }
     default:
       return null

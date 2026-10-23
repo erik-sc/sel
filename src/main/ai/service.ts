@@ -85,9 +85,25 @@ export interface AiServiceOptions {
   tools?: { grant(listener?: (activity: string) => void, extra?: GrantExtra): Promise<ToolGrant> }
   /**
    * The user's own MCP servers that are on (Settings → AI → Claude's tools), for requests whose
-   * target asks for them; null when none is.
+   * target asks for them; null when none is. `readOnly`: only their tools that look things up,
+   * whatever the settings allow (a routine runs with nobody watching).
    */
-  external?: () => ExternalPlan | null | Promise<ExternalPlan | null>
+  external?: (readOnly: boolean) => ExternalPlan | null | Promise<ExternalPlan | null>
+  /**
+   * Told once for every request that reached the program (C5): who asked (`RunTarget.origin`),
+   * how long it took and, when the program said, what it cost. Not told for one refused before
+   * the program started.
+   */
+  onUsage?: (usage: AiUsageReport) => void
+}
+
+/** One request that reached the program, for the usage counts (shared/aiUsage.ts). */
+export interface AiUsageReport {
+  origin: string
+  durationMs: number
+  /** Null when the program did not say. */
+  costUsd: number | null
+  ok: boolean
 }
 
 /**
@@ -98,7 +114,9 @@ export type PromptBuilder = (
   language: AiLanguage | 'auto',
   voice: PersonaVoice | null,
   tools: boolean,
-  persona: PersonaId
+  persona: PersonaId,
+  /** The user's own servers that came along with the tools, by display name (none unless the target asked for them). */
+  servers?: readonly string[]
 ) => string | Promise<string>
 
 /** What a request may do beyond reading its prompt. */
@@ -110,13 +128,19 @@ export interface RunTarget {
   tools?: {
     maxTurns: number
     onActivity?: (activity: string) => void
-    /** The user's servers that are on may come along (see ./claudeMcp.ts); they need the tools to be granted. */
-    external?: boolean
+    /**
+     * The user's servers that are on may come along (see ./claudeMcp.ts); they need the tools to be
+     * granted. `'read'`: only their tools that look things up.
+     */
+    external?: boolean | 'read'
   }
   /** A model for this request instead of `ai.model` (the memory's small request asks for a cheap one). */
   model?: string
-  /** Who asked, for counting: the persona's memory runs requests of its own (`memory`). */
-  origin?: 'memory'
+  /**
+   * Who asked, for the usage counts: `you` (the default: a window asked), `routine:<id>`,
+   * `memory`… (shared/aiUsage.ts).
+   */
+  origin?: string
 }
 
 /** Turns a request with the user's servers gets at least: calling another service takes a few. */
@@ -145,6 +169,8 @@ interface Job {
   tools?: boolean
   /** What went along with it, for the window. */
   sent?: AiSent
+  /** What the program said it cost, from its result event. */
+  costUsd?: number
 }
 
 /** Kills a child and everything it started. Never throws. */
@@ -484,9 +510,22 @@ export class AiService {
     this.fail(job, failure('cancelled'))
   }
 
-  private settle(job: Job): boolean {
+  private settle(job: Job, ok = false): boolean {
     if (job.state === 'settled') return false
     const counted = job.state === 'starting' || job.state === 'running'
+    // A request that reached the program is counted, whatever became of it (C5).
+    if (job.child && this.options.onUsage) {
+      try {
+        this.options.onUsage({
+          origin: job.target?.origin ?? 'you',
+          durationMs: Date.now() - job.startedAt,
+          costUsd: job.costUsd ?? null,
+          ok
+        })
+      } catch (err) {
+        console.error('[ai] the usage could not be counted', err)
+      }
+    }
     job.state = 'settled'
     job.release?.()
     if (job.timer) clearTimeout(job.timer)
@@ -527,7 +566,7 @@ export class AiService {
   }
 
   private finish(job: Job, text: string, truncated: boolean): void {
-    if (!this.settle(job)) return
+    if (!this.settle(job, true)) return
     try {
       job.sink.done({ text, truncated, durationMs: Date.now() - job.startedAt, ...(job.sent ? { sent: job.sent } : {}) })
     } catch (err) {
@@ -565,7 +604,7 @@ export class AiService {
       if (wanted && this.options.tools) {
         if (wanted.external && this.options.external) {
           try {
-            plan = await this.options.external()
+            plan = await this.options.external(wanted.external === 'read')
           } catch (err) {
             // The user's servers could not be worked out: the request goes without them.
             console.error('[ai] the servers turned on in Settings could not be read', err)
@@ -593,7 +632,8 @@ export class AiService {
       }
       job.tools = tools !== null
       if (job.build) {
-        prompt = await job.build(language, voice, tools !== null, persona)
+        prompt = await job.build(language, voice, tools !== null, persona, plan?.names ?? [])
+        if (plan) job.sent = { context: false, pages: [], servers: [...plan.names] }
       } else {
         const context = await this.options.loadContext(job.request)
         if (job.state !== 'starting') return
@@ -674,6 +714,7 @@ export class AiService {
           streamed = 0
         } else {
           result = { text: signal.text, isError: signal.isError }
+          if (signal.costUsd !== undefined) job.costUsd = signal.costUsd
           // Stopped at the turn limit with the answer already written: that answer stands.
           if (signal.isError && signal.subtype === 'error_max_turns' && text.trim()) this.finish(job, text, false)
           else if (signal.isError) this.fail(job, classifyFailure({ resultText: signal.text, stderr }))

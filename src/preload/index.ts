@@ -7,6 +7,7 @@ import { HERMAN_NUDGE_CHANNEL } from '@shared/herman'
 import { buildInvokers, type Invokers } from '@shared/ipc'
 import { MEETINGS_CHANNELS } from '@shared/meetings'
 import { POMODORO_CHANNELS } from '@shared/pomodoro'
+import { ROUTINES_READY_CHANNEL } from '@shared/routines'
 import { SKY_CHANGED_CHANNEL } from '@shared/sky'
 import { SYNC_CHANNEL, type SyncStatus } from '@shared/sync'
 import { TRANSFER_PROGRESS_CHANNEL } from '@shared/transfer'
@@ -122,6 +123,10 @@ const api: Api = {
   sky: {
     ...invoke.sky,
     onChanged: subscribe(SKY_CHANGED_CHANNEL)
+  },
+  routines: {
+    ...invoke.routines,
+    onReady: subscribe(ROUTINES_READY_CHANNEL)
   },
   app: {
     ...invoke.app,

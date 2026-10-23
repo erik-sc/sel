@@ -1,0 +1,29 @@
+/*
+ * Settings → AI → Routines and Usage. Every colour, type size and spacing is a token from
+ * styles/tokens.css.
+ */
+
+.routines-control {
+  flex-wrap: wrap;
+}
+
+.routines-time,
+.routines-day {
+  width: auto;
+}
+
+.routines-usage {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.routines-usage li + li {
+  margin-top: 2px;
+}
+
+.routines-usage-origin {
+  font-weight: var(--weight-semibold);
+}

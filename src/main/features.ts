@@ -10,6 +10,7 @@ import { hermanFeature } from './herman/register'
 import { meetingsFeature } from './meetings/register'
 import { notebookFeature } from './notebook/register'
 import { pomodoroFeature } from './pomodoro/register'
+import { routinesFeature } from './routines/register'
 import { skyFeature } from './sky/register'
 import { syncFeature } from './sync/register'
 import { tasksFeature } from './tasks/register'
@@ -39,7 +40,8 @@ export const FEATURES = [
   tasksFeature,
   updatesFeature,
   mcpFeature,
-  activityFeature
+  activityFeature,
+  routinesFeature
 ] as const
 
 /** The namespace of a feature in the list. */

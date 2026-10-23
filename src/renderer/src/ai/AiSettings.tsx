@@ -19,6 +19,8 @@ import { maybeOnboard, refreshAiStatus, setAiEnabled, useAiGate } from './gate'
 import { ClaudeSettings, useLocale } from './ClaudeSettings'
 import { HistorySettings } from './HistorySettings'
 import { MemorySettings } from './MemorySettings'
+import { RoutinesSettings } from '@/routines/RoutinesSettings'
+import '@/routines/routines.css'
 import { INSTALL_COMMAND, unavailableText } from './labels'
 import './ai.css'
 
@@ -287,6 +289,7 @@ export function AiSection(): JSX.Element {
 
       <ClaudeSettings enabled={enabled} />
       <MemorySettings enabled={enabled} locale={locale} />
+      <RoutinesSettings enabled={enabled} />
       <HistorySettings />
     </div>
   )

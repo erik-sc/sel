@@ -27,6 +27,8 @@ export interface ActivityDeps {
 
 /** A row of the Tasks database, before (null when it is new) and after a write. */
 export interface TaskWrite {
+  /** The row, when known: a postponement keeps it, so that a task put off again and again can be found (C3). */
+  id?: string
   before: BlockProps | null
   after: BlockProps
 }
@@ -216,7 +218,7 @@ function dateOf(value: unknown): string | null {
  * which a repeating task moving on also is), postponed (a due day moved later, by itself). The
  * same reading as src/main/tasks/completions.ts.
  */
-export function taskEvents({ before, after }: TaskWrite): ActivityEvent[] {
+export function taskEvents({ id, before, after }: TaskWrite): ActivityEvent[] {
   const now = valuesOf(after)
   const project = typeof now[TASK_PROPS.project] === 'string' ? (now[TASK_PROPS.project] as string) : null
   if (before === null) return [{ kind: 'task.created', project }]
@@ -226,7 +228,8 @@ export function taskEvents({ before, after }: TaskWrite): ActivityEvent[] {
   if (doneAfter !== null && (doneBefore === null || doneAfter > doneBefore)) return [{ kind: 'task.completed', project }]
   const dueBefore = dateOf(was[TASK_PROPS.due])?.slice(0, 10) ?? null
   const dueAfter = dateOf(now[TASK_PROPS.due])?.slice(0, 10) ?? null
-  if (dueBefore !== null && dueAfter !== null && dueAfter > dueBefore) return [{ kind: 'task.postponed', project }]
+  if (dueBefore !== null && dueAfter !== null && dueAfter > dueBefore)
+    return [{ kind: 'task.postponed', project, ...(id ? { pageId: id } : {}) }]
   return []
 }
 

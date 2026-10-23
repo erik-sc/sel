@@ -5,6 +5,8 @@ import { app, dialog, type BrowserWindow, type WebContents } from 'electron'
 import { AI_CHANNELS, type AiDone, type AiError, type AiRequest, type AiStatus } from '../../shared/ai'
 import { privacyChecker } from '../../shared/aiPrivate'
 import type { MemoryFact } from '../../shared/aiMemory'
+import { addUsage, AI_USAGE_KEY, readUsage } from '../../shared/aiUsage'
+import { localDay } from '../../shared/briefing'
 import { AI_MCP_CATALOG_KEY, AI_MCP_SERVERS_KEY, isMcpServerId, mcpChoices, type ClaudeServerList } from '../../shared/aiContext'
 import type { Repository } from '../db/repository'
 import {
@@ -94,7 +96,15 @@ export class AiBridge {
       getSetting: (key) => (key === 'ai.cliPath' && override && !script ? override : repo.getSetting(key)),
       devScript: script,
       loadContext: (request) => this.context(request),
-      external: () => this.externalPlan()
+      external: (readOnly) => this.externalPlan(readOnly),
+      // How much AI was used, by day and by who asked (C5): one setting, on this computer only.
+      onUsage: (usage) => {
+        const stored = readUsage(repo.getSetting(AI_USAGE_KEY))
+        repo.setSetting(
+          AI_USAGE_KEY,
+          addUsage(stored, { day: localDay(Date.now()), origin: usage.origin, ms: usage.durationMs, costUsd: usage.costUsd })
+        )
+      }
     })
     this.memory = new PersonaMemory(
       {
@@ -396,9 +406,15 @@ export class AiBridge {
     return readCatalog(this.repo.getSetting(AI_MCP_CATALOG_KEY))
   }
 
-  /** The servers that are on, for one request; null when none is. */
-  private async externalPlan(): Promise<ExternalPlan | null> {
-    const choices = mcpChoices(this.repo.getSetting(AI_MCP_SERVERS_KEY))
+  /**
+   * The servers that are on, for one request; null when none is. `readOnly`: each of them with its
+   * tools that look things up only, whatever access the settings give it.
+   */
+  private async externalPlan(readOnly = false): Promise<ExternalPlan | null> {
+    const stored = mcpChoices(this.repo.getSetting(AI_MCP_SERVERS_KEY))
+    const choices: typeof stored = readOnly
+      ? Object.fromEntries(Object.keys(stored).map((id) => [id, { access: 'read' as const }]))
+      : stored
     if (!Object.keys(choices).length) return null
     const { servers } = await this.localServers()
     return planExternal({ choices, local: servers, catalog: this.catalog() })
