@@ -2,7 +2,7 @@ import { AI_CONTEXT_CAPS, AI_CONTEXT_KEY, AI_CONTEXT_PAGES_KEY, contextPageIds, 
 import { privacyChecker } from '../../shared/aiPrivate'
 import { contextScopes, SCOPE_CONTEXT_CAPS } from '../../shared/aiScope'
 import type { Block } from '../../shared/types'
-import { pinnedBody, type PromptContext, type ScopePrompt, type StandingContext } from './prompts'
+import { memoryBody, pinnedBody, type PromptContext, type ScopePrompt, type StandingContext } from './prompts'
 
 /**
  * Settings → AI → Context: what goes along with every request the user makes from a page or the
@@ -99,5 +99,8 @@ export function sentOf(context: PromptContext, servers: readonly string[] = []):
   })
   const went = scopes.filter((scope) => scope.context || scope.pages.length)
   if (went.length) sent.scopes = went
-  return sent.context || sent.pages.length || sent.servers.length || went.length ? sent : undefined
+  // The remembered facts that fitted (0.8.0 A3).
+  const memory = context.memory?.length ? memoryBody(context.memory).count : 0
+  if (memory) sent.memory = memory
+  return sent.context || sent.pages.length || sent.servers.length || went.length || memory ? sent : undefined
 }

@@ -12,6 +12,7 @@ import {
   type ClaudeServerList
 } from './aiContext'
 import { AI_APPLIED_KEY, AI_CONVERSATIONS_KEY, cleanAppliedLog, cleanConversations } from './aiHistory'
+import { AI_MEMORY_ENABLED_KEY, type MemoryFact } from './aiMemory'
 
 /**
  * AI workflows: the shapes shared by the main process (which finds and drives the Claude Code
@@ -158,9 +159,17 @@ export const AI_KEYS = [
   AI_CONTEXT_PAGES_KEY,
   AI_MCP_SERVERS_KEY,
   AI_CONVERSATIONS_KEY,
-  AI_APPLIED_KEY
+  AI_APPLIED_KEY,
+  AI_MEMORY_ENABLED_KEY,
+  'ai.onboarded'
 ] as const
 export type AiKey = (typeof AI_KEYS)[number]
+
+/**
+ * The persona's introduction (0.8.0 A1) was shown, or skipped: it comes by itself only once (see
+ * renderer/src/ai/onboarding.ts). Settings → AI and the palette show it again.
+ */
+export const AI_ONBOARDED_KEY = 'ai.onboarded'
 
 export const AI_DEFAULTS = { enabled: true, timeoutSec: 120 } as const
 export const AI_TIMEOUT_LIMITS = { min: 10, max: 900 } as const
@@ -209,6 +218,9 @@ export function cleanAiSetting(key: string, value: unknown): unknown {
       return cleanConversations(value)
     case AI_APPLIED_KEY:
       return cleanAppliedLog(value)
+    case AI_MEMORY_ENABLED_KEY:
+    case AI_ONBOARDED_KEY:
+      return typeof value === 'boolean' ? value : undefined
     default:
       return undefined
   }
@@ -266,6 +278,15 @@ export interface AiApi {
   scanServers(): Promise<ClaudeServerList>
   /** Starts Claude Code with one server and notes its tools (it may count as one small request). */
   serverTools(id: string): Promise<ClaudeServerList>
+  /**
+   * The persona's memory (0.8.0 A3, shared/aiMemory.ts): picks durable facts out of a finished turn
+   * of the balloon with a small request of its own and keeps them, unless the memory is off, the
+   * turn says nothing worth keeping, it was already read, or it is about a page private from the
+   * AI. Resolves with the facts kept now (often none).
+   */
+  remember(input: unknown): Promise<MemoryFact[]>
+  /** Edits, deletes one or deletes all of the remembered facts; resolves with what is kept, or why an edit was refused. */
+  memory(op: unknown): Promise<{ facts: MemoryFact[]; refused?: 'too-long' | 'secret' | 'missing' }>
   /** `ai:delta`, `ai:done` and `ai:error` for this window's requests. Returns an unsubscribe function. */
   onEvent(listener: (event: AiEvent) => void): () => void
 }
@@ -278,7 +299,9 @@ export const AI_INVOKE = {
   'ai:pickCli': true,
   'ai:servers': true,
   'ai:scanServers': true,
-  'ai:serverTools': true
+  'ai:serverTools': true,
+  'ai:remember': true,
+  'ai:memory': true
 } as const satisfies Record<InvokeChannels<{ ai: AiApi }>, true>
 
 /** The conversation balloon, by Herman or on its own (see ./commands.ts). The palette lists it while AI is on. */
@@ -289,5 +312,17 @@ export const AI_COMMANDS = [
     menu: { submenu: 'view', label: 'Toggle Assistant', order: 310 },
     palette: { title: 'Herman, the assistant', keywords: ['ai', 'ask', 'chat', 'claude'], order: 140 },
     catalog: { group: 'herman', label: 'Talk to Herman, the assistant', keywords: ['ai', 'ask'], order: 10, ai: true }
+  }
+] as const satisfies readonly CommandSpec[]
+
+/** The persona's introduction, again (0.8.0 A1): in the palette while AI is on, and in Settings → AI. */
+export const AI_ONBOARDING_COMMANDS = [
+  {
+    id: 'ai-onboarding',
+    palette: {
+      title: 'Redo the introduction',
+      keywords: ['onboarding', 'introduction', 'setup', 'persona', 'context', 'refazer apresentação', 'apresentação', 'ai'],
+      order: 141
+    }
   }
 ] as const satisfies readonly CommandSpec[]

@@ -50,6 +50,11 @@ export interface BalloonReply {
   /** The turns before this one, oldest first. */
   history: AiTurn[]
   pageId: string | null
+  /**
+   * The tab route it was asked from (a page id, or a screen's), when known. On a page private from
+   * the AI `pageId` is null, since the question went without it; this still names the page.
+   */
+  route?: string | null
 }
 
 /** A small line under an answer. Not stored: it is for the moment. */

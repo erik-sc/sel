@@ -113,6 +113,10 @@ export interface RunTarget {
     /** The user's servers that are on may come along (see ./claudeMcp.ts); they need the tools to be granted. */
     external?: boolean
   }
+  /** A model for this request instead of `ai.model` (the memory's small request asks for a cheap one). */
+  model?: string
+  /** Who asked, for counting: the persona's memory runs requests of its own (`memory`). */
+  origin?: 'memory'
 }
 
 /** Turns a request with the user's servers gets at least: calling another service takes a few. */
@@ -608,7 +612,7 @@ export class AiService {
         if (sent) job.sent = sent
       }
       if (job.state !== 'starting') return
-      spec = this.spawnSpec(cli, buildArgs({ model: this.model(), tools }))
+      spec = this.spawnSpec(cli, buildArgs({ model: job.target?.model ?? this.model(), tools }))
     } catch (err) {
       // A domain error (the page is gone…) carries a safe message; anything else stays in the log.
       const safe = err instanceof Error && !('code' in err) && err.message ? err.message.slice(0, 160) : undefined

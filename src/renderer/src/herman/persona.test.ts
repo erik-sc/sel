@@ -11,6 +11,8 @@ import { personaOf, personify, personifyCopy, type PersonaLocale } from '@shared
 import { alarmsCopy } from '@/alarms/copy'
 import { balloonCopy } from '@/ai/balloonCopy'
 import { CONTEXT_COPY, contextCopy } from '@/ai/contextCopy'
+import { memoryCopy } from '@/ai/memoryCopy'
+import { ONBOARDING_COPY, onboardingCopy } from '@/ai/onboardingCopy'
 import { SHORTCUT_GROUPS } from '@/shortcuts/catalog'
 import { personaTitle, useHerman } from './gate'
 
@@ -62,6 +64,8 @@ const SAID_OF_THE_PERSONA = [
   'ai/applyActions.ts',
   'ai/balloonCopy.ts',
   'ai/contextCopy.ts',
+  'ai/memoryCopy.ts',
+  'ai/onboardingCopy.ts',
   'alarms/AlarmSettings.tsx',
   'alarms/copy.ts',
   'herman/HermanSettings.tsx',
@@ -84,6 +88,8 @@ describe('the copy, with Hermine chosen', () => {
         contextCopy(locale, 'hermine'),
         alarmsCopy(locale, 'hermine'),
         balloonCopy(locale, 'hermine'),
+        memoryCopy(locale, 'hermine'),
+        onboardingCopy(locale, 'hermine'),
         personifyCopy(HERMAN_VOICE_LABELS, 'hermine', locale)
       ]
       for (const text of tables.flatMap(strings)) expect(text, text).not.toMatch(HIS[locale])
@@ -96,6 +102,12 @@ describe('the copy, with Hermine chosen', () => {
       'A Hermine pode mudar coisas neste serviço quando você pedir. Ela sempre diz o que mudou.'
     )
     expect(contextCopy('pt-BR', 'hermine').contextHelp).toMatch(/^Vai junto em toda pergunta à Hermine/)
+    // The introduction is said by the persona; its line about the other one names the other one.
+    expect(onboardingCopy('pt-BR', 'hermine').say.claude).toMatch(/^Olá, eu sou a Hermine\./)
+    expect(onboardingCopy('en', 'hermine').title).toBe('Meet Hermine')
+    expect(ONBOARDING_COPY['pt-BR'].say.persona('Herman')).toMatch(/comigo ou com o Herman\?/)
+    expect(ONBOARDING_COPY['pt-BR'].say.persona('Hermine')).toMatch(/comigo ou com a Hermine\?/)
+    expect(memoryCopy('pt-BR', 'hermine').intro).toMatch(/^O que a Hermine guarda/)
     expect(contextCopy('en', 'hermine').allWarning).toBe(
       'Hermine may change things in this service when you ask her to. She still says what she changed.'
     )

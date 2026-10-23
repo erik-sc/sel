@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { app, dialog, type BrowserWindow, type WebContents } from 'electron'
 import { AI_CHANNELS, type AiDone, type AiError, type AiRequest, type AiStatus } from '../../shared/ai'
 import { privacyChecker } from '../../shared/aiPrivate'
+import type { MemoryFact } from '../../shared/aiMemory'
 import { AI_MCP_CATALOG_KEY, AI_MCP_SERVERS_KEY, isMcpServerId, mcpChoices, type ClaudeServerList } from '../../shared/aiContext'
 import type { Repository } from '../db/repository'
 import {
@@ -22,6 +23,7 @@ import { buildArgs } from './command'
 import { buildWorkspace } from './context'
 import { inspectCli } from './locate'
 import { loadMeeting, prepareMeeting, type MeetingSource } from './meeting'
+import { MEMORY_MODEL, PersonaMemory } from './memory'
 import { buildPrompt, type BriefingPromptData, type PromptContext } from './prompts'
 import { aiRequest, loadContext, withoutPrivatePage } from './request'
 import { AiService, type PromptBuilder, type RunTarget } from './service'
@@ -63,6 +65,8 @@ export class AiBridge {
   private markdown: typeof import('../markdown') | null = null
   /** Questions asked on a page private from the AI, sent on without it: their WORKSPACE says there is one. */
   private readonly privateAsks = new WeakSet<AiRequest>()
+  /** The persona's memory (0.8.0 A3): what it keeps, and the small request that picks it. */
+  readonly memory: PersonaMemory
 
   constructor(
     private readonly repo: Repository,
@@ -92,6 +96,44 @@ export class AiBridge {
       loadContext: (request) => this.context(request),
       external: () => this.externalPlan()
     })
+    this.memory = new PersonaMemory(
+      {
+        getSetting: (key) => repo.getSetting(key),
+        setSetting: (key, value) => repo.setSetting(key, value),
+        isPrivate: (id) => privacyChecker({ get: (blockId) => repo.get(blockId) })(id)
+      },
+      (prompt) => this.runMemory(prompt)
+    )
+  }
+
+  /**
+   * The memory's own request: no tools, a small model, the prompt built in this process. Counted
+   * in the activity log as an AI request of origin `memory` (what a usage count reads), never with its text.
+   */
+  private runMemory(prompt: string): Promise<string> {
+    this.repo.activity.record({ kind: 'ai', area: 'memory' })
+    return new Promise((resolve, reject) => {
+      this.service.runPrompt(
+        () => prompt,
+        {
+          delta: () => undefined,
+          done: (result) => resolve(result.text),
+          error: (failure) => reject(new Error(failure.message))
+        },
+        null,
+        { model: MEMORY_MODEL, origin: 'memory' }
+      )
+    })
+  }
+
+  /** Reads a finished turn of the balloon and keeps what is worth keeping (shared/aiMemory.ts). */
+  remember(input: unknown): Promise<MemoryFact[]> {
+    return this.memory.remember(input)
+  }
+
+  /** Edits or deletes remembered facts. */
+  editMemory(op: unknown): { facts: MemoryFact[]; refused?: 'too-long' | 'secret' | 'missing' } {
+    return this.memory.apply(op)
   }
 
   /**
@@ -131,7 +173,10 @@ export class AiBridge {
           standing?.pages?.map((page) => page.id)
         )
     const withStanding: PromptContext = standing ? { ...loaded, standing } : loaded
-    const base: PromptContext = scopes.length ? { ...withStanding, scopes } : withStanding
+    const withScopes: PromptContext = scopes.length ? { ...withStanding, scopes } : withStanding
+    // What the persona remembers goes along with every request, unless the memory is off (0.8.0 A3).
+    const memory = this.memory.forPrompt()
+    const base: PromptContext = memory.length ? { ...withScopes, memory } : withScopes
     if (request.action !== 'ask') return base
     let day: BriefingPromptData | null = null
     try {

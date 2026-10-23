@@ -101,7 +101,8 @@ const lines = (value: unknown): string[] =>
 function cleanSent(value: unknown): AiSent | undefined {
   if (!isObject(value)) return undefined
   const names = (list: unknown): string[] => lines(list).slice(0, 20)
-  return { context: value.context === true, pages: names(value.pages), servers: names(value.servers) }
+  const memory = typeof value.memory === 'number' && Number.isInteger(value.memory) && value.memory > 0 ? Math.min(value.memory, 999) : 0
+  return { context: value.context === true, pages: names(value.pages), servers: names(value.servers), ...(memory ? { memory } : {}) }
 }
 
 function cleanScope(value: unknown): StoredScope | undefined {

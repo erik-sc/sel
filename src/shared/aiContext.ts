@@ -51,6 +51,8 @@ export interface AiSent {
    * ./aiScope.ts), when one went along: its name, whether its text did, and its pages that did.
    */
   scopes?: { kind: 'project' | 'database'; name: string; context: boolean; pages: string[] }[]
+  /** How many of the persona's remembered facts went along (0.8.0 A3, ./aiMemory.ts). */
+  memory?: number
 }
 
 // ---- Claude's MCP servers ---------------------------------------------------------

@@ -2,8 +2,9 @@
 // the triggers the shell and the editor call. Everything with a face (the conversation balloon,
 // setup sheet, inline preview) is in chunks of its own, fetched when one of these triggers asks.
 import { create } from 'zustand'
-import type { AiStatus } from '@shared/ai'
+import { AI_ONBOARDED_KEY, type AiStatus } from '@shared/ai'
 import { AI_CONTEXT_CAPS, AI_CONTEXT_PAGES_KEY, contextPageIds } from '@shared/aiContext'
+import { AI_CONVERSATIONS_KEY } from '@shared/aiHistory'
 import { notifyError } from '../ui/toast'
 import { aiPrivacyNow, loadAncestors } from './privacy'
 
@@ -18,6 +19,9 @@ export interface AiPageCommand {
   /** Distinguishes two identical commands in a row. */
   nonce: number
 }
+
+/** Where the persona's introduction was opened from: the balloon opens after it when it was the balloon. */
+export type OnboardingFrom = 'balloon' | 'settings' | 'command'
 
 /** What the open page offers the conversation balloon: the text in scope and a way to put an answer in. */
 export interface AiEditorBridge {
@@ -39,6 +43,10 @@ interface AiGate {
   scope: { pageId: string; text: string } | null
   /** Pages pinned as context for every request (`ai.contextPages`, Settings → AI → Context). */
   contextPages: string[]
+  /** The persona's introduction (0.8.0 A1), while it is open. */
+  onboarding: { from: OnboardingFrom } | null
+  /** Whether it was shown (`ai.onboarded`); null until known. Only false shows it by itself. */
+  onboarded: boolean | null
 }
 
 export const useAiGate = create<AiGate>(() => ({
@@ -49,7 +57,9 @@ export const useAiGate = create<AiGate>(() => ({
   command: null,
   editor: null,
   scope: null,
-  contextPages: []
+  contextPages: [],
+  onboarding: null,
+  onboarded: null
 }))
 
 export function aiEnabled(): boolean {
@@ -62,6 +72,60 @@ export async function initAi(): Promise<void> {
     window.api.app.getSetting<unknown>(AI_CONTEXT_PAGES_KEY).catch(() => null)
   ])
   useAiGate.setState({ enabled: value !== false, contextPages: contextPageIds(pages) })
+  void loadOnboarded()
+}
+
+/**
+ * Whether the introduction was shown. A profile that already has conversations used the AI before
+ * the introduction existed: for it, the first time has passed, and it is marked so, quietly.
+ */
+async function loadOnboarded(): Promise<void> {
+  try {
+    if ((await window.api.app.getSetting<unknown>(AI_ONBOARDED_KEY)) === true) {
+      useAiGate.setState({ onboarded: true })
+      return
+    }
+    const earlier = await window.api.app.getSetting<unknown>(AI_CONVERSATIONS_KEY)
+    if (Array.isArray(earlier) && earlier.length > 0) {
+      useAiGate.setState({ onboarded: true })
+      await window.api.app.setSetting(AI_ONBOARDED_KEY, true)
+      return
+    }
+    useAiGate.setState({ onboarded: false })
+  } catch (error) {
+    // Unknown: it never shows by itself, and nothing else changes.
+    console.error('ai: whether the introduction was shown could not be read', error)
+  }
+}
+
+/** Opens the persona's introduction (the balloon closes meanwhile). */
+export function openOnboarding(from: OnboardingFrom): void {
+  if (!useAiGate.getState().enabled) return
+  useAiGate.setState({ onboarding: { from }, balloonOpen: false })
+}
+
+/**
+ * Opens the introduction when it was never shown (the first time the AI is used, or turned on).
+ * True when it opened.
+ */
+export function maybeOnboard(from: OnboardingFrom): boolean {
+  const { enabled, onboarded, onboarding } = useAiGate.getState()
+  if (!enabled || onboarded !== false || onboarding) return false
+  openOnboarding(from)
+  return true
+}
+
+/**
+ * Closes the introduction, finished or skipped: either way it does not come back by itself. Opened
+ * from the balloon, the balloon opens now.
+ */
+export function closeOnboarding(): void {
+  const { onboarding } = useAiGate.getState()
+  if (!onboarding) return
+  useAiGate.setState({ onboarding: null, onboarded: true, ...(onboarding.from === 'balloon' ? { balloonOpen: true } : {}) })
+  window.api.app
+    .setSetting(AI_ONBOARDED_KEY, true)
+    .catch((error: unknown) => console.error('ai: the introduction could not be marked as shown', error))
 }
 
 /** Stores the pinned pages; the old list comes back if it could not be stored. */
@@ -98,10 +162,12 @@ export function setAiEnabled(enabled: boolean): void {
   useAiGate.setState(enabled ? { enabled } : { enabled, balloonOpen: false, setup: null, command: null, status: null })
 }
 
-/** Opens or closes the conversation balloon. */
+/** Opens or closes the conversation balloon. The very first time, the persona introduces itself instead. */
 export function toggleAssistant(): void {
   const { enabled, balloonOpen } = useAiGate.getState()
-  if (enabled) useAiGate.setState({ balloonOpen: !balloonOpen })
+  if (!enabled) return
+  if (!balloonOpen && maybeOnboard('balloon')) return
+  useAiGate.setState({ balloonOpen: !balloonOpen })
 }
 
 export function closeAssistant(): void {

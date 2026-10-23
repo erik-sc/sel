@@ -1205,3 +1205,225 @@
   color: var(--text-tertiary);
   font-size: var(--text-xs);
 }
+
+/* ---- the persona's introduction (0.8.0 A1) ---- */
+
+.ui-modal.ai-onboarding {
+  width: min(760px, 100%);
+  max-height: min(720px, calc(100vh - 48px));
+}
+
+.ai-onboarding-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 2px 22px 6px;
+  padding: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+  list-style: none;
+}
+
+.ai-onboarding-steps li.is-past {
+  color: var(--text-secondary);
+}
+
+.ai-onboarding-steps li.is-current {
+  color: var(--text);
+  font-weight: var(--weight-semibold);
+}
+
+.ai-onboarding-body {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 22px;
+  min-height: 0;
+  padding: 10px 22px 4px;
+  overflow-y: auto;
+}
+
+.ai-onboarding-persona {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-onboarding-figure {
+  --herman-size: 168;
+}
+
+/* What the persona says: a speech balloon with its tail toward the figure above. */
+.ai-onboarding-speech {
+  position: relative;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-m);
+  background: var(--fill-4);
+  color: var(--text);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+}
+
+.ai-onboarding-speech::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: calc(50% - 6px);
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+.ai-onboarding-step {
+  min-width: 0;
+}
+
+.ai-onboarding-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ai-onboarding-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ai-onboarding-field.is-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-onboarding-label {
+  padding: 0;
+  font-weight: var(--weight-semibold);
+}
+
+.ai-onboarding-status {
+  margin: 0;
+}
+
+.ai-onboarding-status.is-error,
+.ai-step-help.is-error {
+  color: var(--danger, var(--text));
+}
+
+.ai-onboarding-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-onboarding-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-onboarding-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 6px;
+  border-radius: var(--radius-s);
+  background: var(--fill-4);
+}
+
+.ai-onboarding-fields .ap-field:not(select) {
+  width: 100%;
+}
+
+.ap-field.ai-onboarding-draft {
+  width: 100%;
+  height: auto;
+  min-height: 7.5em;
+  padding: 6px var(--ap-gap);
+  resize: vertical;
+  font-family: var(--font-sans);
+  line-height: var(--leading-body);
+}
+
+.ai-onboarding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-onboarding-check {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 4px 0;
+}
+
+.ai-onboarding-skins {
+  margin-top: 0;
+}
+
+.ai-onboarding-foot {
+  align-items: center;
+}
+
+.ai-onboarding-count {
+  margin-right: auto;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 640px) {
+  .ai-onboarding-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ai-onboarding-figure {
+    --herman-size: 84;
+  }
+}
+
+/* ---- Settings → AI → Memory (0.8.0 A3) ---- */
+
+.memory-control {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memory-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ap-gap);
+}
+
+.memory-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.memory-bar {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  margin-top: 6px;
+}
