@@ -242,14 +242,19 @@ function databaseToMarkdown(repo: Repository, db: Block, withTitle = true): stri
   return lines
 }
 
-function blocksToLines(repo: Repository, blocks: Block[], depth: number): string[] {
+export interface MarkdownOptions {
+  /** A database the page holds is a link to it (`sel://page/<id>`), not its table: the export writes it as a file of its own. */
+  databaseLinks?: boolean
+}
+
+function blocksToLines(repo: Repository, blocks: Block[], depth: number, opts: MarkdownOptions = {}): string[] {
   const lines: string[] = []
   let prevList = false
   let number = 0
   for (const b of blocks) {
     if (b.trashedAt !== null) continue
     number = b.type === 'numbered_list' ? number + 1 : 0
-    const chunk = blockToLines(repo, b, number, depth)
+    const chunk = blockToLines(repo, b, number, depth, opts)
     if (!chunk.length) continue
     const isList = LIST_TYPES.has(b.type)
     if (lines.length && !(isList && prevList)) lines.push('')
@@ -259,9 +264,9 @@ function blocksToLines(repo: Repository, blocks: Block[], depth: number): string
   return lines
 }
 
-function blockToLines(repo: Repository, b: Block, number: number, depth: number): string[] {
+function blockToLines(repo: Repository, b: Block, number: number, depth: number, opts: MarkdownOptions): string[] {
   // Guard against pathological nesting (and corrupt cyclic content).
-  const kids = (): string[] => (depth < 64 && b.content.length ? blocksToLines(repo, repo.children(b.id), depth + 1) : [])
+  const kids = (): string[] => (depth < 64 && b.content.length ? blocksToLines(repo, repo.children(b.id), depth + 1, opts) : [])
   const below = (lines: string[]): string[] => {
     const k = kids()
     return k.length ? [...lines, '', ...k] : lines
@@ -321,6 +326,8 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
       return [`[${p.icon && !/^(shape|icon):/.test(p.icon) ? `${p.icon} ` : ''}${title}](sel://page/${b.id})`]
     }
     case 'database':
+      // An export that writes each database on its own (as CSV) links to it, like to a sub-page.
+      if (opts.databaseLinks && sourceIdOf(b) === null) return [`[${inlineToMarkdown(p.title) || 'Untitled'}](sel://page/${b.id})`]
       return databaseToMarkdown(repo, b)
     default:
       return []
@@ -328,14 +335,14 @@ function blockToLines(repo: Repository, b: Block, number: number, depth: number)
 }
 
 /** Serializes a page (or database) and its content to Markdown. */
-export function pageToMarkdown(repo: Repository, id: string): { title: string; markdown: string } {
+export function pageToMarkdown(repo: Repository, id: string, opts: MarkdownOptions = {}): { title: string; markdown: string } {
   const page = repo.get(id)
   if (!page) throw new Error(`Block not found: ${id}`)
   // A linked view without a title of its own goes by its source's.
   const named = page.props.title?.length ? page : (page.type === 'database' && sourceOf(repo, page)) || page
   const title = plainText(named.props.title).trim() || 'Untitled'
   const lines = [`# ${inlineToMarkdown(named.props.title).replace(/\n/g, ' ') || 'Untitled'}`]
-  const body = page.type === 'database' ? databaseToMarkdown(repo, page, false) : blocksToLines(repo, repo.children(id), 0)
+  const body = page.type === 'database' ? databaseToMarkdown(repo, page, false) : blocksToLines(repo, repo.children(id), 0, opts)
   if (body.length) lines.push('', ...body)
   return { title, markdown: lines.join('\n') + '\n' }
 }

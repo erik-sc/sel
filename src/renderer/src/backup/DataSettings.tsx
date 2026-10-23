@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { BackupStatus } from '@shared/data'
 import { Button } from '@/ui/Button'
+import { TransferSettingsRows } from '@/transfer/TransferSettings'
 import { describeBackups } from './describe'
 import { useDataCopy } from './locale'
 import './data.css'
@@ -120,6 +121,7 @@ export function DataSettingsRows() {
           </Button>
         </div>
       </div>
+      <TransferSettingsRows />
       <div className="ap-row">
         <div className="ap-row-text">
           <span className="ap-row-label">{copy.logs}</span>

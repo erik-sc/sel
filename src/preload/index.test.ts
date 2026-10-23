@@ -79,6 +79,7 @@ describe('the preload', () => {
       clientId: 'string',
       'ai.onEvent': 'on ai:delta ai:done ai:error',
       'sync.onStatus': 'on sync:status',
+      'transfer.onProgress': 'on transfer:progress',
       'briefing.onChanged': 'on briefing:changed',
       'meetings.recording.frames': 'send meetings:recording.frames',
       'meetings.recording.encoded': 'send meetings:recording.encoded',
