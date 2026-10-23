@@ -24,7 +24,10 @@ import { archivePage, canArchive, isArchived, unarchivePage } from '@/archive/ac
 import { archiveCopy } from '@/archive/locale'
 import { HOME_COPY } from '@/home/copy'
 import { setHome, useHome } from '@/home/store'
-import { requestPageAi } from '@/ai/gate'
+import { requestPageAi, toggleContextPage, useAiGate } from '@/ai/gate'
+import { CONTEXT_COPY } from '@/ai/contextCopy'
+import { AI_CONTEXT_CAPS } from '@shared/aiContext'
+import { notifyError, toast } from '@/ui/toast'
 import { IS_MAC } from '@/ui/platform'
 import { openPage } from '@/store/tabs'
 import { setHistoryPage, setRenaming } from '@/store/ui'
@@ -81,6 +84,24 @@ function homeItem(block: Block): MenuItem {
     icon: <Home />,
     disabled: !isHome && !!block.trashedAt,
     onSelect: () => void setHome(isHome ? null : { kind: 'page', id: block.id })
+  }
+}
+
+/** "Use as context for Claude": the page goes along with every request (Settings → AI → Context). */
+function contextItem(id: string): MenuItem {
+  const copy = CONTEXT_COPY[useHome.getState().locale]
+  const pinned = useAiGate.getState().contextPages.includes(id)
+  return {
+    id: 'ai-context',
+    label: pinned ? copy.unpinPage : copy.pin,
+    icon: pinned ? <Check /> : <Sparkle />,
+    onSelect: () =>
+      void toggleContextPage(id).then(
+        (done) => {
+          if (!done) toast(copy.pinFull(AI_CONTEXT_CAPS.pages), { kind: 'info', duration: 4000 })
+        },
+        (error: unknown) => notifyError(copy.pinFailed, error)
+      )
   }
 }
 
@@ -164,9 +185,12 @@ export function topBarPageMenu(block: Block, ai = false): MenuItem[] {
       items.push(
         { id: 'ai-summarize', label: 'Summarize page', icon: <Sparkle />, onSelect: () => requestPageAi(id, 'summarize') },
         { id: 'ai-title', label: 'Suggest title', icon: <Sparkle />, onSelect: () => requestPageAi(id, 'title') },
+        contextItem(id),
         { separator: true }
       )
     }
+  } else if (ai && !block.trashedAt && block.type === 'database') {
+    items.push(contextItem(id), { separator: true })
   }
   items.push(
     {

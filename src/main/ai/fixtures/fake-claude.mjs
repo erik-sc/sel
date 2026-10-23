@@ -7,6 +7,7 @@
 // [[fake:error-login]] [[fake:error-rate]] [[fake:error-stderr]] [[fake:huge]] [[fake:hang]]
 // [[fake:hang-tree]] [[fake:noise]] [[fake:nostream]] [[fake:noresult]] [[fake:bigline]] [[fake:max-turns]]
 // A file `fake-delay` in the working directory holds the pause between words, in ms.
+// `mcp list` prints a few servers; `--mcp-config` and `--settings` decide the tools of the init event.
 import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
@@ -15,6 +16,58 @@ const argv = process.argv.slice(2)
 if (argv.includes('--version') || argv.includes('-v')) {
   process.stdout.write('2.1.296 (Claude Code)\n')
   process.exit(0)
+}
+
+// `mcp list`: a few servers, printed as the real program prints them.
+if (argv[0] === 'mcp' && argv[1] === 'list') {
+  process.stdout.write(
+    [
+      'Checking MCP server health…',
+      '',
+      'claude.ai Fake: https://fake.example/mcp?ref=1 - ✔ Connected',
+      'claude.ai Fake Mail: https://mail.fake.example/mcp/v1 - ! Needs authentication',
+      'plugin:tools:thing: https://thing.example/mcp (HTTP) - ! Needs authentication',
+      'local-thing: node C:\\tools\\thing.mjs - ✔ Connected',
+      ''
+    ].join('\n')
+  )
+  process.exit(0)
+}
+
+/** The value after a flag, or null. */
+const flag = (name) => {
+  const index = argv.indexOf(name)
+  return index >= 0 && index + 1 < argv.length ? argv[index + 1] : null
+}
+const readJson = (path) => {
+  try {
+    return path ? JSON.parse(readFileSync(path, 'utf8')) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The MCP servers and tools a real run would list for the files it was given: two made-up tools
+ * for each server of `--mcp-config` but sel's, and three for the connector "claude.ai Fake" when
+ * the `--settings` file lets its address in and `--strict-mcp-config` does not keep it out.
+ */
+function mcpOf() {
+  const config = readJson(flag('--mcp-config'))
+  const settings = readJson(flag('--settings'))
+  const servers = []
+  const tools = []
+  for (const name of Object.keys(config?.mcpServers ?? {})) {
+    servers.push({ name, status: 'connected' })
+    const prefix = `mcp__${name.replace(/[^A-Za-z0-9_-]/g, '_')}__`
+    if (name !== 'sel') tools.push(`${prefix}list_items`, `${prefix}create_item`)
+  }
+  const urls = (settings?.allowedMcpServers ?? []).map((entry) => entry.serverUrl).filter(Boolean)
+  if (!argv.includes('--strict-mcp-config') && urls.includes('https://fake.example/mcp')) {
+    servers.push({ name: 'claude.ai Fake', status: 'connected' })
+    tools.push('mcp__claude_ai_Fake__get_me', 'mcp__claude_ai_Fake__list_tickets', 'mcp__claude_ai_Fake__create_ticket')
+  }
+  return { servers, tools, config, settings }
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -140,7 +193,8 @@ function answer(prompt) {
 async function main() {
   const prompt = await readStdin()
   const has = (mode) => prompt.includes(`[[fake:${mode}]]`)
-  const init = { type: 'system', subtype: 'init', session_id: 'fake', model: 'fake-model', tools: [], mcp_servers: [] }
+  const mcp = mcpOf()
+  const init = { type: 'system', subtype: 'init', session_id: 'fake', model: 'fake-model', tools: mcp.tools, mcp_servers: mcp.servers }
 
   if (has('error-stderr')) {
     process.stderr.write(
@@ -174,7 +228,14 @@ async function main() {
     return
   }
   if (has('echo')) {
-    const body = JSON.stringify({ argv, stdin: prompt, cwd: process.cwd(), envKeys: Object.keys(process.env).sort() })
+    const body = JSON.stringify({
+      argv,
+      stdin: prompt,
+      cwd: process.cwd(),
+      envKeys: Object.keys(process.env).sort(),
+      settings: mcp.settings,
+      servers: Object.keys(mcp.config?.mcpServers ?? {})
+    })
     await delta(body)
     await line({ type: 'result', subtype: 'success', is_error: false, result: body, session_id: 'fake' })
     return

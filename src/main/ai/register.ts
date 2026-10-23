@@ -28,11 +28,15 @@ export const aiFeature = defineFeature({
         'ai:run': async ([a], event) => (await ai()).run(a, event.sender),
         'ai:cancel': async ([a], event) => (await ai()).cancel(a, event.sender),
         // Goes through a native dialog: the renderer never names a path to run.
-        'ai:pickCli': async (_args, event) => (await ai()).pickCli(windowOf(event))
+        'ai:pickCli': async (_args, event) => (await ai()).pickCli(windowOf(event)),
+        // The MCP servers of the user's own Claude Code, by name (Settings → AI → Claude's tools).
+        'ai:servers': async () => (await ai()).servers(),
+        'ai:scanServers': async () => (await ai()).scanServers(),
+        'ai:serverTools': async ([a]) => (await ai()).serverTools(a)
       },
       // Which program runs, and whether any does, is decided by these: the cached answer is stale.
       onSettingChanged(key) {
-        if (key.startsWith('ai.')) bridge?.service.invalidate()
+        if (key === 'ai.enabled' || key === 'ai.cliPath') bridge?.service.invalidate()
       }
     }
   }

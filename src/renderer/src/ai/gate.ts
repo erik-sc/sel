@@ -3,6 +3,7 @@
 // sheet, inline preview) is in chunks of its own, fetched when one of these triggers asks.
 import { create } from 'zustand'
 import type { AiStatus } from '@shared/ai'
+import { AI_CONTEXT_CAPS, AI_CONTEXT_PAGES_KEY, contextPageIds } from '@shared/aiContext'
 import { notifyError } from '../ui/toast'
 
 /** Which explanation the setup sheet opens with. */
@@ -34,6 +35,8 @@ interface AiGate {
   editor: AiEditorBridge | null
   /** The selected text of the open page, kept while the focus is in the assistant panel. */
   scope: { pageId: string; text: string } | null
+  /** Pages pinned as context for every request (`ai.contextPages`, Settings → AI → Context). */
+  contextPages: string[]
 }
 
 export const useAiGate = create<AiGate>(() => ({
@@ -43,7 +46,8 @@ export const useAiGate = create<AiGate>(() => ({
   status: null,
   command: null,
   editor: null,
-  scope: null
+  scope: null,
+  contextPages: []
 }))
 
 export function aiEnabled(): boolean {
@@ -51,8 +55,32 @@ export function aiEnabled(): boolean {
 }
 
 export async function initAi(): Promise<void> {
-  const value = await window.api.app.getSetting<unknown>('ai.enabled').catch(() => null)
-  useAiGate.setState({ enabled: value !== false })
+  const [value, pages] = await Promise.all([
+    window.api.app.getSetting<unknown>('ai.enabled').catch(() => null),
+    window.api.app.getSetting<unknown>(AI_CONTEXT_PAGES_KEY).catch(() => null)
+  ])
+  useAiGate.setState({ enabled: value !== false, contextPages: contextPageIds(pages) })
+}
+
+/** Stores the pinned pages; the old list comes back if it could not be stored. */
+export async function setContextPages(ids: string[]): Promise<void> {
+  const previous = useAiGate.getState().contextPages
+  const next = contextPageIds(ids)
+  useAiGate.setState({ contextPages: next })
+  try {
+    await window.api.app.setSetting(AI_CONTEXT_PAGES_KEY, next.length ? next : null)
+  } catch (error) {
+    useAiGate.setState({ contextPages: previous })
+    throw error
+  }
+}
+
+/** Pins a page as context, or unpins it. False when it could not be pinned because the list is full. */
+export function toggleContextPage(id: string): Promise<boolean> {
+  const pinned = useAiGate.getState().contextPages
+  if (pinned.includes(id)) return setContextPages(pinned.filter((entry) => entry !== id)).then(() => true)
+  if (pinned.length >= AI_CONTEXT_CAPS.pages) return Promise.resolve(false)
+  return setContextPages([...pinned, id]).then(() => true)
 }
 
 export function setAiEnabled(enabled: boolean): void {

@@ -1,6 +1,16 @@
 import type { SettingsSpec } from './settings'
 import type { InvokeChannels } from './ipc'
 import type { CommandSpec } from './commands'
+import {
+  AI_CONTEXT_CAPS,
+  AI_CONTEXT_KEY,
+  AI_CONTEXT_PAGES_KEY,
+  AI_MCP_SERVERS_KEY,
+  cleanMcpChoices,
+  contextPageIds,
+  type AiSent,
+  type ClaudeServerList
+} from './aiContext'
 
 /**
  * AI workflows: the shapes shared by the main process (which finds and drives the Claude Code
@@ -119,6 +129,8 @@ export interface AiDone {
   text: string
   truncated: boolean
   durationMs: number
+  /** What went along with the request from Settings → AI: the context, pinned pages and Claude's tools. */
+  sent?: AiSent
 }
 
 export interface AiError {
@@ -135,7 +147,16 @@ export const AI_CHANNELS = { delta: 'ai:delta', done: 'ai:done', error: 'ai:erro
 
 // ---- settings ---------------------------------------------------------------
 
-export const AI_KEYS = ['ai.enabled', 'ai.cliPath', 'ai.model', 'ai.timeoutSec', 'ai.language'] as const
+export const AI_KEYS = [
+  'ai.enabled',
+  'ai.cliPath',
+  'ai.model',
+  'ai.timeoutSec',
+  'ai.language',
+  AI_CONTEXT_KEY,
+  AI_CONTEXT_PAGES_KEY,
+  AI_MCP_SERVERS_KEY
+] as const
 export type AiKey = (typeof AI_KEYS)[number]
 
 export const AI_DEFAULTS = { enabled: true, timeoutSec: 120 } as const
@@ -161,7 +182,7 @@ export function isAiAction(value: unknown): value is AiAction {
  * `ai.cliPath` is never accepted here: a path only comes from the native file dialog
  * (`ai.pickCli`); a renderer can only clear it (null, handled by the caller).
  */
-export function cleanAiSetting(key: string, value: unknown): boolean | number | string | undefined {
+export function cleanAiSetting(key: string, value: unknown): unknown {
   switch (key) {
     case 'ai.enabled':
       return typeof value === 'boolean' ? value : undefined
@@ -172,6 +193,15 @@ export function cleanAiSetting(key: string, value: unknown): boolean | number | 
       return Math.min(AI_TIMEOUT_LIMITS.max, Math.max(AI_TIMEOUT_LIMITS.min, Math.round(value)))
     case 'ai.language':
       return value === 'auto' || isAiLanguage(value) ? value : undefined
+    case AI_CONTEXT_KEY:
+      return typeof value === 'string' && value.length <= AI_CONTEXT_CAPS.text ? value : undefined
+    case AI_CONTEXT_PAGES_KEY: {
+      if (!Array.isArray(value) || value.length > AI_CONTEXT_CAPS.pages) return undefined
+      const ids = contextPageIds(value)
+      return ids.length === value.length ? ids : undefined
+    }
+    case AI_MCP_SERVERS_KEY:
+      return cleanMcpChoices(value)
     default:
       return undefined
   }
@@ -220,6 +250,15 @@ export interface AiApi {
    * that setting gets a value. Null when cancelled; otherwise the status with the chosen file.
    */
   pickCli(): Promise<AiStatus | null>
+  /**
+   * The MCP servers set up for Claude Code on this computer (Settings → AI → Claude's tools):
+   * those in its configuration file, read now, and the claude.ai connectors as last looked up.
+   */
+  servers(): Promise<ClaudeServerList>
+  /** Asks Claude Code which claude.ai connectors the account has (`claude mcp list`); takes a while. */
+  scanServers(): Promise<ClaudeServerList>
+  /** Starts Claude Code with one server and notes its tools (it may count as one small request). */
+  serverTools(id: string): Promise<ClaudeServerList>
   /** `ai:delta`, `ai:done` and `ai:error` for this window's requests. Returns an unsubscribe function. */
   onEvent(listener: (event: AiEvent) => void): () => void
 }
@@ -229,7 +268,10 @@ export const AI_INVOKE = {
   'ai:status': true,
   'ai:run': true,
   'ai:cancel': true,
-  'ai:pickCli': true
+  'ai:pickCli': true,
+  'ai:servers': true,
+  'ai:scanServers': true,
+  'ai:serverTools': true
 } as const satisfies Record<InvokeChannels<{ ai: AiApi }>, true>
 
 /** Herman's panel, the assistant (see ./commands.ts). The palette lists it while AI is on. */

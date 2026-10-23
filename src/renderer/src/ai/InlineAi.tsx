@@ -13,6 +13,7 @@ import { openAiSetup } from './gate'
 import { ACTION_TITLES, errorLines, statusText } from './labels'
 import { isBusy } from './machine'
 import { MarkdownView } from './MarkdownView'
+import { SentNote } from './SentNote'
 import { AI_GLYPH, acceptAi, applyAiTitle, discardAi, type AiSession } from './session'
 import './ai.css'
 import { IconGlyph } from '@/ui/IconGlyph'
@@ -236,6 +237,7 @@ export function InlineAi({ session }: { session: AiSession }): JSX.Element {
           </div>
         )}
         {run.truncated && <p className="ai-note">The answer was cut off because it got too long.</p>}
+        {run.status === 'done' && <SentNote sent={run.sent} />}
       </div>
 
       <div className="ai-bar">
