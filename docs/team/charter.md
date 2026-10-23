@@ -18,7 +18,8 @@ How a night runs is in `.claude/skills/sel-team/SKILL.md`; the roles are in `.cl
 | | Signs everything it posts (`<!-- sel-team -->` … `— sel team (automated)`): GitHub shows it under Érik's account |
 
 Runs: every night, from a scheduled task in the cloud. The app cannot be launched there; CI
-runs the tests on Windows on every PR. The team's working state is on the `team/state`
+runs the tests on Windows on every PR and, once built, captures screenshots of the real app
+for every PR that changes what users see. The team's working state is on the `team/state`
 branch, never merged. Changing this working agreement, the skill or the agents needs Érik.
 
 ## Identity the team currently holds

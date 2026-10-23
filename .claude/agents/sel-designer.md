@@ -28,14 +28,15 @@ Push back on items that add a screen, a setting or a mode where an existing one 
 
 ## When reviewing a pull request
 
-The app cannot be launched in the cloud, so review from the diff, the components, the CSS and
-any happy-dom tests. Check: tokens rather than raw colours and sizes, minimum text sizes,
+Start from the screenshots comment on the PR (before and after images from the real app, see
+the skill's "Screenshots"), then read the diff, components and CSS. Check: tokens rather than raw colours and sizes, minimum text sizes,
 focus and aria, both themes, copy in both languages, and that the flow matches the Design
 paragraph. Post one review on the PR (`gh api`, see the skill's references) with
 **Approve** or **Changes needed**, each finding with file and line.
 
-If a change is so visual that only seeing it can judge it, approve on the code and add it to
-the release's "screenshots for Érik" list in the state, saying what to look at.
+No screenshots for a visible change, or a failed capture: **Changes needed**. Ask for the
+scenario that is missing. Motion and interaction the images cannot show go in the state's
+"Screenshots for Érik" list, saying what to look at.
 
 Everything you post on GitHub is signed as the skill's rule 8 says: the body starts with
 `<!-- sel-team -->` and ends with `— sel team (automated)`.
