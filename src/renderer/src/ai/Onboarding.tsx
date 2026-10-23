@@ -27,6 +27,8 @@ import { Herman64 } from '@/herman/Herman64'
 import { everydaySkins, PERSONA_OPTIONS, saveHermanSetting, SkinChoice, WARDROBES } from '@/herman/wardrobe'
 import { pageTitle } from '@/shell/actions'
 import { fetchBlocks, getBlock, useBlock } from '@/store/blocks'
+import { ROUTINE_IDS, type RoutineId } from '@shared/routines'
+import { enableRoutines, loadRoutineSettings } from '@/routines/settings'
 import { useUi } from '@/store/ui'
 import { Button, IconButton } from '@/ui/Button'
 import { Modal } from '@/ui/Modal'
@@ -639,6 +641,51 @@ function ToolsStep({ copy }: { copy: OnboardingCopy }): JSX.Element {
           {copy.openSettings}
         </Button>
       </div>
+      <RoutinesChoice copy={copy} />
     </div>
+  )
+}
+
+/** The routines (0.8.0 C1), each off until ticked here; Settings → AI → Routines has the rest. */
+function RoutinesChoice({ copy }: { copy: OnboardingCopy }): JSX.Element {
+  const [on, setOn] = useState<Partial<Record<RoutineId, boolean>> | null>(null)
+  useEffect(() => {
+    let alive = true
+    loadRoutineSettings().then(
+      (settings) => {
+        if (alive) setOn(Object.fromEntries(ROUTINE_IDS.map((id) => [id, settings.routines[id].on])))
+      },
+      () => {
+        if (alive) setOn({})
+      }
+    )
+    return () => {
+      alive = false
+    }
+  }, [])
+  const toggle = (id: RoutineId, value: boolean): void => {
+    setOn((current) => ({ ...current, [id]: value }))
+    enableRoutines([id], value).catch((error: unknown) => notifyError(copy.routinesTitle, error))
+  }
+  return (
+    <fieldset className="ai-onboarding-routines">
+      <legend>{copy.routinesTitle}</legend>
+      <span className="ai-step-help">{copy.routinesHelp}</span>
+      <ul className="ai-onboarding-list">
+        {ROUTINE_IDS.map((id) => (
+          <li key={id}>
+            <label className="ai-onboarding-check">
+              <input
+                type="checkbox"
+                disabled={on === null}
+                checked={on?.[id] === true}
+                onChange={(event) => toggle(id, event.target.checked)}
+              />
+              <span>{copy.routineNames[id]}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </fieldset>
   )
 }

@@ -1427,3 +1427,19 @@
   width: 100%;
   margin-top: 6px;
 }
+
+/* The routines in the introduction's last step (0.8.0 C1). */
+.ai-onboarding-routines {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 10px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.ai-onboarding-routines legend {
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}

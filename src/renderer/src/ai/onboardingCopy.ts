@@ -77,6 +77,11 @@ export interface OnboardingCopy {
   pinPrivate: string
   pinFailed: string
 
+  /** The routines Herman can run on his own (0.8.0 C1), all off until chosen here or in Settings. */
+  routinesTitle: string
+  routinesHelp: string
+  routineNames: Record<'morning' | 'midday' | 'evening' | 'weekly' | 'stalled', string>
+
   noServers: string
   serversHelp: string
   readOnly: string
@@ -167,6 +172,17 @@ export const ONBOARDING_COPY: Record<HomeLocale, OnboardingCopy> = {
     pinPrivate: 'This page is private from the AI, so it cannot go along.',
     pinFailed: 'The page could not be pinned.',
 
+    routinesTitle: 'Routines',
+    routinesHelp:
+      'Herman can work on his own a few times a day and tell you when something is ready. Nothing changes until you press Apply. All start off; Settings → AI changes the times and the daily limit.',
+    routineNames: {
+      morning: 'Plan the day, in the morning',
+      midday: 'A check-in at midday',
+      evening: 'Close the day, in the evening',
+      weekly: 'The weekly review, on Friday',
+      stalled: 'Unstick a task that has waited too long'
+    },
+
     noServers: 'No tool set up in Claude Code was found.',
     serversHelp: 'Read only: only tools whose names say they look things up. To allow more, or to turn one off, go to Settings → AI.',
     readOnly: 'On, read only',
@@ -253,6 +269,17 @@ export const ONBOARDING_COPY: Record<HomeLocale, OnboardingCopy> = {
     pinFull: (cap) => `Dá para fixar até ${cap} páginas.`,
     pinPrivate: 'Esta página é privada para a AI, então não pode ir junto.',
     pinFailed: 'Não foi possível fixar a página.',
+
+    routinesTitle: 'Rotinas',
+    routinesHelp:
+      'O Herman pode trabalhar sozinho algumas vezes por dia e avisar quando algo estiver pronto. Nada muda até você Aplicar. Todas começam desligadas; Configurações → AI muda os horários e o limite diário.',
+    routineNames: {
+      morning: 'Planejar o dia, de manhã',
+      midday: 'Um acompanhamento ao meio-dia',
+      evening: 'Fechar o dia, à noite',
+      weekly: 'A revisão da semana, na sexta',
+      stalled: 'Destravar uma tarefa parada há muito tempo'
+    },
 
     noServers: 'Nenhuma ferramenta configurada no Claude Code foi encontrada.',
     serversHelp:
