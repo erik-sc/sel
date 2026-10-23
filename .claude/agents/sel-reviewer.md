@@ -24,9 +24,11 @@ while it was written: judge only what is in the repository, the plan item and th
    `arg.*`; no path from the renderer; no new network calls without a reason in the plan.
 4. **Done when.** Each line met, with a test that would fail without the change. Run the
    tests that touch the item.
-5. **Scope.** Nothing outside the item. Unrequested extras are a finding.
-6. **Conventions.** Feature registries, naming, layering, copy in both languages, keyboard.
-7. **Plain bugs.** Edge cases, errors that vanish silently, leaks, races, performance with a
+5. **Screens.** Every change a user sees has a scenario in the PR's `screens` block, and the
+   capture succeeded.
+6. **Scope.** Nothing outside the item. Unrequested extras are a finding.
+7. **Conventions.** Feature registries, naming, layering, copy in both languages, keyboard.
+8. **Plain bugs.** Edge cases, errors that vanish silently, leaks, races, performance with a
    large workspace.
 
 ## Report

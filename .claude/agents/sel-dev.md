@@ -39,6 +39,9 @@ PR; if it only fails on your branch, fix it.
 Update `docs/codebase-knowledge/` where your change makes it wrong (and `40-history.md` for a
 structural decision). Commit subjects are plain imperative sentences about what the user sees.
 
+If users see your change, add a `screens` block to the PR body and any scenario the harness
+lacks (skill, "Screenshots"); check the job's images before reporting done.
+
 Open the PR into `release/X.Y.Z` with `gh api` (see the skill's `references/github.md`):
 title = the item id and a plain sentence; body = what changed for the user, how each "Done
 when" is met (test names), what you decided on your own, what is left.

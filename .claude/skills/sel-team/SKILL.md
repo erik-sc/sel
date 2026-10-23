@@ -146,7 +146,8 @@ PLAN → VETO → BUILD → CLOSE → AWAITING_SHIP → (Érik merges and tags) 
    It works on `team/X.Y.Z/<item-slug>` from `release/X.Y.Z` and opens a PR into it. Up to 3
    at once (rule 6). Increase the item's "Nights".
 3. When a PR is open: spawn a fresh `sel-reviewer`, and `sel-designer` when users would see the
-   change. Send findings back to the same developer with SendMessage. At most two rounds a
+   change. For a change users see, wait for the screenshots comment first (see "Screenshots")
+   and give its images to the designer. Send findings back to the same developer with SendMessage. At most two rounds a
    night; then the item is `needs another night`, with the findings in the state.
 4. Merge (merge commit, as the repo does) when CI is green and the reviewer approved. If CI
    fails only on tests that also fail on the release branch's own head (see the release PR's
@@ -155,8 +156,8 @@ PLAN → VETO → BUILD → CLOSE → AWAITING_SHIP → (Érik merges and tags) 
 6. When every item is merged, dropped, moved to later or blocked: phase → `CLOSE`.
 
 **CLOSE** — get the release ready to ship.
-- `sel-growth`: README, `site/`, release notes in the release PR body, screenshots needed
-  (`docs/screens/`; when they cannot be made in the cloud, list them for Érik).
+- `sel-growth`: README, `site/`, release notes in the release PR body, and `docs/screens/`
+  refreshed from the screenshot job.
 - `sel-dev`: `docs/codebase-knowledge/` updated for what changed; version in `package.json`.
 - `sel-pm`: the plan's "Delivered" and "Left for later", the decisions the team took on its
   own (for Érik to review), the roadmap updated.
@@ -196,6 +197,30 @@ budget, a refused push all go in the log.
 
 Rewrite `state.md` on `team/state` (phase, items, "Last night", "Left for tomorrow", the
 `last_run` set in step 1), clear the lock, commit with a plain imperative subject, push.
+
+## Screenshots
+
+Every PR that changes what a user sees must show it. The contract:
+
+- The PR body has a `screens` block listing what to capture, one scenario per line:
+  ````
+  ```screens
+  database-board: a board view of the demo Tasks database
+  page-two-columns: a page with a two-column layout, dark theme
+  ```
+  ````
+  Each id is a scenario defined in the screenshot harness; adding a scenario is part of the item.
+- The CI job `screens` (Windows, the real app through Playwright's Electron driver, on a seeded
+  demo workspace) captures the scenarios of the PR's head and of its base, and posts one comment
+  (signed, rule 8) with before and after images, updated on every push.
+- The designer reviews from those images; the reviewer checks that every visible change has a
+  scenario. A missing or failed capture is a finding, not a pass.
+- Release PRs get the full set in CLOSE, which also refreshes `docs/screens/`.
+
+Until that job exists on the release branch (a `pull_request` workflow runs from the PR's merge
+ref, so it works before reaching `main`), building it is the first item of the release in progress
+(it changes `.github/workflows/`, so it waits for Érik's OK under rule 3). Meanwhile, list
+what needs seeing in "Screenshots for Érik".
 
 ## Veto window
 
