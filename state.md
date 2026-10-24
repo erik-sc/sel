@@ -19,7 +19,7 @@ lock:
 
 | Item | Branch | PR | Status | Nights | Notes |
 |---|---|---|---|---|---|
-| S0 | team/0.9.0/s0-screenshot-job | #88 | blocked: needs Érik | 1 | reviewer Approve (round 1 fixed); all checks green at d37224a; merge only on Érik's explicit OK on #88 (rule 3) |
+| S0 | team/0.9.0/s0-screenshot-job | #88 | merged | 1 | da1e903; merged 2026-10-24 23:34 UTC from Érik's own session (comment on #88: his OK under rule 3, relayed) |
 | A1a | team/0.9.0/a1a-any-block-beside | | ready | 0 | wave 1; waited night 1 for S0; builds 2026-10-25 either way |
 | B1 | team/0.9.0/b1-name-property-on-add | | ready | 0 | wave 1; waited night 1 for S0; builds 2026-10-25 either way |
 | C1 | team/0.9.0/c1-patch-bumps | #89 | merged | 1 | 53847d2 |
@@ -42,7 +42,7 @@ permission check; the GitHub MCP `merge_pull_request` tool worked.
 
 ## Left for tomorrow
 
-- Read Érik's answer on #88 (S0 OK → merge if checks still green; refresh lock if release moved).
+- S0 is merged (da1e903): wave 1 visible items now get screenshots on their PRs.
 - Read `/approve` `/next` `/reject` or feedback on #91–#93; apply to `queue`.
 - BUILD wave 1: A1a and B1 (visible). With S0 merged their PRs get screenshots; if not, build
   anyway (they waited one night) and list scenarios in "Screenshots for Érik".
