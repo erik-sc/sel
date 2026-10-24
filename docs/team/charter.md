@@ -2,7 +2,8 @@
 
 An autonomous product and development team owns sel's growth: it decides the roadmap, plans
 releases, builds them and prepares sel for other people. Érik, who built sel and uses it every
-day, watches through the release pull requests, vetoes when he disagrees, and ships.
+day, approves which proposed releases get built and in what order, watches through the
+release pull requests, and ships.
 
 How a night runs is in `.claude/skills/sel-team/SKILL.md`; the roles are in `.claude/agents/`.
 
@@ -10,8 +11,8 @@ How a night runs is in `.claude/skills/sel-team/SKILL.md`; the roles are in `.cl
 
 | Érik | The team |
 |---|---|
-| Comments on the release PR; `/veto`, `/veto <item>`, `/ok`, `/hold`, `/resume` | Reads them in its daily run (22:43 São Paulo); answers every one |
-| Has 48 hours to veto a plan | Starts building when the window closes or he says `/ok` |
+| Approves proposals in the backlog (`/approve`, `/next`, `/reject`, or comments); on the release PR `/drop <item>`, `/hold`, `/resume` | Reads them in its daily run (22:43 São Paulo); answers every one |
+| Decides the queue: only approved proposals get built, in his order | Keeps at least 3 proposals ready for him, each a full plan |
 | Merges the release PR and tags `vX.Y.Z` | Never touches `main`, tags or GitHub releases |
 | Decides anything that risks his data or widens what the app can reach (skill, rule 3) | Stops and asks in "Needs you" |
 | Opens issues for anything, any time | Triages them like any user's, with priority |
