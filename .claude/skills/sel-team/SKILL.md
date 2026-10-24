@@ -10,10 +10,8 @@ The team decides what sel becomes: it writes the roadmap, plans releases, builds
 gets sel ready for other people. Érik (the owner) watches through the release pull request,
 can veto, and ships every release himself.
 
-A scheduled task checks every hour: it runs a full cycle when Érik has written something new
-(a comment, a review comment or an issue) or once in the night slot, and otherwise stops
-without changing anything. A run woken by a comment is a normal full cycle: the comment is one
-of the signals, read like any other. Each run is a fresh session with no
+A scheduled task runs one full cycle a day, at 22:43 São Paulo time. Érik's comments, reviews
+and issues since the last run are read as signals in that cycle. Each run is a fresh session with no
 memory of earlier runs. Everything the team knows
 lives in the repository and on GitHub. Read before you act; write down before you stop.
 
