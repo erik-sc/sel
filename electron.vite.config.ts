@@ -70,7 +70,7 @@ export default defineConfig(({ command }) => {
    * minified here (less to read from disk, parse and keep in memory) and nothing
    * ships a source map. `electron-vite dev` keeps readable, unminified code.
    */
-  const output = { minify: command === 'build' ? 'esbuild' : false, sourcemap: false } as const
+  const output = { minify: command === 'build' ? 'oxc' : false, sourcemap: false } as const
 
   return {
     main: {
@@ -81,7 +81,7 @@ export default defineConfig(({ command }) => {
       build: {
         ...output,
         target: NODE_TARGET,
-        rollupOptions: {
+        rolldownOptions: {
           // mcp.js: the workspace tools' server, started by the Claude Code program (see src/main/mcp.ts).
           // backup.js: the copy and check of a backup, in a utility process (see src/main/data/backupWorker.ts).
           input: {
@@ -111,11 +111,11 @@ export default defineConfig(({ command }) => {
         modulePreload: { polyfill: false },
         // Each lazily loaded feature brings its own stylesheet instead of growing the first one.
         cssCodeSplit: true,
-        rollupOptions: {
+        rolldownOptions: {
           output: {
             // One chunk for the framework, whose content only changes when a package is upgraded.
             // Modules behind a dynamic `import()` (React.lazy) become chunks of their own.
-            manualChunks: (id) => (VENDOR_RE.test(id) ? 'vendor' : undefined)
+            codeSplitting: { groups: [{ name: 'vendor', test: VENDOR_RE }] }
           }
         }
       }

@@ -30,18 +30,18 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^5.2.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "axe-core": "^4.14.0",
     "electron": "^44.9.3",
     "electron-builder": "^26.15.3",
-    "electron-vite": "^5.0.0",
+    "electron-vite": "^6.0.0",
     "happy-dom": "^21.0.4",
     "katex": "^0.19.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
-    "vite": "^7.3.7",
-    "vitest": "^5.0.4",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5",
     "zustand": "^5.0.15"
   }
 }
