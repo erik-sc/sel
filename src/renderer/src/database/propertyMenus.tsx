@@ -1,15 +1,17 @@
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useId, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { systemKindOf } from '@shared/system'
 import { isTaskCoreProperty } from '@shared/tasks'
 import { RELATIVE_DATES } from '@shared/types'
 import type { DatabaseView, PropertySchema, PropertyType, ViewFilter } from '@shared/types'
+import { announce } from '@/a11y/announce'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import type { PopoverAnchor, PopoverPlacement } from '@/ui/Popover'
 import { ArrowUpRight, Check, Filter, Formula, Sigma, Sort, Trash } from '@/ui/icons'
 import * as L from './logic'
 import * as actions from './actions'
 import { Floating, TypeIcon } from './common'
+import { useDatabaseCopy } from './copy'
 import { useCommitOnUnmount } from './hooks'
 import { FormulaEditor, PartFallback, RelationTargetPicker } from './lazyParts'
 import { useRelated } from './related'
@@ -20,7 +22,12 @@ const NUMBER_FORMATS: { id: NonNullable<PropertySchema['numberFormat']>; label: 
   { id: 'currency', label: 'Currency' }
 ]
 
-/** Popover listing the property types; picking one adds a property. */
+/**
+ * Popover that adds a property: its name in a field on top (focused), then the list of types.
+ * Picking a type adds a property of that type with the typed name, or with the type's name in the
+ * home's language when nothing is typed; Enter in the field adds a text property. A relation asks
+ * for its database first, a formula opens its editor: both keep the typed name.
+ */
 export function AddPropertyMenu({
   databaseId,
   viewId,
@@ -37,17 +44,37 @@ export function AddPropertyMenu({
   onClose: () => void
   onAdded?: (propertyId: string) => void
 }): JSX.Element {
+  const copy = useDatabaseCopy()
+  const [name, setName] = useState('')
   // A relation needs its database first: the menu turns into the database picker.
   const [pickingTarget, setPickingTarget] = useState(false)
   // A new formula opens its editor in place of the menu.
   const [formulaId, setFormulaId] = useState<string | null>(null)
   // The menu closes itself after a pick; the relation entry replaces it instead.
   const keepOpen = useRef(false)
+  const fieldRef = useRef<HTMLInputElement>(null)
+  // Bumped to draw the list again: focused, with its first type active (ArrowDown in the field),
+  // or with nothing active (back in the field).
+  const [listTurn, setListTurn] = useState({ key: 0, focus: false })
+  const hintId = useId()
+  const typed = name.trim()
+
+  const added = (id: string): void => {
+    const prop = L.propOf(actions.snapshot(databaseId).schema, id)
+    if (prop) announce(copy.addProperty.added(prop.name))
+    onAdded?.(id)
+  }
+  const add = (type: PropertyType): string => {
+    const id = actions.addProperty(databaseId, type, viewId, typed || copy.types[type])
+    added(id)
+    return id
+  }
+
   const items: MenuItem[] = [
-    { header: 'Property type' },
+    { header: copy.addProperty.typeHeader },
     ...L.PROPERTY_TYPES.map<MenuItem>((type) => ({
       id: type,
-      label: L.TYPE_LABELS[type],
+      label: copy.types[type],
       icon: <TypeIcon type={type} />,
       onSelect: () => {
         if (type === 'relation') {
@@ -55,19 +82,17 @@ export function AddPropertyMenu({
           setPickingTarget(true)
           return
         }
-        // Not `onAdded?.(addProperty(...))`: without a listener that would skip the add itself.
-        const id = actions.addProperty(databaseId, type, viewId)
+        const id = add(type)
         if (type === 'formula') {
           keepOpen.current = true
           setFormulaId(id)
         }
-        onAdded?.(id)
       }
     }))
   ]
   const formulaProp = formulaId ? L.propOf(actions.snapshot(databaseId).schema, formulaId) : undefined
   return (
-    <Floating open anchor={anchor} placement={placement} label="Add a property" onClose={onClose}>
+    <Floating open anchor={anchor} placement={placement} label={copy.addProperty.label} onClose={onClose}>
       {formulaProp ? (
         <Suspense fallback={<PartFallback kind="popover" />}>
           <FormulaEditor databaseId={databaseId} prop={formulaProp} onClose={onClose} />
@@ -77,20 +102,58 @@ export function AddPropertyMenu({
           <RelationTargetPicker
             databaseId={databaseId}
             onPick={(targetId) => {
-              const id = actions.addRelation(databaseId, targetId, viewId)
-              if (id) onAdded?.(id)
+              const id = actions.addRelation(databaseId, targetId, viewId, typed || undefined)
+              if (id) added(id)
               onClose()
             }}
           />
         </Suspense>
       ) : (
-        <Menu
-          items={items}
-          onClose={() => {
-            if (!keepOpen.current) onClose()
-          }}
-          autoFocus
-        />
+        <div className="db-prop-menu db-add-prop-menu">
+          <div className="db-prop-menu-name">
+            <input
+              ref={fieldRef}
+              className="ui-input"
+              value={name}
+              autoFocus
+              placeholder={copy.addProperty.nameLabel}
+              aria-label={copy.addProperty.nameLabel}
+              aria-describedby={typed ? hintId : undefined}
+              maxLength={L.MAX_NAME_LENGTH}
+              onChange={(event) => setName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing) return
+                if (event.key === 'ArrowDown' || (event.key === 'Enter' && !typed)) {
+                  event.preventDefault()
+                  setListTurn((turn) => ({ key: turn.key + 1, focus: true }))
+                } else if (event.key === 'Enter') {
+                  event.preventDefault()
+                  add('text')
+                  onClose()
+                }
+              }}
+            />
+            {typed && (
+              <div className="db-add-prop-hint" id={hintId}>
+                {copy.addProperty.enterHint}
+              </div>
+            )}
+          </div>
+          <Menu
+            key={listTurn.key}
+            items={items}
+            autoFocus={listTurn.focus}
+            onExitStart={() => {
+              const field = fieldRef.current
+              if (!field) return
+              field.focus()
+              field.setSelectionRange(field.value.length, field.value.length)
+            }}
+            onClose={() => {
+              if (!keepOpen.current) onClose()
+            }}
+          />
+        </div>
       )}
     </Floating>
   )

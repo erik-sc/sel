@@ -140,7 +140,8 @@ and `aria-rowcount` counts every row of the view, drawn or not.
 - `Popover` is a `dialog` by default and then needs `label` or `labelledBy`; `role="none"` when all
   it holds is a `Menu` or a listbox, which name themselves.
 - A `Menu` keeps the focus on itself and points at its items with `aria-activedescendant`
-  (src/renderer/src/ui/Menu.tsx). A search field over a list is a `combobox` with
+  (src/renderer/src/ui/Menu.tsx). A field drawn above a `Menu` (the add-property menu's name) passes
+  `onExitStart`, so ArrowUp on the first item gives it the focus back instead of wrapping. A search field over a list is a `combobox` with
   `aria-controls` and `aria-activedescendant` on option ids from `useId()`; options are `option`
   with `aria-selected`, and nothing in an option takes the focus (it is read and chosen whole).
 - The focus goes back where it came from: `Modal` and `Popover` do it. A screen of its own (the
