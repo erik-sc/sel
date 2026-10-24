@@ -1,7 +1,7 @@
 # Release 0.9.0 — Pages and databases you can shape
 
-Status: **veto until 2026-10-25 10:42 (São Paulo)** · 2026-10-23 · branch `release/0.9.0` (from `main` at 8da2eb4, v0.8.0)
-· window restarted on 2026-10-23 because item S0 (screenshot job) was added at Érik's request
+Status: **building** · 2026-10-24 · branch `release/0.9.0` (from `main` at 8da2eb4, v0.8.0)
+· approved by Érik's `/ok` on #82, 2026-10-24 · S0 built (#88, waits for his OK) · C1 merged (#89) · C2 merged (#90)
 
 Érik's second pain, in his words: "the multi-column page layout does not work; too many clicks to
 edit columns". Today only database blocks can sit side by side, so a page cannot put a note
