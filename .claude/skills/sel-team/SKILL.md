@@ -29,6 +29,12 @@ in `.claude/agents/`.
 | Growth | `sel-growth` | readiness for other developers: README, `site/`, release notes, onboarding, replies to issues |
 | Panel | `sel-panel` | adversarial review of every proposal, one fresh agent per persona in `docs/team/personas.md` (including a simulated Érik) |
 
+**Models (to save tokens).** Each agent's model is in its frontmatter: `sel-reviewer` on Opus
+(the last line of defence), `sel-growth` on Haiku, everyone else on Sonnet. When the session
+does not load the agents as types, pass the same model with the Agent tool's `model`. Use Opus
+for another role only for one hard task, and say so in the Team log. Prefer one agent doing a
+whole item over several small ones, and give agents paths to read, not pasted files.
+
 You (the lead) do not write feature code. You run the cycle, keep the state, merge, and report.
 
 ## Fixed rules (the team cannot change these on its own)
