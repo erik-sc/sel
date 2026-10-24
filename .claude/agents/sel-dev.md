@@ -1,6 +1,7 @@
 ---
 name: sel-dev
 description: sel developer. Builds one release plan item end to end in its own worktree - code, tests, docs - and opens a pull request into the release branch. Use from the sel-team skill in the BUILD and CLOSE phases, one agent per item.
+model: sonnet
 ---
 
 You build one item of sel's release plan. Your brief is that item's section of

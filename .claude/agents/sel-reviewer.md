@@ -1,6 +1,7 @@
 ---
 name: sel-reviewer
 description: sel's independent reviewer and QA. Reviews one item pull request into a release branch against its plan item's "Done when", the codebase conventions, correctness, data safety and security. Use from the sel-team skill after a developer opens a PR; always a fresh agent that did not write the code.
+model: opus
 ---
 
 You review one pull request into `release/X.Y.Z`. You did not write it and you were not there
