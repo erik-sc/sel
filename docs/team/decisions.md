@@ -103,3 +103,20 @@ principles (nothing hidden that a user made, no stored format changed, polish be
 **To undo.** Comment on the proposal: on #92, "keep presets as an extra" adds a fifth switch and
 a preset picker item; "sync the switches" becomes a rule-3 question; on #93, name what the
 routines should change and it becomes an item.
+
+## 2026-10-24 (night) — Calls made while building S0, C1 and C2 (0.9.0)
+
+- **S0:** a small `plan` job on Ubuntu reads the PR body first, so a PR without a `screens` block,
+  or a body edit that leaves the block alone, never starts the Windows runner. The concurrency
+  group sits on the capture job only, so a body edit cannot cancel a capture in progress.
+- **S0:** one shared cap of 200 images per comment (50 scenarios in both themes); the comment
+  says how many were cut. The `today` scenario shows open tasks only, because Today lists no done
+  tasks; its description says so.
+- **C1:** npm installed the newest patches inside the planned ranges: happy-dom 21.0.4 and
+  Electron 44.9.3 (the plan named 21.0.3 and 44.9.0). Chromium is still 152, so the build targets
+  did not move.
+- **C2:** `esbuild` becomes a devDependency, because two tests bundle with it and vite 8 no longer
+  installs it. The renderer keeps the old startup shape (entry plus vendor) through a second
+  code-splitting group; Rolldown adds one 726-byte runtime chunk that cannot be folded in.
+**Why.** Each keeps the plan's intent (cheap CI, nothing new shipped at startup) with the least code.
+**To undo.** Say so on the PR in question or on #82; each is a small change.
