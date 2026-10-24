@@ -201,7 +201,7 @@ describe('the tool host', () => {
   })
 
   it('serves the MCP server script over the pipe, end to end', async () => {
-    // The script as built: esbuild (a dependency of the build) bundles it as the app's build does.
+    // The script as built: esbuild (a devDependency for these tests) bundles it into one CommonJS file, as the app's build does.
     const { build } = await import('esbuild')
     const script = join(dir, 'mcp.js')
     await build({

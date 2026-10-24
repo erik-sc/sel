@@ -422,7 +422,7 @@ describe('the server script for other apps', () => {
   const children: ChildProcessWithoutNullStreams[] = []
 
   beforeAll(async () => {
-    // The script as built: esbuild (a dependency of the build) bundles it as the app's build does.
+    // The script as built: esbuild (a devDependency for these tests) bundles it into one CommonJS file, as the app's build does.
     const { build } = await import('esbuild')
     await build({
       entryPoints: [join(__dirname, '..', 'mcp.ts')],
