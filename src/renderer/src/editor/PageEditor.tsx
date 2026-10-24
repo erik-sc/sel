@@ -474,7 +474,7 @@ function PageEditorInner({ pageId, onOpenPage, bodyOnly = false }: PageEditorPro
             )}
             <div className="pe-content pe-body">
               {loaded && <AiSlot anchorId={null} />}
-              {loaded ? <BlockList ids={page.content} /> : <Skeleton />}
+              {loaded ? <BlockList ids={page.content} top /> : <Skeleton />}
             </div>
             <div
               className="pe-tail"

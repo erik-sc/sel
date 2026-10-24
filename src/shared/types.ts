@@ -101,7 +101,7 @@ export interface BlockProps {
   week?: Record<string, unknown>
   /** page that is a database row: propertyId -> value */
   values?: Record<string, PropertyValue>
-  /** database: drawn in one row with the database block before it (see editor/layout.ts) */
+  /** drawn in one row with the block before it: any block but a sub-page at the top of a page, a database anywhere (see editor/layout.ts) */
   beside?: boolean
   /** meeting page: the calendar occurrence it was made for (its UID and start, ms), so it is made once */
   meetingEvent?: { uid: string; start: number }

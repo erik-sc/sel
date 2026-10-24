@@ -144,6 +144,8 @@ export type UntrustedProps = { readonly [K in keyof BlockProps]?: unknown }
  */
 export function cleanProps(type: BlockType, src: UntrustedProps): BlockProps {
   const props: BlockProps = {}
+  // Its place beside the block before it (editor/layout.ts): any block but a sub-page may have one.
+  if (src.beside === true && type !== 'page') props.beside = true
   if (isTextType(type)) {
     if (src.title !== undefined) props.title = parseRichText(src.title)
   } else if (type === 'code') {
@@ -177,7 +179,6 @@ export function cleanProps(type: BlockType, src: UntrustedProps): BlockProps {
     const title = textOf(parseRichText(src.title)).replace(/\n/g, ' ')
     if (title) props.title = [[title]]
     if (typeof src.icon === 'string' && src.icon && src.icon.length <= MAX_ICON_LENGTH) props.icon = src.icon
-    if (src.beside === true) props.beside = true
     return props
   }
   if (isColorValue(src.color)) props.color = src.color

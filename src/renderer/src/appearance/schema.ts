@@ -270,6 +270,16 @@ export const TOKENS: TokenDef[] = [
     10,
     'A database inside a page may grow this wide, beyond the text, when the window has room.'
   ),
+  px(
+    'Layout & density',
+    '--column-min',
+    'Narrowest column',
+    160,
+    80,
+    480,
+    10,
+    'How narrow a column of blocks side by side may get before the row wraps.'
+  ),
   px('Layout & density', '--cover-height', 'Page cover height', 200, 80, 480, 4),
   px('Layout & density', '--panel-gap', 'Gap between panels', 8, 0, 32),
   px('Layout & density', '--control-height', 'Control height', 30, 20, 48),

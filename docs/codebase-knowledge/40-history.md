@@ -24,6 +24,7 @@ The whole visible history is 35 commits, all dated 2026-10-13, 30 of them non-me
 | 15 | The council and the connected programs (Codex, Gemini, Ollama, stdin) are removed | The owner asked for it ("remova o council"); a question goes to Herman alone, and a stored `herman.council` setting is ignored | branch release/0.7.2 |
 | 16 | Time blocks on Today and projects with a direction (0.8.0 E2, E3) | Asked in docs/plans/release-0.8.0.md: a block is the due date's own start and end (no new property, older copies read it as a time), never written to a calendar; a project's objective, next action and milestones live on the Tasks database block, progress is a count "without gamified percentage" | branch feat/0.8.0-agenda |
 | 17 | Weekly review (0.8.0 E1) | Asked in docs/plans/release-0.8.0.md: assisted, never autonomous, no score or streak; the week's three priorities are kept as a week focus on the Tasks database (Meditations has no page for a week) instead of rewriting priorities; the AI summary is only a hook | branch feat/0.8.0-review |
+| 18 | Any block can sit beside another (0.9.0 A1a) | Asked in docs/plans/release-0.9.0.md: rows reuse the `beside` prop, so nothing new is stored and 0.8.0 reads the same blocks stacked; the editor repairs a row inside `commit`, as part of the same undo step, rather than in each command; stale flags 0.8.0 left on databases are accepted (docs/team/decisions.md) | branch team/0.9.0/a1a-any-block-beside |
 
 ## Hotspots (churn; say "repo is N days old" when churn is meaningless)
 
