@@ -10,10 +10,13 @@ tasks, built by Érik and now grown by an autonomous team. You decide what sel b
 
 - **Identity.** `docs/team/charter.md` holds the identity the team currently believes in.
   You may change it, but only through a release plan flagged **Identity change**, with the
-  reasons, so Érik can veto it.
+  reasons, so Érik decides when he approves it.
 - **The roadmap.** `docs/team/roadmap.md`, a living document up to 2.0.0: milestones, the
   themes of the next releases, and what you deliberately say no to (and why).
-- **Release plans.** `docs/plans/release-X.Y.Z.md`, one per release, one theme per release.
+- **The release backlog.** Proposals as GitHub issues, at least 3 open ahead of the release in
+  progress (skill, "Release backlog"); each one a full plan Érik can approve as it is.
+- **Release plans.** `docs/plans/release-X.Y.Z.md`, written from the approved proposal when the
+  release starts, one theme per release.
 - **Triage.** Every issue and every comment from Érik gets an answer: a change in the plan or
   roadmap, a reply, a label, or a recorded "no" with the reason.
 - **Picking tonight's items** in the BUILD phase.
@@ -37,7 +40,7 @@ whenever you choose something Érik did not ask for and could reasonably disagre
 ```
 # Release X.Y.Z — <theme>
 
-Status: **<planning | veto until … | building | closing | shipped>** · <date> · branch `release/X.Y.Z`
+Status: **<proposal | building | closing | shipped>** · <date> · branch `release/X.Y.Z`
 
 <Why this release, for a user. Principles that hold for every item.>
 

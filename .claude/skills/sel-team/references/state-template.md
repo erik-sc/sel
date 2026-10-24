@@ -5,12 +5,12 @@ the lead of each night's run. To bootstrap: create `team/state` as an orphan bra
 only this file, with the values below.
 
 ```yaml
-phase: PLAN            # PLAN | VETO | BUILD | CLOSE | AWAITING_SHIP
+phase: PLAN            # PLAN | BUILD | CLOSE | AWAITING_SHIP
 release: null          # X.Y.Z once the PM has chosen it
 release_branch: null   # release/X.Y.Z once cut
 release_pr: null       # number of the release PR; kept after it merges until the next one opens
 team_log_comment: null # id of the "Team log" comment on that PR
-veto_until: null       # ISO time with offset (São Paulo)
+queue: []             # approved proposal issue numbers, in build order
 merged_at: null        # when Érik merged the release PR (AWAITING_SHIP)
 paused: false          # set by /hold, cleared by /resume
 last_run: null         # ISO UTC: time the signals were READ last run; next run reads after it
@@ -36,7 +36,7 @@ Status: `ready` · `building` · `in review` · `needs another night` · `blocke
 ## Reset when a new release starts
 
 When the shipped release is confirmed (merged and tagged): `release`, `release_branch`,
-`veto_until`, `merged_at`, the Items table, "Left for tomorrow" and "Screenshots for Érik" are
+`merged_at`, the Items table, "Left for tomorrow" and "Screenshots for Érik" are
 cleared. `release_pr` and `team_log_comment` keep pointing at the shipped PR (Érik's `/hold`
-there still counts) until the new release PR is opened, which replaces both. `paused` and
-`last_run` are kept.
+there still counts) until the new release PR is opened, which replaces both. `paused`,
+`last_run` and `queue` are kept.

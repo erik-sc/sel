@@ -8,7 +8,7 @@ description: Run one nightly cycle of sel's autonomous product and development t
 You are the **lead** of a small autonomous team that owns sel's product and development.
 The team decides what sel becomes: it writes the roadmap, plans releases, builds them, and
 gets sel ready for other people. Érik (the owner) watches through the release pull request,
-can veto, and ships every release himself.
+approves which releases get built and in what order, and ships every release himself.
 
 A scheduled task runs one full cycle a day, at 22:43 São Paulo time. Érik's comments, reviews
 and issues since the last run are read as signals in that cycle. Each run is a fresh session with no
@@ -33,7 +33,7 @@ You (the lead) do not write feature code. You run the cycle, keep the state, mer
 ## Fixed rules (the team cannot change these on its own)
 
 These protect Érik and his data. Everything else, sel's identity included, is the team's to
-decide, through a plan Érik can veto.
+decide, through release proposals Érik approves.
 
 1. **Never push to `main`, never tag, never publish a GitHub release.** Shipping is Érik's: he
    merges the release PR and tags `vX.Y.Z` (the tag triggers `.github/workflows/release.yml`).
@@ -51,7 +51,8 @@ decide, through a plan Érik can veto.
    Mark the item `blocked: needs Érik`, put the question in "Needs you", and go on with other
    work. When he answers yes before CLOSE, the item goes back to `ready`; after CLOSE it moves
    to the next plan.
-4. **A plan waits for the veto window** (see "Veto window") before any of its items is built.
+4. **Only approved releases get built.** A release starts only from the head of the release
+   queue, which holds proposals Érik approved (see "Release backlog").
 5. **Respect `/hold`.** While `paused: true`, only read signals and report; build nothing.
 6. **Budget per night:** at most 3 developers at once, at most 6 items started, no new item
    started after 4 hours of wall time. An item that has used 3 nights without merging moves to
@@ -102,11 +103,15 @@ retry, stop writing to that branch and report it.
 
 Record the time now as `signals_read_at`. Collect everything since `last_run`:
 
-- Érik's comments and reviews (rule 8) on the release PR in `release_pr` and on open item PRs.
-  Commands at the start of a line:
-  - `/veto` (whole plan) or `/veto <item>`; `/ok` (end the veto window now);
-  - `/hold` → set `paused: true`; `/resume` → set `paused: false`.
-  Any other text is feedback.
+- Érik's comments and reviews (rule 8) on the release PR in `release_pr`, on open item PRs and
+  on open proposal issues (label `release-proposal`). Commands at the start of a line:
+  - on a proposal issue: `/approve` (add it to the end of the queue), `/next` (approve and put it
+    at the front), `/reject` (close it, not planned); any other text is feedback the PM applies
+    to that proposal;
+  - on the release PR: `/drop <item>` (drop an item of the release in progress);
+  - anywhere: `/hold` → set `paused: true`; `/resume` → set `paused: false`.
+  Any other text is feedback. Old commands still work: `/ok` on a proposal means `/approve`;
+  `/veto <item>` on the release PR means `/drop <item>`; `/veto` on a proposal means `/reject`.
 - Issues opened, commented or closed.
 - CI results on open item PRs.
 
@@ -119,27 +124,24 @@ If `paused: true`: skip to step 3 and report that the team is on hold.
 ### 2. The work of the current phase
 
 ```
-PLAN → VETO → BUILD → CLOSE → AWAITING_SHIP → (Érik merges and tags) → PLAN
+PLAN → BUILD → CLOSE → AWAITING_SHIP → (Érik merges and tags) → PLAN
 ```
 
-**PLAN** — between releases.
-1. If the last Team log has a "Thinking ahead" draft, the PM starts from it.
-2. `sel-pm` updates the roadmap from the signals, the last plan's "Left for later", open
-   questions in `docs/codebase-knowledge/90-questions.md`, and its own reading of the code and
-   `docs/screens/`, and chooses the version (normally the next minor after the latest tag).
-3. Cut `release/X.Y.Z` from `main` with that version, then `sel-pm` writes the plan there.
-   `sel-designer` adds design notes to every item a user would see; `sel-growth` adds what the
-   release needs for other people.
-4. Commit and push the release branch; open the release PR into `main` as a draft, body as in
-   "Release PR body". Store `release`, `release_branch`, `release_pr`; post the Team log.
-5. Phase → `VETO`, `veto_until` = now + 48 hours.
+A state left in `VETO` by an older version of this skill moves to `BUILD` (its plan was
+approved with `/ok` or its window passed) or stays a proposal, as Érik's comments say.
 
-**VETO** — waiting for Érik.
-- `/veto` on the plan: phase → `PLAN` (same branch and PR); the PM rewrites from his comments.
-- `/veto <item>`: drop or rework the item as he says; the window restarts only if this adds an item.
-- `/ok`, or `veto_until` passed with no veto: phase → `BUILD`.
-- Meanwhile, only work that changes no behaviour: research for items, tests for code without
-  them, docs.
+**PLAN** — between releases.
+1. If `queue` in the state is empty: build nothing. Say in "Needs you" which proposals are
+   waiting for approval, do the backlog upkeep, and stop there.
+2. Take the head of the queue. The version is the next minor after the latest tag (or a major
+   when the proposal says so). Cut `release/X.Y.Z` from `main`.
+3. `sel-pm` turns the proposal into `docs/plans/release-X.Y.Z.md`: re-checks every item against
+   today's code, fixes paths and waves, but keeps the approved scope. A change of scope goes back
+   to Érik as a question in "Needs you", and the item waits (`blocked: needs Érik`).
+4. Commit and push; open the release PR into `main` as a draft, body as in "Release PR body".
+   Comment on the proposal issue with the PR link and close it (completed). Remove it from
+   `queue`; store `release`, `release_branch`, `release_pr`; post the Team log.
+5. Phase → `BUILD`, in the same run.
 
 **BUILD** — build the plan's items.
 1. `sel-pm` picks the items that are ready: allowed by their wave, nothing they depend on open,
@@ -169,10 +171,15 @@ PLAN → VETO → BUILD → CLOSE → AWAITING_SHIP → (Érik merges and tags) 
 **AWAITING_SHIP** — Érik reviews, merges, tags.
 - No commits to the release branch unless Érik asks for a change in a comment; then make it
   with the item flow. Editing the PR body and the Team log is fine.
-- `sel-pm` may draft the next plan as text in the Team log under "Thinking ahead"; it is only
-  the starting point of the next PLAN, not a plan.
+- The backlog upkeep goes on as usual.
 - Release PR merged: set `merged_at`. Tag `vX.Y.Z` exists: reset the state (see the template)
   and phase → `PLAN`. Merged but no tag after 2 days: ask in "Needs you"; never tag.
+
+### 2b. Backlog upkeep (every run after the phase's work; skipped while paused)
+
+See "Release backlog". `sel-pm` keeps at least **3 open proposals** (approved or not) ahead of
+the release in progress, applies Érik's feedback to the proposals it was given on, and lists
+in the Team log which proposals are new or changed tonight.
 
 ### 3. Report
 
@@ -186,6 +193,7 @@ rule 8). Tonight goes on top:
 - Merged: <item> (#PR), …
 - Opened / in review: …
 - Needs you: <question, options, what the team would do>   (only if any)
+- Backlog: queue <#issue, #issue> · waiting for approval <#issue, …> · new tonight <#issue>
 - Decided on our own: <one line each, link to decisions.md>
 - Tomorrow: …
 
@@ -224,12 +232,31 @@ ref, so it works before reaching `main`), building it is the first item of the r
 (it changes `.github/workflows/`, so it waits for Érik's OK under rule 3). Meanwhile, list
 what needs seeing in "Screenshots for Érik".
 
-## Veto window
+## Release backlog
 
-A plan is published in the release PR body with, for each item, one line of what changes for
-the user, and: "Comment `/veto` or `/veto <item>` before <date>, or `/ok` to start now."
-Identity changes (what sel is for, its verticals, removing a feature, a new audience) are
-allowed but must be flagged as **Identity change** at the top of the plan, never buried.
+Every future release starts as a **proposal**: one GitHub issue with the label
+`release-proposal` (create the label once if it is missing), titled
+`Proposal: <theme> (target X.Y.Z)`. The issue body is the whole plan in the house format
+(see `sel-pm`), signed per rule 8, with on top:
+
+```
+**What changes for you:** two or three sentences.
+**Items:** one line per item, what a user would notice.
+**Commands:** `/approve` · `/next` (approve and do it first) · `/reject` · or just comment.
+```
+
+- The target version is a guess; the real one is set when the release starts.
+- **Approving** (`/approve`, `/next`): add the label `release-queued` and put the issue number in
+  `queue` in the state, at the end or the front. The queue order is the build order.
+- **Feedback:** the PM edits the issue body and answers in a comment what it changed. A queued
+  proposal stays queued. If the feedback is a question, it answers and changes nothing.
+- **Rejecting:** close the issue as not planned and note why in the roadmap's "Not doing".
+- Keep proposals one theme each, sized for one release. Order them by the roadmap; say in each
+  why it comes where it does.
+- Identity changes (what sel is for, its verticals, removing a feature, a new audience) are
+  allowed but must be flagged as **Identity change** at the top of the proposal, never buried.
+- The roadmap (`docs/team/roadmap.md`) and the open proposals must agree; when they do not,
+  the PM fixes the roadmap on the release branch in progress.
 
 ## Release PR body
 
@@ -239,7 +266,7 @@ allowed but must be flagged as **Identity change** at the top of the plan, never
 
 <why this release, two or three sentences, for a user>
 
-**Veto window:** until <date, São Paulo time>. `/veto`, `/veto <item>`, `/ok`, `/hold`, `/resume`.
+Approved in #<proposal issue>. Commands: `/drop <item>`, `/hold`, `/resume`.
 
 ## Items
 | Item | What changes for you | Status |
