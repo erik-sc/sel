@@ -66,3 +66,20 @@ head's new scenarios; one registry file would make every visible item conflict w
 **To undo.** Say which part to change on the S0 PR (for example, keep every push's folder, or
 one registry file); `/veto S0` drops the job and the visible items go back to "Screenshots for
 Érik".
+
+## 2026-10-23 (night) — Small calls from the VETO research (0.9.0)
+**Decision.**
+- A1a: stale `beside: true` flags left on database blocks by 0.8.0 are accepted as they are (a
+  block may join the row above after updating); the release notes say so. No data migration.
+- A1b: a before/after drop on a column's top block never splits the row ("after" ends that
+  column, "before" on the first column goes before the row, elsewhere it is not offered).
+- B1: the pt-BR hint is "Enter cria como texto" so it fits the 240 px menu on one line.
+- B3: the Tasks database's fixed Priority options (P1–P4) can be renamed and recoloured, not
+  reordered or deleted; the developer checks first what depends on their order.
+- S0: the demo workspace seeds a "By priority" board view for the board scenario; the
+  `screens-publish` job uses `!cancelled()`, and the comment body is built in `screens` and
+  validated as untrusted data in `screens-publish` (details in `docs/team/research/0.9.0/`).
+**Why.** Each is the smallest choice that keeps old data opening unchanged and the menus calm;
+research notes and mockups are in `docs/team/research/0.9.0/` and `docs/team/design/0.9.0/`.
+**To undo.** Say which one to change on #82; option (c) for A1a (a migration clearing stale
+flags) would need your OK under rule 3.
