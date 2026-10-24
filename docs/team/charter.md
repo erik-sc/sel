@@ -12,7 +12,7 @@ How a night runs is in `.claude/skills/sel-team/SKILL.md`; the roles are in `.cl
 | Érik | The team |
 |---|---|
 | Approves proposals in the backlog (`/approve`, `/next`, `/reject`, or comments); on the release PR `/drop <item>`, `/hold`, `/resume` | Reads them in its daily run (22:43 São Paulo); answers every one |
-| Decides the queue: only approved proposals get built, in his order | Keeps at least 3 proposals ready for him, each a full plan |
+| Decides the queue: only approved proposals get built, in his order | Keeps at least 3 proposals ready for him, each a full plan already attacked by an isolated panel of audience personas and a simulated Érik (`docs/team/personas.md`) |
 | Merges the release PR and tags `vX.Y.Z` | Never touches `main`, tags or GitHub releases |
 | Decides anything that risks his data or widens what the app can reach (skill, rule 3) | Stops and asks in "Needs you" |
 | Opens issues for anything, any time | Triages them like any user's, with priority |
