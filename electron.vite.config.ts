@@ -114,8 +114,16 @@ export default defineConfig(({ command }) => {
         rolldownOptions: {
           output: {
             // One chunk for the framework, whose content only changes when a package is upgraded.
+            // Everything else the first screen imports stays in the entry: Rolldown would otherwise
+            // split each module a lazy feature shares with it into a chunk of its own, all preloaded
+            // at startup. (Its 1 kB runtime helpers are always a chunk of their own.)
             // Modules behind a dynamic `import()` (React.lazy) become chunks of their own.
-            codeSplitting: { groups: [{ name: 'vendor', test: VENDOR_RE }] }
+            codeSplitting: {
+              groups: [
+                { name: 'vendor', test: VENDOR_RE, priority: 2 },
+                { name: 'index', tags: ['$initial'], priority: 1 }
+              ]
+            }
           }
         }
       }
