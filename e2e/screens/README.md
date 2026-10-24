@@ -16,6 +16,9 @@ One scenario per line, `<id>: <free text>` (only the id is read). `all` captures
 Without a block nothing runs. Editing the PR body re-runs the capture only when the block's ids
 changed. An unknown id turns the job red, after the known ones were captured.
 
+One comment shows at most 200 images (`MAX_IMAGES`, the same in comment.ts and in the publish
+job): 50 scenarios in both themes. Beyond that, cells say "cut" and the comment says how many.
+
 The images are committed to the orphan branch `team/screens` under `pr-<n>/<sha7>/`; the run's
 artifact also holds them, with `manifest.json`, `comment.md` and, in `failed/`, what the window
 showed when a capture failed.

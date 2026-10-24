@@ -171,52 +171,77 @@ jobs:
           mkdir -p "$OUT"
           cat > "$OUT/check.cjs" <<'SCRIPT'
           // Everything in the artifact came from PR code: keep only what is expected.
+          // e2e/screens/publish.test.ts runs this script on crafted artifacts.
           const fs = require('node:fs')
           const path = require('node:path')
           const { ART, OUT, PR, REPO, HEAD_SHA, RUN_URL } = process.env
+          // The same limit as MAX_IMAGES in e2e/screens/comment.ts (the test checks they agree).
+          const MAX_IMAGES = 200
+          const MAX_BYTES = 2 * 1024 * 1024
           const sha7 = HEAD_SHA.slice(0, 7)
           const NAME = /^[a-z0-9]+(-[a-z0-9]+)*-(light|dark)-(base|head)\.png$/
           const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-          const pub = path.join(OUT, 'pub')
-          fs.mkdirSync(pub, { recursive: true })
-          const kept = new Set()
           const pngDir = path.join(ART, 'png')
-          for (const file of fs.existsSync(pngDir) ? fs.readdirSync(pngDir).sort() : []) {
+          function isPng(file) {
+            if (!NAME.test(file)) return false
             const from = path.join(pngDir, file)
+            if (!fs.existsSync(from)) return false
             const stat = fs.lstatSync(from)
-            let ok = kept.size < 60 && stat.isFile() && NAME.test(file) && stat.size <= 2 * 1024 * 1024
-            if (ok) {
-              const head = Buffer.alloc(8)
-              const fd = fs.openSync(from, 'r')
-              fs.readSync(fd, head, 0, 8, 0)
-              fs.closeSync(fd)
-              ok = head.equals(PNG)
-            }
-            if (!ok) { console.log(`Dropped ${JSON.stringify(file)}`); continue }
-            fs.copyFileSync(from, path.join(pub, file))
-            kept.add(file)
+            if (!stat.isFile() || stat.size > MAX_BYTES) return false
+            const head = Buffer.alloc(8)
+            const fd = fs.openSync(from, 'r')
+            fs.readSync(fd, head, 0, 8, 0)
+            fs.closeSync(fd)
+            return head.equals(PNG)
           }
           const TEAM = '<!-- sel-team -->'
           const MARK = '<!-- sel-screens -->'
           const SIGN = '— sel team (automated)'
-          const fallback = (why) => `${TEAM}\n${MARK}\n## Screens · head ${sha7}\n\n${why} See [the run](${RUN_URL}).\n\n${SIGN}\n`
+          const fallback = (why) => ({
+            text: `${TEAM}\n${MARK}\n## Screens · head ${sha7}\n\n${why} See [the run](${RUN_URL}).\n\n${SIGN}\n`,
+            images: []
+          })
           function body() {
             const file = path.join(ART, 'comment.md')
             if (!fs.existsSync(file)) return fallback('Nothing was captured: the build or the capture stopped before the comment was written.')
             const text = fs.readFileSync(file, 'utf8')
             if (text.length > 60000) return fallback('The comment the capture wrote was too long to post.')
-            if (!text.startsWith(`${TEAM}\n${MARK}\n`) || !text.trimEnd().endsWith(SIGN)) return fallback('The comment the capture wrote was not signed as expected.')
-            const images = `https://github.com/${REPO}/raw/__SCREENS_COMMIT__/pr-${PR}/${sha7}/`
-            for (const [url] of text.matchAll(/https?:\/\/[^\s"'<>()]+/g)) {
-              if (url === RUN_URL || (url.startsWith(images) && kept.has(url.slice(images.length)))) continue
-              return fallback('The comment the capture wrote linked somewhere it may not.')
+            if (!text.startsWith(`${TEAM}\n${MARK}\n`) || !text.trimEnd().endsWith(SIGN)) {
+              return fallback('The comment the capture wrote was not signed as expected.')
             }
-            if (/<(?!\/?(a|img)\b)/i.test(text.slice(TEAM.length + MARK.length + 2))) return fallback('The comment the capture wrote held unexpected markup.')
+            const prefix = `https://github.com/${REPO}/raw/__SCREENS_COMMIT__/pr-${PR}/${sha7}/`
+            const images = new Set()
+            const allowed = (url) => {
+              if (url === RUN_URL) return true
+              if (!url.startsWith(prefix) || !isPng(url.slice(prefix.length))) return false
+              images.add(url.slice(prefix.length))
+              return true
+            }
+            const bad = () => fallback('The comment the capture wrote linked somewhere it may not.')
+            // Inline code never renders as a link; error text and unknown ids live there.
+            let rest = text.slice(TEAM.length + MARK.length + 2).replace(/`[^`\n]*`/g, '``')
+            // Every attribute that can point somewhere must hold an allowed URL, quoted.
+            for (const [, , value] of rest.matchAll(/\b(href|src|srcset|action|formaction|xlink:href|data)\s*=\s*("[^"]*"|'[^']*'|[^\s>]*)/gi)) {
+              if (!/^"[^"]*"$/.test(value) || !allowed(value.slice(1, -1))) return bad()
+            }
+            // Markdown links: only to the run.
+            for (const [, url] of rest.matchAll(/\]\(\s*([^)\s]*)[^)]*\)/g)) if (url !== RUN_URL) return bad()
+            // Then nothing link-like may be left once the allowed URLs are gone.
+            rest = rest.split(RUN_URL).join('')
+            for (const name of images) rest = rest.split(prefix + name).join('')
+            if (/:\/\/|\/\/|www\.|mailto:|javascript:|data:|&#|%[0-9a-f]{2}/i.test(rest)) return bad()
+            if (/<(?!\/?(a|img)\b)/i.test(rest)) return fallback('The comment the capture wrote held unexpected markup.')
+            if (images.size > MAX_IMAGES) return fallback(`The comment the capture wrote showed more than ${MAX_IMAGES} images.`)
             // Nobody gets notified: a zero-width space after every @.
-            return text.replace(/@(?=[A-Za-z0-9_-])/g, '@​')
+            return { text: text.replace(/@(?=[A-Za-z0-9_-])/g, '@​'), images: [...images].sort() }
           }
-          fs.writeFileSync(path.join(OUT, 'body.md'), body())
-          console.log(`${kept.size} images kept`)
+          const { text, images } = body()
+          const pub = path.join(OUT, 'pub')
+          fs.mkdirSync(pub, { recursive: true })
+          // Only the images the comment shows are published.
+          for (const file of images) fs.copyFileSync(path.join(pngDir, file), path.join(pub, file))
+          fs.writeFileSync(path.join(OUT, 'body.md'), text)
+          console.log(`${images.length} images kept`)
           SCRIPT
           node "$OUT/check.cjs"
       - name: Commit the images to team/screens

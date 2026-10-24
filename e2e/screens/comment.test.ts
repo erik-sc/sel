@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { buildComment, COMMIT_PLACEHOLDER, type Manifest, MAX_BODY, plainLine, SCREENS_MARKER, SIGNATURE, TEAM_MARKER } from './comment'
+import {
+  buildComment,
+  COMMIT_PLACEHOLDER,
+  type Manifest,
+  MAX_BODY,
+  MAX_IMAGES,
+  plainLine,
+  SCREENS_MARKER,
+  SIGNATURE,
+  TEAM_MARKER
+} from './comment'
 
 const both = ['light', 'dark'] as const
 
@@ -34,8 +44,8 @@ describe('buildComment', () => {
     expect(body).toContain('### today — The Today screen')
     expect(body).toContain('| | Before (base) | After (head) |')
     const dir = `https://github.com/erik-sc/sel/raw/${COMMIT_PLACEHOLDER}/pr-90/abcdef1`
-    const light = body.indexOf(`| Light | <a href="${dir}/today-light-base.png">`)
-    const dark = body.indexOf(`| Dark | <a href="${dir}/today-dark-base.png">`)
+    const light = body.indexOf(`| Light | <img src="${dir}/today-light-base.png"`)
+    const dark = body.indexOf(`| Dark | <img src="${dir}/today-dark-base.png"`)
     expect(light).toBeGreaterThan(0)
     expect(dark).toBeGreaterThan(light)
     expect(body.indexOf(`${dir}/today-light-head.png`)).toBeGreaterThan(light)
@@ -53,7 +63,7 @@ describe('buildComment', () => {
         scenarios: [{ id: 'today', description: 'x', themes: ['light'] }]
       })
     )
-    expect(body).toContain('| Light | _not in base_ | <a href=')
+    expect(body).toContain('| Light | _not in base_ | <img src=')
     expect(body).not.toContain('Failed:')
   })
 
@@ -74,12 +84,29 @@ describe('buildComment', () => {
     expect(body).not.toMatch(/@[a-z]/)
   })
 
-  it('stays under GitHub’s size limit', () => {
-    const scenarios = Array.from({ length: 400 }, (_, n) => ({ id: `s-${n}`, description: 'd'.repeat(120), themes: [...both] }))
+  it('fits a full release (MAX_IMAGES images, long descriptions) without cutting the body', () => {
+    const scenarios = Array.from({ length: MAX_IMAGES / 4 }, (_, n) => ({
+      id: `scenario-${n}`,
+      description: 'd'.repeat(120),
+      themes: [...both]
+    }))
     const results = scenarios.flatMap((s) =>
       both.flatMap((theme) => (['base', 'head'] as const).map((side) => ({ id: s.id, theme, side, status: 'ok' as const })))
     )
     const body = buildComment(manifest({ scenarios, results }))
+    expect(body.match(/<img /g)?.length).toBe(MAX_IMAGES)
+    expect(body).not.toContain('too long')
+    expect(body).not.toContain('Cut:')
+  })
+
+  it('shows at most MAX_IMAGES images, says how many were cut, and stays under GitHub’s size limit', () => {
+    const scenarios = Array.from({ length: 100 }, (_, n) => ({ id: `s-${n}`, description: 'd'.repeat(120), themes: [...both] }))
+    const results = scenarios.flatMap((s) =>
+      both.flatMap((theme) => (['base', 'head'] as const).map((side) => ({ id: s.id, theme, side, status: 'ok' as const })))
+    )
+    const body = buildComment(manifest({ scenarios, results }))
+    expect(body.match(/<img /g)?.length).toBe(MAX_IMAGES)
+    expect(body).toContain(`Cut: ${100 * 4 - MAX_IMAGES} images over the limit of ${MAX_IMAGES} per comment`)
     expect(body.length).toBeLessThanOrEqual(MAX_BODY)
     expect(body.trimEnd().endsWith(SIGNATURE)).toBe(true)
   })

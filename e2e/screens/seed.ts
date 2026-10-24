@@ -14,6 +14,7 @@
 
 import { DatabaseSync } from 'node:sqlite'
 import type { Repository } from '../../src/main/db/repository'
+import { AI_ONBOARDED_KEY } from '../../src/shared/ai'
 import { TASK_PROPS } from '../../src/shared/tasks'
 import type { BlockProps, BlockType, DatabaseView, Op, PropertySchema, RichText } from '../../src/shared/types'
 import type { Theme } from './registry'
@@ -106,7 +107,7 @@ export function seedWorkspace(code: SeedCode, file: string, options: SeedOptions
   const repo = new code.Repository(new DatabaseSync(file), { clock: () => at })
   try {
     repo.setSetting('seeded', true)
-    repo.setSetting('ai.onboarded', true)
+    repo.setSetting(AI_ONBOARDED_KEY, true)
     repo.setSetting('ai.language', options.locale)
     repo.setSetting('theme', options.theme)
 

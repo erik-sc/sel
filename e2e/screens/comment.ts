@@ -16,6 +16,12 @@ export const SIGNATURE = '— sel team (automated)'
 export const COMMIT_PLACEHOLDER = '__SCREENS_COMMIT__'
 /** GitHub refuses bodies over 65 536 characters. */
 export const MAX_BODY = 60_000
+/**
+ * Images one comment shows: a release's `all` (CLOSE) with 50 scenarios fits. The publish job
+ * enforces the same number (`MAX_IMAGES` in .github/workflows/screens.yml; publish.test.ts checks).
+ * An image is about 170 characters of the body, so 200 of them stay well under MAX_BODY.
+ */
+export const MAX_IMAGES = 200
 
 export type Status = 'ok' | 'failed' | 'not-in-base'
 
@@ -69,14 +75,21 @@ export function buildComment(manifest: Manifest): string {
   const find = (id: string, theme: Theme, side: Side): CaptureResult | undefined =>
     results.find((r) => r.id === id && r.theme === theme && r.side === side)
 
+  let shown = 0
+  let cut = 0
   const cell = (id: string, theme: Theme, side: Side): string => {
     const result = find(id, theme, side)
     if (!result) return '—'
     if (result.status === 'not-in-base') return '_not in base_'
     if (result.status === 'failed') return '_failed_'
-    const url = `${dir}/${fileName(id, theme, side)}`
+    if (shown >= MAX_IMAGES) {
+      cut++
+      return '_cut_'
+    }
+    shown++
+    // GitHub links an image in a comment to its full size by itself.
     const alt = `${id} ${theme} ${side === 'base' ? 'before' : 'after'}`
-    return `<a href="${url}"><img src="${url}" width="440" alt="${alt}"></a>`
+    return `<img src="${dir}/${fileName(id, theme, side)}" width="440" alt="${alt}">`
   }
 
   const out: string[] = [TEAM_MARKER, SCREENS_MARKER, `## Screens · head ${sha7(headSha)} vs base ${sha7(baseSha)}`, '']
@@ -92,9 +105,12 @@ export function buildComment(manifest: Manifest): string {
   const failed = results.filter((r) => r.status === 'failed')
   for (const r of failed) out.push(`Failed: \`${r.id}\` (${r.theme}, ${r.side}): ${code(r.error ?? 'unknown error', 200)}  `)
   for (const id of manifest.unknown) out.push(`Unknown: ${code(id, 64)}  `)
-  if (failed.length > 0 || manifest.unknown.length > 0) out.push('', `[The run](${manifest.runUrl})`, '')
+  if (cut > 0) out.push(`Cut: ${cut} images over the limit of ${MAX_IMAGES} per comment; every image is in the run's artifact.  `)
+  if (failed.length > 0 || manifest.unknown.length > 0 || cut > 0) out.push('', `[The run](${manifest.runUrl})`, '')
 
   let body = out.join('\n')
-  if (body.length > MAX_BODY - SIGNATURE.length - 40) body = `${body.slice(0, MAX_BODY - SIGNATURE.length - 40)}\n\n_(cut: too long)_\n`
+  const room = MAX_BODY - SIGNATURE.length - 40
+  // Cut at a line end, so no link is left half written.
+  if (body.length > room) body = `${body.slice(0, body.lastIndexOf('\n', room))}\n\n_(cut: too long)_\n`
   return `${body.trimEnd()}\n\n${SIGNATURE}\n`
 }
