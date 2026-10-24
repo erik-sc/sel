@@ -83,3 +83,23 @@ one registry file); `/veto S0` drops the job and the visible items go back to "S
 research notes and mockups are in `docs/team/research/0.9.0/` and `docs/team/design/0.9.0/`.
 **To undo.** Say which one to change on #82; option (c) for A1a (a migration clearing stale
 flags) would need your OK under rule 3.
+
+## 2026-10-24 — The first three release proposals (#91, #92, #93)
+**Decision.**
+- #92 (0.11.0) proposes taking "appearance presets" off the charter's list of optional extras,
+  flagged as an identity change: since 0.7.1 (commit 4980fe8) there is no Appearance screen and a
+  saved appearance is not applied, so there is nothing to switch. The leftover code and the synced
+  `appearance` setting stay untouched (removing them touches the sync format, rule 3).
+- #92 explains the two verticals on a new workspace's welcome page instead of adding headings to
+  the sidebar (the roadmap said "the sidebar and onboarding"): the sidebar is a list the user
+  orders and hides items in, and headings there would be chrome on every screen.
+- #92's extras switches are per device (not synced) and absent means on, so existing installs do
+  not change; only `seedIfEmpty` writes "off" on a fresh install.
+- #93 (0.12.0) does not plan "tune the evening and stalled routines from Érik's use": there is no
+  use to tune from yet. It asks him to turn them on for a week, and adds Close the day's "Left for
+  another day" list and a counted evening line instead.
+**Why.** Each keeps the proposals true to the code on `release/0.9.0` and to the charter's
+principles (nothing hidden that a user made, no stored format changed, polish before novelty).
+**To undo.** Comment on the proposal: on #92, "keep presets as an extra" adds a fifth switch and
+a preset picker item; "sync the switches" becomes a rule-3 question; on #93, name what the
+routines should change and it becomes an item.
