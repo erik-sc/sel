@@ -1,0 +1,273 @@
+# Screenshots of a pull request's head and of its merge base, posted as one comment on the PR.
+# What to capture is the `screens` block of the PR body (e2e/screens/README.md); without one,
+# nothing runs past the first small job.
+#
+# Three jobs, so PR code never holds a write token:
+# - plan (Ubuntu, read-only): reads the block from the event file. On an `edited` event that
+#   left the block as it was, it stops there, so editing a PR's text costs no Windows run.
+# - screens (Windows, read-only): builds head and the merge base, captures every scenario on
+#   both with Playwright's Electron driver, and uploads the PNGs, manifest.json and comment.md.
+#   Red when a head capture failed or an id is unknown.
+# - screens-publish (Ubuntu, write): checks out nothing. It treats the artifact as untrusted
+#   data (file names, PNG signatures, sizes, the comment's markers, signature and every link),
+#   commits the images to the orphan branch team/screens and posts or edits the one comment.
+#   Skipped for pull requests from forks, whose token cannot write.
+#
+# Untrusted text (the PR body, the artifact) never goes into a `run:` line: it is read from
+# $GITHUB_EVENT_PATH or from files, and values from the event reach scripts through `env:`.
+#
+# Install as ci.yml does: `npm ci --ignore-scripts` (better-sqlite3 13 ships prebuilt binaries,
+# so no rebuild). Only head downloads Electron: Playwright launches both apps with head's.
+name: Screens
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions: {}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      capture: ${{ steps.parse.outputs.capture }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          sparse-checkout: e2e/screens/block.ts
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - id: parse
+        run: node e2e/screens/block.ts
+
+  screens:
+    needs: plan
+    if: needs.plan.outputs.capture == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    # Per job, not per workflow: an `edited` run that stops in `plan` must not cancel a capture.
+    concurrency:
+      group: screens-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+    env:
+      SCREENS_PR: ${{ github.event.pull_request.number }}
+      SCREENS_REPO: ${{ github.repository }}
+      SCREENS_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      SCREENS_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: head/package-lock.json
+      - name: Read the screens block
+        run: node head/e2e/screens/block.ts "$RUNNER_TEMP/screens-ids.txt"
+      # "Before" is the merge base: the base branch's head may hold other merged work head lacks.
+      - name: Find the merge base
+        id: base
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          sha=$(gh api "repos/$SCREENS_REPO/compare/$BASE_SHA...$SCREENS_HEAD_SHA" --jq .merge_base_commit.sha || true)
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || sha="$BASE_SHA"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Merge base: $sha"
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.base.outputs.sha }}
+          path: base
+          persist-credentials: false
+      - name: Build head
+        working-directory: head
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node node_modules/electron/install.js
+          npm run build
+      # A base that does not build leaves every "before" empty instead of failing the job.
+      - name: Build base
+        id: build-base
+        continue-on-error: true
+        working-directory: base
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+      - name: Test the harness
+        working-directory: head
+        run: npx vitest run --dir e2e
+      - name: Capture
+        working-directory: head
+        env:
+          SCREENS_IDS: '@${{ runner.temp }}/screens-ids.txt'
+          SCREENS_HEAD_DIR: ${{ github.workspace }}/head
+          SCREENS_BASE_DIR: ${{ steps.build-base.outcome == 'success' && format('{0}/base', github.workspace) || '' }}
+          SCREENS_BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          export SCREENS_NOW=$(( $(date +%s) * 1000 ))
+          npx playwright test -c e2e/screens/playwright.config.ts
+      - uses: actions/upload-artifact@v6
+        if: ${{ !cancelled() }}
+        with:
+          name: screens-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            head/e2e/screens/.output/png/
+            head/e2e/screens/.output/failed/
+            head/e2e/screens/.output/manifest.json
+            head/e2e/screens/.output/comment.md
+          retention-days: 14
+          if-no-files-found: ignore
+
+  screens-publish:
+    needs: [plan, screens]
+    # !cancelled(), not always(): a run that a newer push cancelled must not publish older pictures.
+    if: >-
+      ${{ !cancelled()
+      && needs.plan.outputs.capture == 'true'
+      && needs.screens.result != 'cancelled'
+      && needs.screens.result != 'skipped'
+      && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: screens-publish-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      REPO: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: screens-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/artifact
+      - name: Check the artifact
+        env:
+          ART: ${{ runner.temp }}/artifact
+          OUT: ${{ runner.temp }}/publish
+        run: |
+          mkdir -p "$OUT"
+          cat > "$OUT/check.cjs" <<'SCRIPT'
+          // Everything in the artifact came from PR code: keep only what is expected.
+          const fs = require('node:fs')
+          const path = require('node:path')
+          const { ART, OUT, PR, REPO, HEAD_SHA, RUN_URL } = process.env
+          const sha7 = HEAD_SHA.slice(0, 7)
+          const NAME = /^[a-z0-9]+(-[a-z0-9]+)*-(light|dark)-(base|head)\.png$/
+          const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+          const pub = path.join(OUT, 'pub')
+          fs.mkdirSync(pub, { recursive: true })
+          const kept = new Set()
+          const pngDir = path.join(ART, 'png')
+          for (const file of fs.existsSync(pngDir) ? fs.readdirSync(pngDir).sort() : []) {
+            const from = path.join(pngDir, file)
+            const stat = fs.lstatSync(from)
+            let ok = kept.size < 60 && stat.isFile() && NAME.test(file) && stat.size <= 2 * 1024 * 1024
+            if (ok) {
+              const head = Buffer.alloc(8)
+              const fd = fs.openSync(from, 'r')
+              fs.readSync(fd, head, 0, 8, 0)
+              fs.closeSync(fd)
+              ok = head.equals(PNG)
+            }
+            if (!ok) { console.log(`Dropped ${JSON.stringify(file)}`); continue }
+            fs.copyFileSync(from, path.join(pub, file))
+            kept.add(file)
+          }
+          const TEAM = '<!-- sel-team -->'
+          const MARK = '<!-- sel-screens -->'
+          const SIGN = '— sel team (automated)'
+          const fallback = (why) => `${TEAM}\n${MARK}\n## Screens · head ${sha7}\n\n${why} See [the run](${RUN_URL}).\n\n${SIGN}\n`
+          function body() {
+            const file = path.join(ART, 'comment.md')
+            if (!fs.existsSync(file)) return fallback('Nothing was captured: the build or the capture stopped before the comment was written.')
+            const text = fs.readFileSync(file, 'utf8')
+            if (text.length > 60000) return fallback('The comment the capture wrote was too long to post.')
+            if (!text.startsWith(`${TEAM}\n${MARK}\n`) || !text.trimEnd().endsWith(SIGN)) return fallback('The comment the capture wrote was not signed as expected.')
+            const images = `https://github.com/${REPO}/raw/__SCREENS_COMMIT__/pr-${PR}/${sha7}/`
+            for (const [url] of text.matchAll(/https?:\/\/[^\s"'<>()]+/g)) {
+              if (url === RUN_URL || (url.startsWith(images) && kept.has(url.slice(images.length)))) continue
+              return fallback('The comment the capture wrote linked somewhere it may not.')
+            }
+            if (/<(?!\/?(a|img)\b)/i.test(text.slice(TEAM.length + MARK.length + 2))) return fallback('The comment the capture wrote held unexpected markup.')
+            // Nobody gets notified: a zero-width space after every @.
+            return text.replace(/@(?=[A-Za-z0-9_-])/g, '@​')
+          }
+          fs.writeFileSync(path.join(OUT, 'body.md'), body())
+          console.log(`${kept.size} images kept`)
+          SCRIPT
+          node "$OUT/check.cjs"
+      - name: Commit the images to team/screens
+        id: commit
+        env:
+          OUT: ${{ runner.temp }}/publish
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          images=("$OUT"/pub/*.png)
+          if [ ${#images[@]} -eq 0 ]; then echo "No images to commit."; exit 0; fi
+          sha7=${HEAD_SHA:0:7}
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          for attempt in 1 2 3; do
+            work="$RUNNER_TEMP/team-screens-$attempt"
+            # A fresh shallow clone each time: each PR only touches pr-<n>/, so a retry never conflicts.
+            if git ls-remote --exit-code --heads "$remote" team/screens > /dev/null; then
+              git clone --quiet --depth 1 --branch team/screens "$remote" "$work"
+            else
+              git init --quiet "$work"
+              git -C "$work" checkout --quiet --orphan team/screens
+              git -C "$work" remote add origin "$remote"
+              printf '%s\n' '# team/screens' '' \
+                'Screenshots taken by the Screens workflow (.github/workflows/screens.yml) for pull requests: pr-<n>/<head sha>/<scenario>-<theme>-<base|head>.png. Each run replaces its PR'"'"'s folder; git history keeps the older ones. Never merged.' \
+                > "$work/README.md"
+            fi
+            rm -rf "$work/pr-$PR"
+            mkdir -p "$work/pr-$PR/$sha7"
+            cp "${images[@]}" "$work/pr-$PR/$sha7/"
+            git -C "$work" add -A
+            git -C "$work" -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit --quiet -m "Screens for #$PR at $sha7"
+            if git -C "$work" push --quiet origin HEAD:team/screens; then
+              echo "sha=$(git -C "$work" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep $(( RANDOM % 10 + 3 ))
+          done
+          echo "Could not push to team/screens after 3 attempts." >&2
+          exit 1
+      - name: Post or edit the comment
+        env:
+          OUT: ${{ runner.temp }}/publish
+          COMMIT: ${{ steps.commit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          sed "s/__SCREENS_COMMIT__/${COMMIT:-missing}/g" "$OUT/body.md" > "$OUT/final.md"
+          id=$(gh api --paginate "repos/$REPO/issues/$PR/comments?per_page=100" \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- sel-screens -->"))) | .id' | awk 'NR == 1')
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@"$OUT/final.md" --jq '"Edited comment \(.id)"'
+          else
+            gh api "repos/$REPO/issues/$PR/comments" -F body=@"$OUT/final.md" --jq '"Posted comment \(.id)"'
+          fi
