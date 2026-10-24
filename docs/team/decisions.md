@@ -120,3 +120,27 @@ routines should change and it becomes an item.
   code-splitting group; Rolldown adds one 726-byte runtime chunk that cannot be folded in.
 **Why.** Each keeps the plan's intent (cheap CI, nothing new shipped at startup) with the least code.
 **To undo.** Say so on the PR in question or on #82; each is a small change.
+
+## 2026-10-24 (night) — The three new proposals after #91–#93 were rejected (#96, #97, #98)
+**Decision.**
+- #91, #92 and #93 go to a new roadmap section, "Later (rejected for now, 2026-10-24)", not to
+  "Not doing": Érik asked to keep the ideas for later. The skill says a rejection is noted in
+  "Not doing"; his own words win.
+- The 0.8.0 leftovers that rode on them (the "Private from AI" leaks, routine answers lost on
+  restart) are parked with them, and Érik is asked on #82 whether he wants the privacy leaks
+  sooner as a bug fix, since they are a broken promise rather than a feature.
+- The three new proposals are new ideas the team found in the code, none from the listed pains:
+  #96 (0.10.0) a right-click menu on text and plain paste, #97 (0.11.0) links, search hits,
+  backlinks and Back landing where they point, #98 (0.12.0) find and replace and a headings
+  outline. Two or three items each.
+- #96 leaves out choosing spell-check languages (on Windows it can mean downloading Hunspell
+  dictionaries, which reaches the network) and a "Paste as plain text" menu item (Chromium gives
+  the page no way to tell that paste apart).
+- #98 keeps the outline's open/closed state in `localStorage` (per device, like the calendar's
+  view) rather than a synced setting, and does not add a table-of-contents block (a new block type
+  would be a data-format change).
+**Why.** Érik asked for smaller, concrete releases felt in daily use, and for the team's own ideas.
+Each of these is felt on every page, adds no stored data, channel or dependency (rule 3 untouched),
+and the order follows a real dependency (#98's outline jumps with #97's reveal).
+**To undo.** `/reject` or comment on any of #96–#98; say "bring back X" for anything in "Later"
+and it becomes a new, smaller proposal; "privacy leaks now" on #82 makes them an item.

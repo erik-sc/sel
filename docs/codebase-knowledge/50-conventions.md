@@ -156,6 +156,28 @@ selected text to its toolbar.
 4.5:1 for text, secondary and tertiary text on the surfaces they are drawn on and 3:1 for the
 focus ring; the few exceptions, kept for fidelity to the original, are listed there with why.
 
+## Screens
+
+Since 0.9.0 (S0): every pull request that changes what a user sees shows it. Its body holds a
+`screens` block naming scenarios, one `<id>: <text>` per line; the Screens workflow
+(.github/workflows/screens.yml) captures them on the PR's head and on its merge base and posts one
+comment with the pairs, light above dark, before on the left (e2e/screens/README.md).
+
+- **Adding a scenario** is part of the item that needs it: an entry in the area's file under
+  e2e/screens/scenarios/ (every file there is loaded; ids are kebab-case and unique across files,
+  e2e/screens/registry.ts). `run` drives the window from the open app the way a user would, by
+  role and name, and waits for what should be on screen. `workspace` adds to the demo workspace
+  (e2e/screens/seed.ts) for that scenario only.
+- **The demo workspace** is written by the app's own `Repository` on `node:sqlite`, from fixed
+  ids and English text, dated around the run's day. Base is seeded with base's own `Repository`,
+  so a new migration never leaves base with a database it refuses.
+- **Locally**: `npm run screens:test` runs the pure tests (block, registry, seed, comment) on
+  Node 24; `npm run screens` captures, on Linux under `xvfb-run` (README). The pictures of record
+  come only from the Windows job: fonts, DPI and window chrome differ elsewhere, and Windows is
+  the only platform sel ships for.
+- **Nothing in `src/` exists for the harness.** The window is found by role and text; reduced
+  motion is emulated so Herman draws still.
+
 ## Error handling
 
 - Renderer input is typed `unknown` and narrowed by validators that throw (src/main/validate.ts:39-57, src/main/ai/index.ts:127-128).
