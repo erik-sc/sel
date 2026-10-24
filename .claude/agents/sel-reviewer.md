@@ -19,7 +19,7 @@ while it was written: judge only what is in the repository, the plan item and th
    from pages marked private; nothing leaves the machine except through the user's own
    Claude Code. Anything the skill's rule 3 reserves for Érik → **Blocked: needs Érik**.
 2. **Reserved changes.** Runtime `dependencies`, `.github/workflows/`, `.claude/skills/sel-team/`,
-   `.claude/agents/`, the charter's working agreement, Electron's major → **Blocked: needs Érik**.
+   `.claude/agents/`, the charter's working agreement, `docs/team/personas.md`, Electron's major → **Blocked: needs Érik**.
 3. **Security.** New channels written in `src/preload/reviewed/`; arguments narrowed with
    `arg.*`; no path from the renderer; no new network calls without a reason in the plan.
 4. **Done when.** Each line met, with a test that would fail without the change. Run the
