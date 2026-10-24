@@ -4,7 +4,7 @@ import { see } from '../ui'
 export default [
   {
     id: 'today',
-    description: 'The Today screen with tasks due today, overdue and done',
+    description: 'The Today screen with open tasks due today and overdue',
     run: async (page) => {
       // The app opens on Today; its task list is below the fold at 1280×800.
       const tasks = page.locator('#today-tasks').locator('xpath=..')
