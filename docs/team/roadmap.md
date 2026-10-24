@@ -2,9 +2,10 @@
 
 Owned by `sel-pm`. Rewritten as the team learns; the history is in git.
 
-Status: **first team reading** · 2026-10-23 · written by `sel-pm` from Érik's pains (2026-10-21),
-the 0.7.0 and 0.8.0 plans, `docs/codebase-knowledge/`, `docs/screens/` and the code on `main`
-at 8da2eb4 (v0.8.0). No issue or comment from Érik yet.
+Status: **first team reading, backlog opened** · 2026-10-24 · written by `sel-pm` from Érik's pains
+(2026-10-21), the 0.7.0 and 0.8.0 plans, `docs/codebase-knowledge/`, `docs/screens/` and the code
+on `main` at 8da2eb4 (v0.8.0); revised on 2026-10-24 when the first three release proposals were
+written against the code on `release/0.9.0`.
 
 ## Milestones (Érik's, 2026-10-21)
 
@@ -21,7 +22,7 @@ at 8da2eb4 (v0.8.0). No issue or comment from Érik yet.
 | 2 | Database usability: multi-column page layout does not work; too many clicks to edit columns | **Open.** Only database blocks can sit side by side (`editor/layout.ts`, `canShareRow`); text, callouts and images cannot. A new property is created with its type's name and must be opened again to be renamed (`database/propertyMenus.tsx`, `AddPropertyMenu`); select options can only be edited from inside a cell (`database/SelectEditor.tsx`); table headers are mouse-only | code read 2026-10-23 | **0.9.0** |
 | 3 | The persona creating real pages and databases (a finances page came out weak) | **Open.** A proposal can only create properties of 8 plain types (no formula, relation, rollup or number format such as currency), one view per database, and no filters, sorts, charts, calculations or side-by-side layout | `src/shared/actions.ts` (`ACTION_PROPERTY_TYPES`, `ACTION_VIEWS`, `HermanAction`) | 0.10.0 |
 | 4 | The persona being proactive: reminding what was left undone, suggesting occasionally | **Built, not proven.** Routines (morning plan, midday, evening close-of-day draft, weekly review, stalled task) exist but are all off by default; the non-AI counsel already nudges about the inbox. A routine's answer lives only in memory and is lost if the app closes before the persona speaks | `src/shared/routines.ts`, `src/main/routines/`, `src/main/herman/counsel.ts`; release-0.8.0.md "Falta / para depois" | 0.12.0, after he has lived with them |
-| 5 | Making the verticals clear (extras off by default on fresh installs) | **Open.** Templates, LaTeX, pomodoro, in-app feedback and appearance presets have no on/off switch; every fresh install shows all of them | `src/renderer/src/features.ts` registers every feature unconditionally; no `*.enabled` setting for them in `src/shared/` | 0.11.0 |
+| 5 | Making the verticals clear (extras off by default on fresh installs) | **Open.** Templates, LaTeX, pomodoro and in-app feedback have no on/off switch; every fresh install shows all of them. Appearance presets have had no screen since 0.7.1 (commit 4980fe8), so there is nothing to switch | `src/renderer/src/features.ts` registers every feature unconditionally; no `*.enabled` setting for them in `src/shared/` | 0.11.0 |
 
 Set aside by Érik: faster meeting transcription (~1 h last time).
 
@@ -33,9 +34,9 @@ One theme each; polish before novelty. Versions after the next one are intention
 | Version | Theme | What it holds |
 |---|---|---|
 | **0.9.0** | **Pages and databases you can shape** (pain 2) | Columns for any block (block menu, drag to the side, typing inside a column); a new property named as it is made; select options edited from the column's menu; table headers renamed in place, reachable by keyboard, with insert left or right. Housekeeping: land the dev-toolchain bumps Dependabot opened (#75–#78) on the release branch. First, at Érik's request: a CI job that screenshots the real app (Windows, seeded demo workspace, both themes) before and after on every visible PR |
-| 0.10.0 | **A persona that builds for real, and keeps its word** (pain 3 + 0.8.0 privacy leftovers) | Proposals that create formulas, relations, rollups, number formats (currency), several views, filters, sorts, charts and calculations, and columns from 0.9.0; a check of the result against a few reference requests (finances, reading list, project). The "Private from AI" promise closed: private titles no longer reach the AI through relation cells and links, and inline AI is not offered on private pages |
-| 0.11.0 | **Two verticals, clearly** (pain 5) | An "Extras" section in Settings with one switch per extra (templates, LaTeX, pomodoro, feedback, appearance presets), off on fresh installs and unchanged on existing ones; the sidebar and onboarding say what D and Z are; one language throughout (the editor and database menus are English-only today, while every newer feature has pt-BR) |
-| 0.12.0 | **A persona that remembers what was left undone** (pain 4) | Routine answers that survive a restart; the evening and stalled routines tuned from Érik's use; a quiet "left undone" recap the persona can offer without AI; limits and the off switch kept in sight |
+| 0.10.0 | **A persona that builds for real, and keeps its word** (pain 3 + 0.8.0 privacy leftovers) — proposal #91 | Proposals that create formulas, relations, rollups, number formats (currency), several views, filters, sorts, charts and calculations, and columns from 0.9.0; a check of the result against three reference requests (finances, reading list, project). The "Private from AI" promise closed: private titles no longer reach the AI through relation cells, rollups and links, and inline AI is not offered on private pages |
+| 0.11.0 | **Two verticals, clearly** (pain 5) — proposal #92, flags an identity change | Settings → Extras with one switch per extra (templates, LaTeX, pomodoro, feedback), off on fresh installs and unchanged on existing ones; appearance presets leave the charter's list of extras (no screen since 0.7.1); a new workspace's welcome page says what the two verticals and Today are (the sidebar stays a list the user orders, without headings); one language throughout (the editor and database menus are English-only today, while every newer feature has pt-BR) |
+| 0.12.0 | **A persona that remembers what was left undone** (pain 4) — proposal #93 | Routine answers that survive a restart; Settings showing what each routine did today; turning a routine off from its own line; Close the day listing what was left undone and offering it for tomorrow; the evening line naming how much is left. Tuning the evening and stalled routines waits until Érik has used them for a week (asked in #93) |
 | 0.13.0 | **Ready for another developer** | README and `site/` that take a stranger from clone to running app; a contributor guide drawn from `docs/codebase-knowledge/`; a first run that works without Claude Code installed and says what AI adds; the line citations in `docs/codebase-knowledge` checked |
 | 0.14.0 | **Polish pass before 1.0** | A pass over every screen in `docs/screens/` for clicks, copy, focus and dark mode; importer gaps (non-image attachments, Notion relations as relations); backup comparison measured on a large workspace; whatever Érik's daily use has turned up |
 | **1.0.0** | **Usable and polished** | Only fixes and polish on top of 0.14.0; the five pains confirmed solved by Érik |
@@ -45,6 +46,18 @@ templates and faster relation and rollup setup; Today as the real bridge between
 vertical as one ritual (Meditations, the Sky and Close the day speaking to each other); a
 privileged `app://` protocol instead of `file://` (codebase question 34); clicks counted on the
 ten most common flows and cut; macOS and Linux builds only if someone other than Érik asks.
+
+## Release backlog
+
+Every release after the one in progress starts as a proposal issue (label `release-proposal`); Érik
+approves (`/approve`, `/next`) or rejects (`/reject`) it there, and the queue order is the build
+order (skill, "Release backlog"). This table and the open proposals must agree.
+
+| Proposal | Target | Theme | State |
+|---|---|---|---|
+| #91 | 0.10.0 | A persona that builds for real, and keeps its word | waiting for approval |
+| #92 | 0.11.0 | Two verticals, clearly (identity change: appearance presets leave the extras) | waiting for approval |
+| #93 | 0.12.0 | A persona that remembers what was left undone | waiting for approval |
 
 ## Left for later from 0.8.0, and where it went
 
