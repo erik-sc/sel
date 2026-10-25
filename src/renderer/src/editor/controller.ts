@@ -32,6 +32,7 @@ import {
   moveOps,
   moveToOps,
   nextVisible,
+  outdentLeavesRow,
   outdentOps,
   prevVisible,
   redoPlan,
@@ -412,9 +413,10 @@ export class EditorController {
 
   outdent(ids: string[]): void {
     this.flushAll()
+    const leaving = outdentLeavesRow(this.tree, ids)
     const ops = outdentOps(this.tree, ids)
     this.commit(ops)
-    if (ops.length) announce(a11yCopy().outdented)
+    if (ops.length) announce(leaving ? editorCopy().outOfColumns : a11yCopy().outdented)
   }
 
   moveBlocks(ids: string[], dir: -1 | 1): void {

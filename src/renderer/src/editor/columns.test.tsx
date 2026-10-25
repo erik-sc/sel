@@ -217,6 +217,53 @@ describe('dragging to the side and /columns (A1b)', () => {
   })
 })
 
+describe('typing inside a column (A1c)', () => {
+  const said = async (): Promise<string | null | undefined> => {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 80)))
+    return document.querySelector('[data-announcer]')?.textContent
+  }
+
+  it('Enter at the end of a lone head adds a line inside its column in one step, and one undo takes it back', async () => {
+    await act(async () => putBlocks(PAGE))
+    const ctrl = new EditorController('pg')
+    await act(async () => ctrl.split('r1', 3, 3))
+    expect(getBlock('pg')?.content).toEqual(PAGE[0].content)
+    expect(getBlock('r1')?.content).toHaveLength(1)
+    expect([getBlock('r2')?.props.beside, getBlock('r3')?.props.beside]).toEqual([true, true])
+    await act(async () => ctrl.undo())
+    expect(getBlock('r1')?.content).toEqual([])
+  })
+
+  it('Enter twice at the end of a column leaves the row and says so, in English and in Portuguese', async () => {
+    await act(async () => putBlocks(PAGE))
+    const ctrl = new EditorController('pg')
+    await act(async () => ctrl.split('k2', 12, 12))
+    const line = getBlock('t')?.content[2] ?? ''
+    expect(getBlock(line)?.props.title).toEqual([])
+    await act(async () => ctrl.split(line, 0, 0))
+    expect(getBlock('pg')?.content).toEqual(['t', 'c', line, 'r1', 'r2', 'r3'])
+    expect(getBlock('c')?.props.beside).toBe(true)
+    expect(await said()).toBe('Out of the columns')
+
+    await act(async () => ctrl.undo())
+    expect(getBlock('t')?.content).toEqual(['k1', 'k2', line])
+    useHome.setState({ locale: 'pt-BR' })
+    await act(async () => ctrl.outdent(['k1']))
+    expect(getBlock('pg')?.content).toEqual(['t', 'c', 'k1', 'r1', 'r2', 'r3'])
+    expect(await said()).toBe('Fora das colunas')
+  })
+
+  it('still says "Outdented" outside a row', async () => {
+    await act(async () =>
+      putBlocks([...PAGE, block('deep', 'text', 'k1', { title: [['deep']] })].map((b) => (b.id === 'k1' ? { ...b, content: ['deep'] } : b)))
+    )
+    const ctrl = new EditorController('pg')
+    await act(async () => ctrl.outdent(['deep']))
+    expect(getBlock('t')?.content).toEqual(['k1', 'deep', 'k2'])
+    expect(await said()).toBe('Outdented')
+  })
+})
+
 describe('the block menu', () => {
   async function menuFor(id: string): Promise<string[]> {
     await act(async () => putBlocks(PAGE))
