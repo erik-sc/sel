@@ -242,8 +242,15 @@
   background-color: var(--accent);
 }
 
+/* The tick sits at the same x on every selected row, whatever else the row shows beside it. */
+.task-row.is-selected .task-side {
+  padding-right: 20px;
+}
+
 .task-selected-mark {
-  align-self: center;
+  position: absolute;
+  top: 9px;
+  right: 6px;
   color: var(--accent);
   font-size: var(--text-sm);
   line-height: 1;

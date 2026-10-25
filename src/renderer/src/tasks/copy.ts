@@ -81,7 +81,7 @@ export interface TaskCopy {
   selectAll: string
   selectedRow: string
   /** What a change to several tasks says once done (with Undo), and the header of the menus that make it. */
-  manyChanged: (field: string, count: number) => string
+  manyChanged: (field: 'date' | 'priority' | 'project', count: number) => string
   manyCompleted: (count: number) => string
   manyReopened: (count: number) => string
   manyHeader: (count: number) => string
@@ -142,10 +142,11 @@ const EN: TaskCopy = {
   selectionCleared: 'Selection cleared',
   selectAll: 'Select all in this list',
   selectedRow: 'selected',
-  manyChanged: (field, count) => `${field} changed on ${count} ${count === 1 ? 'task' : 'tasks'}.`,
+  manyChanged: (field, count) =>
+    `${{ date: 'Date', priority: 'Priority', project: 'Project' }[field]} changed on ${count} ${count === 1 ? 'task' : 'tasks'}.`,
   manyCompleted: (count) => `Completed ${count} ${count === 1 ? 'task' : 'tasks'}.`,
   manyReopened: (count) => `Reopened ${count} ${count === 1 ? 'task' : 'tasks'}.`,
-  manyHeader: (count) => `Set for ${count} ${count === 1 ? 'task' : 'tasks'}`
+  manyHeader: (count) => `Day for ${count} ${count === 1 ? 'task' : 'tasks'}`
 }
 
 const PT: TaskCopy = {
@@ -210,10 +211,11 @@ const PT: TaskCopy = {
   selectionCleared: 'Seleção desfeita',
   selectAll: 'Selecionar tudo nesta lista',
   selectedRow: 'selecionada',
-  manyChanged: (field, count) => `${field}: alteração em ${count} ${count === 1 ? 'tarefa' : 'tarefas'}.`,
+  manyChanged: (field, count) =>
+    `${{ date: 'Data alterada', priority: 'Prioridade alterada', project: 'Projeto alterado' }[field]} em ${count} ${count === 1 ? 'tarefa' : 'tarefas'}.`,
   manyCompleted: (count) => (count === 1 ? '1 tarefa concluída.' : `${count} tarefas concluídas.`),
   manyReopened: (count) => (count === 1 ? '1 tarefa reaberta.' : `${count} tarefas reabertas.`),
-  manyHeader: (count) => `Definir em ${count} ${count === 1 ? 'tarefa' : 'tarefas'}`
+  manyHeader: (count) => `Dia para ${count} ${count === 1 ? 'tarefa' : 'tarefas'}`
 }
 
 export const TASK_COPY: Record<HomeLocale, TaskCopy> = { en: EN, 'pt-BR': PT }

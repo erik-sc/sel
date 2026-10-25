@@ -91,7 +91,7 @@ function applyMany(ids: readonly string[], property: string, change: L.BulkChang
 export function setDateMany(ids: readonly string[], choice: QuickDate | null, now: Date = new Date()): void {
   const words = copy()
   applyMany(ids, TASK_PROPS.due, choice ? { kind: 'day', day: quickDate(choice, now) } : { kind: 'clear' }, (count) =>
-    words.manyChanged(words.field.date, count)
+    words.manyChanged('date', count)
   )
 }
 
@@ -102,7 +102,7 @@ export function setPriorityMany(ids: readonly string[], level: Priority | null):
   const value = priorityValue(level)
   const same = level !== null && rows.length > 0 && rows.every((id) => valuesOf(id)[TASK_PROPS.priority] === value)
   applyMany(ids, TASK_PROPS.priority, level === null || same ? { kind: 'clear' } : { kind: 'set', value }, (count) =>
-    words.manyChanged(words.field.priority, count)
+    words.manyChanged('priority', count)
   )
 }
 
@@ -110,7 +110,7 @@ export function setPriorityMany(ids: readonly string[], level: Priority | null):
 export function setProjectMany(ids: readonly string[], optionId: string | null): void {
   const words = copy()
   applyMany(ids, TASK_PROPS.project, optionId ? { kind: 'set', value: optionId } : { kind: 'clear' }, (count) =>
-    words.manyChanged(words.field.project, count)
+    words.manyChanged('project', count)
   )
 }
 
