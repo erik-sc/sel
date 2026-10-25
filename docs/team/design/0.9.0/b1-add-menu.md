@@ -26,7 +26,7 @@ row page, and the properties panel.
 Other states:
 - **Relation**: the database picker replaces the menu, as today, and the typed name is kept (it
   wins over the target's title). **Formula**: the formula editor opens with the typed name.
-- **A name that already exists** gets " 2" silently (`uniqueName`, as today).
+- **A name that already exists** gets " 1" silently (`uniqueName`, as today).
 - **A very long name** is capped by `L.MAX_NAME_LENGTH` (the field's `maxLength`, as in
   `PropertyMenu`). The field scrolls its text, and the popover never grows.
 - **Loading / error**: none in the menu. The add is applied locally at once. A failed write is
@@ -47,9 +47,8 @@ Other states:
   `::placeholder` rule).
 - **Hint**: `--text-xs` (11 px), `--text-tertiary`, one line, padding 2 px 10 px 0 inside the
   wrapper so it starts under the field's text (x = 8 + 10 px). Shown only while the field has text.
-  It is part of the wrapper, so the list moves down by one line (16 px) the moment you type. That
-  is a small shift, and it moves the list away from the field you are typing in, never under the
-  pointer.
+  Its line is kept while it is hidden (`visibility: hidden`), so the list does not move when you
+  start typing (changed in review of #102).
 - **Menu**: `.ui-menu` (padding 5 px). Header `.ui-menu-header` ("Type" / "Tipo"): `--text-xs`,
   `--weight-medium`, letter-spacing 0.08em, uppercase, `--text-tertiary`. Items `.ui-menu-item`:
   min-height 28 px (`--control-height` − 2), padding 3 px 10 px, an 18 px icon slot, an 8 px gap,

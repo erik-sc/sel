@@ -371,10 +371,13 @@ function withRowsOf(databaseIds: string[], task: () => void): void {
 }
 
 /** Adds a relation to `targetId` (a database, or the source of a linked view) and shows it in the view. */
-export function addRelation(databaseId: string, targetId: string, viewId?: string): string | undefined {
+export function addRelation(databaseId: string, targetId: string, viewId?: string, name?: string): string | undefined {
   const target = getBlock(rowsOwnerId(targetId))
   if (!target || target.type !== 'database' || L.isLinkedView(target)) return undefined
-  return addProperty(databaseId, 'relation', viewId, L.titleOf(target) || undefined, { relation: { databaseId: target.id } })
+  // A name the user typed wins over the related database's title.
+  return addProperty(databaseId, 'relation', viewId, name?.trim() || L.titleOf(target) || undefined, {
+    relation: { databaseId: target.id }
+  })
 }
 
 /**

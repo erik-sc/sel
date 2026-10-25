@@ -1951,6 +1951,21 @@ button.db-formula-item:hover {
   padding-bottom: 8px;
 }
 
+/* The add menu keeps one width, so it does not change when the hint appears. */
+.db-add-prop-menu {
+  width: 240px;
+}
+
+.db-add-prop-hint.is-hidden {
+  visibility: hidden;
+}
+
+.db-add-prop-hint {
+  padding: 2px 10px 0;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
 .db-select-editor {
   width: 280px;
   padding: 6px;

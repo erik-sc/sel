@@ -21,6 +21,11 @@ export interface MenuProps {
   items: MenuItem[]
   onClose?: () => void
   autoFocus?: boolean
+  /**
+   * ArrowUp on the first item calls this instead of wrapping to the last: for a field drawn
+   * above the list, which takes the focus back.
+   */
+  onExitStart?: () => void
 }
 
 type ActionItem = Extract<MenuItem, { id: string }>
@@ -33,7 +38,7 @@ export function Menu(props: MenuProps) {
   return <MenuList {...props} />
 }
 
-function MenuList({ items, onClose, autoFocus, onBack }: MenuProps & { onBack?: () => void }) {
+function MenuList({ items, onClose, autoFocus, onExitStart, onBack }: MenuProps & { onBack?: () => void }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLDivElement | null)[]>([])
   const [active, setActive] = useState(-1)
@@ -83,7 +88,10 @@ function MenuList({ items, onClose, autoFocus, onBack }: MenuProps & { onBack?: 
         setActive(move(active, 1))
         break
       case 'ArrowUp':
-        setActive(move(active < 0 ? 0 : active, -1))
+        if (onExitStart && (active < 0 || active === move(-1, 1))) {
+          setActive(-1)
+          onExitStart()
+        } else setActive(move(active < 0 ? 0 : active, -1))
         break
       case 'Home':
         setActive(move(-1, 1))
