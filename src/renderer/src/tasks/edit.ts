@@ -146,6 +146,30 @@ export function deleteTask(id: string): void {
   })
 }
 
+/**
+ * Lets go of several tasks: they move to the trash as one batch, with one "Undo" that brings back
+ * exactly those, in their order. Tasks already gone or in the trash are not touched, so Undo never
+ * restores anything this call did not put there. Returns how many were let go.
+ */
+export function letGoTasks(ids: readonly string[]): number {
+  const words = copy()
+  const gone = [...new Set(ids)].filter((id) => {
+    const row = getBlock(id)
+    return !!row && !row.trashedAt
+  })
+  if (!gone.length) {
+    notifyError(words.gone)
+    return 0
+  }
+  const owner = getBlock(TASKS_DATABASE_ID)
+  const order = owner ? L.contentOf(owner) : []
+  actions.deleteRows(gone)
+  toast(words.letGone(gone.length), {
+    action: { label: words.undo, run: () => void actions.restoreRows(TASKS_DATABASE_ID, gone, order) }
+  })
+  return gone.length
+}
+
 /** A new subtask under `parent`, from a typed line; it joins the parent's project unless the line names one. */
 export function addSubtask(parent: Block, text: string): string | null {
   const schema = actions.snapshot(TASKS_DATABASE_ID).schema

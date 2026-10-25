@@ -29,8 +29,9 @@ import { refineQueue } from './refineWalk'
 import { QuickAdd } from './QuickAdd'
 import { TaskPanel } from './lazy'
 import type { ManyAction } from './model'
-import { TaskRow, useTaskRows } from './TaskRow'
+import { ROW_SELECTOR, TaskRow, useTaskRows } from './TaskRow'
 import { BulkPopover } from './BulkPopover'
+import { SelectionBar } from './SelectionBar'
 import { setPriorityMany, toggleDoneMany } from './bulk'
 import { rowSelectionOf, useTaskSelection } from './useTaskSelection'
 import { TasksTools } from './TasksTools'
@@ -194,7 +195,7 @@ export function TasksScreen(): JSX.Element {
   const rowList = useTaskRows(order)
   // Picked rows (E1a): Shift+arrows, Shift+click, "Select all in this list". The keys act on them when there are two or more.
   const picked = useTaskSelection(order)
-  const [many, setMany] = useState<{ field: 'date' | 'project'; anchor: HTMLElement } | null>(null)
+  const [many, setMany] = useState<{ field: 'date' | 'project' | 'priority'; anchor: HTMLElement } | null>(null)
   const listId = `${list.kind}:${'id' in list ? list.id : ''}`
   // Another list is another selection.
   const resetPicked = picked.reset
@@ -491,6 +492,23 @@ export function TasksScreen(): JSX.Element {
               )
             )}
           </div>
+        )}
+        {!refining && list.kind !== 'view' && (
+          <SelectionBar
+            ids={picked.selection.ids}
+            onMenu={(field, anchor) => setMany({ field, anchor })}
+            onToggle={() => toggleDoneMany(picked.selection.ids)}
+            onClear={() => {
+              // The button goes with the strip: the focus goes back to the list's Tab stop first.
+              document.querySelector<HTMLElement>(`.tasks-list ${ROW_SELECTOR}[tabindex="0"]`)?.focus({ preventScroll: true })
+              picked.clear()
+            }}
+            onLetGo={() =>
+              requestAnimationFrame(() =>
+                document.querySelector<HTMLElement>('.tasks-list [data-task-row]')?.focus({ preventScroll: true })
+              )
+            }
+          />
         )}
       </div>
       {many && <BulkPopover field={many.field} ids={picked.selection.ids} anchor={many.anchor} onClose={() => setMany(null)} />}
