@@ -1,6 +1,6 @@
 # Release 0.10.0 — Select several tasks
 
-Status: **closing** · 2026-10-25 · branch `release/0.10.0`
+Status: **building** · 2026-10-25 · branch `release/0.10.0`
 
 You refine tasks and add what to do today. When fifteen tasks share a project, or five should all be
 "tomorrow", every change is a chip click per task. A database table in sel already has what is
@@ -108,12 +108,5 @@ tasks-let-go: the "Let go of 3 tasks?" confirmation
 - Panel left two objections open on #101 (Lia: any selection adds a mode to the list; Marco: little
   gain over the table's bulk edit). Kept because the selection only exists when the user makes it.
 
-## Delivered
-- **E1a (#115).** Selection in the Tasks lists: Shift+click and Shift+arrows extend it, Ctrl+click toggles, and the keys you know (done, date, priority, project) act on every selected row, with one Undo toast that restores only the keys the action touched.
-- **E1b (#116).** A thin strip at the foot of the list when two or more rows are selected: the count, a Change menu (Date, Priority, Project), Done, Let go (to Trash, asks once with the count, one Undo) and an x to clear. It ended up smaller than drawn in the brief: the three separate Date, Priority and Project buttons were folded into one Change menu so the strip stays on one line (en and pt-BR, screens `tasks-selected`, `tasks-selected-pt`, `tasks-let-go`).
-
-## Left for later
-- **Today-menu "pick any date" for many tasks.** Skipped: the Change menu offers a day menu (today, tomorrow, next week, none), not a date picker. Pick-a-date for several rows can join the polish pass.
-- **Space on many does not complete subtasks.** Done on a selection completes the selected rows only, as before for one row; subtasks stay as they are.
-- **No `aria-selected`.** Rows keep the Tab-stop model; the selection is announced by the strip's count, not by `aria-selected` on rows. Revisit in the accessibility pass before 1.0.
-- Panel objections left open on #101 (Lia, Marco) stand as recorded under Risks.
+## Delivered     (filled in CLOSE)
+## Left for later     (filled in CLOSE)

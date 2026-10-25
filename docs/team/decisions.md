@@ -256,8 +256,3 @@ in the proposal are not touched. E1 is split into E1a (selection and keys) and E
 waves, so each fits a night. Scope as approved is unchanged. Versions in the roadmap follow Érik's order.
 **Why.** The approved text already described Let go in full; the split keeps files from overlapping.
 **To undo.** Say on the release PR; E1b can be dropped with `/drop E1b` and the keys of E1a ship alone.
-
-## 2026-10-25 — 0.10.0 CLOSE: choices the team made while building #101
-**Decision.** (1) The selection's date change is a day menu (today, tomorrow, next week, none), not a date picker. (2) The strip's Date, Priority and Project buttons became one Change menu, so the strip stays on one line beside Herman's corner. (3) Rows do not carry `aria-selected`; the count in the strip is the announcement, which keeps the Tab-stop model `TaskRow.test.tsx` pins. (4) Undo after a bulk change restores only the keys the action touched, so edits made after it are not overwritten.
-**Why.** Each keeps the feature small and the list's existing keyboard model intact; a picker, a wider strip or `aria-selected` each needed more design than a night.
-**To undo.** Say on the release PR or #82: a date picker or `aria-selected` becomes an item of the polish pass.

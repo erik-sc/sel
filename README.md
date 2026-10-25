@@ -66,6 +66,8 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 
 **Edit them where they are.** On Today, in the Inbox, in Tasks and on the Calendar, a task shows its date, priority, project and labels as small chips: click one to change it. Click the task for a panel with everything, its notes and subtasks; F2 renames it, and the keys D, R, 1–4, # and @ set the date, the repeat, the priority, the project and the labels. A date can be written ("sex 15h", "daqui 3 dias", "next monday") or picked from Today, Tomorrow, Weekend or Next week. Repeats are chosen from every day, weekdays, every week, month or year, or your own rule, and read back in words. On the Calendar, drag a task to another day or hour; click an empty one to add a task there.
 
+**Select several.** In a Tasks list, `Shift+↑` and `Shift+↓` select the rows next to the one you are on, and `Shift+click` picks a range. Then D, 1–4, # and Space act on all of them at once, each change one Undo; the other keys still act on one task. Esc clears the selection, and `Ctrl+K` → "Select all in this list" picks the whole list. A strip at the foot shows the count, with Change, Done and Let go: Let go moves the selected tasks to Trash after one question, and one Undo brings them back.
+
 **Capture now, refine later.** Write a task down as it comes and leave it in the Inbox. Until it has a date, a priority and a project, it shows what is missing and waits in To refine. Refine walks through them one at a time, by keyboard. sel reminds you: a line in your briefing, a word from Herman when something has waited two days, a refine time on weekdays at 17:00, and a quiet dot on Tasks in the sidebar. Each one can be turned off in Settings → Notifications.
 
 **Give projects a direction.** A project can have an objective in one sentence, milestones with dates, and its next action; one without a next action says so. Progress is "4 of 9 done", never a percentage.
@@ -231,6 +233,7 @@ sel 0.2.0 and earlier have no update check: install the first version that has o
 | `Ctrl+Alt+C` | Calendar |
 | `Ctrl+Alt+K` | Tasks |
 | `Ctrl+Alt+A` | Add a task |
+| `Shift+↑` / `Shift+↓`, Shift+click | Select several tasks in a list |
 | `Ctrl+Alt+N` | Meditations |
 | `Ctrl+Alt+G` | The sky |
 | `Ctrl+Alt+P` | Start a pomodoro |
