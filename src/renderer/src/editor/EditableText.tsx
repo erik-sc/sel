@@ -90,7 +90,7 @@ export const EditableText = memo(function EditableText({
   const slashOption = useStore(ctrl.ui, (s) => {
     const slash = mode === 'block' && s.slash?.blockId === blockId ? s.slash : null
     if (!slash) return -1
-    const count = filterSlashItems(slash.query, useAiGate.getState().enabled).length
+    const count = filterSlashItems(slash.query, useAiGate.getState().enabled, slash.columns).length
     return slash.index < count ? slash.index : -1
   })
   const st = useRef({

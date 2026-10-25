@@ -5,7 +5,10 @@ import type { BlockProps, BlockType, Op } from '../../../src/shared/types'
 import type { Scenario } from '../registry'
 import { openPage, see } from '../ui'
 
-/** Columns on a page (0.9.0 A1a): blocks placed beside the block before them. */
+/**
+ * Columns on a page: blocks placed beside the block before them (0.9.0 A1a), by dragging a block
+ * to the side of another or with the slash items "2 columns" and "3 columns" (A1b).
+ */
 
 const PAGE = 'Columns'
 const PAGE_ID = 'screens-columns'
@@ -85,6 +88,77 @@ const BESIDE_DATABASE: Node[] = [
   }
 ]
 
+/** A heading and the paragraph under it, to drag beside it (0.9.0 A1b). */
+const HEADING = 'Saturday market'
+const PARAGRAPH = 'Two cloth bags, the cool box and coins for the bread stall.'
+const LAST = 'Coffee at the corner, then home before the rain.'
+const DRAG: Node[] = [
+  { type: 'heading_2', text: HEADING },
+  { type: 'text', text: PARAGRAPH },
+  { type: 'text', text: LAST }
+]
+
+/** Where the handle (⋮⋮) of the block `text` is, and a point in the right side zone of the block `target`. */
+async function dragPoints(
+  page: Page,
+  text: string,
+  target: string
+): Promise<{ from: { x: number; y: number }; to: { x: number; y: number } }> {
+  const row = page.locator('.blk > .blk-row').filter({ hasText: text }).first()
+  await row.hover()
+  const handle = await row.getByRole('button', { name: 'Drag to move, click for options' }).boundingBox()
+  const goal = await page.locator('.blk > .blk-row').filter({ hasText: target }).first().boundingBox()
+  if (!handle || !goal) throw new Error('nothing to drag')
+  return {
+    from: { x: handle.x + handle.width / 2, y: handle.y + handle.height / 2 },
+    to: { x: goal.x + goal.width - 24, y: goal.y + goal.height / 2 }
+  }
+}
+
+/** Drags the block `text` by its handle with the mouse to the right side of the block `target` and drops it there. */
+async function dropToRightOf(page: Page, text: string, target: string): Promise<void> {
+  const { from, to } = await dragPoints(page, text, target)
+  await page.mouse.move(from.x, from.y)
+  await page.mouse.down()
+  await page.mouse.move(from.x + 8, from.y - 8, { steps: 4 })
+  await page.mouse.move(to.x, to.y, { steps: 12 })
+  await page.locator('.blk.drop-right').first().waitFor({ state: 'attached', timeout: 20_000 })
+  await page.mouse.up()
+}
+
+/**
+ * Holds the block `text` mid-drag over the right side of the block `target`. The capture moves
+ * the mouse off the window first, which would end a drag made with it, so this one is made of
+ * the drag events the window gets from a real drag (dragstart on the handle, dragover on the
+ * target); the editor handles them as it handles a real drag.
+ */
+async function holdOnRightOf(page: Page, text: string, target: string): Promise<void> {
+  const { from, to } = await dragPoints(page, text, target)
+  await page.evaluate(
+    ({ from, to }) => {
+      const handle = document.elementFromPoint(from.x, from.y)?.closest('.blk-drag')
+      const over = document.elementFromPoint(to.x, to.y)
+      if (!handle || !over) throw new Error('nothing to drag')
+      const dataTransfer = new DataTransfer()
+      const at = { bubbles: true, cancelable: true, dataTransfer }
+      handle.dispatchEvent(new DragEvent('dragstart', { ...at, clientX: from.x, clientY: from.y }))
+      over.dispatchEvent(new DragEvent('dragenter', { ...at, clientX: to.x, clientY: to.y }))
+      over.dispatchEvent(new DragEvent('dragover', { ...at, clientX: to.x, clientY: to.y }))
+    },
+    { from, to }
+  )
+  await page.locator('.blk.drop-right').first().waitFor({ state: 'attached', timeout: 20_000 })
+}
+
+/** Starts a new line after the paragraph `after` and types `typed` there (a slash and a query). */
+async function slash(page: Page, after: string, typed: string): Promise<void> {
+  await see(page, after)
+  await page.getByText(after, { exact: true }).click()
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type(typed)
+}
+
 /** Opens a block's menu with its handle, as a pointer would: hover the block, click ⋮⋮. */
 async function openBlockMenu(page: Page, text: string): Promise<void> {
   const row = page.locator('.blk > .blk-row').filter({ hasText: text }).first()
@@ -160,6 +234,60 @@ export default [
     run: async (page) => {
       await openPage(page, PAGE)
       await menuOnBeside(page, 'Colocar ao lado do bloco anterior')
+    }
+  },
+  {
+    id: 'columns-drag-right',
+    description: 'Mid-drag: a paragraph dragged to the right of a heading, the vertical drop line on its right',
+    workspace: columnsPage(DRAG),
+    run: async (page) => {
+      await openPage(page, PAGE)
+      await see(page, HEADING)
+      await holdOnRightOf(page, PARAGRAPH, HEADING)
+    }
+  },
+  {
+    id: 'columns-dropped',
+    description: 'The same paragraph dropped there with the mouse: the heading and the paragraph in two columns',
+    workspace: columnsPage(DRAG),
+    run: async (page) => {
+      await openPage(page, PAGE)
+      await see(page, HEADING)
+      await dropToRightOf(page, PARAGRAPH, HEADING)
+      await page.locator('.blk-beside').filter({ hasText: PARAGRAPH }).waitFor({ state: 'visible', timeout: 20_000 })
+    }
+  },
+  {
+    id: 'slash-columns',
+    description: 'The slash menu filtered by "col": "2 columns" and "3 columns"',
+    workspace: columnsPage(DRAG),
+    run: async (page) => {
+      await openPage(page, PAGE)
+      await slash(page, LAST, '/col')
+      await page.getByRole('option', { name: /3 columns/ }).waitFor({ state: 'visible', timeout: 20_000 })
+    }
+  },
+  {
+    id: 'slash-columns-made',
+    description: '"/col" and Enter on a new line: an empty row of two columns, the caret in the first',
+    workspace: columnsPage(DRAG),
+    run: async (page) => {
+      await openPage(page, PAGE)
+      await slash(page, LAST, '/col')
+      await page.getByRole('option', { name: /2 columns/ }).waitFor({ state: 'visible', timeout: 20_000 })
+      await page.keyboard.press('Enter')
+      await page.locator('.blk-beside:focus-within').waitFor({ state: 'attached', timeout: 20_000 })
+    }
+  },
+  {
+    id: 'slash-columns-pt',
+    description: 'The same in a pt-BR home, filtered by "colunas": "2 colunas" and "3 colunas"',
+    locale: 'pt-BR',
+    workspace: columnsPage(DRAG),
+    run: async (page) => {
+      await openPage(page, PAGE)
+      await slash(page, LAST, '/colunas')
+      await page.getByRole('option', { name: /3 colunas/ }).waitFor({ state: 'visible', timeout: 20_000 })
     }
   }
 ] satisfies Scenario[]

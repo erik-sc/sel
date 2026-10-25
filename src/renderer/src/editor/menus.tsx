@@ -35,7 +35,8 @@ export function SlashMenu(): JSX.Element | null {
   }, [index, slash?.query])
 
   const ai = useAiGate((state) => state.enabled)
-  const items = slash ? filterSlashItems(slash.query, ai) : []
+  const items = slash ? filterSlashItems(slash.query, ai, slash.columns) : []
+  const copy = useEditorCopy()
   const offersAi = items.some((item) => item.kind === 'ai')
   useEffect(() => {
     if (offersAi) preloadInlineAi()
@@ -87,8 +88,8 @@ export function SlashMenu(): JSX.Element | null {
               >
                 <span className="pe-slash-glyph">{item.glyph}</span>
                 <span className="pe-slash-text">
-                  <span className="pe-slash-label">{item.label}</span>
-                  <span className="pe-slash-hint">{item.hint}</span>
+                  <span className="pe-slash-label">{item.columns ? copy.columns(item.columns) : item.label}</span>
+                  <span className="pe-slash-hint">{item.columns ? copy.columnsHint(item.columns) : item.hint}</span>
                 </span>
               </div>
             </Fragment>
