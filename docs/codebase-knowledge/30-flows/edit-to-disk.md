@@ -7,10 +7,10 @@ Trigger: `onInput` on the contentEditable element (src/renderer/src/editor/Edita
 1. A native `beforeinput` listener blocks unwanted input types and records the selection — src/renderer/src/editor/EditableText.tsx:161-169
 2. `onInput` skips during composition and calls `handleInput` — src/renderer/src/editor/EditableText.tsx:249-253; defined at src/renderer/src/editor/EditableText.tsx:177
 3. The rich text is read back from the DOM with `domToRichText` — src/renderer/src/editor/EditableText.tsx:181; defined at src/renderer/src/editor/richtext-dom.ts:358
-4. Typing hooks (Markdown shortcuts and the like) run through `ctrl.afterInput` — src/renderer/src/editor/EditableText.tsx:191-194; defined at src/renderer/src/editor/controller.ts:488
+4. Typing hooks (Markdown shortcuts and the like) run through `ctrl.afterInput` — src/renderer/src/editor/EditableText.tsx:191-194; defined at src/renderer/src/editor/controller.ts:524
 5. Otherwise the flush is debounced — src/renderer/src/editor/EditableText.tsx:199; `TEXT_DEBOUNCE_MS` is 300 — src/renderer/src/editor/types.ts:10
 6. `flush` commits one `update` op with a `text:` key — src/renderer/src/editor/EditableText.tsx:95-105
-7. `EditorController.commit` adds the row repair (`rowRepairOps`, src/renderer/src/editor/layout.ts:91: a structural batch that would make a block join a row it was not in clears its `beside`; a text-only batch returns at once), computes the inverse ops of the whole batch and pushes one undo entry — src/renderer/src/editor/controller.ts:202-215; `invertOps` at src/renderer/src/editor/ops.ts:126
+7. `EditorController.commit` adds the row repair (`rowRepairOps`, src/renderer/src/editor/layout.ts:91: a structural batch that would make a block join a row it was not in clears its `beside`; a text-only batch returns at once), computes the inverse ops of the whole batch and pushes one undo entry — src/renderer/src/editor/controller.ts:203-217; `invertOps` at src/renderer/src/editor/ops.ts:126
 8. `applyOps(batch)` is fired without awaiting — src/renderer/src/editor/controller.ts:214; defined at src/renderer/src/store/blocks.ts:457
 9. The ops are planned as a set of changed blocks (`planOps`, src/renderer/src/store/ops.ts:52) and written optimistically into the zustand map in place, with a version bump and the changed ids (`commit`) — src/renderer/src/store/blocks.ts:458-473, src/renderer/src/store/blocks.ts:60-90
 10. `window.api.blocks.apply(ops)` — src/renderer/src/store/blocks.ts:477; the preload prepends the client id — src/preload/index.ts:25
@@ -50,8 +50,8 @@ There is no timer. All captures go through `VersionStore.capture` (src/main/db/v
 
 - Main: any throw rolls back and rethrows — src/main/db/repository.ts:203-210; the wrapper logs unexpected errors and throws a sanitised error — src/main/ipc.ts:77-79
 - Renderer store: on rejection it refetches the written blocks, or restores the snapshot if that fails too, then rethrows — src/renderer/src/store/blocks.ts:490-493
-- Controller: `onApplyFailed` clears the undo history and shows an error toast ("Couldn't save that change. It was undone.", or the undo/redo variant), at most once per 5 s across all editors; failures inside that window are only logged — src/renderer/src/editor/controller.ts:57-60, src/renderer/src/editor/controller.ts:216-227, src/renderer/src/ui/throttle.ts:12
-- The rejection is consumed by the `.catch` at src/renderer/src/editor/controller.ts:212, so the global `unhandledrejection` toast (src/renderer/src/main.tsx:26-28) does not also fire. Another `applyOps` caller without a catch would reach that toast.
+- Controller: `onApplyFailed` clears the undo history and shows an error toast ("Couldn't save that change. It was undone.", or the undo/redo variant), at most once per 5 s across all editors; failures inside that window are only logged — src/renderer/src/editor/controller.ts:226-229, src/renderer/src/failures/notify.ts:31
+- The rejection is consumed by the `.catch` at src/renderer/src/editor/controller.ts:214, so the global `unhandledrejection` toast (src/renderer/src/main.tsx:26-28) does not also fire. Another `applyOps` caller without a catch would reach that toast.
 
 ## Tests covering this flow
 
@@ -62,5 +62,5 @@ There is no timer. All captures go through `VersionStore.capture` (src/main/db/v
 
 ## Open questions
 
-- Resolved: pending 300 ms debounced edits are flushed before a window closes. `PageEditor` flushes on `beforeunload` (through `flushOnUnload`) and on window blur (src/renderer/src/editor/PageEditor.tsx:109-110); the write reaches main and is committed before `will-quit` closes the database (checked by running the app; see question 22 in [90-questions](../90-questions.md)).
+- Resolved: pending 300 ms debounced edits are flushed before a window closes. `PageEditor` flushes on `beforeunload` (through `flushOnUnload`) and on window blur (src/renderer/src/editor/PageEditor.tsx:129-130); the write reaches main and is committed before `will-quit` closes the database (checked by running the app; see question 22 in [90-questions](../90-questions.md)).
 - If the process is killed, dirty pages get no final version until the next gap-crossing edit (inferred from src/main/db/versions.ts:575-589).

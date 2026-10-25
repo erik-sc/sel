@@ -20,7 +20,7 @@ Trigger: the main-process module body (src/main/index.ts:422-429)
 ## Preload
 
 13. A per-window `clientId` is generated — src/preload/index.ts:19; every `invoke` prepends it — src/preload/index.ts:25
-14. The API object is exposed as `window.api` — src/preload/index.ts:157
+14. The API object is exposed as `window.api` — src/preload/index.ts:155
 
 ## Renderer
 
@@ -35,7 +35,7 @@ Trigger: the main-process module body (src/main/index.ts:422-429)
 23. `App` renders `Shell` — src/renderer/src/App.tsx:15
 24. `Shell` waits for tabs to be ready, then picks Today, Calendar, `PageHost` or the empty state — src/renderer/src/shell/Shell.tsx:42-49
 25. `PageHost` reads the block and chooses the database view or the editor — src/renderer/src/shell/PageHost.tsx:151-180
-26. The lazy editor takes the prefetched tree or loads it — src/renderer/src/editor/PageEditor.tsx:99
+26. The lazy editor takes the prefetched tree or loads it — src/renderer/src/editor/PageEditor.tsx:120
 27. Terminal read: the `blocks:getTree` handler — src/main/ipc.ts:107; `Repository.getTree` — src/main/db/repository.ts:548
 
 ## State touched

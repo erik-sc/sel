@@ -10,7 +10,7 @@
 | Block type | One of 16 kinds, from `page` to `database` | src/shared/types.ts:3-19 | `BlockType`, `BLOCK_TYPES` | Checked in main at src/main/db/blocks.ts:9-26 |
 | Page | A block of type `page`; may sit at the workspace root | src/shared/types.ts:4 | "page-like" also covers databases | `isPageLike` at src/main/db/blocks.ts:44-46 |
 | Database | A block of type `database` whose `content` is its row pages and whose `props` hold `schema` and `views` | src/shared/types.ts:49-51, src/shared/types.ts:67 | | Not a SQL table; see Naming hazards |
-| Row | A `page` block whose parent is a database; cell values live in `props.values` | src/shared/types.ts:58-59 | "row page" | Read on the client at src/renderer/src/database/actions.ts:74-84 |
+| Row | A `page` block whose parent is a database; cell values live in `props.values` | src/shared/types.ts:58-59 | "row page" | Read on the client at src/renderer/src/database/actions.ts:101 |
 | Property | A column of a database, keyed by id in `props.schema` | src/shared/types.ts:99-111 | `PropertySchema`, `PropertyType` | The title value is stored in `props.title`, not in `values` (src/shared/types.ts:159-166) |
 | Relation | A property whose cells hold ids of rows of a database (possibly its own); two-way when a partner property in that database holds the same links from the other side | src/shared/types.ts:119-124, src/shared/relation.ts:122 | `RelationConfig`, `syncedPropertyId`, "partner" | Edits of both sides are built by `relationWrites` (src/shared/database/relation.ts:138) |
 | Rollup | A computed property that sums up one property of the rows a relation links to | src/shared/types.ts:141-147, src/shared/database/rollup.ts:235 | `RollupConfig`, `computeRollup` | Stores nothing; cells that read other rows go through `readCell` and a `CellContext` (src/shared/database/cell.ts:22) |
@@ -21,7 +21,7 @@
 | Op | One of create, update, move, delete; the only way block data changes | src/shared/types.ts:264 | `Op`, "ops" | Applied in main at src/main/db/repository.ts:829, mirrored on the client at src/renderer/src/store/ops.ts:31 |
 | Change event | The broadcast telling windows which block ids changed and who caused it | src/shared/types.ts:281 | `ChangeEvent`, `IPC.change` | Channel name at src/shared/api.ts:252 |
 | Client id | A random id per window, prepended to every invoke, used as the change origin | src/preload/index.ts:19, src/preload/index.ts:25 | `clientId`, `origin` | Lets a window ignore its own echoes (src/renderer/src/store/blocks.ts:734-747) |
-| `window.api` | The only bridge from renderer to main | src/preload/index.ts:157 | `Api` (src/shared/api.ts:24) | |
+| `window.api` | The only bridge from renderer to main | src/preload/index.ts:155 | `Api` (src/shared/api.ts:24) | |
 | Repository | The single-writer block store over SQLite | src/main/db/repository.ts:105 | `repo`, `store` in src/main/index.ts:335 | |
 | Trash | `trashed_at` set on a page-like block; other blocks are purged | src/main/db/repository.ts:708-715 | `trashedAt` | |
 | Version | A stored snapshot of one page in `page_versions` | src/main/db/schema.ts:50, src/main/db/versions.ts:664 | `VersionStore`, "history" | Kinds listed at src/main/db/schema.ts:54 |
@@ -57,7 +57,7 @@
 - **"sync" is also a verb for other things.** `syncRows` flushes buffered child orders before reading rows for sync (src/main/db/repository.ts:1418-1419), and `PendingOrder` is not sync-specific (src/main/db/repository.ts:93-98).
 - **"actions" has three meanings.** Herman's proposals (src/shared/actions.ts:44), store-backed database mutations (src/renderer/src/database/actions.ts:1-14) and page commands of the shell (src/renderer/src/shell/actions.ts:3-7).
 - **"ops" has two files with the same name.** Pure application at src/renderer/src/store/ops.ts:31 and inversion for undo at src/renderer/src/editor/ops.ts:126.
-- **"logic" is a barrel and a folder.** src/renderer/src/database/logic.ts:1-12 re-exports most of the folder but leaves the chart engine out on purpose.
+- **"logic" is a barrel and a folder.** src/renderer/src/database/logic.ts:1-3 re-exports `@shared/database` (the pure logic moved to src/shared/database in 0.7.0).
 - **`weekdayLabels` exists twice.** A cached wrapper at src/renderer/src/database/common.tsx:72-73 over the real one at src/shared/database/dates.ts:281.
 - **Two names, one app.** Old data may still say "selida"; `LEGACY_NAME` handling is in src/main/legacy.ts:5-6 and src/shared/legacy.ts:12.
 - **One key, five constants.** The settings key `appearance` is declared at src/main/background.ts:9, src/main/ipc.ts:55, src/main/sync/engine.ts:123, src/renderer/src/appearance/store.ts:28 and src/renderer/src/sync/store.ts:20, and appears again as a literal in the write allow-list at src/main/validate.ts:35.
