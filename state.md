@@ -11,8 +11,8 @@ merged_at: null        # when Érik merged the release PR (AWAITING_SHIP)
 paused: false          # set by /hold, cleared by /resume
 last_run: 2026-10-24T23:31:40Z # ISO UTC: time the signals were READ last run; next run reads after it
 lock:
-  since: null          # ISO UTC while a run is going; cleared at the end
-  run: null            # short id of the run holding it
+  since: 2026-10-25T03:02:53Z # ISO UTC while a run is going; cleared at the end
+  run: m1025b          # short id of the run holding it
 ```
 
 ## Items
