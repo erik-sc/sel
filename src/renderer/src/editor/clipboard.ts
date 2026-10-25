@@ -144,6 +144,8 @@ export type UntrustedProps = { readonly [K in keyof BlockProps]?: unknown }
  */
 export function cleanProps(type: BlockType, src: UntrustedProps): BlockProps {
   const props: BlockProps = {}
+  // Its place beside the block before it (editor/layout.ts): any block but a sub-page may have one.
+  if (src.beside === true && type !== 'page') props.beside = true
   if (isTextType(type)) {
     if (src.title !== undefined) props.title = parseRichText(src.title)
   } else if (type === 'code') {
@@ -177,7 +179,6 @@ export function cleanProps(type: BlockType, src: UntrustedProps): BlockProps {
     const title = textOf(parseRichText(src.title)).replace(/\n/g, ' ')
     if (title) props.title = [[title]]
     if (typeof src.icon === 'string' && src.icon && src.icon.length <= MAX_ICON_LENGTH) props.icon = src.icon
-    if (src.beside === true) props.beside = true
     return props
   }
   if (isColorValue(src.color)) props.color = src.color
@@ -225,6 +226,18 @@ function parseJson(json: string): unknown {
 /** Blocks from a `MIME_BLOCKS` clipboard string; empty when it is missing or invalid. */
 export function parseClipboardBlocks(json: string): ClipNode[] {
   return parseClipNodes(parseJson(json))
+}
+
+/**
+ * Blocks about to be pasted: the first loses its place beside the block before it, which was a
+ * block of the page it was copied from, so it never joins whatever it lands after. The ones after
+ * it keep theirs, so a whole row pasted is still a row. (Duplicate keeps every place: the copy
+ * lands right after its original, in the same row.)
+ */
+export function pastedNodes(nodes: readonly ClipNode[]): ClipNode[] {
+  if (!nodes.length || nodes[0].props.beside !== true) return [...nodes]
+  const { beside: _, ...props } = nodes[0].props
+  return [{ ...nodes[0], props }, ...nodes.slice(1)]
 }
 
 /** Rich text from a `MIME_RICHTEXT` clipboard string; empty when it is missing or invalid. */

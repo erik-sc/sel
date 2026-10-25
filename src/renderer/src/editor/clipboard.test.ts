@@ -11,6 +11,7 @@ import {
   parseClipNodes,
   parseClipboardBlocks,
   parseClipboardRichText,
+  pastedNodes,
   serializeBlocks,
   type ClipNode
 } from './clipboard'
@@ -300,7 +301,22 @@ describe('linked database views', () => {
     expect(cleaned[1]).not.toHaveProperty('calcs')
     expect(cleanProps('database', { sourceId: 'src-1', beside: true } as never)).toEqual({ sourceId: 'src-1', views: [], beside: true })
     expect(cleanProps('database', { sourceId: 'src-1', beside: 'yes' } as never)).toEqual({ sourceId: 'src-1', views: [] })
-    expect(cleanProps('text', { beside: true } as never)).toEqual({})
+    // Any block keeps its place in a row (0.9.0 A1a), but a sub-page block never sits in one.
+    expect(cleanProps('text', { beside: true } as never)).toEqual({ beside: true })
+    expect(cleanProps('callout', { beside: 'yes' } as never)).toEqual({})
+    expect(cleanProps('page', { beside: true } as never)).toEqual({})
+  })
+
+  it('pastes a fragment without its first block joining the block it lands after; the rest of a row stays a row', () => {
+    const node = (title: string, beside = false): ClipNode => ({
+      type: 'text',
+      props: { title: [[title]], ...(beside ? { beside: true } : {}) },
+      children: []
+    })
+    expect(pastedNodes([node('a', true), node('b', true), node('c')])).toEqual([node('a'), node('b', true), node('c')])
+    const plain = [node('a'), node('b', true)]
+    expect(pastedNodes(plain)).toEqual(plain)
+    expect(pastedNodes([])).toEqual([])
   })
 
   it('bounds the number of views and of items in a view', () => {

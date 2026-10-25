@@ -7,7 +7,8 @@ import type { JSX, ReactNode } from 'react'
 import type { DatabaseView, PropertySchema, PropertyValue, RichText } from '@shared/types'
 import type { SnapshotBlock, SnapshotContent, SnapshotRef, SnapshotRow } from '@shared/versions'
 import { DEFAULT_CALLOUT_ICON, isTextType } from '@/editor/blockTypes'
-import { rowsOf } from '@/editor/layout'
+import { rowWidth, rowsOf } from '@/editor/layout'
+import { useEditorCopy } from '@/editor/copy'
 import { blockColorClass, classesForMarks, parseRichText, slice } from '@/editor/richtext-dom'
 import { isSafeImageUrl, sanitizeHref } from '@/editor/sanitize'
 import { formatValue, orderedProperties, sanitizeValue, VIEW_LABELS } from '@shared/database/values'
@@ -275,7 +276,9 @@ function BlockBody({ block, change, number }: { block: SnapshotBlock; change: Bl
   return <div className="blk-placeholder">Unsupported block</div>
 }
 
-const BlockList = memo(function BlockList({ ids, lookup }: { ids: string[]; lookup: Lookup }): JSX.Element {
+/** `top` when the blocks are the page's own, where any block may sit beside another (editor/layout.ts). */
+const BlockList = memo(function BlockList({ ids, lookup, top = false }: { ids: string[]; lookup: Lookup; top?: boolean }): JSX.Element {
+  const copy = useEditorCopy()
   let number = 0
   const item = (id: string): JSX.Element | null => {
     const change = lookup.diff?.blocks.get(id)
@@ -298,9 +301,14 @@ const BlockList = memo(function BlockList({ ids, lookup }: { ids: string[]; look
   })
   return (
     <>
-      {rowsOf(placed).map((row) =>
+      {rowsOf(placed, { top }).map((row) =>
         row.length > 1 ? (
-          <div key={`row:${row[0].id}`} className="blk-beside">
+          <div
+            key={`row:${row[0].id}`}
+            className={rowWidth(row) === 'wide' ? 'blk-beside is-wide' : 'blk-beside'}
+            role="group"
+            aria-label={copy.columns(row.length)}
+          >
             {row.map((entry) => item(entry.id))}
           </div>
         ) : (
@@ -461,7 +469,7 @@ export function SnapshotBlocks({ content }: { content: SnapshotContent }): JSX.E
     () => ({ blocks: new Map(content.blocks.map((block) => [block.id, block])), refs: new Map(), versionRefs: new Set(), diff: null }),
     [content]
   )
-  return <BlockList ids={content.blocks[0]?.content ?? []} lookup={lookup} />
+  return <BlockList ids={content.blocks[0]?.content ?? []} lookup={lookup} top />
 }
 
 export interface SnapshotViewProps {
@@ -511,7 +519,7 @@ export function SnapshotView({ version, current, diff }: SnapshotViewProps): JSX
         ) : isDatabase ? (
           <DatabaseTable version={version} current={current} diff={diff} />
         ) : kids.length ? (
-          <BlockList ids={kids} lookup={lookup} />
+          <BlockList ids={kids} lookup={lookup} top />
         ) : (
           <p className="vh-db-empty">This page was empty.</p>
         )}

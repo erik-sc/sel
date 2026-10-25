@@ -752,7 +752,7 @@ span[class*='rt-bg-'] {
  * centred on the column, and never past the page's side padding. Nested ones keep to their indent.
  */
 .pe-page .pe-body > .blk-database > .blk-row,
-.pe-page .pe-body > .blk-beside {
+.pe-page .pe-body > .blk-beside.is-wide {
   --pe-database-width: max(100%, min(var(--database-width), 100cqi - var(--page-padding-x) * 2));
 
   width: var(--pe-database-width);
@@ -760,18 +760,55 @@ span[class*='rt-bg-'] {
 }
 
 /*
- * Database blocks side by side (editor/layout.ts). The gap is as wide as a block's gutter, which
- * sits in it; a row too narrow for its blocks wraps.
+ * Blocks side by side (editor/layout.ts): each column is a block with its children under it. A row
+ * of 2 keeps the text's width; a row of 3 or 4, or one holding a database, is wide (.is-wide,
+ * above). The gap is as wide as a block's gutter, which sits in it; a row too narrow for its
+ * columns wraps. Columns are as tall as the row but draw nothing of their own, so their content
+ * reads top-aligned and uneven heights stay uneven.
  */
 .blk-beside {
+  --pe-column-gap: 52px;
+
   display: flex;
   flex-wrap: wrap;
-  column-gap: 52px;
+  align-items: stretch;
+  column-gap: var(--pe-column-gap);
 }
 
+/* Every column starts at the row's top: a heading's extra space above (.blk-heading_*) does not apply in a row. */
 .blk-beside > .blk {
   flex: 1 1 0;
+  min-width: min(100%, var(--column-min));
+  margin-top: var(--block-gap);
+}
+
+.blk-beside > .blk-database {
   min-width: min(100%, 240px);
+}
+
+/*
+ * The line in the middle of each gap, shown only while the row is hovered or holds the focus, so
+ * the columns can be seen and aimed at. It is the left border of every column after the first,
+ * pulled into the gap; the column's content starts where it would without it. (The block's
+ * ::before and ::after are its drop lines.)
+ */
+.blk-beside > .blk + .blk {
+  margin-left: calc(var(--pe-column-gap) / -2);
+  padding-left: calc(var(--pe-column-gap) / 2 - var(--hairline));
+  border-left: var(--hairline) solid transparent;
+}
+
+.blk-beside:hover > .blk + .blk,
+.blk-beside:focus-within > .blk + .blk {
+  border-left-color: var(--border);
+}
+
+/*
+ * A column's children start at its left edge. A toggle's, a list item's and a to-do's keep their
+ * indent, so the head still reads as holding them.
+ */
+.blk-beside > .blk:not(.blk-toggle, .blk-bulleted_list, .blk-numbered_list, .blk-to_do) > .blk-children {
+  padding-left: 0;
 }
 
 .blk-code-box {

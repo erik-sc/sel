@@ -10,8 +10,8 @@ Trigger: `onInput` on the contentEditable element (src/renderer/src/editor/Edita
 4. Typing hooks (Markdown shortcuts and the like) run through `ctrl.afterInput` — src/renderer/src/editor/EditableText.tsx:191-194; defined at src/renderer/src/editor/controller.ts:488
 5. Otherwise the flush is debounced — src/renderer/src/editor/EditableText.tsx:199; `TEXT_DEBOUNCE_MS` is 300 — src/renderer/src/editor/types.ts:10
 6. `flush` commits one `update` op with a `text:` key — src/renderer/src/editor/EditableText.tsx:95-105
-7. `EditorController.commit` computes the inverse ops and pushes an undo entry — src/renderer/src/editor/controller.ts:197-205; `invertOps` at src/renderer/src/editor/ops.ts:126
-8. `applyOps(ops)` is fired without awaiting — src/renderer/src/editor/controller.ts:206; defined at src/renderer/src/store/blocks.ts:457
+7. `EditorController.commit` adds the row repair (`rowRepairOps`, src/renderer/src/editor/layout.ts:91: a structural batch that would make a block join a row it was not in clears its `beside`; a text-only batch returns at once), computes the inverse ops of the whole batch and pushes one undo entry — src/renderer/src/editor/controller.ts:202-215; `invertOps` at src/renderer/src/editor/ops.ts:126
+8. `applyOps(batch)` is fired without awaiting — src/renderer/src/editor/controller.ts:214; defined at src/renderer/src/store/blocks.ts:457
 9. The ops are planned as a set of changed blocks (`planOps`, src/renderer/src/store/ops.ts:52) and written optimistically into the zustand map in place, with a version bump and the changed ids (`commit`) — src/renderer/src/store/blocks.ts:458-473, src/renderer/src/store/blocks.ts:60-90
 10. `window.api.blocks.apply(ops)` — src/renderer/src/store/blocks.ts:477; the preload prepends the client id — src/preload/index.ts:25
 
