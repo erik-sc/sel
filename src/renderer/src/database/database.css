@@ -1309,7 +1309,8 @@ button.db-formula-item:hover {
   justify-content: flex-end;
 }
 
-.db-td.is-focused {
+.db-td.is-focused,
+.db-th.is-focused {
   border-radius: var(--radius-xs);
   box-shadow: inset 0 0 0 2px var(--focus-ring);
 }
