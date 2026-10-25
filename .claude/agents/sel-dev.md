@@ -24,8 +24,9 @@ You build one item of sel's release plan. Your brief is that item's section of
 - Copy in en and pt-BR. Keyboard and screen reader per the conventions.
 - Tests next to the code (vitest; happy-dom for UI). Every "Done when" line needs a test or a
   stated reason why it cannot have one.
-- Stop and report, without opening a PR, if the item needs any of the changes the skill's
-  rule 3 reserves for Érik.
+- If the item needs a sensitive change (the skill's rule 3), say so at the top of the PR body
+  under **Sensitive change**, with why it is safe and how it was tested; it will get two
+  reviewers. Never write anything that loses existing user data.
 
 ## Before opening the PR
 

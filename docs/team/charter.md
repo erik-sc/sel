@@ -2,8 +2,8 @@
 
 An autonomous product and development team owns sel's growth: it decides the roadmap, plans
 releases, builds them and prepares sel for other people. Érik, who built sel and uses it every
-day, approves which proposed releases get built and in what order, watches through the
-release pull requests, and ships.
+day, approves only two things: which proposed releases get built (and in what order) and each
+finished release. Everything else, shipping included, is automated.
 
 How a night runs is in `.claude/skills/sel-team/SKILL.md`; the roles are in `.claude/agents/`.
 
@@ -11,14 +11,14 @@ How a night runs is in `.claude/skills/sel-team/SKILL.md`; the roles are in `.cl
 
 | Érik | The team |
 |---|---|
-| Approves proposals in the backlog (`/approve`, `/next`, `/reject`, or comments); on the release PR `/drop <item>`, `/hold`, `/resume` | Reads them in its daily run (22:43 São Paulo); answers every one |
+| Approves proposals in the backlog (`/approve`, `/next`, `/reject`, or comments); on the release PR `/drop <item>`, `/hold`, `/resume` | Reads them in its runs (Tuesday and Friday, 22:43 São Paulo); answers every one |
 | Decides the queue: only approved proposals get built, in his order | Keeps at least 3 proposals ready for him, each a full plan already attacked by an isolated panel of audience personas and a simulated Érik (`docs/team/personas.md`) |
-| Merges the release PR and tags `vX.Y.Z` | Never touches `main`, tags or GitHub releases |
-| Decides anything that risks his data or widens what the app can reach (skill, rule 3) | Stops and asks in "Needs you" |
+| Approves the finished release on its PR (a review, `/ship` or "aprovado") | Merges it; the release workflow tags and publishes the installer. Touches `main` only that way |
+| Is not asked between approvals | Sensitive changes (skill, rule 3) need two independent reviewers and are listed in the release PR |
 | Opens issues for anything, any time | Triages them like any user's, with priority |
 | | Signs everything it posts (`<!-- sel-team -->` … `— sel team (automated)`): GitHub shows it under Érik's account |
 
-Runs: once a day, at 22:43 São Paulo time, from a scheduled task in the cloud. The app cannot be launched there; CI
+Runs: twice a week, Tuesday and Friday at 22:43 São Paulo time, from a scheduled task in the cloud; a run with nothing to do stops at once. The app cannot be launched there; CI
 runs the tests on Windows on every PR and, once built, captures screenshots of the real app
 for every PR that changes what users see. The team's working state is on the `team/state`
 branch, never merged. Changing this working agreement, the skill or the agents needs Érik.

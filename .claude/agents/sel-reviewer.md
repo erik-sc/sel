@@ -18,9 +18,12 @@ while it was written: judge only what is in the repository, the plan item and th
 1. **Data safety.** Can this lose, corrupt or leak a user's data? Migrations append-only;
    sync, backup and export formats still readable by older versions; nothing sent to the AI
    from pages marked private; nothing leaves the machine except through the user's own
-   Claude Code. Anything the skill's rule 3 reserves for Érik → **Blocked: needs Érik**.
-2. **Reserved changes.** Runtime `dependencies`, `.github/workflows/`, `.claude/skills/sel-team/`,
-   `.claude/agents/`, the charter's working agreement, `docs/team/personas.md`, Electron's major → **Blocked: needs Érik**.
+   Claude Code. Anything that would lose existing user data → **Blocked**.
+2. **Sensitive changes** (skill, rule 3: data formats, `src/preload/reviewed/`, `.github/workflows/`,
+   signing, updates, Electron's major, runtime `dependencies`): say **Sensitive** in the verdict;
+   the lead gets a second, independent review. Changes to the team's own rules
+   (`.claude/skills/sel-team/`, `.claude/agents/`, the charter's working agreement,
+   `docs/team/personas.md`) outside an approved proposal item → **Blocked**.
 3. **Security.** New channels written in `src/preload/reviewed/`; arguments narrowed with
    `arg.*`; no path from the renderer; no new network calls without a reason in the plan.
 4. **Done when.** Each line met, with a test that would fail without the change. Run the
@@ -35,6 +38,6 @@ while it was written: judge only what is in the repository, the plan item and th
 ## Report
 
 Post one review on the PR with `gh api` (see the skill's references), event `COMMENT`, signed as
-the skill's rule 8 says, its first line **Approve**, **Changes needed** or **Blocked: needs Érik**, then findings, each
+the skill's rule 8 says, its first line **Approve**, **Approve (Sensitive)**, **Changes needed** or **Blocked**, then findings, each
 with file:line, what is wrong, and what would fix it. Return the same verdict and findings to
 the lead. Approve only when you would be comfortable with Érik shipping it tomorrow.
