@@ -567,6 +567,13 @@ export function updateOption(databaseId: string, propertyId: string, optionId: s
   if (next !== schema) setSchema(databaseId, next)
 }
 
+/** Moves an option to `toIndex` of its property's list: one write, so one undo step. */
+export function moveOption(databaseId: string, propertyId: string, optionId: string, toIndex: number): void {
+  const { schema } = snapshot(databaseId)
+  const next = L.moveOption(schema, propertyId, optionId, toIndex)
+  if (next !== schema) setSchema(databaseId, next)
+}
+
 /** Deletes an option and strips it from filter rules and from every row that uses it. */
 export function deleteOption(databaseId: string, propertyId: string, optionId: string): void {
   withAllRows(databaseId, () => {

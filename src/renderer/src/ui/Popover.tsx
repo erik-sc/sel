@@ -21,6 +21,11 @@ export interface PopoverProps {
   role?: 'dialog' | 'none'
   label?: string
   labelledBy?: string
+  /**
+   * Escape calls this instead of `onClose`, for content with a step to go back from (an option
+   * opened from a property's menu goes back to the menu).
+   */
+  onEscape?: () => void
 }
 
 const GAP = 4
@@ -80,12 +85,15 @@ function PopoverLayer({
   className,
   role = 'dialog',
   label,
-  labelledBy
+  labelledBy,
+  onEscape
 }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
   const closeRef = useRef(onClose)
   closeRef.current = onClose
+  const escapeRef = useRef(onEscape)
+  escapeRef.current = onEscape
   // Read while rendering: by the time effects run, the content may already have taken the focus.
   const [opener] = useState(() => document.activeElement as HTMLElement | null)
 
@@ -125,7 +133,7 @@ function PopoverLayer({
       if (event.key !== 'Escape' || event.isComposing || !isTopLayer(el)) return
       event.preventDefault()
       event.stopPropagation()
-      closeRef.current()
+      ;(escapeRef.current ?? closeRef.current)()
     }
     document.addEventListener('mousedown', onMouseDown, true)
     document.addEventListener('keydown', onKeyDown, true)

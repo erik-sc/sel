@@ -186,6 +186,48 @@ describe('option edits', () => {
   })
 })
 
+describe('moveOption', () => {
+  const three = [
+    { id: 'a', name: 'High', color: 'red' },
+    { id: 'b', name: 'Medium', color: 'yellow' },
+    { id: 'c', name: 'Low', color: 'gray' }
+  ]
+  const s: L.Schema = {
+    ...schema,
+    pri: { id: 'pri', name: 'Priority', type: 'select', options: three },
+    many: { id: 'many', name: 'Tags', type: 'multi_select', options: three }
+  }
+  const ids = (out: L.Schema, prop = 'pri'): string[] => (out[prop].options ?? []).map((o) => o.id)
+
+  it('moves the first option to the last place', () => {
+    const out = L.moveOption(s, 'pri', 'a', 2)
+    expect(ids(out)).toEqual(['b', 'c', 'a'])
+    // Only the order changes: the options themselves are the same objects.
+    expect(out.pri.options?.[2]).toBe(three[0])
+    // The rest of the schema, and the list it was given, are untouched.
+    expect(out.txt).toBe(s.txt)
+    expect(ids(s)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('moves the last option to the first place, in a multi-select too', () => {
+    expect(ids(L.moveOption(s, 'pri', 'c', 0))).toEqual(['c', 'a', 'b'])
+    expect(ids(L.moveOption(s, 'many', 'c', 0), 'many')).toEqual(['c', 'a', 'b'])
+  })
+
+  it('clamps the place to the list', () => {
+    expect(ids(L.moveOption(s, 'pri', 'a', 99))).toEqual(['b', 'c', 'a'])
+    expect(ids(L.moveOption(s, 'pri', 'c', -4))).toEqual(['c', 'a', 'b'])
+  })
+
+  it('returns the schema unchanged for an unknown option, property, non-select or a move in place', () => {
+    expect(L.moveOption(s, 'pri', 'nope', 0)).toBe(s)
+    expect(L.moveOption(s, 'missing', 'a', 1)).toBe(s)
+    expect(L.moveOption(s, 'txt', 'a', 1)).toBe(s)
+    expect(L.moveOption(s, 'pri', 'b', 1)).toBe(s)
+    expect(L.moveOption(s, 'pri', 'b', Number.NaN)).toBe(s)
+  })
+})
+
 describe('filter semantics, empties included', () => {
   const rows = [
     row('full', {
