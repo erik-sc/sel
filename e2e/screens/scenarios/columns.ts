@@ -112,13 +112,15 @@ export default [
   },
   {
     id: 'columns-hover',
-    description: 'The two-column row hovered: the thin line in the middle of the gap',
+    description: 'The caret in a column of the two-column row: the thin line in the middle of the gap',
     workspace: columnsPage(TWO),
     run: async (page) => {
       await openPage(page, PAGE)
       await see(page, 'The cheese stall closes at eleven. Go there first.')
-      // The middle of the row is the gap between its columns: the line shows, no block's handles do.
-      await page.locator('.blk-beside').first().hover()
+      // The capture moves the pointer off the window first, so a hover would not show: the line
+      // shows as well while the row holds the focus.
+      await page.getByText('What to bring', { exact: true }).click()
+      await page.locator('.blk-beside:focus-within').first().waitFor({ state: 'attached', timeout: 20_000 })
     }
   },
   {
