@@ -30,7 +30,7 @@ import { TASK_COPY, type TaskCopy, type TaskField } from './copy'
 import { deleteTask, renameTask, setPriority } from './edit'
 import { setNextAction } from './projects'
 import { dueLabel } from './lists'
-import { nextPriority, rowKeyAction, type Priority, type TaskView } from './model'
+import { manyKeyAction, nextPriority, rowKeyAction, type ManyAction, type Priority, type RowAction, type TaskView } from './model'
 import { preloadTaskEditors, TaskFieldPopover } from './lazy'
 import { priorityItems } from './priority'
 import { TitleEditor } from './TitleEditor'
@@ -38,6 +38,12 @@ import './row.css'
 
 /** What finds a row in a list. */
 export const ROW_SELECTOR = '[data-task-row]'
+
+/** Puts the focus on the row of task `id` in the list `from` is in. */
+function focusRow(from: HTMLElement, id: string): void {
+  const list = from.closest('.tasks-list') ?? from.ownerDocument
+  list.querySelector<HTMLElement>(`${ROW_SELECTOR}[data-task-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: false })
+}
 const KEYS = 'Enter Control+Enter F2 D R 1 2 3 4 # @ L Space Delete'
 
 /** A repeat in words, as a chip's title and the screen reader say it. */
@@ -72,6 +78,29 @@ export interface TaskRowProps {
   extra?: ReactNode
   /** Makes the row something to drag (onto Today's plan, briefing/DayPlan.tsx). */
   drag?: RowDrag
+  /** The list's selection, when it has one. */
+  selection?: RowSelection
+}
+
+/**
+ * What a row needs to be one of a selection (Tasks lists only; Today and the calendar pass none).
+ * The list owns the selection; the row reports the keys and clicks that change it, and, when it is
+ * one of two or more selected rows, hands the keys that act on all of them to `onMany`.
+ */
+export interface RowSelection {
+  selected: boolean
+  /** How many rows are selected in the list. */
+  count: number
+  /** Shift+Up / Shift+Down: extends the selection and returns the row to focus. */
+  onExtend: (direction: 1 | -1) => string | null
+  /** Shift+click. */
+  onRange: () => void
+  /** Escape, a plain click. */
+  onClear: () => void
+  /** The row menu's "Select all in this list". */
+  onSelectAll: () => void
+  /** A key that acts on the selection (the row is one of two or more); `anchor` is where its menu opens. */
+  onMany: (action: ManyAction, anchor: HTMLElement) => void
 }
 
 /** What lets a row be dragged somewhere. */
@@ -98,7 +127,8 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     onOutdent,
     emptyChips,
     extra,
-    drag
+    drag,
+    selection
   } = props
   const locale = useHome((state) => state.locale)
   const words = TASK_COPY[locale]
@@ -155,6 +185,7 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     { id: 'rename', label: words.rename, hint: 'F2', onSelect: () => setRenaming(true) },
     { id: 'open', label: words.openPage, onSelect: () => openPage(task.id) },
     { id: 'tab', label: words.openInTab, hint: 'Ctrl+Enter', onSelect: () => openPage(task.id, { newTab: true }) },
+    ...(selection ? [{ separator: true } as const, { id: 'select-all', label: words.selectAll, onSelect: selection.onSelectAll }] : []),
     { separator: true },
     { id: 'delete', label: words.delete, hint: 'Del', danger: true, onSelect: remove }
   ]
@@ -174,10 +205,36 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
       setMenu(keyboardAnchor(event.currentTarget))
       return
     }
+    if (selection && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      if (event.shiftKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+        event.preventDefault()
+        event.stopPropagation()
+        const to = selection.onExtend(event.key === 'ArrowDown' ? 1 : -1)
+        if (to) focusRow(event.currentTarget, to)
+        return
+      }
+      if (event.key === 'Escape' && selection.count > 0) {
+        event.preventDefault()
+        event.stopPropagation()
+        selection.onClear()
+        return
+      }
+    }
     const action = rowKeyAction(event)
     if (!action) return
+    const many = selection?.selected && selection.count >= 2 ? manyKeyAction(action) : null
+    if (selection && many) {
+      event.preventDefault()
+      event.stopPropagation()
+      selection.onMany(many, event.currentTarget)
+      return
+    }
     event.preventDefault()
     event.stopPropagation()
+    runAction(action)
+  }
+
+  const runAction = (action: RowAction): void => {
     switch (action.kind) {
       case 'open':
         if (action.newTab) openPage(task.id, { newTab: true })
@@ -204,7 +261,11 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
   const onClick = (event: ReactMouseEvent<HTMLLIElement>): void => {
     if (renaming) return
     if (event.ctrlKey || event.metaKey) openPage(task.id, { newTab: true })
-    else onOpen(task)
+    else if (event.shiftKey && selection) selection.onRange()
+    else {
+      if (selection && selection.count > 0) selection.onClear()
+      onOpen(task)
+    }
   }
 
   const onContextMenu = (event: ReactMouseEvent<HTMLLIElement>): void => {
@@ -238,6 +299,7 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     emptyChips?.includes(field) ? chip(field, words.addField[field], words.none, 'is-empty') : null
 
   const details = [
+    selection?.selected ? words.selectedRow : '',
     dueFull,
     task.recurrence ? `${words.repeats}: ${repeat}` : '',
     task.priority ? words.priorityName(task.priority) : '',
@@ -248,6 +310,7 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
   const classes = ['task-row']
   if (task.done) classes.push('is-done')
   if (current) classes.push('is-current')
+  if (selection?.selected) classes.push('is-selected')
 
   return (
     <li
@@ -262,6 +325,10 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
       aria-keyshortcuts={KEYS}
       onKeyDown={onKeyDown}
       onClick={onClick}
+      onMouseDown={(event) => {
+        // Shift+click picks a range: it must not also select the text between the rows.
+        if (selection && event.shiftKey) event.preventDefault()
+      }}
       onContextMenu={onContextMenu}
       onPointerEnter={preloadTaskEditors}
       onFocus={preloadTaskEditors}
@@ -348,6 +415,11 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
         </span>
       </span>
       <span className="task-side">
+        {selection?.selected && (
+          <span className="task-selected-mark" aria-hidden="true">
+            ✓
+          </span>
+        )}
         {(onIndent || onOutdent) && (
           <span className="task-moves">
             {onOutdent && (

@@ -114,5 +114,10 @@ export const TASKS_COMMANDS = [
     /** Opens Tasks and walks the tasks to refine one by one (the refine time's notification sends it too). */
     id: 'refine-tasks',
     palette: { title: 'Refine tasks', keywords: ['refinar', 'inbox', 'triage', 'todo'], order: 95 }
+  },
+  {
+    /** On the Tasks screen: selects every task of the list shown (the keys then act on all of them). */
+    id: 'select-all-tasks',
+    palette: { title: 'Select all tasks in this list', keywords: ['selecionar', 'todas', 'bulk', 'many', 'todo'], order: 96 }
   }
 ] as const satisfies readonly CommandSpec[]

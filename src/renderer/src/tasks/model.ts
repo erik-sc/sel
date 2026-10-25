@@ -102,3 +102,32 @@ export function rowKeyAction(event: Keyed): RowAction | null {
 export function nextPriority(current: Priority | null, picked: Priority): Priority | null {
   return current === picked ? null : picked
 }
+
+/** What a key does to the rows of a selection (two or more) instead of to the focused row alone. */
+export type ManyAction =
+  | { kind: 'date' }
+  | { kind: 'project' }
+  | { kind: 'priority'; level: Priority }
+  | { kind: 'toggle' }
+  /** A key of one task (rename, repeat, labels, reminder, delete): nothing happens to several. */
+  | { kind: 'ignore' }
+
+/**
+ * The row action of a key, read for a selection of several rows: date, project, priority and done
+ * go to all of them; Enter keeps opening the focused row (null); every other key of a row does
+ * nothing, so that no single-task change or Delete reaches more than the user meant.
+ */
+export function manyKeyAction(action: RowAction): ManyAction | null {
+  switch (action.kind) {
+    case 'open':
+      return null
+    case 'priority':
+      return { kind: 'priority', level: action.level }
+    case 'toggle':
+      return { kind: 'toggle' }
+    case 'edit':
+      return action.field === 'date' ? { kind: 'date' } : action.field === 'project' ? { kind: 'project' } : { kind: 'ignore' }
+    default:
+      return { kind: 'ignore' }
+  }
+}

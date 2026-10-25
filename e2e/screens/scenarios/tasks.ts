@@ -9,6 +9,20 @@ async function openView(page: Page, view: string): Promise<void> {
   await page.locator('.tasks-nav-item').filter({ hasText: view }).first().click()
 }
 
+/** The Tasks screen on its Today list, three rows picked with Shift+Down from the first. */
+async function pickThree(page: Page): Promise<void> {
+  await openFromSidebar(page, 'Tasks')
+  await page
+    .locator('.tasks-nav-item')
+    .filter({ hasText: /^Today/ })
+    .first()
+    .click()
+  await see(page, 'Write the launch post')
+  await page.locator('.tasks-list [data-task-row]').first().focus()
+  await page.keyboard.press('Shift+ArrowDown')
+  await page.keyboard.press('Shift+ArrowDown')
+}
+
 export default [
   {
     id: 'tasks-table',
@@ -32,6 +46,22 @@ export default [
     run: async (page) => {
       await openView(page, SEED_NAMES.calendar)
       await see(page, 'Write the launch post')
+    }
+  },
+  {
+    id: 'tasks-selection',
+    description: 'The Tasks list Today with three rows selected (Shift+Down twice)',
+    run: async (page) => {
+      await pickThree(page)
+    }
+  },
+  {
+    id: 'tasks-selection-date',
+    description: 'The same three rows with D pressed: the day menu that sets all three',
+    run: async (page) => {
+      await pickThree(page)
+      await page.keyboard.press('d')
+      await page.getByRole('menuitem', { name: 'Tomorrow' }).first().waitFor({ state: 'visible', timeout: 20_000 })
     }
   }
 ] satisfies Scenario[]

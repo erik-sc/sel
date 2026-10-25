@@ -75,6 +75,16 @@ export interface TaskCopy {
   /** The row's menu: make the task its project's next action (shared/tasks/projects.ts). */
   makeNext: string
   nextSet: (title: string) => string
+  /** A selection of rows (selection.ts): the count said politely, the row's mark, the menu entry. */
+  selected: (count: number) => string
+  selectionCleared: string
+  selectAll: string
+  selectedRow: string
+  /** What a change to several tasks says once done (with Undo), and the header of the menus that make it. */
+  manyChanged: (field: 'date' | 'priority' | 'project', count: number) => string
+  manyCompleted: (count: number) => string
+  manyReopened: (count: number) => string
+  manyHeader: (count: number) => string
 }
 
 const EN: TaskCopy = {
@@ -127,7 +137,16 @@ const EN: TaskCopy = {
   refineNext: 'Next →',
   todayLine: (count) => `${count} to refine`,
   makeNext: 'Make next action',
-  nextSet: (title) => `"${title}" is the project's next action.`
+  nextSet: (title) => `"${title}" is the project's next action.`,
+  selected: (count) => `${count} selected`,
+  selectionCleared: 'Selection cleared',
+  selectAll: 'Select all in this list',
+  selectedRow: 'selected',
+  manyChanged: (field, count) =>
+    `${{ date: 'Date', priority: 'Priority', project: 'Project' }[field]} changed on ${count} ${count === 1 ? 'task' : 'tasks'}.`,
+  manyCompleted: (count) => `Completed ${count} ${count === 1 ? 'task' : 'tasks'}.`,
+  manyReopened: (count) => `Reopened ${count} ${count === 1 ? 'task' : 'tasks'}.`,
+  manyHeader: (count) => `Day for ${count} ${count === 1 ? 'task' : 'tasks'}`
 }
 
 const PT: TaskCopy = {
@@ -187,7 +206,16 @@ const PT: TaskCopy = {
   refineNext: 'Próxima →',
   todayLine: (count) => `${count} para refinar`,
   makeNext: 'Tornar próxima ação',
-  nextSet: (title) => `"${title}" é a próxima ação do projeto.`
+  nextSet: (title) => `"${title}" é a próxima ação do projeto.`,
+  selected: (count) => (count === 1 ? '1 selecionada' : `${count} selecionadas`),
+  selectionCleared: 'Seleção desfeita',
+  selectAll: 'Selecionar tudo nesta lista',
+  selectedRow: 'selecionada',
+  manyChanged: (field, count) =>
+    `${{ date: 'Data alterada', priority: 'Prioridade alterada', project: 'Projeto alterado' }[field]} em ${count} ${count === 1 ? 'tarefa' : 'tarefas'}.`,
+  manyCompleted: (count) => (count === 1 ? '1 tarefa concluída.' : `${count} tarefas concluídas.`),
+  manyReopened: (count) => (count === 1 ? '1 tarefa reaberta.' : `${count} tarefas reabertas.`),
+  manyHeader: (count) => `Dia para ${count} ${count === 1 ? 'tarefa' : 'tarefas'}`
 }
 
 export const TASK_COPY: Record<HomeLocale, TaskCopy> = { en: EN, 'pt-BR': PT }
