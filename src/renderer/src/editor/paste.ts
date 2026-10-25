@@ -10,6 +10,7 @@ import {
   nodesToText,
   parseClipboardBlocks,
   parseClipboardRichText,
+  pastedNodes,
   serializeBlocks,
   type ClipNode
 } from './clipboard'
@@ -131,7 +132,7 @@ function inlineSpans(nodes: readonly ClipNode[]): RichText | null {
  * converted to our own blocks (html.ts); everything else is plain text / Markdown.
  */
 export function handlePaste(ctrl: EditorController, dt: DataTransfer, targetId: string | null): boolean {
-  const nodes = parseClipboardBlocks(dt.getData(MIME_BLOCKS))
+  const nodes = pastedNodes(parseClipboardBlocks(dt.getData(MIME_BLOCKS)))
   if (nodes.length) {
     insertNodes(ctrl, nodes, placeFor(ctrl, targetId))
     return true
@@ -186,7 +187,9 @@ export async function dropFiles(ctrl: EditorController, files: readonly File[], 
     if (url) nodes.push(imageNode(url))
   }
   if (!nodes.length) return
-  // Resolved after the uploads: the drop target may have changed meanwhile.
-  const place = (drop && placeForDrop(ctrl.tree, drop)) || placeFor(ctrl, null)
+  // Resolved after the uploads: the drop target may have changed meanwhile. Files dropped beside a
+  // block go below it: images do not make columns by a drop.
+  const at = drop && (drop.pos === 'left' || drop.pos === 'right') ? { id: drop.id, pos: 'after' as const } : drop
+  const place = (at && placeForDrop(ctrl.tree, at)) || placeFor(ctrl, null)
   insertNodes(ctrl, nodes, place)
 }

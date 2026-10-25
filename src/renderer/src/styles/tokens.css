@@ -74,6 +74,8 @@
   --page-padding-x: 64px;
   /* how wide a database embedded in a page may grow; past --page-width it extends beyond the text */
   --database-width: 880px;
+  /* the narrowest a column of blocks side by side gets (a database's keeps 240px) before the row wraps */
+  --column-min: 160px;
   --cover-height: 200px;
   --panel-gap: 8px;
   --control-height: 30px;

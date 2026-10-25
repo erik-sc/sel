@@ -11,6 +11,7 @@ import { pageLink } from '@shared/pageLink'
 import { Columns, Copy, Link as LinkIcon, Trash } from '@/ui/icons'
 import { useEditor } from './context'
 import { besideChoice } from './layout'
+import { useEditorCopy } from './copy'
 import { TURN_INTO, filterSlashItems, isPlainTextType, isTextType, slashListId, slashOptionId } from './blockTypes'
 import { useA11yCopy } from '@/a11y/announce'
 import { COLOR_NAMES } from './richtext-dom'
@@ -34,7 +35,8 @@ export function SlashMenu(): JSX.Element | null {
   }, [index, slash?.query])
 
   const ai = useAiGate((state) => state.enabled)
-  const items = slash ? filterSlashItems(slash.query, ai) : []
+  const items = slash ? filterSlashItems(slash.query, ai, slash.columns) : []
+  const copy = useEditorCopy()
   const offersAi = items.some((item) => item.kind === 'ai')
   useEffect(() => {
     if (offersAi) preloadInlineAi()
@@ -86,8 +88,8 @@ export function SlashMenu(): JSX.Element | null {
               >
                 <span className="pe-slash-glyph">{item.glyph}</span>
                 <span className="pe-slash-text">
-                  <span className="pe-slash-label">{item.label}</span>
-                  <span className="pe-slash-hint">{item.hint}</span>
+                  <span className="pe-slash-label">{item.columns ? copy.columns(item.columns) : item.label}</span>
+                  <span className="pe-slash-hint">{item.columns ? copy.columnsHint(item.columns) : item.hint}</span>
                 </span>
               </div>
             </Fragment>
@@ -232,6 +234,7 @@ export function BlockMenu(): JSX.Element | null {
   const { ctrl } = useEditor()
   const menu = useStore(ctrl.ui, (s) => s.menu)
   const ai = useAiGate((state) => state.enabled)
+  const copy = useEditorCopy()
   // The image whose alternative text is being written, in place of the menu.
   const [altFor, setAltFor] = useState<string | null>(null)
   const altRef = useRef<string | null>(null)
@@ -253,12 +256,12 @@ export function BlockMenu(): JSX.Element | null {
     const b = getBlock(id)
     return !!b && (isTextType(b.type) || isPlainTextType(b.type))
   })
-  // A single database block can join the row of the one before it, or leave its row.
+  // A single block can join the row of the one before it, or leave its row: any block at the top
+  // of the page, a database block anywhere (layout.ts).
   const only = ids.length === 1 ? getBlock(ids[0]) : undefined
-  const siblings = only?.parentId
-    ? (getBlock(only.parentId)?.content ?? []).map(getBlock).filter((b): b is Block => !!b && !b.trashedAt)
-    : []
-  const beside = only ? besideChoice(siblings, only.id) : null
+  const parent = only?.parentId ? getBlock(only.parentId) : undefined
+  const siblings = (parent?.content ?? []).map(getBlock).filter((b): b is Block => !!b && !b.trashedAt)
+  const beside = only ? besideChoice(siblings, only.id, { top: parent?.type === 'page' }) : null
 
   const items: MenuItem[] = [
     { id: 'delete', label: 'Delete', icon: <Trash size={14} />, hint: 'Del', danger: true, onSelect: () => ctrl.deleteBlocks(ids) },
@@ -267,7 +270,7 @@ export function BlockMenu(): JSX.Element | null {
       ? [
           {
             id: 'beside',
-            label: beside === 'beside' ? 'Place beside the previous block' : 'Place below the previous block',
+            label: beside === 'beside' ? copy.placeBeside : copy.placeBelow,
             icon: <Columns size={14} />,
             onSelect: () => ctrl.setBeside(only.id, beside === 'beside')
           }

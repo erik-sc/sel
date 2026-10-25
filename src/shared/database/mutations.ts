@@ -387,6 +387,26 @@ export function updateOption(schema: Schema, propertyId: string, optionId: strin
   return { ...schema, [propertyId]: { ...prop, options } }
 }
 
+/**
+ * Puts an option at `toIndex` of its property's list (clamped to the list), the order boards and
+ * pickers show. Only the `options` array is reordered: ids, names and colours stay as they are,
+ * so nothing an older sel reads changes shape. An unknown property or option, or a move to where
+ * the option already is, returns `schema` itself.
+ */
+export function moveOption(schema: Schema, propertyId: string, optionId: string, toIndex: number): Schema {
+  const prop = propOf(schema, propertyId)
+  if (!prop || !isSelectType(prop.type) || !Number.isFinite(toIndex)) return schema
+  const options = optionsOf(prop)
+  const from = options.findIndex((o) => o.id === optionId)
+  if (from < 0) return schema
+  const to = Math.max(0, Math.min(options.length - 1, Math.trunc(toIndex)))
+  if (to === from) return schema
+  const next = options.slice()
+  const [moved] = next.splice(from, 1)
+  next.splice(to, 0, moved)
+  return { ...schema, [propertyId]: { ...prop, options: next } }
+}
+
 export function deleteOption(schema: Schema, propertyId: string, optionId: string): Schema {
   const prop = propOf(schema, propertyId)
   if (!prop || !findOption(prop, optionId)) return schema

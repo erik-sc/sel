@@ -5,7 +5,9 @@ import { getBlock, newId } from '@/store/blocks'
 import type { EditorController } from './controller'
 import { defaultDatabaseProps, filterSlashItems, type SlashItem } from './blockTypes'
 import { caretRect, marksAt, replaceRange, rtLength, textOf } from './richtext-dom'
-import { prevSibling, turnIntoPatch } from './structure'
+import { canMakeColumns, columnsOps, prevSibling, turnIntoPatch } from './structure'
+import { editorCopy } from './copy'
+import { announce } from '@/a11y/announce'
 import { applyPendingMarks, blockShortcutOps, inlineShortcut, toggleMarkIn, type PendingMarks } from './typing'
 import { textSel, type Sel } from './types'
 import { aiEnabled } from '../ai/gate'
@@ -92,7 +94,8 @@ export class TypingHooks {
   // ---- slash menu -------------------------------------------------------
 
   openSlash(blockId: string, from: number, hasSlash: boolean, rect: DOMRect): void {
-    this.ctrl.ui.setState({ slash: { blockId, from, hasSlash, query: '', index: 0, rect } })
+    const columns = canMakeColumns(this.ctrl.tree, blockId)
+    this.ctrl.ui.setState({ slash: { blockId, from, hasSlash, columns, query: '', index: 0, rect } })
   }
 
   closeSlash(): void {
@@ -105,7 +108,7 @@ export class TypingHooks {
     const qStart = s.from + (s.hasSlash ? 1 : 0)
     if (caret < qStart || (s.hasSlash && text[s.from] !== '/')) return this.closeSlash()
     const query = text.slice(qStart, caret)
-    const none = filterSlashItems(query, aiEnabled()).length === 0
+    const none = filterSlashItems(query, aiEnabled(), s.columns).length === 0
     if (query.includes('\n') || query.length > SLASH_MAX_QUERY || (none && (query.length > SLASH_MAX_UNMATCHED || !s.hasSlash))) {
       return this.closeSlash()
     }
@@ -116,7 +119,7 @@ export class TypingHooks {
   slashKey(key: string): boolean {
     const s = this.ctrl.ui.getState().slash
     if (!s) return false
-    const items = filterSlashItems(s.query, aiEnabled())
+    const items = filterSlashItems(s.query, aiEnabled(), s.columns)
     if (key === 'Escape') {
       this.closeSlash()
       return true
@@ -155,6 +158,14 @@ export class TypingHooks {
       // The slash text goes; the meeting is a page of its own in the Meetings database.
       if (rtLength(cleaned) !== rtLength(b.props.title)) ctrl.update(id, { title: cleaned }, { after: textSel(id, s.from) })
       void newMeeting()
+      return
+    }
+    if (item.kind === 'columns') {
+      // One step: the slash text goes and the row comes, the caret in its first column.
+      const made = columnsOps(ctrl.tree, id, cleaned, item.columns ?? 2, newId)
+      if (!made) return
+      ctrl.commit(made.ops, { after: textSel(made.first, 0) })
+      announce(editorCopy().columns(item.columns ?? 2))
       return
     }
     if (item.kind === 'turn') {

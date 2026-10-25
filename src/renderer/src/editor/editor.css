@@ -752,7 +752,7 @@ span[class*='rt-bg-'] {
  * centred on the column, and never past the page's side padding. Nested ones keep to their indent.
  */
 .pe-page .pe-body > .blk-database > .blk-row,
-.pe-page .pe-body > .blk-beside {
+.pe-page .pe-body > .blk-beside.is-wide {
   --pe-database-width: max(100%, min(var(--database-width), 100cqi - var(--page-padding-x) * 2));
 
   width: var(--pe-database-width);
@@ -760,18 +760,66 @@ span[class*='rt-bg-'] {
 }
 
 /*
- * Database blocks side by side (editor/layout.ts). The gap is as wide as a block's gutter, which
- * sits in it; a row too narrow for its blocks wraps.
+ * Blocks side by side (editor/layout.ts): each column is a block with its children under it. A row
+ * of 2 keeps the text's width; a row of 3 or 4, or one holding a database, is wide (.is-wide,
+ * above). The gap is as wide as a block's gutter, which sits in it; a row too narrow for its
+ * columns wraps. Columns are as tall as the row but draw nothing of their own, so their content
+ * reads top-aligned and uneven heights stay uneven.
  */
 .blk-beside {
+  --pe-column-gap: 52px;
+
   display: flex;
   flex-wrap: wrap;
-  column-gap: 52px;
+  align-items: stretch;
+  column-gap: var(--pe-column-gap);
 }
 
+/* Every column starts at the row's top: a heading's extra space above (.blk-heading_*) does not apply in a row. */
 .blk-beside > .blk {
   flex: 1 1 0;
+  min-width: min(100%, var(--column-min));
+  margin-top: var(--block-gap);
+}
+
+.blk-beside > .blk-database {
   min-width: min(100%, 240px);
+}
+
+/*
+ * The line in the middle of each gap, shown only while the row is hovered or holds the focus, so
+ * the columns can be seen and aimed at. It is the left border of every column after the first,
+ * pulled into the gap; the column's content starts where it would without it. (The block's
+ * ::before and ::after are its drop lines.)
+ */
+.blk-beside > .blk + .blk {
+  margin-left: calc(var(--pe-column-gap) / -2);
+  padding-left: calc(var(--pe-column-gap) / 2 - var(--hairline));
+  border-left: var(--hairline) solid transparent;
+}
+
+.blk-beside:hover > .blk + .blk,
+.blk-beside:focus-within > .blk + .blk,
+.blk-beside.is-drop-row > .blk + .blk {
+  border-left-color: var(--border);
+}
+
+/* An empty column (from "/2 columns") stays one line tall, so it can be clicked. */
+.blk-beside > .blk > .blk-row > .rt:empty {
+  min-height: calc(1lh + 6px);
+}
+
+/* Columns wrapped one under the other have no gap between them: no line in the page's margin. */
+.blk-beside.is-wrapped > .blk + .blk {
+  border-left-color: transparent;
+}
+
+/*
+ * A column's children start at its left edge. A toggle's, a list item's and a to-do's keep their
+ * indent, so the head still reads as holding them.
+ */
+.blk-beside > .blk:not(.blk-toggle, .blk-bulleted_list, .blk-numbered_list, .blk-to_do) > .blk-children {
+  padding-left: 0;
 }
 
 .blk-code-box {
@@ -1157,6 +1205,57 @@ span[class*='rt-bg-'] {
 
 .blk.drop-inside::after {
   left: var(--indent);
+}
+
+/*
+ * Beside a block (editor/structure.ts): the same line turned upright, in the middle of the gap on
+ * that side, where a row draws its gap line, and as tall as the block with its children.
+ */
+.blk.drop-left::before,
+.blk.drop-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.blk.drop-left::before {
+  left: calc(var(--pe-column-gap, 52px) / -2 - 1.5px);
+}
+
+.blk.drop-right::after {
+  right: calc(var(--pe-column-gap, 52px) / -2 - 1.5px);
+}
+
+/*
+ * A column after the first starts in the middle of its gap, on its gap line (.blk-beside above):
+ * its side line is drawn on that line, and its other lines start where its content does.
+ */
+.blk-beside > .blk + .blk.drop-left::before {
+  left: calc(var(--hairline) / 2 - 1.5px);
+}
+
+.blk-beside > .blk + .blk.drop-before::before,
+.blk-beside > .blk + .blk.drop-after::after {
+  left: calc(var(--pe-column-gap) / 2);
+}
+
+.blk-beside > .blk + .blk.drop-inside::after {
+  left: calc(var(--pe-column-gap) / 2 + var(--indent));
+}
+
+/* Children in a column start at its edge (above), and so does the line that drops among them. */
+.blk-beside > .blk:not(.blk-toggle, .blk-bulleted_list, .blk-numbered_list, .blk-to_do).drop-inside::after {
+  left: 0;
+}
+
+.blk-beside > .blk + .blk:not(.blk-toggle, .blk-bulleted_list, .blk-numbered_list, .blk-to_do).drop-inside::after {
+  left: calc(var(--pe-column-gap) / 2);
 }
 
 /* ---- slash menu (inside a ui Popover, which supplies the glass surface) ---- */

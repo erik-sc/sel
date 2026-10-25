@@ -15,7 +15,7 @@
 
 - The renderer reaches main only through `window.api` (src/preload/index.ts:112).
 - Paths never come from the renderer; they come from native dialogs in main (src/main/ipc.ts:125, src/main/sync/index.ts:275-295, src/main/ai/index.ts:225-255).
-- Pure modules carry a header comment saying they are free of Electron, React or the store (src/renderer/src/database/logic.ts:1-12, src/main/briefing/secrets.ts:21, src/main/meetings/grant.ts:5).
+- Pure modules carry a header comment saying they are free of Electron, React or the store (src/shared/database/mutations.ts:1-2, src/main/briefing/secrets.ts:21, src/main/meetings/grant.ts:5).
 - zustand stores hold state only; mutations are free exported functions (src/renderer/src/store/tabs.ts:48, src/renderer/src/store/ui.ts:64).
 - Database code is consumed from outside through `@/database/lazy` (src/renderer/src/editor/BlockView.tsx:7, src/renderer/src/shell/PageHost.tsx:5).
 - Main imports shared by relative path; preload and renderer use the `@shared` and `@` aliases (src/main/validate.ts:1, src/preload/index.ts:2, src/renderer/src/App.tsx:2).
@@ -107,7 +107,9 @@ The helpers are in src/renderer/src/a11y/: `keys.ts` (keys), `announce.ts` (the 
   on keydown, `keyboardAnchor(el)` as the popover's anchor. Windows sends a `contextmenu` after
   the Menu key: `onContextMenu` ignores it while `isMenuKeyEcho()`.
 - **Moving an item** from the keyboard: Ctrl+Alt+arrows on a board and in a calendar, Alt+Shift+
-  arrows in the tree, Ctrl+Shift+PageUp/PageDown on tabs. It calls what dragging calls
+  arrows in the tree, Ctrl+Shift+PageUp/PageDown on tabs, plain Alt+arrows in a list inside a
+  popover (a select's options in its column menu, src/renderer/src/database/optionList.tsx; the
+  sidebar settings). It calls what dragging calls
   (`moveCard` in BoardView.tsx, `moveEvent` in CalendarView.tsx, `dropPage`, `moveTab`), says where
   the item went with `announce()`, and keeps the focus on it: the item is drawn again in its new
   place and focused by its id (`data-card-id`, `data-event-id`, `data-tab-id`, the tree's `pending`).
@@ -130,7 +132,16 @@ The helpers are in src/renderer/src/a11y/: `keys.ts` (keys), `announce.ts` (the 
 **Grids** (the table, src/renderer/src/database/views/TableView.tsx): the grid element holds the
 focus and points at the focused cell with `aria-activedescendant` (`cellId` in TableRow.tsx), only
 while its row is drawn. Rows carry `aria-rowindex` (the header row is 1), cells `aria-colindex`,
-and `aria-rowcount` counts every row of the view, drawn or not.
+and `aria-rowcount` counts every row of the view, drawn or not. Since 0.9.0 (B2) the headers are
+active descendants too (`headerId` in TableView.tsx; a cell and a header are never active
+together): ArrowUp from the first row goes to the column's header, Left/Right/Home/End move along
+the headers and end on "+", ArrowDown goes back, Enter, Space, F2, Shift+F10 or the Menu key open the header's
+`PropertyMenu`, and Escape there comes back to the same header. From a table that menu also offers
+"Insert left / right" (`onInsert`): the add menu takes its place on the header, and
+`actions.addProperty(..., { before })` writes the new property and its place in the view's
+`visibleProperties` as one write. A popover that replaces another has no opener to give the focus
+back to (it read the first popover's element as it rendered), so the table takes it back itself
+(`regainFocus`).
 
 **Popovers and dialogs**:
 
@@ -140,7 +151,13 @@ and `aria-rowcount` counts every row of the view, drawn or not.
 - `Popover` is a `dialog` by default and then needs `label` or `labelledBy`; `role="none"` when all
   it holds is a `Menu` or a listbox, which name themselves.
 - A `Menu` keeps the focus on itself and points at its items with `aria-activedescendant`
-  (src/renderer/src/ui/Menu.tsx). A search field over a list is a `combobox` with
+  (src/renderer/src/ui/Menu.tsx). A field drawn above a `Menu` (the add-property menu's name) passes
+  `onExitStart`, so ArrowUp on the first item gives it the focus back instead of wrapping. When
+  the fields are Tab stops too (a column's menu: name, a select's options, the add-an-option field,
+  then the entries; src/renderer/src/database/propertyMenus.tsx), the `Menu` is `tabbable` and the
+  popover keeps Tab inside it, wrapping at both ends (`keepTabInside`). A popover whose content has a
+  step to go back from (an option opened from that menu) passes `onEscape`, so Escape means Back
+  there and not close (src/renderer/src/ui/Popover.tsx). A search field over a list is a `combobox` with
   `aria-controls` and `aria-activedescendant` on option ids from `useId()`; options are `option`
   with `aria-selected`, and nothing in an option takes the focus (it is read and chosen whole).
 - The focus goes back where it came from: `Modal` and `Popover` do it. A screen of its own (the
@@ -156,11 +173,61 @@ selected text to its toolbar.
 4.5:1 for text, secondary and tertiary text on the surfaces they are drawn on and 3:1 for the
 focus ring; the few exceptions, kept for fidelity to the original, are listed there with why.
 
+## Words (en and pt-BR)
+
+Since 0.9.0 the menus a release touches come in English and Brazilian Portuguese, picked by the
+home's locale (`useHome((s) => s.locale)`), as the date picker did first
+(src/renderer/src/database/dateCopy.ts). Each area keeps its words in one plain-data module with a
+hook for components and a reader for code outside React: src/renderer/src/editor/copy.ts
+(`EDITOR_COPY`, `useEditorCopy`, `editorCopy`) and src/renderer/src/database/copy.ts
+(`DATABASE_COPY`, `useDatabaseCopy`, `databaseCopy`). A new word goes into both languages of its
+area's module, never inline in a component; what is said to a screen reader goes there too. The
+rest of the editor and database UI is still English (the full translation is proposal #100,
+docs/team/roadmap.md:103). A translated menu gets a `-pt` screenshot scenario (`locale: 'pt-BR'`).
+
+## Screens
+
+Since 0.9.0 (S0): every pull request that changes what a user sees shows it. Its body holds a
+`screens` block naming scenarios, one `<id>: <text>` per line; the Screens workflow
+(.github/workflows/screens.yml) captures them on the PR's head and on its merge base and posts one
+comment with the pairs, light above dark, before on the left (e2e/screens/README.md).
+
+- **Adding a scenario** is part of the item that needs it:
+  1. Add an entry to the area's file under e2e/screens/scenarios/ (columns.ts, database-menus.ts,
+     pages.ts, tasks.ts, today.ts, or a new file: every file there is loaded, there is no index).
+     Its `id` is kebab-case and unique across files (e2e/screens/registry.ts:33); `locale`
+     (`'pt-BR'` for a translated menu) and `themes` are optional; `workspace(repo, now)` adds to
+     the demo workspace for that scenario only (e2e/screens/seed.ts:104).
+  2. `run(page)` starts on the open app (Today, one tab) and drives it as a user would, by role
+     and name (the common steps are in e2e/screens/ui.ts: `openFromSidebar`, `openPage`, `see`),
+     and returns only once what should be pictured is on screen.
+  3. `npm run screens:test` checks the registry (ids, shapes); `SCREENS_IDS="<id>" xvfb-run -a
+     npm run screens` tries the capture on Linux (e2e/screens/README.md).
+  4. Name the id in the PR body's `screens` block. A `run` that fails on base shows as "not in
+     base" (the feature is new); one that fails on head turns the job red.
+- **What the capture does after `run`** (e2e/screens/capture.pw.ts:118-128): it moves the pointer
+  off the window, to its right edge (`mouse.move(WIDTH - 1, HEIGHT / 2)`), so no hover state is
+  pictured by accident; waits for the fonts and two frames; and saves the whole window at
+  1280×800 with animations disabled and the caret hidden. So a scenario cannot show a hover: show
+  the state through the focus instead where the app draws it for both (`columns-hover` clicks into
+  a column, so the row's `:focus-within` draws the line). And a drag made with the mouse ends when
+  the pointer moves: to picture one mid-drag, dispatch the drag events the window gets from a real
+  drag (`holdOnRightOf`, e2e/screens/scenarios/columns.ts:135).
+- **The demo workspace** is written by the app's own `Repository` on `node:sqlite`, from fixed
+  ids and English text, dated around the run's day. Base is seeded with base's own `Repository`,
+  so a new migration never leaves base with a database it refuses.
+- **Locally**: `npm run screens:test` runs the pure tests (block, registry, seed, comment) on
+  Node 24; `npm run screens` captures, on Linux under `xvfb-run` (README). The pictures of record
+  come only from the Windows job: fonts, DPI and window chrome differ elsewhere, and Windows is
+  the only platform sel ships for.
+- **Nothing in `src/` exists for the harness.** The window is found by role and text; reduced
+  motion is emulated so Herman draws still.
+
 ## Error handling
 
 - Renderer input is typed `unknown` and narrowed by validators that throw (src/main/validate.ts:39-57, src/main/ai/index.ts:127-128).
 - Validation is done twice: shape at the IPC edge, fields again in the repository (src/main/ipc.ts:104, src/main/db/repository.ts:664-666).
-- Errors crossing IPC are reduced to user-safe messages; anything with a system `code` becomes a generic message and is logged (src/main/validate.ts:234-244, src/main/ipc.ts:78).
+- Errors crossing IPC are reduced to user-safe messages; anything with a system `code` becomes a generic message and is logged (src/main/validate.ts:170-180, src/main/ipc.ts:78).
 - Expected failures are typed codes defined in shared (src/shared/sync.ts:10-29, src/shared/ai.ts:114, src/shared/briefing.ts:34); sync's public methods return a status instead of throwing (src/main/sync/engine.ts:230-237).
 - Main logs with `console.error` and an area prefix such as `[main]`, `[ipc]`, `[sync]` (src/main/index.ts:163, src/main/ipc.ts:78, src/main/sync/engine.ts:362).
 - Renderer: `notifyError` for things the user must know, plain `console.error` for background refreshes (src/renderer/src/ui/toast.ts:88-91, src/renderer/src/store/blocks.ts:486).
@@ -177,7 +244,8 @@ focus ring; the few exceptions, kept for fidelity to the original, are listed th
 - External programs are replaced by scripted fakes selected with markers in the prompt (src/main/ai/fixtures/fake-claude.mjs:6-8).
 - Sync tests need a real git binary and skip themselves without one (src/main/sync/harness.ts:18-24).
 - Some suites are opt-in through environment flags (src/main/db/bench.test.ts:14, src/main/briefing/net.test.ts:405).
-- Run `npm test` and `npm run typecheck` (package.json:12-13).
+- The screenshot harness's own pure tests live under e2e/screens/ (`*.test.ts`) and run with `npm run screens:test` (`vitest run --dir e2e`), not with `npm test`.
+- Before a PR: `npm run typecheck`, `npm run lint` and `npx vitest run --dir src` on Node 24 (package.json:12-14). CI runs the tests on Windows; a few suites exercise Windows paths or programs and fail on Linux (ai.test.ts, sync/security.test.ts, whisper.test.ts), so compare with the base branch before calling a failure yours.
 
 ## Configuration and feature flags
 
@@ -192,17 +260,14 @@ focus ring; the few exceptions, kept for fidelity to the original, are listed th
 
 | Where | Convention broken | Bug or intent? |
 |---|---|---|
-| src/main/markdown.ts:20-23 | Main imports renderer code | Intent (reuse of pure logic for export), enabled at tsconfig.node.json:15; the code belongs in shared |
 | src/main/background.ts:9, src/main/ipc.ts:55, src/main/sync/engine.ts:123, src/renderer/src/appearance/store.ts:28, src/renderer/src/sync/store.ts:20 | One settings key declared five times | Drift risk, not yet a bug |
 | src/main/ai/service.ts:11, src/main/ai/service.ts:445 | The generic AI service imports the Herman persona and reads `herman.*` settings | Intent, but couples two layers |
 | src/renderer/src/ai/client.ts:6, src/renderer/src/herman/Dock.tsx:9 | Folder cycle between `ai` and `herman` | Intent; both import only the other's gate |
 | src/renderer/src/shell/SettingsDialog.tsx:6 | `appearance/controls` used as a shared UI kit by other features | Intent by convenience; belongs in `ui` |
 | src/renderer/src/store/tabs.ts:30-32, src/renderer/src/briefing/route.ts:13-17 | Route constants live in the store, their predicates in a feature folder | Minor inconsistency |
-| src/renderer/src/database/actions.ts:20-23 | Database write failures are only logged, while appearance uses `notifyError` (src/renderer/src/appearance/store.ts:88) | Likely an oversight; the user sees nothing |
-| src/renderer/src/database/actions.ts:204-209 | `addView` returns an id even when the write was dropped for a linked view without a ready source | Possible bug (unverified by running) |
-| src/main/db/schema.ts:54 | Comment lists four version kinds; `sync` is a fifth (src/main/db/repository.ts:1472) | Stale comment |
-| src/main/briefing/net.ts:9 | Comment claims to be the only network code | Stale comment |
+| src/renderer/src/database/actions.ts:42-45 | Database edits get no undo entry, while the 0.9.0 plan asks every change to undo as one step (docs/plans/release-0.9.0.md:29) | Known gap; the actions keep each change one `applyOps` batch so a later undo can reverse it whole (question 35) |
+| src/main/db/schema.ts:56 | Comment lists four version kinds; `sync` is a fifth (src/main/db/repository.ts:2004) | Stale comment |
+| src/main/briefing/net.ts:8 | Comment claims to be the only network code | Stale comment |
 | src/main/meetings/whisper/download.ts:7 | Binary downloads reuse `validateCalendarUrl` and `CalendarError` | Naming leak, behaviour fine |
-| src/main/security.ts:84 | `eslint-disable` comment, but the linter is Biome | Vestigial |
 | src/main/ipc.ts:169-172 | Two related settings written without a transaction | Probably harmless |
 | src/main/sync/git.ts:444 | The auth-failure pattern ends in a bare word that could match unrelated errors | Possible misclassification (unverified) |

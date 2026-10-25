@@ -15,6 +15,8 @@ import { notifyWriteFailed } from '@/failures/notify'
 import { a11yCopy, announce } from '@/a11y/announce'
 import { isPlainTextType, isTextType, type SlashItem } from './blockTypes'
 import { History } from './history'
+import { editorCopy } from './copy'
+import { rowRepairOps } from './layout'
 import { invertOps } from './ops'
 import * as paste from './paste'
 import { addMark, marksAt, removeMark, replaceRange, rtLength, toggleMark } from './richtext-dom'
@@ -30,6 +32,7 @@ import {
   moveOps,
   moveToOps,
   nextVisible,
+  outdentLeavesRow,
   outdentOps,
   prevVisible,
   redoPlan,
@@ -204,9 +207,12 @@ export class EditorController {
     }
     const before = opts.before !== undefined ? opts.before : this.currentSel()
     const after = opts.after !== undefined ? opts.after : before
-    const { inverse, restore } = invertOps(ops, getBlock)
-    this.history.commit(ops, inverse, before, after, { key: opts.key, restore })
-    void applyOps(ops).catch((err: unknown) => this.onApplyFailed(err))
+    // Rows a structural change breaks are repaired in the same step, so one undo reverses both.
+    const repair = rowRepairOps(ops, getBlock)
+    const batch = repair.length ? [...ops, ...repair] : ops
+    const { inverse, restore } = invertOps(batch, getBlock)
+    this.history.commit(batch, inverse, before, after, { key: opts.key, restore })
+    void applyOps(batch).catch((err: unknown) => this.onApplyFailed(err))
     if (!opts.silent) this.restoreSel(after)
   }
 
@@ -390,9 +396,12 @@ export class EditorController {
     this.commit(ids.filter((id) => getBlock(id)).map((id): Op => ({ op: 'update', id, patch: { props: { color } } })))
   }
 
-  /** Draws a database block in one row with the one before it, or below it again (layout.ts). */
+  /** Draws a block in one row with the one before it, or below it again (layout.ts). */
   setBeside(id: string, beside: boolean): void {
-    if (getBlock(id)) this.commit([{ op: 'update', id, patch: { props: { beside: beside ? true : null } } }])
+    if (!getBlock(id)) return
+    this.commit([{ op: 'update', id, patch: { props: { beside: beside ? true : null } } }])
+    const copy = editorCopy()
+    announce(beside ? copy.placedBeside : copy.placedBelow)
   }
 
   indent(ids: string[]): void {
@@ -404,9 +413,10 @@ export class EditorController {
 
   outdent(ids: string[]): void {
     this.flushAll()
+    const leaving = outdentLeavesRow(this.tree, ids)
     const ops = outdentOps(this.tree, ids)
     this.commit(ops)
-    if (ops.length) announce(a11yCopy().outdented)
+    if (ops.length) announce(leaving ? editorCopy().outOfColumns : a11yCopy().outdented)
   }
 
   moveBlocks(ids: string[], dir: -1 | 1): void {
@@ -492,7 +502,9 @@ export class EditorController {
   moveTo(ids: string[], drop: DropTarget): void {
     this.flushAll()
     const { ops, moved } = moveToOps(this.tree, ids, drop)
-    if (ops.length) this.commit(ops, { after: { kind: 'blocks', ids: moved } })
+    if (!ops.length) return
+    this.commit(ops, { after: { kind: 'blocks', ids: moved } })
+    if (drop.pos === 'left' || drop.pos === 'right') announce(editorCopy().placedBeside)
   }
 
   dropFiles(files: File[], drop: DropTarget | null): Promise<void> {

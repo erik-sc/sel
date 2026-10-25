@@ -45,6 +45,8 @@ export interface SlashState {
   /** Offset where the text to remove starts (the '/' when `hasSlash`). */
   from: number
   hasSlash: boolean
+  /** Whether "2 columns" and "3 columns" are offered: the block is at the top of the page and not in a row. */
+  columns: boolean
   query: string
   index: number
   rect: DOMRect
@@ -61,7 +63,11 @@ export interface SourcePickerState {
   view?: ViewType
 }
 
-export type DropPos = 'before' | 'after' | 'inside'
+/**
+ * Where a drop lands relative to its target: above or below it, as its last child, or beside it
+ * in its row (`left` and `right`, layout.ts), which only a block at the top of a page offers.
+ */
+export type DropPos = 'before' | 'after' | 'inside' | 'left' | 'right'
 
 export interface DropTarget {
   id: string

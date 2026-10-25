@@ -21,6 +21,16 @@ export interface MenuProps {
   items: MenuItem[]
   onClose?: () => void
   autoFocus?: boolean
+  /**
+   * ArrowUp on the first item calls this instead of wrapping to the last: for a field drawn
+   * above the list, which takes the focus back.
+   */
+  onExitStart?: () => void
+  /**
+   * The menu is a Tab stop of its own: for a menu drawn under fields in the same popover, so Tab
+   * reaches it from them instead of leaving the popover.
+   */
+  tabbable?: boolean
 }
 
 type ActionItem = Extract<MenuItem, { id: string }>
@@ -33,7 +43,7 @@ export function Menu(props: MenuProps) {
   return <MenuList {...props} />
 }
 
-function MenuList({ items, onClose, autoFocus, onBack }: MenuProps & { onBack?: () => void }) {
+function MenuList({ items, onClose, autoFocus, onExitStart, tabbable, onBack }: MenuProps & { onBack?: () => void }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLDivElement | null)[]>([])
   const [active, setActive] = useState(-1)
@@ -83,7 +93,10 @@ function MenuList({ items, onClose, autoFocus, onBack }: MenuProps & { onBack?: 
         setActive(move(active, 1))
         break
       case 'ArrowUp':
-        setActive(move(active < 0 ? 0 : active, -1))
+        if (onExitStart && (active < 0 || active === move(-1, 1))) {
+          setActive(-1)
+          onExitStart()
+        } else setActive(move(active < 0 ? 0 : active, -1))
         break
       case 'Home':
         setActive(move(-1, 1))
@@ -122,7 +135,7 @@ function MenuList({ items, onClose, autoFocus, onBack }: MenuProps & { onBack?: 
     <div
       className="ui-menu"
       role="menu"
-      tabIndex={-1}
+      tabIndex={tabbable ? 0 : -1}
       ref={rootRef}
       aria-activedescendant={active >= 0 ? itemId(active) : undefined}
       onKeyDown={onKeyDown}

@@ -14,13 +14,19 @@ export function OptionEditPane({
   prop,
   option,
   onBack,
-  onDeleted
+  onDeleted,
+  backLabel = 'Back',
+  canDelete = true
 }: {
   databaseId: string
   prop: PropertySchema
   option: SelectOption
   onBack?: () => void
   onDeleted?: () => void
+  /** The Back button's name, for a pane in a menu whose words are translated. */
+  backLabel?: string
+  /** False for an option the app relies on (the Tasks priorities): no "Delete option" at all. */
+  canDelete?: boolean
 }): JSX.Element {
   const [name, setName] = useState(option.name)
   // Only a name the user actually typed is written: an untouched input never
@@ -40,7 +46,7 @@ export function OptionEditPane({
     <div className="db-option-edit">
       <div className="db-option-edit-head">
         {onBack && (
-          <button type="button" className="db-mini-button" aria-label="Back" onClick={onBack}>
+          <button type="button" className="db-mini-button" aria-label={backLabel} onClick={onBack}>
             <ChevronLeft size={14} />
           </button>
         )}
@@ -66,19 +72,21 @@ export function OptionEditPane({
           }}
         />
       </div>
-      <button
-        type="button"
-        className="db-menu-row is-danger"
-        onClick={() => {
-          dirty.current = false
-          actions.deleteOption(databaseId, prop.id, option.id)
-          onDeleted?.()
-          onBack?.()
-        }}
-      >
-        <Trash size={14} />
-        <span>Delete option</span>
-      </button>
+      {canDelete && (
+        <button
+          type="button"
+          className="db-menu-row is-danger"
+          onClick={() => {
+            dirty.current = false
+            actions.deleteOption(databaseId, prop.id, option.id)
+            onDeleted?.()
+            onBack?.()
+          }}
+        >
+          <Trash size={14} />
+          <span>Delete option</span>
+        </button>
+      )}
       <div className="db-menu-heading">Colour</div>
       {L.OPTION_COLORS.map((color) => (
         <button

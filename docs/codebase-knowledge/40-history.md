@@ -1,7 +1,9 @@
 # History and ownership
 
-The whole visible history is 35 commits, all dated 2026-10-13, 30 of them non-merge
-(`git log`, this session). Dates therefore say nothing about pace; only order matters.
+At the 0.9.0 close the visible history is 352 commits, 210 of them non-merge, over twelve days
+from 2026-10-13 to 2026-10-25 (`git log`). Since 0.9.0 most commits come from the automated team
+(skill `.claude/skills/sel-team/SKILL.md`), several releases a week, so dates say little about
+pace; order matters more.
 
 ## Timeline of structural decisions
 
@@ -24,6 +26,12 @@ The whole visible history is 35 commits, all dated 2026-10-13, 30 of them non-me
 | 15 | The council and the connected programs (Codex, Gemini, Ollama, stdin) are removed | The owner asked for it ("remova o council"); a question goes to Herman alone, and a stored `herman.council` setting is ignored | branch release/0.7.2 |
 | 16 | Time blocks on Today and projects with a direction (0.8.0 E2, E3) | Asked in docs/plans/release-0.8.0.md: a block is the due date's own start and end (no new property, older copies read it as a time), never written to a calendar; a project's objective, next action and milestones live on the Tasks database block, progress is a count "without gamified percentage" | branch feat/0.8.0-agenda |
 | 17 | Weekly review (0.8.0 E1) | Asked in docs/plans/release-0.8.0.md: assisted, never autonomous, no score or streak; the week's three priorities are kept as a week focus on the Tasks database (Meditations has no page for a week) instead of rewriting priorities; the AI summary is only a hook | branch feat/0.8.0-review |
+| 18 | Any block can sit beside another (0.9.0 A1a) | Asked in docs/plans/release-0.9.0.md: rows reuse the `beside` prop, so nothing new is stored and 0.8.0 reads the same blocks stacked; the editor repairs a row inside `commit`, as part of the same undo step, rather than in each command; stale flags 0.8.0 left on databases are accepted (docs/team/decisions.md) | branch team/0.9.0/a1a-any-block-beside |
+| 19 | Drag a block to the side, or type /columns (0.9.0 A1b) | Asked in docs/plans/release-0.9.0.md: two drop positions, `left` and `right`, only beside a block of the page itself; the designer's open question settled as "a drop above or below a column never splits its row" (`dropInRow`); the side zone starts at the block's edge, not in its gutter, so a straight-down drag from the handle keeps dropping above and below | branch team/0.9.0/a1b-drag-side-columns |
+| 20 | Typing inside a column (0.9.0 A1c) | Asked in docs/plans/release-0.9.0.md: the key plans in structure.ts learn rows (`rowOfHead`) instead of the keyboard; decided while building: Enter at the very start of a head puts a new empty head in its place with the old head as its first child (its children follow, except under a toggle, list item or to-do, which keep theirs), so the empty line shows above it in the column, and Backspace in that empty head reverses it; Backspace at the start of a column's last line joins it to the line above instead of lifting it out of the row; Delete never pulls a head in, also from the block above the row | branch team/0.9.0/a1c-typing-in-columns |
+| 21 | Screenshots of every visible pull request (0.9.0 S0) | Asked by Érik first in docs/plans/release-0.9.0.md: a Playwright harness outside `src/` launches the built app of head and of the merge base on Windows, each seeded by its own `Repository`; the job that runs PR code holds only a read token, and a separate job with write access checks the artifact as untrusted data before committing the images to the orphan branch `team/screens` and editing one comment; the pointer leaves the window before each capture (ADR 11 below) | branch team/0.9.0/s0-screenshot-job, .github/workflows/screens.yml |
+| 22 | The build moves to Vite 8 and Rolldown (0.9.0 C2) | Asked in docs/plans/release-0.9.0.md (Dependabot #75, #76): electron-vite 6, `rolldownOptions`, `minify: 'oxc'`; the vendor chunk becomes a `codeSplitting` group and a second group keeps every module of the first screen in the entry, since Rolldown would otherwise split each module a lazy feature shares into a chunk preloaded at start-up; Electron stays on 44 | branch team/0.9.0/c2-toolchain-majors, electron.vite.config.ts:73, electron.vite.config.ts:114-127 |
+| 23 | A database's columns shaped from their menus (0.9.0 B1, B2, B3) | Asked in docs/plans/release-0.9.0.md: a property is named as it is added; a select's options are edited in the column's menu; the table's headers are reachable from the keyboard with Insert left/right, which writes the schema and the view's `visibleProperties` as one batch. The menus' words move into one bilingual module, src/renderer/src/database/copy.ts (en and pt-BR), the pattern editor/copy.ts follows; nothing new is stored | branches team/0.9.0/b1-name-property-on-add, team/0.9.0/b3-select-options-menu, team/0.9.0/b2-header-keyboard-insert |
 
 ## Hotspots (churn; say "repo is N days old" when churn is meaningless)
 
@@ -46,7 +54,7 @@ touched a file, not instability. Read them as "integration points every new feat
 
 | Area | Main author(s) | Risk |
 |---|---|---|
-| Entire repository | One person under two git names, "Érik S." (29) and "Érik Schünemann" (5, the merge commits) (`git shortlog -sn`, this session) | Truck factor 1 |
+| Entire repository | One person under three git names, "Érik S." (239), "Érik Schünemann" (64, mostly merges) and "erik-sc" (35, the automated team's commits and merges), plus 14 as "Claude" (`git shortlog -sn`, at the 0.9.0 close) | Truck factor 1 |
 | All feature commits | Each carries a `Co-Authored-By: Claude` trailer (commit 9c93ac1, commit 3d7fb14, commit adde475) | Rationale lives in commit bodies and code comments rather than in a second person's head |
 
 ## Candidate ADRs (inferred, not documented)
@@ -59,9 +67,10 @@ Each is inferred from code and commit messages; none exists as a decision record
 4. **AI output never writes directly.** Inline results wait for accept (src/renderer/src/ai/session.ts:1-3); proposals wait for Apply (commit 8acaec9).
 5. **Sync by plain git on files the user owns, not a server.** No token is stored (src/shared/sync.ts:4-5); commit 9c93ac1.
 6. **Conflict policy: merge field by field; where both sides changed the same thing differently the later edit wins, and the loser is kept as a version.** (src/main/sync/merge.ts:8-20, src/main/sync/engine.ts:778-791, src/main/db/repository.ts:1470-1479).
-7. **One runtime dependency.** Everything except the native SQLite module is bundled (electron.vite.config.ts:58-59, package.json:18-20).
+7. **Few runtime dependencies.** Everything is bundled except the native SQLite module and electron-updater, required only when an update check runs (electron.vite.config.ts:77-79, package.json:22-25).
 8. **Charts, diffing, iCalendar parsing and zip reading are hand-written rather than imported.** (src/renderer/src/database/views/chartPlot.tsx:178, src/renderer/src/versions/diff.ts:3-6, src/main/briefing/ical.ts:680, src/main/meetings/whisper/zip.ts:137); consistent with README.md:42.
-9. **Tests avoid Electron and a DOM library.** Services are Electron-free with injected clocks (src/main/herman/service.ts:69-70); no jsdom is installed (package.json:21-37).
+9. **Unit tests avoid Electron.** Services are Electron-free with injected clocks (src/main/herman/service.ts:69-70); components are tested in happy-dom rather than jsdom (package.json:26-50, "Testing" in 50-conventions.md). Only the screenshot harness (e2e/screens/, 0.9.0) launches the real app, and it gates nothing but the pictures.
 10. **Rename without data loss.** Legacy profile adoption and URL rewriting are kept as permanent code (src/main/legacy.ts:18, src/shared/legacy.ts:12); commit adde475.
+11. **Visible changes are seen before they merge, on the real app (0.9.0, S0).** Pull requests name scenarios in a `screens` block; the Screens workflow captures head and merge base on Windows through Playwright's Electron driver and posts the pairs as one comment (.github/workflows/screens.yml, e2e/screens/). The capture job holds only a read token; a separate job with write access checks the artifact as untrusted data before committing images to the orphan branch `team/screens`. The harness lives outside `src/` and the app has no test hooks for it.
 
 Abandoned approaches visible in history: emojis as page icons (commit 5f979c1), the "Glass" look as default (src/renderer/src/appearance/presets.ts:4-5; commit 5f843cb), two concurrent AI runs (commit 8acaec9).

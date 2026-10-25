@@ -9,6 +9,7 @@ import { MIME_BLOCKS } from './clipboard'
 import { EditorController } from './controller'
 import type { DropTarget } from './types'
 import { isTextType } from './blockTypes'
+import { canDropBeside, dropInRow } from './structure'
 import { BlockList } from './BlockView'
 import { Backlinks } from './Backlinks'
 import { PageHeader } from './PageHeader'
@@ -46,6 +47,20 @@ const DRAG_SELECT_THRESHOLD = 6
 const DROP_INSIDE_OFFSET = 56
 /** Fallback probe (px from the body's left edge) for finding the block on a row when the pointer is in the margin. */
 const ROW_PROBE_OFFSET = 120
+/** The side zones of a block are its outer quarters, at most this wide (px), so that up and down drags keep most of it. */
+const SIDE_ZONE_MAX = 96
+
+/**
+ * Whether `x` is in a side zone of the block drawn in `r`: its left quarter, or its right quarter
+ * and anything right of it (the page's margin). Left of the block is its gutter, where the drag
+ * handle is: a drag that starts there and goes straight down drops above or below, as it always did.
+ */
+function sideZone(x: number, r: DOMRect): 'left' | 'right' | null {
+  const zone = Math.min(r.width / 4, SIDE_ZONE_MAX)
+  if (x > r.right - zone) return 'right'
+  if (x >= r.left && x < r.left + zone) return 'left'
+  return null
+}
 
 function RowPropertiesGate({ page, onOpenPage }: { page: Block; onOpenPage: PageEditorProps['onOpenPage'] }): JSX.Element | null {
   const parent = useBlock(page.parentId)
@@ -200,6 +215,13 @@ function PageEditorInner({ pageId, onOpenPage, bodyOnly = false }: PageEditorPro
   const own = (target: EventTarget | null): target is HTMLElement =>
     target instanceof HTMLElement && !!rootRef.current?.contains(target) && !target.closest(FOREIGN)
 
+  /**
+   * The same for a drag passing over the editor, whose target may also be an icon (an SVG
+   * element): the gutter of a column, with its icons, fills the gap where a side drop is aimed.
+   */
+  const ownDrag = (target: EventTarget | null): boolean =>
+    target instanceof Element && !!rootRef.current?.contains(target) && !target.closest(FOREIGN)
+
   const blockElAt = (x: number, y: number): HTMLElement | null => {
     const root = rootRef.current
     if (!root) return null
@@ -209,7 +231,38 @@ function PageEditorInner({ pageId, onOpenPage, bodyOnly = false }: PageEditorPro
       return blk
     }
     const body = root.querySelector('.pe-body')?.getBoundingClientRect()
-    return pick(x) ?? (body ? pick(body.left + Math.min(body.width / 2, ROW_PROBE_OFFSET)) : null)
+    const found = pick(x)
+    if (found || !body) return found
+    const probed = pick(body.left + Math.min(body.width / 2, ROW_PROBE_OFFSET))
+    // In the margin beside a row of columns: the column on that side, not whichever one the probe hit.
+    const row = probed?.parentElement?.classList.contains('blk-beside') ? probed.parentElement : null
+    if (!row) return probed
+    // Only the columns on the pointer's line, should the row have wrapped.
+    const columns = [...row.querySelectorAll<HTMLElement>(':scope > .blk')].filter((column) => {
+      const box = column.getBoundingClientRect()
+      return y >= box.top && y <= box.bottom
+    })
+    const r = row.getBoundingClientRect()
+    if (x >= r.right) return columns[columns.length - 1] ?? probed
+    if (x <= r.left) return columns[0] ?? probed
+    return probed
+  }
+
+  /** In the gap between two columns of a row (layout.ts): the column on its left, whose right side the gap is. */
+  const gapColumnAt = (x: number, y: number): HTMLElement | null => {
+    const root = rootRef.current
+    const hit = document.elementFromPoint(x, y)
+    const row = hit instanceof Element ? hit.closest('.blk-beside') : null
+    if (!root || !row || !root.contains(row)) return null
+    const columns = [...row.querySelectorAll<HTMLElement>(':scope > .blk')]
+    const content = (column: HTMLElement): DOMRect => (column.querySelector(':scope > .blk-row') ?? column).getBoundingClientRect()
+    for (let i = 0; i + 1 < columns.length; i++) {
+      const left = content(columns[i])
+      const right = content(columns[i + 1])
+      // Columns that wrapped onto a line of their own have no gap between them.
+      if (Math.abs(left.top - right.top) <= 1 && x > left.right && x < right.left) return columns[i]
+    }
+    return null
   }
 
   // ---- keyboard ---------------------------------------------------------
@@ -407,19 +460,25 @@ function PageEditorInner({ pageId, onOpenPage, bodyOnly = false }: PageEditorPro
 
   const onDragOver = (e: DragEvent<HTMLDivElement>): void => {
     const files = e.dataTransfer.types.includes('Files')
-    if ((!ctrl.dragIds && !files) || !own(e.target)) return
+    if ((!ctrl.dragIds && !files) || !ownDrag(e.target)) return
     e.preventDefault()
     e.dataTransfer.dropEffect = ctrl.dragIds ? 'move' : 'copy'
     let drop: DropTarget | null = null
-    const el = blockElAt(e.clientX, e.clientY)
+    const ids = ctrl.dragIds
+    const gap = ids ? gapColumnAt(e.clientX, e.clientY) : null
+    const el = gap ?? blockElAt(e.clientX, e.clientY)
     const id = el?.dataset.blockId
     if (el && id) {
       const row = el.querySelector(':scope > .blk-row') ?? el
       const r = row.getBoundingClientRect()
       const b = getBlock(id)
-      if (e.clientY < r.top + r.height / 2) drop = { id, pos: 'before' }
+      // Beside the block first (blocks only, files never make columns), then above, inside or below it.
+      const side = ids && canDropBeside(ctrl.tree, ids, id) ? (gap ? 'right' : sideZone(e.clientX, r)) : null
+      if (side) drop = { id, pos: side }
+      else if (e.clientY < r.top + r.height / 2) drop = { id, pos: 'before' }
       else if (b && isTextType(b.type) && e.clientX > r.left + DROP_INSIDE_OFFSET) drop = { id, pos: 'inside' }
       else drop = { id, pos: 'after' }
+      if (ids) drop = dropInRow(ctrl.tree, ids, drop)
     } else {
       const last = ctrl.lastBlock()
       if (last) drop = { id: last, pos: 'after' }
@@ -430,7 +489,7 @@ function PageEditorInner({ pageId, onOpenPage, bodyOnly = false }: PageEditorPro
 
   const onDrop = (e: DragEvent<HTMLDivElement>): void => {
     const files = Array.from(e.dataTransfer.files)
-    if ((!ctrl.dragIds && !files.length) || !own(e.target)) return
+    if ((!ctrl.dragIds && !files.length) || !ownDrag(e.target)) return
     e.preventDefault()
     const drop = ctrl.ui.getState().drop
     const ids = ctrl.dragIds
@@ -474,7 +533,7 @@ function PageEditorInner({ pageId, onOpenPage, bodyOnly = false }: PageEditorPro
             )}
             <div className="pe-content pe-body">
               {loaded && <AiSlot anchorId={null} />}
-              {loaded ? <BlockList ids={page.content} /> : <Skeleton />}
+              {loaded ? <BlockList ids={page.content} top /> : <Skeleton />}
             </div>
             <div
               className="pe-tail"

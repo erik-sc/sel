@@ -138,7 +138,8 @@ export const PAGE_KEYS: readonly PageKey[] = [
   // (tasks/refineWalk.ts, refineKeyAction): letters, digits and signs, unmodified.
   { where: 'task rows and the refine card', accelerator: 'Enter', key: 'enter' },
   { where: 'task rows and the refine card', accelerator: 'Control+Enter', key: 'enter', ctrl: true },
-  { where: 'task rows and the refine card', accelerator: 'F2', key: 'f2' },
+  // F2 on a table's column header opens its menu, name focused: rename (database/views/TableView.tsx).
+  { where: 'task rows, the refine card and table headers', accelerator: 'F2', key: 'f2' },
   { where: 'task rows and the refine card', accelerator: 'D', key: 'd' },
   { where: 'task rows and the refine card', accelerator: 'R', key: 'r' },
   { where: 'task rows and the refine card', accelerator: 'L', key: 'l' },
