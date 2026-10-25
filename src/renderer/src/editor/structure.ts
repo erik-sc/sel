@@ -381,8 +381,9 @@ export function canMakeColumns(tree: Tree, id: string): boolean {
 
 /**
  * Ops for the slash items "2 columns" and "3 columns" typed in the block `id`: a row of `count`
- * empty text blocks right after it, or in its place when it is an empty text block with nothing
- * under it (`title` is its text once the slash query is taken out). Returns the ops and the first
+ * empty text blocks right after it, or in its place when it holds nothing else: no text (`title`
+ * is its text once the slash query is taken out) and nothing under it, whatever its kind (an empty
+ * heading or to-do too). Returns the ops and the first
  * column, where the caret goes; null when no row may be made there (`canMakeColumns`).
  */
 export function columnsOps(
@@ -395,7 +396,8 @@ export function columnsOps(
   const b = tree.get(id)
   if (!b || !canMakeColumns(tree, id) || count < 2 || count > MAX_BESIDE) return null
   const ops: Op[] = []
-  const replace = b.type === 'text' && rtLength(title) === 0 && b.content.length === 0
+  // Nothing else in the block (an empty heading or to-do too, as the design note says): the row takes its place.
+  const replace = isTextType(b.type) && rtLength(title) === 0 && b.content.length === 0
   if (!replace) ops.push({ op: 'update', id, patch: { props: { title } } })
   let after = id
   const columns: string[] = []
@@ -493,6 +495,12 @@ export function moveToOps(tree: Tree, ids: readonly string[], drop: DropTarget):
   for (const id of tops) {
     ops.push({ op: 'move', id, parentId: place.parentId, afterId: after })
     after = id
+  }
+  // Above or below a block of the page is a line of its own, as the drop line shows: the first
+  // block dropped never joins the row it lands after (the last column of a row, dragged below it).
+  const first = tree.get(tops[0])
+  if (drop.pos !== 'inside' && place.parentId === tree.pageId && first?.props.beside === true) {
+    ops.push({ op: 'update', id: first.id, patch: { props: { beside: null } } })
   }
   return { ops, moved: tops }
 }

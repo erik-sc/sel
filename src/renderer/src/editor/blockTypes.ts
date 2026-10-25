@@ -375,8 +375,9 @@ export function foldSearch(text: string): string {
 
 /**
  * The items for a query, in English or Portuguese, accents and case aside: those whose
- * label starts with it, then those with a word of the label that does ("col": "2 columns"), then
- * those with a search word that does, then those that merely contain it.
+ * label starts with it, then the column items when a word of their label does ("col": "2 columns",
+ * before Toggle's "collapse"), then those with a search word that does, then those that merely
+ * contain it. Only the column items get that second rank, so no other query changes its order.
  * `columns` false leaves out "2 columns" and "3 columns" (the block is nested or in a row already).
  */
 export function filterSlashItems(query: string, ai = false, columns = true): SlashItem[] {
@@ -392,7 +393,7 @@ export function filterSlashItems(query: string, ai = false, columns = true): Sla
     const name = foldSearch(item.label)
     const keywords = foldSearch(`${item.keywords} ${SLASH_KEYWORDS_PT[item.id] ?? ''}`)
     if (name.startsWith(q)) label.push(item)
-    else if (name.split(' ').some((w) => w.startsWith(q))) labelWord.push(item)
+    else if (item.kind === 'columns' && name.split(' ').some((w) => w.startsWith(q))) labelWord.push(item)
     else if (keywords.split(' ').some((k) => k.startsWith(q))) word.push(item)
     else if (name.includes(q) || keywords.includes(q)) contains.push(item)
   }

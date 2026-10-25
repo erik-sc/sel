@@ -231,7 +231,21 @@ function PageEditorInner({ pageId, onOpenPage, bodyOnly = false }: PageEditorPro
       return blk
     }
     const body = root.querySelector('.pe-body')?.getBoundingClientRect()
-    return pick(x) ?? (body ? pick(body.left + Math.min(body.width / 2, ROW_PROBE_OFFSET)) : null)
+    const found = pick(x)
+    if (found || !body) return found
+    const probed = pick(body.left + Math.min(body.width / 2, ROW_PROBE_OFFSET))
+    // In the margin beside a row of columns: the column on that side, not whichever one the probe hit.
+    const row = probed?.parentElement?.classList.contains('blk-beside') ? probed.parentElement : null
+    if (!row) return probed
+    // Only the columns on the pointer's line, should the row have wrapped.
+    const columns = [...row.querySelectorAll<HTMLElement>(':scope > .blk')].filter((column) => {
+      const box = column.getBoundingClientRect()
+      return y >= box.top && y <= box.bottom
+    })
+    const r = row.getBoundingClientRect()
+    if (x >= r.right) return columns[columns.length - 1] ?? probed
+    if (x <= r.left) return columns[0] ?? probed
+    return probed
   }
 
   /** In the gap between two columns of a row (layout.ts): the column on its left, whose right side the gap is. */

@@ -195,6 +195,20 @@ describe('dragging to the side and /columns (A1b)', () => {
       expect(filterSlashItems(query)[0]?.id, query).toBe('columns-2')
     }
     expect(filterSlashItems('3 col')[0]?.id).toBe('columns-3')
+    // The order of every other query stays what it was before the column items.
+    const first: Record<string, string> = {
+      no: 'callout',
+      not: 'callout',
+      note: 'callout',
+      ta: 'todo',
+      tab: 'db-table',
+      h: 'h1',
+      to: 'todo',
+      bul: 'bullet',
+      3: 'columns-3',
+      col: 'columns-2'
+    }
+    for (const [query, id] of Object.entries(first)) expect(filterSlashItems(query)[0]?.id, query).toBe(id)
     expect(filterSlashItems('col', false, false).some((item) => item.kind === 'columns')).toBe(false)
   })
 

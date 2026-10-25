@@ -713,6 +713,14 @@ describe('moveToOps beside a block (left and right)', () => {
     expect(rowsAfter(w, ops).rows.at(-1)).toEqual(['z', 'q1'])
   })
 
+  it('drops a column below its row on its own line, as the drop line shows', () => {
+    const w = rowsWorld()
+    const { ops } = moveToOps(treeOf(w), ['r2'], { id: 'r3', pos: 'after' })
+    const after = applyAndUndo(w, ops)
+    expect(after.page.content.slice(2, 5)).toEqual(['r1', 'r3', 'r2'])
+    expect(rowsAfter(w, ops).rows.slice(2, 4)).toEqual([['r1', 'r3'], ['r2']])
+  })
+
   it('gives a side drop a place in the list: after the target, or before it', () => {
     const w = rowsWorld()
     expect(placeForDrop(treeOf(w), { id: 'h', pos: 'right' })).toEqual({ parentId: 'page', afterId: 'h' })
@@ -770,6 +778,18 @@ describe('columnsOps (the slash items "2 columns" and "3 columns")', () => {
       ['text', []],
       ['text', []]
     ])
+  })
+
+  it('replaces an empty heading or to-do as well, and keeps one that holds blocks', () => {
+    for (const type of ['heading_2', 'to_do'] as const) {
+      const w: BlockMap = { ...rowsWorld(), e: block('e', type, 'page', [], { title: [] }) }
+      w.page = { ...w.page, content: ['h', 'e', 'z'] }
+      const made = columnsOps(treeOf(w), 'e', [], 2, ids())
+      if (!made) throw new Error('expected a row')
+      expect(rowsAfter(w, made.ops).rows, type).toEqual([['h'], ['n1', 'n2'], ['z']])
+    }
+    const made = columnsOps(treeOf(rowsWorld()), 'q', [], 2, ids())
+    expect(made?.ops.some((op) => op.op === 'delete')).toBe(false)
   })
 
   it('puts the row right after a block that keeps other text', () => {
