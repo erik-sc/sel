@@ -13,9 +13,17 @@ export interface EditorCopy {
   placedBeside: string
   /** Said after the block was placed below the one before it. */
   placedBelow: string
-  /** The name of a row of blocks side by side, for screen readers. */
+  /**
+   * The name of a row of blocks side by side, for screen readers; also the slash item that makes
+   * one ("2 columns"), and what is said once it is made.
+   */
   columns: (count: number) => string
+  /** The slash item's hint under "2 columns" and "3 columns". */
+  columnsHint: (count: number) => string
 }
+
+const COUNT_EN: Readonly<Record<number, string>> = { 2: 'Two', 3: 'Three', 4: 'Four' }
+const COUNT_PT: Readonly<Record<number, string>> = { 2: 'Dois', 3: 'Três', 4: 'Quatro' }
 
 export const EDITOR_COPY: Record<HomeLocale, EditorCopy> = {
   en: {
@@ -23,14 +31,16 @@ export const EDITOR_COPY: Record<HomeLocale, EditorCopy> = {
     placeBelow: 'Place below the previous block',
     placedBeside: 'Placed beside',
     placedBelow: 'Placed below',
-    columns: (count) => `${count} columns`
+    columns: (count) => `${count} columns`,
+    columnsHint: (count) => `${COUNT_EN[count] ?? count} blocks side by side`
   },
   'pt-BR': {
     placeBeside: 'Colocar ao lado do bloco anterior',
     placeBelow: 'Colocar abaixo do bloco anterior',
     placedBeside: 'Colocado ao lado',
     placedBelow: 'Colocado abaixo',
-    columns: (count) => `${count} colunas`
+    columns: (count) => `${count} colunas`,
+    columnsHint: (count) => `${COUNT_PT[count] ?? count} blocos lado a lado`
   }
 }
 

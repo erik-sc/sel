@@ -2,9 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { Block, BlockProps, BlockType, Op } from '@shared/types'
 import { applyOpsToMap, type BlockMap } from '../store/ops'
 import { invertOps } from './ops'
+import { rowRepairOps, rowsOf } from './layout'
 import {
   backspacePlan,
+  canDropBeside,
+  canMakeColumns,
+  columnsOps,
   deleteForwardPlan,
+  dropInRow,
   indentOps,
   isDescendant,
   moveOps,
@@ -12,6 +17,7 @@ import {
   nextVisible,
   order,
   outdentOps,
+  placeForDrop,
   prevVisible,
   redoPlan,
   splitPlan,
@@ -561,5 +567,227 @@ describe('undo of deletes and redo of created pages', () => {
     const { inverse } = invertOps(ops, (id) => w[id])
     const undone = applyOpsToMap(applyOpsToMap(w, ops).map, inverse).map
     expect(redoPlan(ops, (id) => undone[id])).toEqual({ restore: [], ops })
+  })
+})
+
+/**
+ * A page with rows (layout.ts):
+ * page
+ * ├─ h      heading "Head"
+ * ├─ p      text "Para"
+ * ├─ r1     text "One"   ┐
+ * ├─ r2     text "Two"   │ one row
+ * ├─ r3     text "Three" ┘
+ * ├─ f1…f4  text, one full row of four
+ * ├─ q      text "Quiet"
+ * │  └─ q1  text "nested"
+ * ├─ db     database
+ * ├─ sub    page "Sub"
+ * └─ z      text "Zulu"
+ */
+function rowsWorld(): BlockMap {
+  const text = (id: string, title: string, beside = false, content: string[] = []): Block =>
+    block(id, 'text', 'page', content, { title: [[title]], ...(beside ? { beside: true } : {}) })
+  const list = [
+    block('page', 'page', null, ['h', 'p', 'r1', 'r2', 'r3', 'f1', 'f2', 'f3', 'f4', 'q', 'db', 'sub', 'z']),
+    block('h', 'heading_1', 'page', [], { title: [['Head']] }),
+    text('p', 'Para'),
+    text('r1', 'One'),
+    text('r2', 'Two', true),
+    text('r3', 'Three', true),
+    text('f1', 'F1'),
+    text('f2', 'F2', true),
+    text('f3', 'F3', true),
+    text('f4', 'F4', true),
+    text('q', 'Quiet', false, ['q1']),
+    block('q1', 'text', 'q', [], { title: [['nested']] }),
+    block('db', 'database', 'page', [], { title: [['Tasks']] }),
+    block('sub', 'page', 'page', [], { title: [['Sub']] }),
+    text('z', 'Zulu')
+  ]
+  return Object.fromEntries(list.map((b) => [b.id, b]))
+}
+
+/** The page's rows after `ops` and the row repair the controller adds in the same commit, as ids. */
+function rowsAfter(before: BlockMap, ops: Op[]): { rows: string[][]; repair: Op[]; map: BlockMap } {
+  const repair = rowRepairOps(ops, (id) => before[id])
+  const map = applyOpsToMap(before, [...ops, ...repair]).map
+  const kids = map.page.content.map((id) => map[id]).filter((b) => !b.trashedAt)
+  return { rows: rowsOf(kids, { top: true }).map((row) => row.map((b) => b.id)), repair, map }
+}
+
+describe('moveToOps beside a block (left and right)', () => {
+  it('puts one block beside a lone block, on its right or on its left', () => {
+    const w = rowsWorld()
+    const right = moveToOps(treeOf(w), ['p'], { id: 'h', pos: 'right' })
+    expect(right.moved).toEqual(['p'])
+    applyAndUndo(w, right.ops)
+    expect(rowsAfter(w, right.ops).rows.slice(0, 2)).toEqual([
+      ['h', 'p'],
+      ['r1', 'r2', 'r3']
+    ])
+    expect(rowsAfter(w, right.ops).repair).toEqual([])
+
+    const left = moveToOps(treeOf(w), ['z'], { id: 'h', pos: 'left' })
+    const after = applyAndUndo(w, left.ops)
+    expect(after.page.content.slice(0, 3)).toEqual(['z', 'h', 'p'])
+    expect(after.z.props.beside).toBeUndefined()
+    expect(after.h.props.beside).toBe(true)
+    expect(rowsAfter(w, left.ops).rows[0]).toEqual(['z', 'h'])
+  })
+
+  it('puts a block into an existing row without splitting it, from either side of the gap', () => {
+    const w = rowsWorld()
+    for (const drop of [
+      { id: 'r1', pos: 'right' },
+      { id: 'r2', pos: 'left' }
+    ] as const) {
+      const { ops } = moveToOps(treeOf(w), ['p'], drop)
+      const after = applyAndUndo(w, ops)
+      expect(after.page.content.slice(0, 5)).toEqual(['h', 'r1', 'p', 'r2', 'r3'])
+      const { rows, repair } = rowsAfter(w, ops)
+      expect(rows.slice(0, 2)).toEqual([['h'], ['r1', 'p', 'r2', 'r3']])
+      expect(repair).toEqual([])
+    }
+  })
+
+  it('drags a row’s head out: the next column becomes the head of what is left', () => {
+    const w = rowsWorld()
+    const { ops } = moveToOps(treeOf(w), ['r1'], { id: 'h', pos: 'right' })
+    applyAndUndo(w, ops)
+    const { rows, repair, map } = rowsAfter(w, ops)
+    expect(rows.slice(0, 3)).toEqual([['h', 'r1'], ['p'], ['r2', 'r3']])
+    expect(repair).toEqual([{ op: 'update', id: 'r2', patch: { props: { beside: null } } }])
+    // The repair is part of the same step: undoing both brings the page back.
+    const all = [...ops, ...repair]
+    expect(shape(applyOpsToMap(map, invertOps(all, (id) => w[id]).inverse).map)).toEqual(shape(w))
+    // Beside the block right above it, the head does not move in the list: its row still splits.
+    const up = moveToOps(treeOf(w), ['r1'], { id: 'p', pos: 'right' }).ops
+    applyAndUndo(w, up)
+    expect(rowsAfter(w, up).rows.slice(0, 3)).toEqual([['h'], ['p', 'r1'], ['r2', 'r3']])
+  })
+
+  it('reorders the columns of a row, the first one keeping no mark', () => {
+    const w = rowsWorld()
+    const { ops } = moveToOps(treeOf(w), ['r3'], { id: 'r1', pos: 'left' })
+    applyAndUndo(w, ops)
+    const { rows, map } = rowsAfter(w, ops)
+    expect(rows[2]).toEqual(['r3', 'r1', 'r2'])
+    expect(map.r3.props.beside).toBeUndefined()
+    expect(map.r1.props.beside).toBe(true)
+  })
+
+  it('makes several dragged blocks several columns, in their order', () => {
+    const w = rowsWorld()
+    const { ops, moved } = moveToOps(treeOf(w), ['z', 'p'], { id: 'h', pos: 'right' })
+    expect(moved).toEqual(['p', 'z'])
+    applyAndUndo(w, ops)
+    expect(rowsAfter(w, ops).rows[0]).toEqual(['h', 'p', 'z'])
+  })
+
+  it('refuses a fifth column, and a block beside itself or where it already is', () => {
+    const w = rowsWorld()
+    expect(moveToOps(treeOf(w), ['p'], { id: 'f2', pos: 'right' }).ops).toEqual([])
+    expect(moveToOps(treeOf(w), ['p', 'z'], { id: 'r1', pos: 'left' }).ops).toEqual([])
+    expect(canDropBeside(treeOf(w), ['p'], 'f1')).toBe(false)
+    // A full row may still be reordered: nothing joins it.
+    const reorder = moveToOps(treeOf(w), ['f4'], { id: 'f1', pos: 'left' }).ops
+    expect(rowsAfter(w, reorder).rows[3]).toEqual(['f4', 'f1', 'f2', 'f3'])
+    for (const pos of ['left', 'right'] as const) {
+      expect(moveToOps(treeOf(w), ['p'], { id: 'p', pos }).ops).toEqual([])
+      expect(moveToOps(treeOf(w), ['q'], { id: 'q', pos }).ops).toEqual([])
+    }
+    expect(moveToOps(treeOf(w), ['r2'], { id: 'r1', pos: 'right' }).ops).toEqual([])
+    expect(moveToOps(treeOf(w), ['r1'], { id: 'r2', pos: 'left' }).ops).toEqual([])
+  })
+
+  it('refuses sub-pages and nested targets, and a block beside one it holds', () => {
+    const w = rowsWorld()
+    expect(moveToOps(treeOf(w), ['sub'], { id: 'h', pos: 'right' }).ops).toEqual([])
+    expect(moveToOps(treeOf(w), ['p'], { id: 'sub', pos: 'left' }).ops).toEqual([])
+    expect(moveToOps(treeOf(w), ['p'], { id: 'q1', pos: 'right' }).ops).toEqual([])
+    expect(moveToOps(treeOf(w), ['q'], { id: 'q1', pos: 'right' }).ops).toEqual([])
+    // A nested block may be dragged out beside a block of the page.
+    const { ops } = moveToOps(treeOf(w), ['q1'], { id: 'z', pos: 'right' })
+    applyAndUndo(w, ops)
+    expect(rowsAfter(w, ops).rows.at(-1)).toEqual(['z', 'q1'])
+  })
+
+  it('gives a side drop a place in the list: after the target, or before it', () => {
+    const w = rowsWorld()
+    expect(placeForDrop(treeOf(w), { id: 'h', pos: 'right' })).toEqual({ parentId: 'page', afterId: 'h' })
+    expect(placeForDrop(treeOf(w), { id: 'p', pos: 'left' })).toEqual({ parentId: 'page', afterId: 'h' })
+  })
+})
+
+describe('dropInRow (above and below a column)', () => {
+  const w = rowsWorld()
+  const at = (dragged: string[], id: string, pos: 'before' | 'after'): unknown => dropInRow(treeOf(w), dragged, { id, pos })
+
+  it('never splits a row', () => {
+    expect(at(['p'], 'r1', 'before')).toEqual({ id: 'r1', pos: 'before' })
+    expect(at(['p'], 'r2', 'before')).toEqual({ id: 'r2', pos: 'left' })
+    expect(at(['p'], 'r1', 'after')).toEqual({ id: 'r1', pos: 'inside' })
+    expect(at(['p'], 'r3', 'after')).toEqual({ id: 'r3', pos: 'after' })
+    // A full row has no room on the side: above it instead.
+    expect(at(['p'], 'f3', 'before')).toEqual({ id: 'f1', pos: 'before' })
+    // A sub-page cannot be a column either.
+    expect(at(['sub'], 'r2', 'before')).toEqual({ id: 'r1', pos: 'before' })
+  })
+
+  it('leaves a lone block, a nested one and a column dragged over itself as they are', () => {
+    expect(at(['p'], 'h', 'after')).toEqual({ id: 'h', pos: 'after' })
+    expect(at(['p'], 'q1', 'before')).toEqual({ id: 'q1', pos: 'before' })
+    // Over its own top half a column stays where it is (moveToOps refuses it), not above its row.
+    expect(at(['r2'], 'r2', 'before')).toEqual({ id: 'r2', pos: 'before' })
+    expect(moveToOps(treeOf(w), ['r2'], { id: 'r2', pos: 'before' }).ops).toEqual([])
+  })
+
+  it('drops below the row for a column that cannot hold children', () => {
+    const map = rowsWorld()
+    map.page = { ...map.page, content: ['h', 'db', 'z'] }
+    map.z = { ...map.z, props: { ...map.z.props, beside: true } }
+    expect(dropInRow(treeOf(map), ['p'], { id: 'h', pos: 'before' })).toEqual({ id: 'h', pos: 'before' })
+    map.db = { ...map.db, props: { ...map.db.props, beside: true } }
+    expect(dropInRow(treeOf(map), ['p'], { id: 'db', pos: 'after' })).toEqual({ id: 'z', pos: 'after' })
+  })
+})
+
+describe('columnsOps (the slash items "2 columns" and "3 columns")', () => {
+  it('replaces an empty text block with a row of empty text blocks, in one batch', () => {
+    const w: BlockMap = { ...rowsWorld(), e: block('e', 'text', 'page', [], { title: [] }) }
+    w.page = { ...w.page, content: ['h', 'e', 'z'] }
+    const made = columnsOps(treeOf(w), 'e', [], 3, ids())
+    if (!made) throw new Error('expected a row')
+    expect(made.first).toBe('n1')
+    applyAndUndo(w, made.ops)
+    const { rows, repair, map } = rowsAfter(w, made.ops)
+    expect(rows).toEqual([['h'], ['n1', 'n2', 'n3'], ['z']])
+    expect(repair).toEqual([])
+    expect(map.e).toBeUndefined()
+    expect(['n1', 'n2', 'n3'].map((id) => [map[id].type, map[id].props.title ?? []])).toEqual([
+      ['text', []],
+      ['text', []],
+      ['text', []]
+    ])
+  })
+
+  it('puts the row right after a block that keeps other text', () => {
+    const w = rowsWorld()
+    const made = columnsOps(treeOf(w), 'p', [['Para!']], 2, ids())
+    if (!made) throw new Error('expected a row')
+    const after = applyAndUndo(w, made.ops)
+    expect(after.page.content.slice(0, 4)).toEqual(['h', 'p', 'n1', 'n2'])
+    expect(after.p.props.title).toEqual([['Para!']])
+    expect(rowsAfter(w, made.ops).rows.slice(1, 3)).toEqual([['p'], ['n1', 'n2']])
+  })
+
+  it('is not offered in a column or a nested block', () => {
+    const w = rowsWorld()
+    expect(canMakeColumns(treeOf(w), 'p')).toBe(true)
+    expect(canMakeColumns(treeOf(w), 'r2')).toBe(false)
+    expect(canMakeColumns(treeOf(w), 'r1')).toBe(false)
+    expect(canMakeColumns(treeOf(w), 'q1')).toBe(false)
+    expect(columnsOps(treeOf(w), 'q1', [], 2, ids())).toBeNull()
   })
 })

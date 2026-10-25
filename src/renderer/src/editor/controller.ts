@@ -500,7 +500,9 @@ export class EditorController {
   moveTo(ids: string[], drop: DropTarget): void {
     this.flushAll()
     const { ops, moved } = moveToOps(this.tree, ids, drop)
-    if (ops.length) this.commit(ops, { after: { kind: 'blocks', ids: moved } })
+    if (!ops.length) return
+    this.commit(ops, { after: { kind: 'blocks', ids: moved } })
+    if (drop.pos === 'left' || drop.pos === 'right') announce(editorCopy().placedBeside)
   }
 
   dropFiles(files: File[], drop: DropTarget | null): Promise<void> {

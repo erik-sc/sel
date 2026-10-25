@@ -187,7 +187,9 @@ export async function dropFiles(ctrl: EditorController, files: readonly File[], 
     if (url) nodes.push(imageNode(url))
   }
   if (!nodes.length) return
-  // Resolved after the uploads: the drop target may have changed meanwhile.
-  const place = (drop && placeForDrop(ctrl.tree, drop)) || placeFor(ctrl, null)
+  // Resolved after the uploads: the drop target may have changed meanwhile. Files dropped beside a
+  // block go below it: images do not make columns by a drop.
+  const at = drop && (drop.pos === 'left' || drop.pos === 'right') ? { id: drop.id, pos: 'after' as const } : drop
+  const place = (at && placeForDrop(ctrl.tree, at)) || placeFor(ctrl, null)
   insertNodes(ctrl, nodes, place)
 }

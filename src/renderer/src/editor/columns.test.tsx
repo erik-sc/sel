@@ -12,7 +12,8 @@ import { SnapshotView } from '@/versions/ReadOnlyBlocks'
 import { BlockList } from './BlockView'
 import { EditorContext } from './context'
 import { EditorController } from './controller'
-import { BlockMenu } from './menus'
+import { BlockMenu, SlashMenu } from './menus'
+import { filterSlashItems } from './blockTypes'
 
 const block = (id: string, type: BlockType, parentId: string, props: BlockProps = {}, content: string[] = []): Block => ({
   id,
@@ -122,6 +123,83 @@ describe('the controller and rows', () => {
     expect(beside('c')).toBe(true)
     await act(() => new Promise((resolve) => setTimeout(resolve, 80)))
     expect(document.querySelector('[data-announcer]')?.textContent).toBe('Colocado ao lado')
+  })
+})
+
+describe('dragging to the side and /columns (A1b)', () => {
+  const beside = (id: string): unknown => getBlock(id)?.props.beside
+  const said = async (): Promise<string | null | undefined> => {
+    await act(() => new Promise((resolve) => setTimeout(resolve, 80)))
+    return document.querySelector('[data-announcer]')?.textContent
+  }
+
+  it('drops a row’s head beside another block in one step, says so, and one undo puts both rows back', async () => {
+    await act(async () => putBlocks(PAGE))
+    const ctrl = new EditorController('pg')
+    await act(async () => ctrl.moveTo(['r1'], { id: 'c', pos: 'right' }))
+    expect(getBlock('pg')?.content).toEqual(['t', 'c', 'r1', 'r2', 'r3'])
+    expect([beside('c'), beside('r1'), beside('r2'), beside('r3')]).toEqual([true, true, undefined, true])
+    expect(await said()).toBe('Placed beside')
+    await act(async () => ctrl.undo())
+    expect(getBlock('pg')?.content).toEqual(PAGE[0].content)
+    expect([beside('r1'), beside('r2')]).toEqual([undefined, true])
+  })
+
+  it('makes a row of three empty columns from "/3 columns" in one step, the caret in the first', async () => {
+    const slashed = block('e', 'text', 'pg', { title: [['/3']] })
+    await act(async () => putBlocks([...PAGE.map((b) => (b.id === 'pg' ? { ...b, content: [...b.content, 'e'] } : b)), slashed]))
+    const ctrl = new EditorController('pg')
+    const rect = new DOMRect(0, 0, 10, 10)
+    ctrl.ui.setState({ slash: { blockId: 'e', from: 0, hasSlash: true, columns: true, query: '3', index: 0, rect } })
+    const item = filterSlashItems('3', false, true).find((i) => i.id === 'columns-3')
+    if (!item) throw new Error('no "3 columns" item')
+    await act(async () => ctrl.runSlash(item))
+    const made = getBlock('pg')?.content.slice(5) ?? []
+    expect(made).toHaveLength(3)
+    expect(getBlock('e')).toBeUndefined()
+    expect(made.map((id) => [getBlock(id)?.type, beside(id)])).toEqual([
+      ['text', undefined],
+      ['text', true],
+      ['text', true]
+    ])
+    expect(await said()).toBe('3 columns')
+    await act(async () => ctrl.undo())
+    expect(getBlock('pg')?.content.slice(5)).toEqual(['e'])
+    expect(getBlock('e')?.props.title).toEqual([['/3']])
+  })
+
+  async function slashLabels(blockId: string, columns: boolean, query: string): Promise<string[]> {
+    await act(async () => putBlocks(PAGE))
+    const ctrl = new EditorController('pg')
+    ctrl.ui.setState({ slash: { blockId, from: 0, hasSlash: true, columns, query, index: 0, rect: new DOMRect(0, 0, 10, 10) } })
+    await render(
+      <EditorContext.Provider value={{ ctrl, onOpenPage: () => {} }}>
+        <SlashMenu />
+      </EditorContext.Provider>
+    )
+    return [...document.querySelectorAll('[role="option"]')].map((el) => el.textContent ?? '')
+  }
+
+  it('offers "2 columns" and "3 columns" in the slash menu, in Portuguese for a pt-BR home', async () => {
+    expect((await slashLabels('r1', true, 'col')).filter((text) => text.includes('columns'))).toEqual([
+      'II2 columnsTwo blocks side by side',
+      'III3 columnsThree blocks side by side'
+    ])
+    await cleanup()
+    useHome.setState({ locale: 'pt-BR' })
+    expect(await slashLabels('r1', true, 'colunas')).toEqual(['II2 colunasDois blocos lado a lado', 'III3 colunasTrês blocos lado a lado'])
+  })
+
+  it('puts "2 columns" first for "/2", "/col" and "/colunas", so Enter picks it', () => {
+    for (const query of ['2', 'col', 'colu', 'colunas', 'lado a lado', '2 colunas']) {
+      expect(filterSlashItems(query)[0]?.id, query).toBe('columns-2')
+    }
+    expect(filterSlashItems('3 col')[0]?.id).toBe('columns-3')
+    expect(filterSlashItems('col', false, false).some((item) => item.kind === 'columns')).toBe(false)
+  })
+
+  it('leaves them out of the slash menu where no row may be made', async () => {
+    expect((await slashLabels('r2', false, 'col')).some((text) => text.includes('columns'))).toBe(false)
   })
 })
 

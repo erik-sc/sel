@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { useStore } from 'zustand'
 import type { Block } from '@shared/types'
@@ -42,14 +42,9 @@ export const BlockList = memo(function BlockList({ ids, top = false }: { ids: st
     <>
       {rows.map((row) =>
         row.length > 1 ? (
-          <div
-            key={`row:${row[0].id}`}
-            className={rowWidth(row) === 'wide' ? 'blk-beside is-wide' : 'blk-beside'}
-            role="group"
-            aria-label={copy.columns(row.length)}
-          >
+          <Row key={`row:${row[0].id}`} row={row} label={copy.columns(row.length)}>
             {row.map(view)}
-          </div>
+          </Row>
         ) : (
           view(row[0])
         )
@@ -57,6 +52,42 @@ export const BlockList = memo(function BlockList({ ids, top = false }: { ids: st
     </>
   )
 })
+
+/**
+ * A row of columns. While a drag would drop into it, it says so (`is-drop-row`), so its gap lines
+ * show: a native drag does not update `:hover`. When it is too narrow for its columns and they
+ * wrap one under the other, it says that too (`is-wrapped`): a gap line would then stand in the
+ * page's margin and read as a quote bar.
+ */
+function Row({ row, label, children }: { row: Block[]; label: string; children: JSX.Element[] }): JSX.Element {
+  const { ctrl } = useEditor()
+  const dropHere = useStore(ctrl.ui, (s) => row.some((b) => b.id === s.drop?.id))
+  const ref = useRef<HTMLDivElement>(null)
+  const [wrapped, setWrapped] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const read = (): void => {
+      const columns = el.querySelectorAll<HTMLElement>(':scope > .blk')
+      const first = columns[0]
+      const last = columns[columns.length - 1]
+      setWrapped(!!first && !!last && last.offsetTop > first.offsetTop + 1)
+    }
+    const observer = new ResizeObserver(read)
+    observer.observe(el)
+    read()
+    return () => observer.disconnect()
+  }, [])
+  const classes = ['blk-beside']
+  if (rowWidth(row) === 'wide') classes.push('is-wide')
+  if (dropHere) classes.push('is-drop-row')
+  if (wrapped) classes.push('is-wrapped')
+  return (
+    <div ref={ref} className={classes.join(' ')} role="group" aria-label={label}>
+      {children}
+    </div>
+  )
+}
 
 const BlockView = memo(function BlockView({ block, number }: { block: Block; number: number }): JSX.Element {
   const { ctrl, onOpenPage } = useEditor()

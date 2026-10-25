@@ -52,8 +52,13 @@ export interface SlashItem {
   hint: string
   glyph: string
   keywords: string
-  /** `turn` converts the current block; `insert` adds a new block; `ai` starts an AI action; `meeting` opens a new meeting page. */
-  kind: 'turn' | 'insert' | 'ai' | 'meeting'
+  /**
+   * `turn` converts the current block; `insert` adds a new block; `ai` starts an AI action;
+   * `meeting` opens a new meeting page; `columns` makes a row of `columns` empty text blocks.
+   */
+  kind: 'turn' | 'insert' | 'ai' | 'meeting' | 'columns'
+  /** `columns` only: how many columns the row has. Its label and hint come from editor/copy.ts. */
+  columns?: number
   /** `ai` only: which action. `ask` opens the prompt bar. */
   ai?: 'continue' | 'summarize' | 'ask' | 'actions' | 'outline'
   type: BlockType
@@ -165,6 +170,26 @@ export const SLASH_ITEMS: SlashItem[] = [
     keywords: 'divider line hr separator ---',
     kind: 'insert',
     type: 'divider'
+  },
+  {
+    id: 'columns-2',
+    label: '2 columns',
+    hint: 'Two blocks side by side',
+    glyph: 'II',
+    keywords: 'columns layout side',
+    kind: 'columns',
+    type: 'text',
+    columns: 2
+  },
+  {
+    id: 'columns-3',
+    label: '3 columns',
+    hint: 'Three blocks side by side',
+    glyph: 'III',
+    keywords: 'columns layout side',
+    kind: 'columns',
+    type: 'text',
+    columns: 3
   },
   { id: 'image', label: 'Image', hint: 'Upload an image', glyph: '▣', keywords: 'image picture photo img', kind: 'insert', type: 'image' },
   {
@@ -324,6 +349,8 @@ export const SLASH_KEYWORDS_PT: Readonly<Record<string, string>> = {
   callout: 'destaque aviso nota dica observação',
   code: 'código trecho programa',
   divider: 'divisor linha separador',
+  'columns-2': '2 colunas lado a lado',
+  'columns-3': '3 colunas lado a lado',
   image: 'imagem foto figura',
   bookmark: 'favorito marcador link endereço site',
   page: 'página subpágina documento',
@@ -348,23 +375,28 @@ export function foldSearch(text: string): string {
 
 /**
  * The items for a query, in English or Portuguese, accents and case aside: those whose
- * label starts with it, then those with a word that does, then those that merely contain it.
+ * label starts with it, then those with a word of the label that does ("col": "2 columns"), then
+ * those with a search word that does, then those that merely contain it.
+ * `columns` false leaves out "2 columns" and "3 columns" (the block is nested or in a row already).
  */
-export function filterSlashItems(query: string, ai = false): SlashItem[] {
-  const all = ai ? [...AI_SLASH_ITEMS, ...SLASH_ITEMS] : SLASH_ITEMS
+export function filterSlashItems(query: string, ai = false, columns = true): SlashItem[] {
+  const blocks = columns ? SLASH_ITEMS : SLASH_ITEMS.filter((item) => item.kind !== 'columns')
+  const all = ai ? [...AI_SLASH_ITEMS, ...blocks] : blocks
   const q = foldSearch(query.trim())
   if (!q) return all
   const label: SlashItem[] = []
+  const labelWord: SlashItem[] = []
   const word: SlashItem[] = []
   const contains: SlashItem[] = []
   for (const item of all) {
     const name = foldSearch(item.label)
     const keywords = foldSearch(`${item.keywords} ${SLASH_KEYWORDS_PT[item.id] ?? ''}`)
     if (name.startsWith(q)) label.push(item)
+    else if (name.split(' ').some((w) => w.startsWith(q))) labelWord.push(item)
     else if (keywords.split(' ').some((k) => k.startsWith(q))) word.push(item)
     else if (name.includes(q) || keywords.includes(q)) contains.push(item)
   }
-  return [...label, ...word, ...contains]
+  return [...label, ...labelWord, ...word, ...contains]
 }
 
 export const CODE_LANGUAGES = [

@@ -799,8 +799,19 @@ span[class*='rt-bg-'] {
 }
 
 .blk-beside:hover > .blk + .blk,
-.blk-beside:focus-within > .blk + .blk {
+.blk-beside:focus-within > .blk + .blk,
+.blk-beside.is-drop-row > .blk + .blk {
   border-left-color: var(--border);
+}
+
+/* An empty column (from "/2 columns") stays one line tall, so it can be clicked. */
+.blk-beside > .blk > .blk-row > .rt:empty {
+  min-height: calc(1lh + 6px);
+}
+
+/* Columns wrapped one under the other have no gap between them: no line in the page's margin. */
+.blk-beside.is-wrapped > .blk + .blk {
+  border-left-color: transparent;
 }
 
 /*
@@ -1194,6 +1205,57 @@ span[class*='rt-bg-'] {
 
 .blk.drop-inside::after {
   left: var(--indent);
+}
+
+/*
+ * Beside a block (editor/structure.ts): the same line turned upright, in the middle of the gap on
+ * that side, where a row draws its gap line, and as tall as the block with its children.
+ */
+.blk.drop-left::before,
+.blk.drop-right::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.blk.drop-left::before {
+  left: calc(var(--pe-column-gap, 52px) / -2 - 1.5px);
+}
+
+.blk.drop-right::after {
+  right: calc(var(--pe-column-gap, 52px) / -2 - 1.5px);
+}
+
+/*
+ * A column after the first starts in the middle of its gap, on its gap line (.blk-beside above):
+ * its side line is drawn on that line, and its other lines start where its content does.
+ */
+.blk-beside > .blk + .blk.drop-left::before {
+  left: calc(var(--hairline) / 2 - 1.5px);
+}
+
+.blk-beside > .blk + .blk.drop-before::before,
+.blk-beside > .blk + .blk.drop-after::after {
+  left: calc(var(--pe-column-gap) / 2);
+}
+
+.blk-beside > .blk + .blk.drop-inside::after {
+  left: calc(var(--pe-column-gap) / 2 + var(--indent));
+}
+
+/* Children in a column start at its edge (above), and so does the line that drops among them. */
+.blk-beside > .blk:not(.blk-toggle, .blk-bulleted_list, .blk-numbered_list, .blk-to_do).drop-inside::after {
+  left: 0;
+}
+
+.blk-beside > .blk + .blk:not(.blk-toggle, .blk-bulleted_list, .blk-numbered_list, .blk-to_do).drop-inside::after {
+  left: calc(var(--pe-column-gap) / 2);
 }
 
 /* ---- slash menu (inside a ui Popover, which supplies the glass surface) ---- */
