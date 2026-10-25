@@ -430,7 +430,8 @@ body.is-quick-add {
   flex: none;
   box-sizing: border-box;
   width: 100%;
-  padding: 0 var(--page-padding-x);
+  /* The right side keeps Herman's corner clear, so he never stands on an action. */
+  padding: 0 max(var(--page-padding-x), 96px) 0 var(--page-padding-x);
   background-color: var(--bg);
   font-size: var(--text-sm);
 }
@@ -442,6 +443,7 @@ body.is-quick-add {
   justify-content: space-between;
   gap: 12px;
   box-sizing: border-box;
+  min-width: 0;
   max-width: var(--page-width);
   margin: 0 auto;
   padding: 8px 0;
@@ -457,11 +459,11 @@ body.is-quick-add {
 
 .task-bar-actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
-  white-space: nowrap;
 }
 
 .task-ask {
@@ -484,4 +486,8 @@ body.is-quick-add {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.task-bar-actions .ui-button {
+  white-space: nowrap;
 }
