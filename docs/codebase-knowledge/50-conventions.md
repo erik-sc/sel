@@ -107,7 +107,9 @@ The helpers are in src/renderer/src/a11y/: `keys.ts` (keys), `announce.ts` (the 
   on keydown, `keyboardAnchor(el)` as the popover's anchor. Windows sends a `contextmenu` after
   the Menu key: `onContextMenu` ignores it while `isMenuKeyEcho()`.
 - **Moving an item** from the keyboard: Ctrl+Alt+arrows on a board and in a calendar, Alt+Shift+
-  arrows in the tree, Ctrl+Shift+PageUp/PageDown on tabs. It calls what dragging calls
+  arrows in the tree, Ctrl+Shift+PageUp/PageDown on tabs, plain Alt+arrows in a list inside a
+  popover (a select's options in its column menu, src/renderer/src/database/optionList.tsx; the
+  sidebar settings). It calls what dragging calls
   (`moveCard` in BoardView.tsx, `moveEvent` in CalendarView.tsx, `dropPage`, `moveTab`), says where
   the item went with `announce()`, and keeps the focus on it: the item is drawn again in its new
   place and focused by its id (`data-card-id`, `data-event-id`, `data-tab-id`, the tree's `pending`).
@@ -141,7 +143,12 @@ and `aria-rowcount` counts every row of the view, drawn or not.
   it holds is a `Menu` or a listbox, which name themselves.
 - A `Menu` keeps the focus on itself and points at its items with `aria-activedescendant`
   (src/renderer/src/ui/Menu.tsx). A field drawn above a `Menu` (the add-property menu's name) passes
-  `onExitStart`, so ArrowUp on the first item gives it the focus back instead of wrapping. A search field over a list is a `combobox` with
+  `onExitStart`, so ArrowUp on the first item gives it the focus back instead of wrapping. When
+  the fields are Tab stops too (a column's menu: name, a select's options, the add-an-option field,
+  then the entries; src/renderer/src/database/propertyMenus.tsx), the `Menu` is `tabbable` and the
+  popover keeps Tab inside it, wrapping at both ends (`keepTabInside`). A popover whose content has a
+  step to go back from (an option opened from that menu) passes `onEscape`, so Escape means Back
+  there and not close (src/renderer/src/ui/Popover.tsx). A search field over a list is a `combobox` with
   `aria-controls` and `aria-activedescendant` on option ids from `useId()`; options are `option`
   with `aria-selected`, and nothing in an option takes the focus (it is read and chosen whole).
 - The focus goes back where it came from: `Modal` and `Popover` do it. A screen of its own (the

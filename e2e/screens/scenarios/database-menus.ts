@@ -72,6 +72,66 @@ function readingList(repo: Repository): void {
   repo.apply(ops)
 }
 
+/**
+ * The reading list with two more selects for the column menus of B3: Priority (three options)
+ * and Stage (nine, one with a long name). Written as an update of the list's schema, so the
+ * other scenarios' table stays as it is.
+ */
+function withSelects(repo: Repository): void {
+  readingList(repo)
+  const schema: Record<string, PropertySchema> = {
+    ...SCHEMA,
+    priority: {
+      id: 'priority',
+      name: 'Priority',
+      type: 'select',
+      options: [
+        { id: 'high', name: 'High', color: 'red' },
+        { id: 'medium', name: 'Medium', color: 'yellow' },
+        { id: 'low', name: 'Low', color: 'gray' }
+      ]
+    },
+    stage: {
+      id: 'stage',
+      name: 'Stage',
+      type: 'select',
+      options: [
+        ['Inbox', 'gray'],
+        ['Next', 'blue'],
+        ['This week', 'green'],
+        ['Someday', 'purple'],
+        ['Blocked', 'red'],
+        ['Delegated', 'orange'],
+        ['Reference', 'brown'],
+        ['Waiting on someone else to answer', 'yellow'],
+        ['Done', 'green']
+      ].map(([name, color], n) => ({ id: `stage-${n + 1}`, name, color }))
+    }
+  }
+  const order = ['title', 'priority', 'stage', ...Object.keys(SCHEMA).filter((id) => id !== 'title')]
+  repo.apply([
+    {
+      op: 'update',
+      id: DB,
+      patch: {
+        props: {
+          schema,
+          views: [{ id: 'screens.view.reading', name: 'Table', type: 'table', visibleProperties: order, filters: [], sorts: [] }]
+        }
+      }
+    }
+  ])
+}
+
+/** A column's header, clicked: its property menu opens under it, on the "Options" section (0.9.0: not in base). */
+async function openColumnMenu(page: Page, column: string, header = 'Options'): Promise<void> {
+  await openPage(page, DB_NAME)
+  await see(page, 'Middlemarch')
+  await page.locator('.db-th', { hasText: column }).first().click()
+  await page.locator('.ui-popover .db-prop-menu').waitFor({ state: 'visible' })
+  await page.locator('.db-option-section .ui-menu-header', { hasText: header }).waitFor({ state: 'visible', timeout: 5_000 })
+}
+
 /** The table's "+" header, clicked: the add-property menu opens under it. */
 async function openAddMenu(page: Page): Promise<void> {
   await openPage(page, DB_NAME)
@@ -129,6 +189,59 @@ export default [
       await page.locator('.ui-popover').waitFor({ state: 'detached' })
       await page.locator('.db-th', { hasText: 'Budget' }).waitFor({ state: 'visible' })
       await page.locator('.db-td.is-focused').waitFor({ state: 'visible' })
+    }
+  },
+  {
+    id: 'property-menu-options',
+    description: "The Priority column's menu: the name field, its Options (High, Medium, Low) and the add field, then the rest of the menu",
+    workspace: withSelects,
+    run: async (page) => {
+      await openColumnMenu(page, 'Priority')
+      await see(page, 'Medium')
+    }
+  },
+  {
+    id: 'property-menu-options-moved',
+    description: 'The same list from the keyboard: Tab into it, ArrowDown twice, Alt+ArrowUp; Low moved up and focused',
+    workspace: withSelects,
+    run: async (page) => {
+      await openColumnMenu(page, 'Priority')
+      await page.keyboard.press('Tab')
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('Alt+ArrowUp')
+      await page.locator('.db-option-row:nth-child(2) .db-option-button:focus', { hasText: 'Low' }).waitFor({ state: 'visible' })
+    }
+  },
+  {
+    id: 'property-menu-options-long',
+    description: 'A select with nine options: the list scrolls inside itself (End pressed in it), one long name ends in an ellipsis',
+    workspace: withSelects,
+    run: async (page) => {
+      await openColumnMenu(page, 'Stage')
+      await page.keyboard.press('Tab')
+      await page.keyboard.press('End')
+      await page.locator('.db-option-button:focus', { hasText: 'Done' }).waitFor({ state: 'visible' })
+    }
+  },
+  {
+    id: 'property-menu-option-edit',
+    description: "An option opened from the Priority column's menu: its edit pane in the same popover, with Back",
+    workspace: withSelects,
+    run: async (page) => {
+      await openColumnMenu(page, 'Priority')
+      await page.locator('.db-option-button', { hasText: 'Medium' }).click()
+      await page.locator('.ui-popover .db-option-edit').waitFor({ state: 'visible' })
+    }
+  },
+  {
+    id: 'property-menu-options-pt',
+    description: "The Priority column's menu in pt-BR: Opções, Adicionar uma opção and every entry in Portuguese",
+    locale: 'pt-BR',
+    workspace: withSelects,
+    run: async (page) => {
+      await openColumnMenu(page, 'Priority', 'Opções')
+      await see(page, 'Excluir propriedade')
     }
   }
 ] satisfies Scenario[]
