@@ -22,6 +22,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 |---|---|
 | ![Typing / on an empty line lists every block, with the writing tools first](docs/screens/blocks.webp) | ![A LaTeX document: the source on the left, the typeset page on the right](docs/screens/latex.webp) |
 | ![Focus mode: only the page](docs/screens/focus.webp) | ![A pomodoro waiting in the lower right corner](docs/screens/pomodoro.webp) |
+| ![Columns: a heading and a list beside a callout, and a line under the row](docs/screens/columns.webp) | |
 
 ### Organise
 
@@ -34,6 +35,7 @@ sel is a notes app for your desktop. Pages are made of blocks, databases are mad
 | ![The finances template: the month so far, last month, spending by category and money in and out by month](docs/screens/finances.webp) | ![This month's budget: each category's budget, what has gone out and what is left](docs/screens/budget.webp) |
 | ![A project board grouped by status](docs/screens/board.webp) | ![A library: a board of what to read next, and charts of what stayed](docs/screens/charts.webp) |
 | ![The kitchen: the week's menu linked to recipes, and a shopping list by aisle](docs/screens/relations.webp) | ![Recipes as a gallery, and a quick list beside it](docs/screens/gallery.webp) |
+| ![A select's column menu: its name, its options and an add field, then insert left or right](docs/screens/property-menu.webp) | |
 
 ![The template gallery: seven templates with a preview of what each one makes](docs/screens/templates.webp)
 
