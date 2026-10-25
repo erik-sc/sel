@@ -1002,8 +1002,9 @@ describe('typing inside a column (A1c)', () => {
     const w = columnsWorld()
     expect(backspacePlan(treeOf(w), 'r')).toEqual({ do: 'focus', id: 'l', where: 'end' })
     expect(backspacePlan(treeOf(w), 'l')).toEqual({ do: 'focus', id: 'x', where: 'end' })
-    // An empty head with lines under it is not deleted: its lines would lose their column.
-    const empty = withBlock(w, 'r', { title: [], beside: true })
+    // An empty head whose first line is not text is not deleted: its lines would lose their column.
+    const base = withBlock(w, 'r', { title: [], beside: true }, ['div', 'r1', 'r2'])
+    const empty: BlockMap = { ...base, div: block('div', 'divider', 'r') }
     expect(backspacePlan(treeOf(empty), 'r')).toEqual({ do: 'focus', id: 'l', where: 'end' })
     // A heading still turns into text first.
     const heading: BlockMap = { ...w, l: { ...w.l, type: 'heading_2' } }
@@ -1038,5 +1039,55 @@ describe('typing inside a column (A1c)', () => {
     expect(indentOps(treeOf(w), ['r']).length).toBeGreaterThan(0)
     expect(outdentOps(treeOf(w), ['r1'])[0]).toEqual({ op: 'move', id: 'r1', parentId: 'page', afterId: 'r' })
     expect(outdentLeavesRow(treeOf(w), ['r1'])).toBe(false)
+  })
+})
+
+describe('typing inside a column (A1c), review round 1', () => {
+  it('Enter at the start of a to-do or list head keeps its sub-items under it', () => {
+    for (const type of ['to_do', 'bulleted_list', 'numbered_list'] as const) {
+      const base = columnsWorld()
+      const w: BlockMap = { ...base, r: { ...base.r, type, props: { ...base.r.props, ...(type === 'to_do' ? { checked: false } : {}) } } }
+      const plan = committed(splitPlan(treeOf(w), 'r', 0, 0, ids()))
+      const after = applyAndUndo(w, plan.ops)
+      expect(after.n1.content, type).toEqual(['r'])
+      expect(after.r.content, type).toEqual(['r1', 'r2'])
+      expect(after.n1.type, type).toBe(type)
+      expect(rowsAfter(w, plan.ops).rows, type).toEqual([['x'], ['l', 'n1'], ['after']])
+    }
+  })
+
+  it('Enter at the start of a head, then Backspace in the new empty head, gives the starting page back', () => {
+    for (const head of ['l', 'r']) {
+      const w = columnsWorld()
+      const enter = committed(splitPlan(treeOf(w), head, 0, 0, ids()))
+      const entered = rowsAfter(w, enter.ops).map
+      const back = committed(backspacePlan(treeOf(entered), 'n1'))
+      expect(back.after, head).toEqual(textSel(head, 0))
+      applyAndUndo(entered, back.ops)
+      const { map, repair } = rowsAfter(entered, back.ops)
+      expect(repair, head).toEqual([])
+      expect(shape(map), head).toEqual(shape(w))
+    }
+  })
+
+  it('a to-do head goes back the same way: Backspace turns the empty to-do into text, then gives its place back', () => {
+    const base = columnsWorld()
+    const w: BlockMap = { ...base, r: { ...base.r, type: 'to_do', props: { ...base.r.props, checked: false } } }
+    const entered = rowsAfter(w, committed(splitPlan(treeOf(w), 'r', 0, 0, ids())).ops).map
+    expect(backspacePlan(treeOf(entered), 'n1')).toEqual({ do: 'turnText' })
+    const text = applyOpsToMap(entered, turnIntoOps(treeOf(entered), ['n1'], 'text')).map
+    const back = committed(backspacePlan(treeOf(text), 'n1'))
+    expect(shape(rowsAfter(text, back.ops).map)).toEqual(shape(w))
+  })
+
+  it('Backspace in an empty head lifts its first line into the row, the other lines under it', () => {
+    const w = withBlock(columnsWorld(), 'r', { title: [], beside: true })
+    const plan = committed(backspacePlan(treeOf(w), 'r'))
+    expect(plan.after).toEqual(textSel('r1', 0))
+    const { rows, repair, map } = rowsAfter(w, plan.ops)
+    expect(rows).toEqual([['x'], ['l', 'r1'], ['after']])
+    expect(repair).toEqual([])
+    expect(map.r1.content).toEqual(['r2'])
+    applyAndUndo(w, plan.ops)
   })
 })
