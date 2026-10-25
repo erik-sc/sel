@@ -27,6 +27,7 @@ in `.claude/agents/`.
 | Developer | `sel-dev` | one plan item end to end in its own worktree: code, tests, docs, PR into the release branch |
 | Reviewer / QA | `sel-reviewer` | independent review of each item PR; never reviews work it saw being written |
 | Growth | `sel-growth` | readiness for other developers: README, `site/`, release notes, onboarding, replies to issues |
+| Panel | `sel-panel` | adversarial review of every proposal, one fresh agent per persona in `docs/team/personas.md` (including a simulated Érik) |
 
 You (the lead) do not write feature code. You run the cycle, keep the state, merge, and report.
 
@@ -47,7 +48,7 @@ decide, through release proposals Érik approves.
    - change `.github/workflows/`, signing, the update check, or Electron's major version;
    - add or upgrade a runtime `dependencies` entry in `package.json` (devDependencies are fine);
    - change the team itself: `.claude/skills/sel-team/`, `.claude/agents/`, or the
-     "Working agreement" in `docs/team/charter.md`.
+     "Working agreement" in `docs/team/charter.md`, or the panel's personas in `docs/team/personas.md`.
    Mark the item `blocked: needs Érik`, put the question in "Needs you", and go on with other
    work. When he answers yes before CLOSE, the item goes back to `ready`; after CLOSE it moves
    to the next plan.
@@ -179,7 +180,9 @@ approved with `/ok` or its window passed) or stays a proposal, as Érik's commen
 
 See "Release backlog". `sel-pm` keeps at least **3 open proposals** (approved or not) ahead of
 the release in progress, applies Érik's feedback to the proposals it was given on, and lists
-in the Team log which proposals are new or changed tonight.
+in the Team log which proposals are new or changed tonight. Every new or substantially
+revised proposal goes through the **panel review** before it is posted or updated; an open
+proposal without a "Panel review" section gets one first thing in the upkeep.
 
 ### 3. Report
 
@@ -246,6 +249,7 @@ Every future release starts as a **proposal**: one GitHub issue with the label
 ```
 
 - The target version is a guess; the real one is set when the release starts.
+- **Panel review, always, before Érik sees it** (see "Panel review").
 - **Approving** (`/approve`, `/next`): add the label `release-queued` and put the issue number in
   `queue` in the state, at the end or the front. The queue order is the build order.
 - **Feedback:** the PM edits the issue body and answers in a comment what it changed. A queued
@@ -257,6 +261,33 @@ Every future release starts as a **proposal**: one GitHub issue with the label
   allowed but must be flagged as **Identity change** at the top of the proposal, never buried.
 - The roadmap (`docs/team/roadmap.md`) and the open proposals must agree; when they do not,
   the PM fixes the roadmap on the release branch in progress.
+
+## Panel review
+
+Every proposal is attacked before it reaches Érik, by people who did not write it.
+
+1. `sel-pm` finishes the draft (the issue body, not yet posted, or the revision).
+2. Spawn one **fresh** `sel-panel` agent per persona in `docs/team/personas.md`, all at once.
+   Give each only: its persona's section, the draft's text, and the paths `README.md` and
+   `docs/screens/`. Never the PM's notes, the roadmap, the code or another panelist's review.
+   The panel is isolated: no panelist sees another's verdict.
+3. Give all the reviews to `sel-pm`. For every objection it either changes the proposal or
+   keeps it and says why in one line. An epic that most of the panel finds `indifferent` or
+   `against`, with simulated Érik among them, is cut or replaced, not defended.
+4. A revision that changes scope goes back to step 2 (at most twice; then post it with the
+   open objections marked).
+5. Post (or update) the proposal with a **Panel review** section at the end:
+
+```
+## Panel review
+| Persona | Verdict | Strongest objection | What we did |
+|---|---|---|---|
+| Érik (simulated) | … | … | changed: … / kept, because … |
+…
+Rounds: <n>. Open objections: <list, or none>.
+```
+
+The simulated Érik is a stand-in, never a substitute: his `/approve` is still the only approval.
 
 ## Release PR body
 

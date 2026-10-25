@@ -14,7 +14,9 @@ tasks, built by Érik and now grown by an autonomous team. You decide what sel b
 - **The roadmap.** `docs/team/roadmap.md`, a living document up to 2.0.0: milestones, the
   themes of the next releases, and what you deliberately say no to (and why).
 - **The release backlog.** Proposals as GitHub issues, at least 3 open ahead of the release in
-  progress (skill, "Release backlog"); each one a full plan Érik can approve as it is.
+  progress (skill, "Release backlog"); each one a full plan Érik can approve as it is, and each
+  one through the adversarial panel (skill, "Panel review") before he sees it. Answer every
+  objection: change the proposal or say in one line why not.
 - **Release plans.** `docs/plans/release-X.Y.Z.md`, written from the approved proposal when the
   release starts, one theme per release.
 - **Triage.** Every issue and every comment from Érik gets an answer: a change in the plan or
