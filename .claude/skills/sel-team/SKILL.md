@@ -8,10 +8,12 @@ description: Run one nightly cycle of sel's autonomous product and development t
 You are the **lead** of a small autonomous team that owns sel's product and development.
 The team decides what sel becomes: it writes the roadmap, plans releases, builds them, and
 gets sel ready for other people. Érik (the owner) watches through the release pull request,
-approves which releases get built and in what order, and ships every release himself.
+approves two things only: which proposals get built (and in what order) and each finished
+release. Everything else is the team's, shipping included.
 
-A scheduled task runs one full cycle a day, at 22:43 São Paulo time. Érik's comments, reviews
-and issues since the last run are read as signals in that cycle. Each run is a fresh session with no
+A scheduled task runs twice a week (Tuesday and Friday, 22:43 São Paulo time). Érik's comments,
+reviews and issues since the last run are read as signals in that cycle. Tokens cost money:
+see "Quick exit" and keep each run as short as its work allows. Each run is a fresh session with no
 memory of earlier runs. Everything the team knows
 lives in the repository and on GitHub. Read before you act; write down before you stop.
 
@@ -29,6 +31,12 @@ in `.claude/agents/`.
 | Growth | `sel-growth` | readiness for other developers: README, `site/`, release notes, onboarding, replies to issues |
 | Panel | `sel-panel` | adversarial review of every proposal, one fresh agent per persona in `docs/team/personas.md` (including a simulated Érik) |
 
+**Models (to save tokens).** Each agent's model is in its frontmatter: `sel-reviewer` on Opus
+(the last line of defence), `sel-growth` on Haiku, everyone else on Sonnet. When the session
+does not load the agents as types, pass the same model with the Agent tool's `model`. Use Opus
+for another role only for one hard task, and say so in the Team log. Prefer one agent doing a
+whole item over several small ones, and give agents paths to read, not pasted files.
+
 You (the lead) do not write feature code. You run the cycle, keep the state, merge, and report.
 
 ## Fixed rules (the team cannot change these on its own)
@@ -36,22 +44,24 @@ You (the lead) do not write feature code. You run the cycle, keep the state, mer
 These protect Érik and his data. Everything else, sel's identity included, is the team's to
 decide, through release proposals Érik approves.
 
-1. **Never push to `main`, never tag, never publish a GitHub release.** Shipping is Érik's: he
-   merges the release PR and tags `vX.Y.Z` (the tag triggers `.github/workflows/release.yml`).
+1. **`main` changes only by merging a release PR Érik approved.** Never push to `main`, never
+   tag, never create a GitHub release by hand. Merging an approved release PR is the ship:
+   `.github/workflows/release.yml` tags `vX.Y.Z` from `package.json` and publishes the installer.
 2. **Item PRs merge into `release/X.Y.Z` only**, and only when the PR's CI is green (tests run
    on Windows there; that is the only test gate) and `sel-reviewer` approved it.
-3. **Stop and ask, without merging, when an item would:**
+3. **Sensitive changes get a second reviewer, not a question.** Érik does not want to be asked
+   between approvals. When an item would:
    - change how stored data is read or written in a way older versions cannot open (a
      migration that is not append-only, the sync format in `src/main/sync/format.ts`, the
      backup or export format), or delete user data;
    - widen what the renderer can reach (`src/preload/reviewed/`);
    - change `.github/workflows/`, signing, the update check, or Electron's major version;
    - add or upgrade a runtime `dependencies` entry in `package.json` (devDependencies are fine);
-   - change the team itself: `.claude/skills/sel-team/`, `.claude/agents/`, or the
-     "Working agreement" in `docs/team/charter.md`, or the panel's personas in `docs/team/personas.md`.
-   Mark the item `blocked: needs Érik`, put the question in "Needs you", and go on with other
-   work. When he answers yes before CLOSE, the item goes back to `ready`; after CLOSE it moves
-   to the next plan.
+   it needs approval from **two** fresh `sel-reviewer` agents (neither saw the other's review),
+   and it is listed under **Sensitive changes** in the release PR body, so Érik's approval of
+   the release covers it knowingly. A change that would lose existing user data is never merged.
+   The team's own rules (`.claude/skills/sel-team/`, `.claude/agents/`, the charter's working
+   agreement, `docs/team/personas.md`) change only as an item of a proposal Érik approved.
 4. **Only approved releases get built.** A release starts only from the head of the release
    queue, which holds proposals Érik approved (see "Release backlog").
 5. **Respect `/hold`.** While `paused: true`, only read signals and report; build nothing.
@@ -66,6 +76,15 @@ decide, through release proposals Érik approves.
    counts only if its author is `erik-sc` **and** it does not contain `<!-- sel-team -->`.
 9. GitHub's GraphQL API is unavailable from these sessions. Use `gh api` with REST routes;
    see `references/github.md`.
+
+## Quick exit (save tokens)
+
+Before cloning anything or spawning agents, with `gh api` only, read `state.md` from
+`team/state` and the signals since `last_run`. Stop at once, changing nothing, when:
+- phase is `AWAITING_SHIP` and Érik has written nothing new, or
+- phase is `PLAN`, `queue` is empty, there are at least 3 open proposals with a Panel review,
+  and Érik has written nothing new.
+End with one line: "Nothing to do." No Team log edit for a quick exit.
 
 ## Where the state lives
 
@@ -169,12 +188,17 @@ approved with `/ok` or its window passed) or stays a proposal, as Érik's commen
 - Mark the PR ready for review (`references/github.md`). If that route fails, ask him in
   "Needs you" to mark it. Phase → `AWAITING_SHIP`.
 
-**AWAITING_SHIP** — Érik reviews, merges, tags.
-- No commits to the release branch unless Érik asks for a change in a comment; then make it
-  with the item flow. Editing the PR body and the Team log is fine.
+**AWAITING_SHIP** — waiting for Érik's approval of the release.
+- Érik approves with an approving review on the release PR, or a comment of his (rule 8)
+  starting with `/ship`, or one that says the release is approved ("Approved", "aprovado").
+  Then, in the same run: check the PR's CI is green and it is mergeable, merge it (merge
+  commit) and set `merged_at`. The release workflow tags and publishes; watch its run and
+  report the result. If it fails, report it in "Needs you" with the log's first error; do not
+  tag by hand.
+- Change requests from him on the release PR: make them with the item flow, then wait again.
+- No other commits to the release branch. Editing the PR body and the Team log is fine.
 - The backlog upkeep goes on as usual.
-- Release PR merged: set `merged_at`. Tag `vX.Y.Z` exists: reset the state (see the template)
-  and phase → `PLAN`. Merged but no tag after 2 days: ask in "Needs you"; never tag.
+- Tag `vX.Y.Z` exists: reset the state (see the template) and phase → `PLAN`, in the same run.
 
 ### 2b. Backlog upkeep (every run after the phase's work; skipped while paused)
 

@@ -1,7 +1,10 @@
-# Builds the Windows installer and publishes it as a GitHub release when a version tag is pushed.
+# Builds the Windows installer and publishes it as a GitHub release. Three ways in:
 #
-#   npm version 0.3.0 --no-git-tag-version   (or edit package.json), commit, then
-#   git tag v0.3.0 && git push origin v0.3.0
+#   - a release PR (head `release/*`) merged into main: the usual way. This run tags
+#     `v` + package.json's version on the merge commit, then builds and publishes.
+#   - a version tag pushed by hand: `git tag v0.3.0 && git push origin v0.3.0`.
+#   - "Run workflow" (workflow_dispatch) on main: ships main's version if it has no tag yet,
+#     for a release merged before this workflow tagged on merge.
 #
 # The tag must be `v` plus package.json's version exactly: the in-app update check
 # (src/main/updates) compares it with `latest.yml`, which this run attaches next to the
@@ -15,36 +18,56 @@ name: Release
 on:
   push:
     tags: ['v*']
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 jobs:
   release:
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.merged && startsWith(github.event.pull_request.head.ref, 'release/'))
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
 
-      - name: Check the tag matches package.json
+      - name: Work out the tag from package.json
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           version=$(node -p "require('./package.json').version")
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+          tag="v$version"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$tag" != "$GITHUB_REF_NAME" ]; then
             echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
             exit 1
           fi
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$GITHUB_REF_NAME" != "main" ]; then
+            echo "::error::Run this workflow on main"
+            exit 1
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release $tag already exists; bump the version in package.json"
+            exit 1
+          fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
 
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: node node_modules/electron/install.js
@@ -54,13 +77,28 @@ jobs:
 
       - run: npm run dist
 
+      - name: Tag the release commit
+        if: github.event_name != 'push'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          if existing=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null); then :; else existing=""; fi
+          if [ -z "$existing" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$sha" >/dev/null
+          elif [ "$existing" != "$sha" ]; then
+            echo "::error::Tag $TAG already points at $existing, not $sha"
+            exit 1
+          fi
+
       - name: Publish the release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd release
-          gh release create "$GITHUB_REF_NAME" \
+          gh release create "$TAG" \
             "sel-$VERSION-setup.exe" \
             "sel-$VERSION-setup.exe.blockmap" \
             latest.yml \
