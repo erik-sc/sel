@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BriefingTask } from '@shared/briefing'
-import { nextPriority, priorityOf, priorityValue, rowKeyAction, viewOfBriefing } from './model'
+import { manyKeyAction, nextPriority, priorityOf, priorityValue, rowKeyAction, viewOfBriefing } from './model'
 
 const key = (k: string, mods: { ctrl?: boolean; shift?: boolean; alt?: boolean; meta?: boolean } = {}) => ({
   key: k,
@@ -87,5 +87,29 @@ describe('a task of the Today screen as a row draws it', () => {
 
   it('with no priority when none was chosen', () => {
     expect(viewOfBriefing({ ...base, labels: [] })?.priority).toBeNull()
+  })
+})
+
+describe('the keys of a focused row inside a selection of several', () => {
+  const many = (k: string, mods: { shift?: boolean } = {}) => {
+    const action = rowKeyAction(key(k, mods))
+    return action ? manyKeyAction(action) : undefined
+  }
+
+  it('act on all of them for the date, the project, the priority and done', () => {
+    expect(many('d')).toEqual({ kind: 'date' })
+    expect(many('#', { shift: true })).toEqual({ kind: 'project' })
+    expect(many('2')).toEqual({ kind: 'priority', level: 2 })
+    expect(many(' ')).toEqual({ kind: 'toggle' })
+  })
+
+  it('ignore the keys of one task: repeat, reminder, labels, rename and delete', () => {
+    for (const k of ['r', 'l', 'F2', 'Delete']) expect(many(k)).toEqual({ kind: 'ignore' })
+    expect(many('@', { shift: true })).toEqual({ kind: 'ignore' })
+  })
+
+  it('leave Enter to open the focused row, and the other keys to the list', () => {
+    expect(many('Enter')).toBeNull()
+    expect(many('ArrowDown')).toBeUndefined()
   })
 })

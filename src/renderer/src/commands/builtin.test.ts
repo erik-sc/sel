@@ -18,6 +18,7 @@ describe('the built-in commands', () => {
       'open-tasks',
       'add-task',
       'refine-tasks',
+      'select-all-tasks',
       'week-review',
       'open-notebook',
       'open-sky',
