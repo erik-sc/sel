@@ -170,6 +170,18 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
       { id: 'db-row-edge', label: 'First or last cell in the row', keys: ['Home', 'End'] },
       { id: 'db-page', label: 'A screen up or down', keys: ['PageUp', 'PageDown'] },
       { id: 'db-edit', label: 'Edit the cell', keys: ['Enter', 'F2'] },
+      {
+        id: 'db-header',
+        label: 'From the first row up to the column headers; Left, Right, Home and End move along them',
+        keys: ['Up'],
+        keywords: ['column', 'property']
+      },
+      {
+        id: 'db-header-menu',
+        label: "Open a column header's menu: rename, insert left or right",
+        keys: ['Enter', 'F2'],
+        keywords: ['column', 'property', 'rename']
+      },
       { id: 'db-open', label: 'Open the row as a page', keys: ['CmdOrCtrl+Enter'] },
       { id: 'db-check', label: 'Tick or untick a checkbox', keys: ['Space'] },
       { id: 'db-clear', label: 'Clear the cell', keys: ['Delete', 'Backspace'] },

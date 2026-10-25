@@ -7,7 +7,7 @@ import type { DatabaseView, PropertySchema, PropertyType, ViewFilter } from '@sh
 import { announce } from '@/a11y/announce'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import type { PopoverAnchor, PopoverPlacement } from '@/ui/Popover'
-import { ArrowUpRight, Check, Filter, Formula, Sigma, Sort, Trash } from '@/ui/icons'
+import { ArrowUpRight, Check, Filter, Formula, InsertLeft, InsertRight, Sigma, Sort, Trash } from '@/ui/icons'
 import * as L from './logic'
 import * as actions from './actions'
 import { Floating, TypeIcon } from './common'
@@ -33,6 +33,7 @@ export function AddPropertyMenu({
   viewId,
   anchor,
   placement,
+  before,
   onClose,
   onAdded
 }: {
@@ -40,6 +41,8 @@ export function AddPropertyMenu({
   /** View in which the new property becomes visible. */
   viewId?: string
   anchor: PopoverAnchor
+  /** In that view, the property it goes before (a table header's "Insert left / right"); the end when omitted. */
+  before?: string
   placement?: PopoverPlacement
   onClose: () => void
   onAdded?: (propertyId: string) => void
@@ -65,7 +68,7 @@ export function AddPropertyMenu({
     onAdded?.(id)
   }
   const add = (type: PropertyType): string => {
-    const id = actions.addProperty(databaseId, type, viewId, typed || copy.types[type])
+    const id = actions.addProperty(databaseId, type, viewId, typed || copy.types[type], { before })
     added(id)
     return id
   }
@@ -102,7 +105,7 @@ export function AddPropertyMenu({
           <RelationTargetPicker
             databaseId={databaseId}
             onPick={(targetId) => {
-              const id = actions.addRelation(databaseId, targetId, viewId, typed || undefined)
+              const id = actions.addRelation(databaseId, targetId, viewId, typed || undefined, before)
               if (id) added(id)
               onClose()
             }}
@@ -375,8 +378,8 @@ function keepTabInside(event: KeyboardEvent<HTMLElement>): void {
 }
 
 /**
- * Property header menu: rename, a select's options, type, sort, filter, hide, delete. Its words
- * are in the home's language (`database/copy.ts`).
+ * Property header menu: rename, a select's options, type, insert left or right (from a table's
+ * header), sort, filter, hide, delete. Its words are in the home's language (`database/copy.ts`).
  */
 export function PropertyMenu({
   databaseId,
@@ -385,7 +388,8 @@ export function PropertyMenu({
   anchor,
   placement,
   onClose,
-  onFilter
+  onFilter,
+  onInsert
 }: {
   databaseId: string
   prop: PropertySchema
@@ -395,6 +399,11 @@ export function PropertyMenu({
   placement?: PopoverPlacement
   onClose: () => void
   onFilter?: (propertyId: string) => void
+  /**
+   * Given by a table's header: "Insert left" and "Insert right" are shown, and choosing one hands
+   * the side to the table, which turns this popover into the add menu on the same header.
+   */
+  onInsert?: (side: 'left' | 'right') => void
 }): JSX.Element {
   const copy = useDatabaseCopy()
   const words = copy.propertyMenu
@@ -436,6 +445,12 @@ export function PropertyMenu({
   // The menu can be removed without `onClose` (its property or view went away).
   useCommitOnUnmount(commitName)
 
+  // A rename typed before is kept: the menu goes, the add menu takes its place.
+  const insert = (side: 'left' | 'right'): void => {
+    commitName()
+    onInsert?.(side)
+  }
+
   const typeItems: MenuItem[] = L.PROPERTY_TYPES.map((type: PropertyType) => ({
     id: `type-${type}`,
     label: copy.types[type],
@@ -472,6 +487,13 @@ export function PropertyMenu({
         onSelect: () => actions.updateProperty(databaseId, prop.id, { numberFormat: format })
       }))
     })
+  }
+  if (onInsert) {
+    items.push(
+      { separator: true },
+      { id: 'insert-left', label: words.insertLeft, icon: <InsertLeft size={14} />, onSelect: () => insert('left') },
+      { id: 'insert-right', label: words.insertRight, icon: <InsertRight size={14} />, onSelect: () => insert('right') }
+    )
   }
   if (prop.type === 'relation') items.push(...relationItems(databaseId, prop, cells, () => pick('target'), words))
   if (prop.type === 'rollup') items.push(...rollupItems(databaseId, prop, actions.snapshot(databaseId).schema, cells, words))

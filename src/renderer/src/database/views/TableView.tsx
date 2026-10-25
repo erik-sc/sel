@@ -3,7 +3,7 @@ import type { DragEvent, JSX, KeyboardEvent, PointerEvent as ReactPointerEvent }
 import type { PropertySchema } from '@shared/types'
 import { Plus, Pen, Trash, Close } from '@/ui/icons'
 import { Menu } from '@/ui/Menu'
-import { takeMenuKey } from '@/a11y/keys'
+import { rovingTarget, takeMenuKey } from '@/a11y/keys'
 import * as L from '../logic'
 import * as actions from '../actions'
 import { bulkEditItems } from '../bulkEdit'
@@ -28,7 +28,22 @@ interface EditingCell extends CellRef {
 
 type DropEdge = { id: string; edge: 'before' | 'after' }
 
+/** The add menu: from the "+" header, or from a header's "Insert left / right" (`before`, anchored on that header). */
+interface Adding {
+  anchor: HTMLElement
+  inserted: boolean
+  before?: string
+}
+
 const NO_SELECTION: ReadonlySet<string> = new Set()
+
+/** The "+" header, among the headers the keyboard moves along (a property id otherwise). */
+const ADD_HEADER = '+'
+
+/** The id of a column's header (or of "+"), which the grid names as its active descendant. */
+export function headerId(gridId: string, propertyId: string): string {
+  return propertyId === ADD_HEADER ? `${gridId}-header-add` : `${gridId}-h-${propertyId}`
+}
 
 export function TableView(p: ViewProps): JSX.Element {
   const { databaseId, schema, view, rows, canReorder, editingRowId, setEditingRowId } = p
@@ -42,13 +57,15 @@ export function TableView(p: ViewProps): JSX.Element {
 
   const [liveWidths, setLiveWidths] = useState<Record<string, number>>({})
   const [focus, setFocus] = useState<CellRef | null>(null)
+  // The header the keyboard is on (a property id, or ADD_HEADER), while no cell is focused.
+  const [header, setHeader] = useState<string | null>(null)
   const [editing, setEditing] = useState<EditingCell | null>(null)
   const [selected, setSelected] = useState<ReadonlySet<string>>(NO_SELECTION)
   const lastSelected = useRef<string | null>(null)
   const [menu, setMenu] = useState<{ propId: string; anchor: HTMLElement } | null>(null)
-  const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null)
-  // A property just added from the "+" header: brought into view once the menu has closed.
-  const [addedProp, setAddedProp] = useState<string | null>(null)
+  const [adding, setAdding] = useState<Adding | null>(null)
+  // A property just added (from "+" or a header's insert): brought into view once the menu has closed.
+  const [addedProp, setAddedProp] = useState<{ id: string; inserted: boolean } | null>(null)
   const addRef = useRef<HTMLButtonElement>(null)
   const [editAnchor, setEditAnchor] = useState<HTMLElement | null>(null)
   const [rowDrop, setRowDrop] = useState<DropEdge | null>(null)
@@ -60,8 +77,8 @@ export function TableView(p: ViewProps): JSX.Element {
   const rowIndex = useMemo(() => new Map(rows.map((row, index) => [row.id, index])), [rows])
 
   // Latest values for the stable callbacks handed to the memoised rows.
-  const latest = useRef({ rows, rowIndex, props, focus, rowDrop, rowHeight, canReorder })
-  latest.current = { rows, rowIndex, props, focus, rowDrop, rowHeight, canReorder }
+  const latest = useRef({ rows, rowIndex, props, focus, header, rowDrop, rowHeight, canReorder })
+  latest.current = { rows, rowIndex, props, focus, header, rowDrop, rowHeight, canReorder }
 
   // Drop selection, focus and editing state of rows / columns that left the view.
   useEffect(() => {
@@ -72,7 +89,19 @@ export function TableView(p: ViewProps): JSX.Element {
     })
     setFocus((prev) => (gone(prev) ? null : prev))
     setEditing((prev) => (gone(prev) ? null : prev))
+    setHeader((prev) => (prev && prev !== ADD_HEADER && !props.some((prop) => prop.id === prev) ? null : prev))
   }, [rowIndex, props])
+
+  // A cell and a header are never both the active one: a cell taking it (a click, an add) wins.
+  useEffect(() => {
+    if (focus) setHeader(null)
+  }, [focus])
+
+  // Keep the active header on screen (the table scrolls sideways).
+  useEffect(() => {
+    if (header === null) return
+    document.getElementById(headerId(gridId, header))?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [header, gridId])
 
   // The edit menu belongs to a selection: it goes when the selection does.
   useEffect(() => {
@@ -103,23 +132,42 @@ export function TableView(p: ViewProps): JSX.Element {
   }, [focus])
 
   // After an add, the new column scrolls into view and its first cell becomes the active one, so
-  // the next key edits it. Waits for the menu to close (a formula's editor stays open first). The
-  // "+" header is what is scrolled to: the new column sits just before it, so both are in view.
-  // With no rows, the focus stays on "+", where the menu returns it. A column that never shows
+  // the next key edits it. Waits for the menu to close (a formula's editor stays open first). From
+  // "+", the "+" header is what is scrolled to: the new column sits just before it, so both are in
+  // view; an insert scrolls to its own header. With no rows, the focus stays where the menu returns
+  // it ("+", or the grid with the new header active after an insert). A column that never shows
   // (a dropped write) is forgotten once the menu has closed.
   useEffect(() => {
-    if (!addedProp || addAnchor) return
+    if (!addedProp || adding) return
     setAddedProp(null)
-    if (!props.some((prop) => prop.id === addedProp)) return
-    addRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-    if (!rows.length) return
+    const { id, inserted } = addedProp
+    if (!props.some((prop) => prop.id === id)) return
+    const shown = inserted ? document.getElementById(headerId(gridId, id)) : addRef.current
+    shown?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    if (!rows.length) {
+      // The add menu took the place of the header's menu, so it has no opener to give the focus back to.
+      if (inserted) {
+        gridRef.current?.focus({ preventScroll: true })
+        setHeader(id)
+      }
+      return
+    }
     // The grid first: focusing it picks a cell of its own when none is focused yet.
     gridRef.current?.focus({ preventScroll: true })
-    setFocus({ row: rows[0].id, prop: addedProp })
-  }, [addedProp, addAnchor, props, rows])
+    setFocus({ row: rows[0].id, prop: id })
+  }, [addedProp, adding, props, rows, gridId])
 
   const refocusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(refocusTimer.current), [])
+  // Take keyboard focus back only when it was dropped (an editor or a popover unmounted);
+  // never steal it from whatever the user clicked meanwhile.
+  const regainFocus = useCallback((): void => {
+    clearTimeout(refocusTimer.current)
+    refocusTimer.current = setTimeout(() => {
+      const active = document.activeElement
+      if (!active || active === document.body) gridRef.current?.focus({ preventScroll: true })
+    }, 0)
+  }, [])
 
   const moveFocus = useCallback((dRow: number, dCol: number, wrap = false): boolean => {
     const { rows: rs, rowIndex: index, props: ps, focus: f } = latest.current
@@ -174,15 +222,9 @@ export function TableView(p: ViewProps): JSX.Element {
       setEditing(null)
       if (move === 'next') moveFocus(0, 1, true)
       else if (move === 'prev') moveFocus(0, -1, true)
-      // Take keyboard focus back only when it was dropped (editor unmounted);
-      // never steal it from whatever the user clicked to end the edit.
-      clearTimeout(refocusTimer.current)
-      refocusTimer.current = setTimeout(() => {
-        const active = document.activeElement
-        if (!active || active === document.body) gridRef.current?.focus({ preventScroll: true })
-      }, 0)
+      regainFocus()
     },
-    [moveFocus]
+    [moveFocus, regainFocus]
   )
 
   const onToggleSelect = useCallback((rowId: string, shift: boolean) => {
@@ -292,10 +334,75 @@ export function TableView(p: ViewProps): JSX.Element {
 
   // ---- keyboard ----
 
+  /** Opens the menu of a header: a property's, or the add menu on "+". */
+  const openHeaderMenu = (id: string): void => {
+    if (id === ADD_HEADER) {
+      if (addRef.current) setAdding({ anchor: addRef.current, inserted: false })
+      return
+    }
+    const el = document.getElementById(headerId(gridId, id))
+    if (el) setMenu({ propId: id, anchor: el })
+  }
+
+  /** "Insert left / right" in a header's menu: the add menu takes its place, on the same header. */
+  const insertBeside = (propId: string, side: 'left' | 'right', anchor: HTMLElement): void => {
+    const index = props.findIndex((prop) => prop.id === propId)
+    if (index < 0) return
+    setMenu(null)
+    setAdding({ anchor, inserted: true, before: side === 'left' ? propId : props[index + 1]?.id })
+  }
+
+  /** Keys on the header row: along it (ending on "+"), down to the first row, and into a header's menu. */
+  const onHeaderKeyDown = (event: KeyboardEvent<HTMLDivElement>, at: string): void => {
+    const ids = [...props.map((prop) => prop.id), ADD_HEADER]
+    const index = Math.max(0, ids.indexOf(at))
+    const plain = !event.ctrlKey && !event.metaKey && !event.altKey
+    let handled = true
+    if (takeMenuKey(event)) openHeaderMenu(at)
+    else if (!plain) handled = false
+    else {
+      switch (event.key) {
+        case 'ArrowLeft':
+        case 'ArrowRight':
+        case 'Home':
+        case 'End': {
+          const to = rovingTarget(event.key, index, ids.length, 'horizontal')
+          if (to !== null) setHeader(ids[to])
+          break
+        }
+        case 'ArrowUp':
+          break
+        case 'ArrowDown': {
+          const prop = at === ADD_HEADER ? props[props.length - 1] : props[index]
+          if (rows.length && prop) setFocus({ row: rows[0].id, prop: prop.id })
+          break
+        }
+        case 'Enter':
+        case ' ':
+        case 'F2':
+          openHeaderMenu(at)
+          break
+        case 'Escape':
+          setHeader(null)
+          break
+        default:
+          handled = false
+      }
+    }
+    if (handled) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+  }
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     if (editing) return
     const target = event.target as HTMLElement
     if (target !== event.currentTarget && target.closest('input, textarea, select, button, [data-popover]')) return
+    if (header !== null && !focus) {
+      onHeaderKeyDown(event, header)
+      return
+    }
     const row = focus ? rows[rowIndex.get(focus.row) ?? -1] : undefined
     const prop = focus ? props.find((x) => x.id === focus.prop) : undefined
     const r = row ? (rowIndex.get(row.id) ?? 0) : 0
@@ -311,7 +418,11 @@ export function TableView(p: ViewProps): JSX.Element {
     switch (event.key) {
       case 'ArrowUp':
         if (mod) focusAt(0, c)
-        else moveFocus(-1, 0)
+        else if (row && prop && r === 0) {
+          // From the first row up to the column's header.
+          setFocus(null)
+          setHeader(prop.id)
+        } else moveFocus(-1, 0)
         break
       case 'ArrowDown':
         if (mod) focusAt(rows.length - 1, c)
@@ -386,6 +497,7 @@ export function TableView(p: ViewProps): JSX.Element {
     focus && focusIndex !== undefined && focusIndex >= range.start && focusIndex < range.end
       ? cellId(gridId, focus.row, focus.prop)
       : undefined
+  const activeHeader = !focus && header !== null ? header : null
 
   return (
     <div className="db-table" ref={rootRef}>
@@ -429,11 +541,13 @@ export function TableView(p: ViewProps): JSX.Element {
           aria-rowcount={rows.length + 1}
           aria-colcount={props.length + 1}
           aria-multiselectable="true"
-          aria-activedescendant={activeCell}
+          aria-activedescendant={activeCell ?? (activeHeader !== null ? headerId(gridId, activeHeader) : undefined)}
           onKeyDown={onKeyDown}
           onFocus={(event) => {
-            // Tab arrives on the grid: a cell is focused at once, so there is something to read.
-            if (event.target === event.currentTarget && !latest.current.focus) moveFocus(0, 0)
+            // Tab arrives on the grid: a cell is focused at once, so there is something to read; with
+            // no rows, the first header. Coming back to a header (Esc in its menu) keeps that header.
+            if (event.target !== event.currentTarget || latest.current.focus || latest.current.header !== null) return
+            if (!moveFocus(0, 0) && latest.current.props.length) setHeader(latest.current.props[0].id)
           }}
         >
           <div className="db-thead" role="row" aria-rowindex={1}>
@@ -456,9 +570,11 @@ export function TableView(p: ViewProps): JSX.Element {
               const classes = ['db-th']
               if (colDrop?.id === prop.id) classes.push(`drop-${colDrop.edge}`)
               if (menu?.propId === prop.id) classes.push('is-active')
+              if (activeHeader === prop.id) classes.push('is-focused')
               return (
                 <div
                   key={prop.id}
+                  id={headerId(gridId, prop.id)}
                   className={classes.join(' ')}
                   style={{ width: widths[index] }}
                   role="columnheader"
@@ -484,6 +600,11 @@ export function TableView(p: ViewProps): JSX.Element {
                   onDrop={(event) => onColumnDrop(event, index)}
                   onClick={(event) => {
                     const anchor = event.currentTarget
+                    // A click on the header an insert's add menu sits on closes that menu, as it would its own.
+                    if (adding?.anchor === anchor) {
+                      setAdding(null)
+                      return
+                    }
                     setMenu((prev) => (prev?.propId === prop.id ? null : { propId: prop.id, anchor }))
                   }}
                   onContextMenu={(event) => {
@@ -509,14 +630,14 @@ export function TableView(p: ViewProps): JSX.Element {
                 </div>
               )
             })}
-            <div className="db-th-slot" role="columnheader" aria-colindex={props.length + 2}>
+            <div className="db-th-slot" id={headerId(gridId, ADD_HEADER)} role="columnheader" aria-colindex={props.length + 2}>
               <button
                 type="button"
                 ref={addRef}
-                className="db-th is-add"
+                className={activeHeader === ADD_HEADER ? 'db-th is-add is-focused' : 'db-th is-add'}
                 aria-label={copy.addProperty.label}
                 title={copy.addProperty.label}
-                onClick={(event) => setAddAnchor(event.currentTarget)}
+                onClick={(event) => setAdding({ anchor: event.currentTarget, inserted: false })}
               >
                 <Plus size={14} />
               </button>
@@ -593,16 +714,22 @@ export function TableView(p: ViewProps): JSX.Element {
           anchor={menu.anchor}
           onClose={() => setMenu(null)}
           onFilter={p.onAddFilter}
+          onInsert={(side) => insertBeside(menuProp.id, side, menu.anchor)}
         />
       )}
-      {addAnchor && (
+      {adding && (
         <AddPropertyMenu
           databaseId={databaseId}
           viewId={view.id}
-          anchor={addAnchor}
-          placement="bottom-end"
-          onClose={() => setAddAnchor(null)}
-          onAdded={setAddedProp}
+          anchor={adding.anchor}
+          placement={adding.inserted ? undefined : 'bottom-end'}
+          before={adding.before}
+          onClose={() => {
+            setAdding(null)
+            // An insert's menu replaced the header's: the focus it would give back went with that one.
+            if (adding.inserted) regainFocus()
+          }}
+          onAdded={(id) => setAddedProp({ id, inserted: adding.inserted })}
         />
       )}
     </div>

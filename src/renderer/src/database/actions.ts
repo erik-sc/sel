@@ -263,7 +263,9 @@ export function deleteView(databaseId: string, viewId: string): void {
 // ---- properties ----
 
 /**
- * Adds a property and shows it in the given view (other views keep it hidden).
+ * Adds a property and shows it in the given view (other views keep it hidden): at the end, or
+ * before the visible property `before` names (a table's "Insert left / right"). Schema and view
+ * are one write, so one undo step, and the place is the view's own order (`visibleProperties`).
  * With `groupView`, that view is also laid out by the new property (board / calendar).
  */
 export function addProperty(
@@ -271,14 +273,15 @@ export function addProperty(
   type: PropertyType,
   viewId?: string,
   name?: string,
-  options: { groupView?: boolean; relation?: RelationConfig } = {}
+  options: { groupView?: boolean; relation?: RelationConfig; before?: string } = {}
 ): string {
   const { schema, views } = snapshot(databaseId)
   const result = L.addProperty(schema, { id: newId(), type, name, relation: options.relation })
   const id = result.property.id
   const nextViews = views.map((v) => {
     if (!(v.id === viewId || (viewId === undefined && v.type === 'table'))) return v
-    const next = { ...v, visibleProperties: [...v.visibleProperties, id] }
+    const shown = { ...v, visibleProperties: [...v.visibleProperties, id] }
+    const next = options.before !== undefined && viewId !== undefined ? L.moveVisibleProperty(shown, id, options.before) : shown
     if (options.groupView && viewId !== undefined) next.groupBy = id
     return next
   })
@@ -370,13 +373,17 @@ function withRowsOf(databaseIds: string[], task: () => void): void {
   Promise.all(missing.map((id) => loadChildren(id))).then(task, (error) => console.error('database: loading rows failed', error))
 }
 
-/** Adds a relation to `targetId` (a database, or the source of a linked view) and shows it in the view. */
-export function addRelation(databaseId: string, targetId: string, viewId?: string, name?: string): string | undefined {
+/**
+ * Adds a relation to `targetId` (a database, or the source of a linked view) and shows it in the
+ * view, before `before` when given (see `addProperty`).
+ */
+export function addRelation(databaseId: string, targetId: string, viewId?: string, name?: string, before?: string): string | undefined {
   const target = getBlock(rowsOwnerId(targetId))
   if (!target || target.type !== 'database' || L.isLinkedView(target)) return undefined
   // A name the user typed wins over the related database's title.
   return addProperty(databaseId, 'relation', viewId, name?.trim() || L.titleOf(target) || undefined, {
-    relation: { databaseId: target.id }
+    relation: { databaseId: target.id },
+    before
   })
 }
 

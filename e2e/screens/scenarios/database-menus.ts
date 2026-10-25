@@ -123,6 +123,37 @@ function withSelects(repo: Repository): void {
   ])
 }
 
+/**
+ * The reading list with a relation to itself (Similar) and a rollup over it (Similar pages), shown
+ * right after the name: their column menus carry the longest of B3's translated labels.
+ */
+function withRelation(repo: Repository): void {
+  readingList(repo)
+  const schema: Record<string, PropertySchema> = {
+    ...SCHEMA,
+    similar: { id: 'similar', name: 'Similar', type: 'relation', relation: { databaseId: DB } },
+    similarPages: {
+      id: 'similarPages',
+      name: 'Similar pages',
+      type: 'rollup',
+      rollup: { relationId: 'similar', propertyId: 'pages', function: 'sum' }
+    }
+  }
+  const order = ['title', 'similar', 'similarPages', ...Object.keys(SCHEMA).filter((id) => id !== 'title')]
+  repo.apply([
+    {
+      op: 'update',
+      id: DB,
+      patch: {
+        props: {
+          schema,
+          views: [{ id: 'screens.view.reading', name: 'Table', type: 'table', visibleProperties: order, filters: [], sorts: [] }]
+        }
+      }
+    }
+  ])
+}
+
 /** A column's header, clicked: its property menu opens under it, on the "Options" section (0.9.0: not in base). */
 async function openColumnMenu(page: Page, column: string, header = 'Options'): Promise<void> {
   await openPage(page, DB_NAME)
@@ -130,6 +161,32 @@ async function openColumnMenu(page: Page, column: string, header = 'Options'): P
   await page.locator('.db-th', { hasText: column }).first().click()
   await page.locator('.ui-popover .db-prop-menu').waitFor({ state: 'visible' })
   await page.locator('.db-option-section .ui-menu-header', { hasText: header }).waitFor({ state: 'visible', timeout: 5_000 })
+}
+
+/** A column's header, clicked by its exact name: its property menu opens under it. */
+async function openMenuOf(page: Page, column: string): Promise<void> {
+  await openPage(page, DB_NAME)
+  await see(page, 'Middlemarch')
+  await page
+    .locator('.db-th')
+    .filter({ has: page.locator('.db-th-name', { hasText: new RegExp(`^${column}$`) }) })
+    .click()
+  await page.locator('.ui-popover .db-prop-menu').waitFor({ state: 'visible' })
+}
+
+/**
+ * From the keyboard onto a column's header (0.9.0, B2): the grid takes the focus (its first cell
+ * active), ArrowRight `steps` times along the first row, then ArrowUp. A base without B2 never shows
+ * a focused header ("not in base").
+ */
+async function headerFromKeyboard(page: Page, steps: number): Promise<void> {
+  await openPage(page, DB_NAME)
+  await see(page, 'Middlemarch')
+  await page.getByRole('grid', { name: 'Table' }).focus()
+  await page.locator('.db-td.is-focused').waitFor({ state: 'visible' })
+  for (let i = 0; i < steps; i++) await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowUp')
+  await page.locator('.db-th.is-focused').waitFor({ state: 'visible', timeout: 5_000 })
 }
 
 /** The table's "+" header, clicked: the add-property menu opens under it. */
@@ -232,6 +289,71 @@ export default [
       await openColumnMenu(page, 'Priority')
       await page.locator('.db-option-button', { hasText: 'Medium' }).click()
       await page.locator('.ui-popover .db-option-edit').waitFor({ state: 'visible' })
+    }
+  },
+  {
+    id: 'table-header-focus',
+    description: "ArrowUp from the first row's Author cell: the Author header active, with the grid's focus ring",
+    workspace: readingList,
+    run: async (page) => {
+      await headerFromKeyboard(page, 1)
+    }
+  },
+  {
+    id: 'property-menu-insert',
+    description: 'Enter on the Author header: its menu, name focused, with Insert left and Insert right under Type',
+    workspace: readingList,
+    run: async (page) => {
+      await headerFromKeyboard(page, 1)
+      await page.keyboard.press('Enter')
+      await see(page, 'Insert left')
+    }
+  },
+  {
+    id: 'property-menu-insert-pt',
+    description: 'The same menu in pt-BR: Inserir à esquerda, Inserir à direita',
+    locale: 'pt-BR',
+    workspace: readingList,
+    run: async (page) => {
+      await headerFromKeyboard(page, 1)
+      await page.keyboard.press('Enter')
+      await see(page, 'Inserir à esquerda')
+    }
+  },
+  {
+    id: 'property-menu-insert-added',
+    description: 'Insert left on Author, "Year" typed, Enter: Year sits between Name and Author, its first cell active',
+    workspace: readingList,
+    run: async (page) => {
+      await headerFromKeyboard(page, 1)
+      await page.keyboard.press('Enter')
+      await see(page, 'Insert left')
+      await page.getByRole('menuitem', { name: 'Insert left' }).click()
+      await typeName(page, 'Property name', 'Year')
+      await page.keyboard.press('Enter')
+      await page.locator('.ui-popover').waitFor({ state: 'detached' })
+      await page.locator('.db-th:nth-of-type(3)', { hasText: 'Year' }).waitFor({ state: 'visible' })
+      await page.locator('.db-td.is-focused').waitFor({ state: 'visible' })
+    }
+  },
+  {
+    id: 'property-menu-relation-pt',
+    description: "A relation's column menu in pt-BR: Relacionada a, Limite and the long Duas vias line in the 240 px menu",
+    locale: 'pt-BR',
+    workspace: withRelation,
+    run: async (page) => {
+      await openMenuOf(page, 'Similar')
+      await see(page, 'Limite: sem limite')
+    }
+  },
+  {
+    id: 'property-menu-rollup-pt',
+    description: "A rollup's column menu in pt-BR: Relação, Propriedade, Calcular: Soma and Linhas",
+    locale: 'pt-BR',
+    workspace: withRelation,
+    run: async (page) => {
+      await openMenuOf(page, 'Similar pages')
+      await see(page, 'Calcular: Soma')
     }
   },
   {
