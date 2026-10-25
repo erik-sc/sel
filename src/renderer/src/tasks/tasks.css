@@ -410,3 +410,68 @@ body.is-quick-add {
   color: var(--text-tertiary);
   font-size: var(--text-sm);
 }
+
+/* ---- the strip of a selection (SelectionBar.tsx) ---- */
+
+/* Only while the strip is there, the main area becomes a column so the strip rests at its foot. */
+.tasks-main:has(> .task-bar) {
+  display: flex;
+  flex-direction: column;
+}
+
+.tasks-main:has(> .task-bar) > .tasks-list {
+  flex: 1 0 auto;
+}
+
+.task-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--page-width) + var(--page-padding-x) * 2);
+  margin: 0 auto;
+  padding: 8px var(--page-padding-x);
+  border-top: var(--hairline) solid var(--border);
+  background-color: var(--bg);
+  font-size: var(--text-sm);
+}
+
+.task-bar-count {
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+}
+
+.task-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.task-ask {
+  width: 380px;
+  padding: 20px;
+}
+
+.task-ask-title {
+  margin: 0 0 8px;
+  font-size: var(--text-lg, 1.125rem);
+  font-weight: var(--weight-semibold);
+}
+
+.task-ask-body {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+}
+
+.task-ask-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

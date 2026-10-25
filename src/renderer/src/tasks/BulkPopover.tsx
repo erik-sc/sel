@@ -11,13 +11,13 @@ import { Floating } from '@/database/common'
 import { DATE_COPY } from '@/database/dateCopy'
 import { SelectEditor } from '@/database/SelectEditor'
 import { Menu, type MenuItem } from '@/ui/Menu'
-import { setDateMany, setProjectMany } from './bulk'
+import { setDateMany, setPriorityMany, setProjectMany } from './bulk'
 import { TASK_COPY } from './copy'
 
 const QUICK: readonly QuickDate[] = ['today', 'tomorrow', 'weekend', 'nextWeek']
 
 export interface BulkPopoverProps {
-  field: 'date' | 'project'
+  field: 'date' | 'project' | 'priority'
   /** The selected tasks. */
   ids: readonly string[]
   /** The row the key was pressed on: the menu opens at it, and the focus returns to it. */
@@ -40,6 +40,24 @@ export function BulkPopover({ field, ids, anchor, onClose }: BulkPopoverProps): 
       { header: words.manyHeader(ids.length) },
       ...QUICK.map((choice): MenuItem => ({ id: choice, label: dates.quick[choice], onSelect: () => setDateMany(ids, choice) })),
       { id: 'none', label: dates.quick.none, onSelect: () => setDateMany(ids, null) }
+    ]
+    return (
+      <Floating open anchor={anchor} onClose={close} role="none">
+        <Menu autoFocus items={items} onClose={close} />
+      </Floating>
+    )
+  }
+
+  if (field === 'priority') {
+    const items: MenuItem[] = [
+      { header: words.priorityHeader(ids.length) },
+      ...([1, 2, 3, 4] as const).map(
+        (level): MenuItem => ({
+          id: `p${level}`,
+          label: words.priorityName(level),
+          onSelect: () => setPriorityMany(ids, level)
+        })
+      )
     ]
     return (
       <Floating open anchor={anchor} onClose={close} role="none">

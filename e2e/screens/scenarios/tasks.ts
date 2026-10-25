@@ -63,5 +63,31 @@ export default [
       await page.keyboard.press('d')
       await page.getByRole('menuitem', { name: 'Tomorrow' }).first().waitFor({ state: 'visible', timeout: 20_000 })
     }
+  },
+  {
+    id: 'tasks-selected',
+    description: 'The Tasks list Today with three rows selected and the strip at the foot ("3 selected")',
+    run: async (page) => {
+      await pickThree(page)
+      await page.getByRole('toolbar', { name: 'Selected tasks' }).waitFor({ state: 'visible', timeout: 20_000 })
+    }
+  },
+  {
+    id: 'tasks-selected-pt',
+    description: 'The same selection and strip in a pt-BR home ("3 selecionadas", "Deixar ir")',
+    locale: 'pt-BR',
+    run: async (page) => {
+      await pickThree(page)
+      await page.getByRole('toolbar', { name: 'Tarefas selecionadas' }).waitFor({ state: 'visible', timeout: 20_000 })
+    }
+  },
+  {
+    id: 'tasks-let-go',
+    description: 'Let go pressed on the strip: the "Let go of 3 tasks?" question',
+    run: async (page) => {
+      await pickThree(page)
+      await page.getByRole('toolbar', { name: 'Selected tasks' }).getByRole('button', { name: 'Let go' }).click()
+      await page.getByRole('dialog', { name: 'Let go of 3 tasks?' }).waitFor({ state: 'visible', timeout: 20_000 })
+    }
   }
 ] satisfies Scenario[]
