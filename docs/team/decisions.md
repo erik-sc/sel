@@ -175,3 +175,76 @@ dependencies, then the panel.
 **To undo.** `/next` on any proposal puts it first whatever the suggested order; `/reject` on
 #96 or #100 removes it from the table (and #100's rejection sends the editor translation back to
 "Later"); say "keep version numbers" on #82 and the themes table gets them back.
+
+## 2026-10-25 — Calls made while building B1, A1a, B3, A1b, A1c and B2 (0.9.0)
+Logged at CLOSE from each PR's "decided on my own" section and its review rounds, for Érik to
+review. The calls already logged from the VETO research (2026-10-23, night) are not repeated.
+
+**Decision.**
+- **B1 (#102):** a second property with a taken name gets " 1" (what `uniqueName` does today; the
+  design said " 2"). The add menu is a fixed 240 px; its hint line is always reserved (hidden while
+  the field is empty) so the list does not jump. After an add the table scrolls "+" into view, not
+  the new column's header, so the next "+" is at hand. `ui/Menu.tsx` gets an optional
+  `onExitStart` (ArrowUp on the first item goes back to the field); `actions.addRelation` takes an
+  optional typed name, which wins over the related database's title.
+- **A1a (#103):** only blocks whose parent is the page join rows (a `top` option, default off, so
+  other callers keep the 0.8.0 rule). The row repair runs inside `commit`, in the same undo step;
+  blocks a batch creates, or whose `beside` it sets itself, are left alone. Copy, paste and
+  Duplicate keep `beside` on any block but a sub-page, but **paste drops `beside` on a fragment's
+  first block** (a pasted whole row stays a row; Duplicate keeps its place); this applies to
+  databases too. A column's head loses its top margin; text, heading, callout and quote heads draw
+  their children flush, while toggle, list and to-do heads keep the indent. The version viewer
+  draws the same rows but keeps wide rows at its text width. The gap line is a column border shown
+  only on hover or focus.
+- **A1b (#105):** the side zone is the block's outer quarter, capped at 96 px; the left zone
+  starts at the block's edge, not in its gutter, so a straight-down drag from the handle never
+  becomes a side drop. **Side drops only beside top-level blocks.** **A drop above or below a
+  column never splits its row**: above a later column means beside it, below a non-last text
+  column means inside it, and above or below at page level puts the block on a line of its own.
+  **`/2` and `/3` pick "2 columns" / "3 columns"** (Heading 2/3 stay on `/h2`, `/h3`); the
+  label-word rank that makes `/col` work applies to the column items only. `/columns` replaces an
+  empty text-type block with no children. Files dropped on a side land below the block. The gap
+  line hides when a row wraps (a `ResizeObserver` per row).
+- **B3 (#104):** **the Tasks priorities P1–P4 cannot be moved or deleted from the column menu**
+  (no handle, no "Delete option"; rename and recolour stay); the cell picker and board group pane
+  are unchanged. **Every column menu is a fixed 240 px** (it was 220–340 px), so long relation and
+  rollup labels end in an ellipsis. Tab wraps inside the column menu instead of leaving it (`Menu`
+  `tabbable`, `Popover` `onEscape`, both opt-in). Adding an option is announced. "Ocultar na
+  visualização". The option edit pane's own words stay English.
+- **A1c (#106):** **Enter at the very start of a column's head** puts a new empty head in its
+  place, with the old head as its first line; the new head keeps the old head's type (as Enter does
+  elsewhere), so a to-do or list column takes two Backspaces to undo it. **`HOLDS_ITS_CHILDREN`**
+  (toggle, bulleted, numbered, to-do, the same list as the CSS indent rule): such a head keeps its
+  sub-items when Enter moves it down, and Backspace never lifts such a first line into the row
+  over other lines. Backspace in an empty head over a text first line lifts that line into the row
+  (the reverse of Enter at the start). Backspace at the start of a column's last line joins it to
+  the line above, inside the column. Delete never pulls a head in, also from the block above the
+  row. A collapsed toggle head opens when Enter adds a line under it. An empty bullet that leaves a
+  row stays a bullet.
+- **B2 (#107):** **F2 opens a header's menu** with its name selected; F2 stays one `PAGE_KEYS`
+  line whose "where" now names table headers too. Mouse clicks do not make a header active (the
+  click flow looks as before). **The insert position is stored in the view's existing
+  `visibleProperties`** (what a column drag writes), in the same write as the schema. Insert
+  left/right come after a relation's, rollup's or formula's own settings. Escape on an active
+  header does nothing. "One undo" is proved as one write whose inverse restores the page, since
+  databases have no undo yet. Two new icons, `InsertLeft` / `InsertRight`.
+
+**Why.** Each is the smallest choice that keeps old data opening unchanged, keeps a row whole
+while the user types or drags, and keeps menus calm. All were reviewed and approved on their PRs.
+**To undo.** Name the call on #82 and it becomes an item in the next release. Larger ones: show
+P1–P4 deletion everywhere, or nowhere; let paste keep the first block's `beside`; give `/2` back
+to Heading 2; let side drops reach nested blocks (a scope change); keep each column menu at its
+content's width.
+
+## 2026-10-25 — 0.9.0 CLOSE: where its leftovers go
+**Decision.** The leftovers in the 0.9.0 plan's "Left for later" go to the polish pass before
+1.0, except: the pt-BR words still in English go to proposal #100; undo for database edits gets
+its own small proposal in the next backlog upkeep (first step: an Undo toast on option delete),
+because it is a gap against the release's own principle and option delete now clears every row in
+two clicks; screenshot-harness limits are team tooling with no release slot. The six proposals'
+suggested order (#99, #97, #101, #98, #100, #96) is unchanged: nothing 0.9.0 shipped touches
+their dependencies.
+**Why.** Polish before novelty; none of these is a pain Érik named, and most need him to try the
+columns in use before they are worth a night.
+**To undo.** Say on #82 which line to take sooner (it becomes an item of the next release), or
+that database undo can wait for the polish pass.

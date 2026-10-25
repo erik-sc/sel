@@ -1,8 +1,8 @@
 # Release 0.9.0 — Pages and databases you can shape
 
-Status: **building** · 2026-10-25 · branch `release/0.9.0` (from `main` at 8da2eb4, v0.8.0)
-· approved by Érik's `/ok` on #82, 2026-10-24 · merged: S0 (#88, Érik's OK), C1 (#89), C2 (#90), B1 (#102),
-A1a (#103), B3 (#104), A1b (#105), B2 (#107) · A1c (#106) in review, needs another night
+Status: **ready to ship** · 2026-10-25 · branch `release/0.9.0` (from `main` at 8da2eb4, v0.8.0)
+· approved by Érik's `/ok` on #82, 2026-10-24 · all nine items merged: S0 (#88, Érik's OK), C1 (#89),
+C2 (#90), B1 (#102), A1a (#103), B3 (#104), A1b (#105), A1c (#106), B2 (#107)
 
 Érik's second pain, in his words: "the multi-column page layout does not work; too many clicks to
 edit columns". Today only database blocks can sit side by side, so a page cannot put a note
@@ -757,8 +757,82 @@ the branch does not have. Anything an item drops is left out.
 
 ## Delivered
 
-_(filled in CLOSE)_
+Filled in CLOSE, 2026-10-25, from the merged PRs and their reviews. Nothing new is stored: 0.8.0
+opens every page and database 0.9.0 writes.
+
+| Item | What a user gets | PR |
+|---|---|---|
+| S0 | Every visible pull request gets a comment with real screenshots of the app (Windows, light and dark, before and after), so Érik reviews a change by looking at it | #88 |
+| C1 | Nothing visible: React 19.3.1, happy-dom 21.0.4 (security fix) and Electron 44.9.3 (still Chromium 152, Node 24) | #89 |
+| C2 | Nothing visible: vite 8 (Rolldown, Oxc minify), plugin-react 6, vitest 5.0.5, electron-vite 6; startup still loads entry plus vendor (plus a 726-byte runtime chunk) | #90 |
+| B1 | The add-property menu opens on a name field: type a name and pick a type, or press Enter for a text property; the new column scrolls into view with "+" still visible and its first cell active; in en and pt-BR | #102 |
+| A1a | Any top-level block (not a sub-page) can sit beside the block before it, up to four per row, from the block menu ("Place beside the previous block"); rows of two keep the text width, wider rows the database width; one undo restores a row that a delete or move repaired; the version viewer draws the same rows | #103 |
+| B3 | A select's column menu lists its options: add, rename, recolour, delete and reorder (drag or Alt+arrows) without opening a cell; the whole column menu is in en and pt-BR, a fixed 240 px wide, and Tab stays inside it; the Tasks priorities P1–P4 can be renamed and recoloured, not moved or deleted, there | #104 |
+| A1b | Drag a block onto the side of another to make columns (a vertical drop line shows where); `/2 columns` and `/3 columns` (also `/2`, `/col`, `/colunas`) make an empty row in one step; drops above or below a column never split its row | #105 |
+| A1c | Typing in a column keeps the row whole: Enter stays in the column, Enter on an empty last line or Shift+Tab leaves the row ("Out of the columns" / "Fora das colunas"), Tab on a head does nothing, Backspace and Delete never merge two columns, and Enter then Backspace at a column's start cancel out | #106 |
+| B2 | Table headers from the keyboard: ArrowUp from the first row, arrows/Home/End along them to "+", Enter/Space/F2/Shift+F10 open the menu with the name selected; "Insert left" / "Insert right" ("Inserir à esquerda" / "à direita") add a property on that side | #107 |
 
 ## Left for later
 
-_(filled in CLOSE)_
+Filled in CLOSE, 2026-10-25, from the reviews' deferred and optional findings. Each line points
+at a place in `docs/team/roadmap.md` ("Left for later from 0.9.0").
+
+**A gap against this plan's principles**
+- **Undo for database edits.** The principle "Undo (Ctrl+Z) reverses each change as one step" is
+  met in the editor only. No schema or option edit can be undone: database writes go through
+  `applyOps` outside the editor's history (`src/renderer/src/database/actions.ts`). B3 brings the
+  most destructive one closer: deleting an option from the column menu clears it from every row
+  in two clicks, with no confirmation. Smallest first step: an "Undo" toast on option delete, as
+  `trashRows` already has. → a new small proposal in the next backlog upkeep (asked of Érik in the
+  release PR's "Needs you").
+
+**Editor and columns**
+- The version viewer keeps rows of 3–4 columns (and database rows) at its text width, so a
+  4-column row wraps 2 + 2 there (`src/renderer/src/versions/versions.css`). → Polish pass.
+- An empty bullet or to-do that leaves a row with Enter stays a bullet; leaving shows only as the
+  gap line going away. → Polish pass, after Érik tries it.
+- Enter at the start of a to-do, list or toggle column head makes a new head of the same type, so
+  the column shifts one indent and getting back takes two Backspaces; a plain text head would
+  read better. → Polish pass, after Érik tries it.
+- Backspace in an empty head over a to-do, list or toggle with more lines under it moves the caret
+  to the previous column and leaves the empty line (rare: only after clearing a head by hand).
+  → Polish pass.
+- Tab on the block right below a row folds it into the last column, drawn flush (older than
+  0.9.0). → Polish pass, after Érik tries it.
+- Delete in an empty line just above a row does nothing; only Backspace removes that line.
+  → Polish pass.
+- Sync merges, the persona's Apply and Markdown import do not run A1a's row repair (plan Risks):
+  a block can show in an unexpected row; nothing is lost. → Polish pass.
+- Code tidy: `--pe-column-gap` repeats 52 px as a fallback and the empty column's `6px` is raw
+  (`src/renderer/src/editor/editor.css`). → Polish pass.
+
+**Databases**
+- `uniqueName` gives "Budget 1" for a second "Budget"; " 2" reads better, but the same function
+  names duplicated views (`src/shared/database/views.ts`). → Polish pass.
+- Relation and rollup labels are cut at the 240 px column menu ("Duas vias: mostrar o o…"), and
+  entries without an icon do not line up with those that keep an icon slot. → Polish pass.
+- Clicking a table header leaves the grid's focus ring on the first cell while the menu is open
+  (older than 0.9.0). → Polish pass.
+- P1–P4 of the Tasks database can still be deleted from the cell picker and the board group pane
+  (`SelectEditor.tsx`, `BoardView.tsx`), unlike the column menu. → Polish pass.
+- An option's edit pane opens with its name focused but not selected, so typing appends.
+  → Polish pass.
+- Check that a long column menu near the window's bottom edge flips or clamps
+  (`src/renderer/src/ui/Popover.tsx`). → Polish pass.
+- No test for Insert left/right on a linked view (schema to the source, order to the linked
+  block). → Polish pass.
+- The keyboard header row exists in the table only, not in Board, List or Gallery (out of scope).
+  → Polish pass.
+
+**Language**
+- In pt-BR the option edit pane ("Delete option", "Colour", colour names), the slash menu's
+  "Blocks" header and the rest of the block menu are still English. → proposal #100.
+
+**Screens and tooling**
+- No scenario shows Settings › Appearance "Narrowest column" (`--column-min`). → Polish pass.
+- The screenshot harness moves the pointer off the window before each capture, so hover states
+  never show; dark captures sometimes miss the word count (timing). → team tooling, when an item
+  needs it (no release slot).
+- `team/screens` grows by about 4–5 MB per push. → Érik's call (reset at CLOSE or keep).
+- C2 changed the bundler and no cloud session can launch the app: a Windows `npm run dist` and a
+  cold start before the tag is the real proof. → Érik, before tagging (release PR).

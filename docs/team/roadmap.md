@@ -9,7 +9,8 @@ written against the code on `release/0.9.0`; revised again on 2026-10-24 (night)
 rejected those three (#91, #92, #93) and asked for smaller, concrete releases he feels in daily
 use, and for new ideas from the team beyond the listed pains (comment on #82); revised on
 2026-10-25 to agree with the six open proposals (#96–#101) after three more (#99–#101) were posted
-and the panel review reached all six.
+and the panel review reached all six; revised at 0.9.0's CLOSE (2026-10-25): 0.9.0 delivered and
+ready to ship, its leftovers placed below ("Left for later from 0.9.0").
 
 ## Milestones (Érik's, 2026-10-21)
 
@@ -29,7 +30,7 @@ predecessor's version number is therefore not fixed.
 | # | Pain (his order) | State | Evidence | Next |
 |---|---|---|---|---|
 | 1 | Handling the inbox: moving, dating, prioritising opened the task screen | **Solved in code, not yet confirmed by him.** Task rows on Tasks, Today and Calendar carry chips (date, repeat, priority, project, labels) that open their editor in place, a context menu, per-row keys, a side task panel, a "To refine" list and a keyboard-only Refine mode, plus four refine reminders | `src/renderer/src/tasks/TaskRow.tsx`, `TaskPanel.tsx`, `Refine.tsx`, `src/shared/tasks/refine.ts`; used in `briefing/TodayScreen.tsx` and `briefing/CalendarScreen.tsx` (0.7.0 items 9a–9c) | Ask him in the 0.9.0 release PR whether it still hurts; reopen only on his word |
-| 2 | Database usability: multi-column page layout does not work; too many clicks to edit columns | **Open.** Only database blocks can sit side by side (`editor/layout.ts`, `canShareRow`); text, callouts and images cannot. A new property is created with its type's name and must be opened again to be renamed (`database/propertyMenus.tsx`, `AddPropertyMenu`); select options can only be edited from inside a cell (`database/SelectEditor.tsx`); table headers are mouse-only | code read 2026-10-23 | **0.9.0** |
+| 2 | Database usability: multi-column page layout does not work; too many clicks to edit columns | **Delivered in 0.9.0, not yet confirmed by him.** Any top-level block can sit beside another (block menu, drag to the side, `/2 columns`, typing that keeps the row whole); a property is named as it is added; select options are edited from the column menu; table headers are reachable by keyboard, with insert left or right | 0.9.0 plan, "Delivered" (#102–#107) | Ask him in the 0.9.0 release PR; his use decides the polish items in "Left for later from 0.9.0" |
 | 3 | The persona creating real pages and databases (a finances page came out weak) | **Open.** A proposal can only create properties of 8 plain types (no formula, relation, rollup or number format such as currency), one view per database, and no filters, sorts, charts, calculations or side-by-side layout | `src/shared/actions.ts` (`ACTION_PROPERTY_TYPES`, `ACTION_VIEWS`, `HermanAction`) | Later (#91 rejected for now) |
 | 4 | The persona being proactive: reminding what was left undone, suggesting occasionally | **Built, not proven.** Routines (morning plan, midday, evening close-of-day draft, weekly review, stalled task) exist but are all off by default; the non-AI counsel already nudges about the inbox. A routine's answer lives only in memory and is lost if the app closes before the persona speaks | `src/shared/routines.ts`, `src/main/routines/`, `src/main/herman/counsel.ts`; release-0.8.0.md "Falta / para depois" | Later (#93 rejected for now) |
 | 5 | Making the verticals clear (extras off by default on fresh installs) | **Open.** Templates, LaTeX, pomodoro and in-app feedback have no on/off switch; every fresh install shows all of them. Appearance presets have had no screen since 0.7.1 (commit 4980fe8), so there is nothing to switch | `src/renderer/src/features.ts` registers every feature unconditionally; no `*.enabled` setting for them in `src/shared/` | Later (#92 rejected for now) |
@@ -43,10 +44,10 @@ One theme each; polish before novelty. Versions after the next one are intention
 
 | Version | Theme | What it holds |
 |---|---|---|
-| **0.9.0** | **Pages and databases you can shape** (pain 2) | Columns for any block (block menu, drag to the side, typing inside a column); a new property named as it is made; select options edited from the column's menu; table headers renamed in place, reachable by keyboard, with insert left or right. Housekeeping: land the dev-toolchain bumps Dependabot opened (#75–#78) on the release branch. First, at Érik's request: a CI job that screenshots the real app (Windows, seeded demo workspace, both themes) before and after on every visible PR |
+| **0.9.0** (delivered, ready to ship, 2026-10-25) | **Pages and databases you can shape** (pain 2) | Columns for any block (block menu, drag to the side, typing inside a column); a new property named as it is made; select options edited from the column's menu; table headers renamed in place, reachable by keyboard, with insert left or right. Housekeeping: land the dev-toolchain bumps Dependabot opened (#75–#78) on the release branch. First, at Érik's request: a CI job that screenshots the real app (Windows, seeded demo workspace, both themes) before and after on every visible PR |
 | next | **The open proposals, in Érik's order** | Six proposals wait for approval (see "Release backlog" below, which gives the team's suggested order). Each one approved becomes the next release; one theme per release |
 | after them | **Ready for another developer** | README and `site/` that take a stranger from clone to running app; a contributor guide drawn from `docs/codebase-knowledge/`; a first run that works without Claude Code installed and says what AI adds; the line citations in `docs/codebase-knowledge` checked; issue templates and `CONTRIBUTING.md` (0.9.0 plan, "First run") |
-| then | **Polish pass before 1.0** | A pass over every screen in `docs/screens/` for clicks, copy, focus and dark mode; importer gaps (non-image attachments, Notion relations as relations); backup comparison measured on a large workspace; whatever Érik's daily use has turned up |
+| then | **Polish pass before 1.0** | A pass over every screen in `docs/screens/` for clicks, copy, focus and dark mode; importer gaps (non-image attachments, Notion relations as relations); backup comparison measured on a large workspace; the 0.9.0 leftovers below (columns, database menus, screens); whatever Érik's daily use has turned up |
 | **1.0.0** | **Usable and polished** | Only fixes and polish on top of the polish pass; the five pains confirmed solved by Érik |
 
 From 1.0.0 to 2.0.0 (order decided after 1.0.0): column widths and page layout presets; database
@@ -100,7 +101,7 @@ new, smaller proposal, on Érik's word or when his daily use points at it.
 
 | What | Where it went |
 |---|---|
-| The editor's menus in pt-BR (slash menu, block menu, selection toolbar, page menu): 0.9.0 adds two Portuguese entries to an English block menu and translates only the database property menus (plan 0.9.0, "Risks" and "First run") | Now proposal **#100**, which also takes "one language throughout" from #92 and adds a language setting of its own. If #100 is rejected, this line returns here as parked |
+| The editor's menus in pt-BR (slash menu, block menu, selection toolbar, page menu): 0.9.0 adds two Portuguese entries to an English block menu and translates only the database property menus (plan 0.9.0, "Risks" and "First run") | Now proposal **#100**, which also takes "one language throughout" from #92 and adds a language setting of its own. If #100 is rejected, this line returns here as parked. At 0.9.0's CLOSE the remaining English spots are known: the block menu, the slash menu's "Blocks" header, and the option edit pane ("Delete option", "Colour", colour names) inside the otherwise Portuguese column menu |
 
 The 1.0.0 milestone above still names the five pains; pains 3, 4 and 5 therefore come back before
 1.0.0, in a shape Érik chooses.
@@ -116,6 +117,25 @@ The 1.0.0 milestone above still names the five pains; pains 3, 4 and 5 therefore
 | Backup comparison not measured on very large workspaces | Polish pass before 1.0 |
 | Line citations in `docs/codebase-knowledge` need a pass | Ready for another developer |
 | Decisions the 0.8.0 agents took (activity log on by default; memory uses haiku on every request; 08:00–19:00 as the working day; Monday-to-Sunday week; a project's next action is only the chosen one; weekly rhythm note off) | Listed for Érik in the 0.9.0 release PR; any he rejects becomes an item |
+
+## Left for later from 0.9.0, and where it went
+
+From `docs/plans/release-0.9.0.md`, "Left for later" (CLOSE, 2026-10-25). The six proposals'
+order above is unchanged.
+
+| From the 0.9.0 plan | Goes to |
+|---|---|
+| **Undo for database edits**: no schema or option edit can be undone (the plan's undo principle holds only in the editor); option delete clears every row in two clicks with no confirmation | **A new small proposal in the next backlog upkeep**, first step an Undo toast on option delete; asked of Érik in the release PR |
+| pt-BR still English in the option edit pane, the slash menu's "Blocks" header and the block menu | Proposal **#100** |
+| Version viewer keeps 3–4 column rows at text width (`versions.css`) | Polish pass before 1.0 |
+| Columns, to judge in use first: an empty bullet leaving a row stays a bullet; Enter at the start of a to-do/list/toggle head makes a same-type head (two Backspaces back); Tab below a row folds it into the last column (older); Backspace in an empty head over a to-do with lines under it only moves the caret | Polish pass before 1.0, after Érik has used columns |
+| Columns, small fixes: Delete in an empty line above a row does nothing; sync, Apply and import do not repair rows; `--pe-column-gap` fallback and a raw 6 px in `editor.css` | Polish pass before 1.0 |
+| Database menus: `uniqueName` gives " 1" not " 2" (also names views); relation and rollup labels cut at 240 px and icon slots misaligned; clicking a header leaves the ring on the first cell (older); P1–P4 still deletable from the cell picker and board group pane; option pane name not selected on open; long menu near the bottom edge to check | Polish pass before 1.0 |
+| Keyboard header row in Board, List and Gallery (table only in 0.9.0) | Polish pass before 1.0 |
+| Tests and screens: no test for insert on a linked view; no scenario for Settings › Appearance "Narrowest column" | Polish pass before 1.0 |
+| Screenshot harness cannot capture hover; dark captures sometimes miss the word count | Team tooling, when an item needs it (no release slot) |
+| `team/screens` grows about 4–5 MB per push | Érik's call (release PR) |
+| C2's bundler change never ran as a built app in the cloud: a Windows `npm run dist` and a cold start | Érik, before tagging 0.9.0 (release PR) |
 
 ## How the team treats dependency updates
 
