@@ -430,8 +430,8 @@ body.is-quick-add {
   flex: none;
   box-sizing: border-box;
   width: 100%;
-  /* The right side keeps Herman's corner clear, so he never stands on an action. */
-  padding: 0 max(var(--page-padding-x), 96px) 0 var(--page-padding-x);
+  /* The same room on both sides keeps Herman's corner clear without shifting the strip off the list's column. */
+  padding: 0 max(var(--page-padding-x), 96px);
   background-color: var(--bg);
   font-size: var(--text-sm);
 }

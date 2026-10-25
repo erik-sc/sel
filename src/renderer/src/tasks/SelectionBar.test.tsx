@@ -36,12 +36,15 @@ describe('SelectionBar', () => {
     expect(document.querySelector('.task-bar')?.textContent).toContain('2 selected')
   })
 
-  it('asks for the same changes as the keys', async () => {
+  it('asks for the same changes as the keys, the fields behind one Change button', async () => {
     const on = handlers()
     await render(<SelectionBar ids={['a', 'b', 'c']} {...on} />)
-    await click(button(/^Date$/))
-    await click(button(/^Priority$/))
-    await click(button(/^Project$/))
+    expect(button(/^Date$/)).toBeUndefined()
+    for (const field of ['Date', 'Priority', 'Project']) {
+      await click(button(/^Change$/))
+      const item = [...document.querySelectorAll('[role="menuitem"]')].find((each) => each.textContent === field)
+      await click(item!)
+    }
     await click(button(/^Done$/))
     await click(document.querySelector<HTMLButtonElement>('button[aria-label="Deselect"]')!)
     expect(on.onMenu.mock.calls.map((call) => call[0])).toEqual(['date', 'priority', 'project'])
@@ -77,7 +80,7 @@ describe('SelectionBar', () => {
     await render(<SelectionBar ids={['a', 'b', 'c']} {...handlers()} />)
     expect(document.querySelector('.task-bar')?.textContent).toContain('3 selecionadas')
     expect(document.querySelector('button[aria-label="Desmarcar"]')).toBeTruthy()
-    for (const name of [/^Data$/, /^Prioridade$/, /^Projeto$/, /^Concluir$/, /^Deixar ir$/]) expect(button(name)).toBeTruthy()
+    for (const name of [/^Alterar$/, /^Concluir$/, /^Deixar ir$/]) expect(button(name)).toBeTruthy()
     await click(button(/^Deixar ir$/))
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Deixar ir 3 tarefas?')
   })

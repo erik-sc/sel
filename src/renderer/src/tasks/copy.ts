@@ -88,6 +88,7 @@ export interface TaskCopy {
   /** The strip at the foot of a selection (SelectionBar.tsx): its name, the button that ends the selection, Let go and its question. */
   barLabel: string
   deselect: string
+  changeMany: string
   markDone: string
   letGo: string
   letGoTitle: (count: number) => string
@@ -159,6 +160,7 @@ const EN: TaskCopy = {
   manyHeader: (count) => `Day for ${count} ${count === 1 ? 'task' : 'tasks'}`,
   barLabel: 'Selected tasks',
   deselect: 'Deselect',
+  changeMany: 'Change',
   markDone: 'Done',
   letGo: 'Let go',
   letGoTitle: (count) => `Let go of ${count} tasks?`,
@@ -237,6 +239,7 @@ const PT: TaskCopy = {
   manyHeader: (count) => `Dia para ${count} ${count === 1 ? 'tarefa' : 'tarefas'}`,
   barLabel: 'Tarefas selecionadas',
   deselect: 'Desmarcar',
+  changeMany: 'Alterar',
   markDone: 'Concluir',
   letGo: 'Deixar ir',
   letGoTitle: (count) => `Deixar ir ${count} tarefas?`,

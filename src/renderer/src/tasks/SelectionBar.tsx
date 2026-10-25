@@ -8,6 +8,8 @@ import { Close } from '@/ui/icons'
 import type { JSX } from 'react'
 import { useHome } from '@/home/store'
 import { Button, IconButton } from '@/ui/Button'
+import { Floating } from '@/database/common'
+import { Menu, type MenuItem } from '@/ui/Menu'
 import { Modal } from '@/ui/Modal'
 import { TASK_COPY } from './copy'
 import { letGoTasks } from './edit'
@@ -30,6 +32,8 @@ export interface SelectionBarProps {
 export function SelectionBar({ ids, onMenu, onToggle, onClear, onLetGo }: SelectionBarProps): JSX.Element | null {
   const words = TASK_COPY[useHome((state) => state.locale)]
   const [asking, setAsking] = useState(false)
+  // "Change" opens a short menu of the fields; the choice opens that field's own menu at the same button.
+  const [changing, setChanging] = useState<HTMLElement | null>(null)
   const titleId = useId()
   if (ids.length < MANY) return null
   return (
@@ -38,14 +42,8 @@ export function SelectionBar({ ids, onMenu, onToggle, onClear, onLetGo }: Select
         <div className="task-bar-inner" role="group" aria-label={words.barLabel}>
           <span className="task-bar-count">{words.selected(ids.length)}</span>
           <div className="task-bar-actions">
-            <Button variant="ghost" onClick={(event) => onMenu('date', event.currentTarget)}>
-              {words.field.date}
-            </Button>
-            <Button variant="ghost" onClick={(event) => onMenu('priority', event.currentTarget)}>
-              {words.field.priority}
-            </Button>
-            <Button variant="ghost" onClick={(event) => onMenu('project', event.currentTarget)}>
-              {words.field.project}
+            <Button variant="ghost" aria-haspopup="menu" aria-expanded={!!changing} onClick={(event) => setChanging(event.currentTarget)}>
+              {words.changeMany}
             </Button>
             <Button variant="ghost" onClick={onToggle}>
               {words.markDone}
@@ -59,6 +57,29 @@ export function SelectionBar({ ids, onMenu, onToggle, onClear, onLetGo }: Select
           </div>
         </div>
       </div>
+      {changing && (
+        <Floating open anchor={changing} onClose={() => setChanging(null)} role="none">
+          <Menu
+            autoFocus
+            onClose={() => {
+              const anchor = changing
+              setChanging(null)
+              if (anchor.isConnected) anchor.focus({ preventScroll: true })
+            }}
+            items={(['date', 'priority', 'project'] as const).map(
+              (field): MenuItem => ({
+                id: field,
+                label: words.field[field],
+                onSelect: () => {
+                  const anchor = changing
+                  setChanging(null)
+                  onMenu(field, anchor)
+                }
+              })
+            )}
+          />
+        </Floating>
+      )}
       <Modal open={asking} onClose={() => setAsking(false)} labelledBy={titleId} className="task-ask">
         <h2 id={titleId} className="task-ask-title">
           {words.letGoTitle(ids.length)}
