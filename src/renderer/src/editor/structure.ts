@@ -139,17 +139,43 @@ export function topLevel(tree: Tree, ids: readonly string[]): string[] {
   return tops.sort((a, b) => (index.get(a) ?? -1) - (index.get(b) ?? -1))
 }
 
+// ---- columns: the heads of a row ------------------------------------------
+
+/**
+ * The row (layout.ts) that `id` heads a column of: two or more of the page's own blocks drawn side
+ * by side, `id` among them. Null for a block in no row, a block alone in its row, or a nested one.
+ */
+export function rowOfHead(tree: Tree, id: string): Block[] | null {
+  if (tree.get(id)?.parentId !== tree.pageId) return null
+  const row = pageRowOf(tree, id)?.row
+  return row && row.length > 1 ? row : null
+}
+
+/** Whether `id` sits right under a column's head: one of the lines of that column below its head. */
+function inColumn(tree: Tree, id: string): boolean {
+  const parentId = tree.get(id)?.parentId
+  return !!parentId && parentId !== tree.pageId && !!rowOfHead(tree, parentId)
+}
+
+/** Whether Shift+Tab on `ids` takes them out of a row of columns (outdentOps puts them after it). */
+export function outdentLeavesRow(tree: Tree, ids: readonly string[]): boolean {
+  const first = topLevel(tree, ids)[0]
+  return !!first && inColumn(tree, first) && outdentOps(tree, ids).length > 0
+}
+
 // ---- text structure: split and merge -------------------------------------
 
 /**
  * Enter in a text block.
  *
  * The text after the caret always lands directly below the text before it:
- * - a block that shows children gets the new block as its *first child* (so the
- *   existing children are never left behind above the text that was split off);
+ * - a block that shows children, or the head of a column, gets the new block as its *first
+ *   child* (so the existing children are never left behind above the text that was split off,
+ *   and a column's new line stays in the column instead of splitting the row);
  * - otherwise the new block is the next sibling.
  * The children always stay with the original block. Enter on an empty block
- * resets its type or, when it is the last nested one, lifts it out one level.
+ * resets its type or, when it is the last nested one, lifts it out one level (out of the row,
+ * for the last line of a column: outdentOps).
  */
 export function splitPlan(tree: Tree, id: string, start: number, end: number, newId: () => string): Plan {
   const b = tree.get(id)
@@ -162,12 +188,14 @@ export function splitPlan(tree: Tree, id: string, start: number, end: number, ne
     if (b.type !== 'text') return nested && continuesOnEnter(b.type) && last ? { do: 'outdent' } : { do: 'turnText' }
     if (nested && last) return { do: 'outdent' }
   }
+  const row = nested ? null : rowOfHead(tree, id)
   const from = Math.max(0, Math.min(start, end, len))
   const to = Math.min(len, Math.max(start, end))
   const type: BlockType = continuesOnEnter(b.type) ? b.type : 'text'
   const fresh = (t: BlockType): BlockProps => (t === 'to_do' ? { checked: false } : {})
   const id2 = newId()
   if (from === 0 && to === 0 && len > 0) {
+    if (row) return headStartPlan(tree, b, row, id2, fresh(type), type)
     // Caret at the very start: push the block down by inserting an empty one above.
     return {
       do: 'commit',
@@ -178,8 +206,10 @@ export function splitPlan(tree: Tree, id: string, start: number, end: number, ne
   const ops: Op[] = []
   if (from < len) ops.push({ op: 'update', id, patch: { props: { title: slice(title, 0, from) } } })
   const right = slice(title, to)
-  if (visibleChildren(tree, b).length > 0) {
+  if (row || visibleChildren(tree, b).length > 0) {
     const childType: BlockType = b.type === 'toggle' ? 'text' : type
+    // A collapsed toggle heading a column opens, so the new line is seen where it is typed.
+    if (b.type === 'toggle' && b.props.collapsed) ops.push({ op: 'update', id, patch: { props: { collapsed: false } } })
     ops.push({
       op: 'create',
       input: { id: id2, type: childType, parentId: id, afterId: null, props: { ...fresh(childType), title: right } }
@@ -188,6 +218,34 @@ export function splitPlan(tree: Tree, id: string, start: number, end: number, ne
     ops.push({ op: 'create', input: { id: id2, type, parentId: b.parentId, afterId: id, props: { ...fresh(type), title: right } } })
   }
   return { do: 'commit', ops, after: textSel(id2, 0) }
+}
+
+/**
+ * Enter at the very start of a column's head: the empty line goes above it inside the column. The
+ * new block takes the head's place in the row (and its `beside`), the head becomes its first child
+ * and the head's children follow it there, so the column reads as before with an empty line on top
+ * (a toggle keeps its own children). The next column keeps its place beside the new head.
+ */
+function headStartPlan(tree: Tree, b: Block, row: readonly Block[], id2: string, props: BlockProps, type: BlockType): Plan {
+  const beside = b.props.beside === true
+  const ops: Op[] = [
+    {
+      op: 'create',
+      input: { id: id2, type, parentId: tree.pageId, afterId: prevSibling(tree, b.id), props: beside ? { ...props, beside: true } : props }
+    },
+    { op: 'move', id: b.id, parentId: id2, afterId: null }
+  ]
+  if (beside) ops.push({ op: 'update', id: b.id, patch: { props: { beside: null } } })
+  if (b.type !== 'toggle') {
+    let after = b.id
+    for (const c of b.content) {
+      ops.push({ op: 'move', id: c, parentId: id2, afterId: after })
+      after = c
+    }
+  }
+  const next = row[row.findIndex((x) => x.id === b.id) + 1]
+  if (next) ops.push({ op: 'update', id: next.id, patch: { props: { beside: true } } })
+  return { do: 'commit', ops, after: textSel(b.id, 0) }
 }
 
 /** Moves the children of `b` out so they follow it as siblings (used before deleting it). */
@@ -201,19 +259,32 @@ export function hoistChildrenOps(b: Block): Op[] {
   return ops
 }
 
-/** Backspace with the caret at the start of a text block. */
+/**
+ * Backspace with the caret at the start of a text block.
+ *
+ * In a row of columns, a head is never merged into another block: an empty head with nothing
+ * under it is deleted (the row closes up, layout.ts's repair) and the caret goes to the end of the
+ * block above in reading order; any other head only moves the caret there. The last line of a
+ * column merges into the line above it, like a block at the top of the page, instead of being
+ * lifted out of the column.
+ */
 export function backspacePlan(tree: Tree, id: string): Plan {
   const b = tree.get(id)
   if (!b) return null
   if (b.type !== 'text') return { do: 'turnText' }
-  if (b.parentId !== tree.pageId && !nextSibling(tree, id)) return { do: 'outdent' }
+  if (b.parentId !== tree.pageId && !nextSibling(tree, id) && !inColumn(tree, id)) return { do: 'outdent' }
   const prev = prevVisible(tree, id)
   if (!prev) return null
-  if (prev === tree.pageId) return { do: 'focus', id: prev, where: 'end' }
-  const pb = tree.get(prev)
-  if (!pb) return null
+  const pb = prev === tree.pageId ? undefined : tree.get(prev)
   const mine = titleOf(b)
   const empty = rtLength(mine) === 0
+  if (rowOfHead(tree, id)) {
+    if (!empty || b.content.length > 0) return { do: 'focus', id: prev, where: 'end' }
+    const after: Sel = !pb || isEditable(pb) ? textSel(prev, END) : { kind: 'blocks', ids: [prev] }
+    return { do: 'commit', ops: [{ op: 'delete', id }], after }
+  }
+  if (prev === tree.pageId) return { do: 'focus', id: prev, where: 'end' }
+  if (!pb) return null
   if (isTextType(pb.type)) {
     const theirs = titleOf(pb)
     const ops: Op[] = []
@@ -231,13 +302,17 @@ export function backspacePlan(tree: Tree, id: string): Plan {
   return { do: 'focus', id: prev, where: 'end' }
 }
 
-/** Delete with the caret at the end of a text block: pulls the next block's text in. */
+/**
+ * Delete with the caret at the end of a text block: pulls the next block's text in. A column's
+ * head is never pulled in (the end of one column, or the block above a row): nothing happens.
+ */
 export function deleteForwardPlan(tree: Tree, id: string): Plan {
   const b = tree.get(id)
   const next = nextVisible(tree, id)
   const nb = next ? tree.get(next) : undefined
   if (!b || !next || !nb) return null
   if (!isTextType(nb.type)) return { do: 'select', id: next }
+  if (rowOfHead(tree, next)) return null
   const mine = titleOf(b)
   const theirs = titleOf(nb)
   const ops: Op[] = []
@@ -277,10 +352,10 @@ function sameParent(tree: Tree, ids: readonly string[], parentId: string | null)
   return ids.every((id) => tree.get(id)?.parentId === parentId)
 }
 
-/** Tab: the blocks become the last children of the sibling above them. */
+/** Tab: the blocks become the last children of the sibling above them. A column's head stays (no ops). */
 export function indentOps(tree: Tree, ids: readonly string[]): Op[] {
   const tops = topLevel(tree, ids)
-  if (!tops.length) return []
+  if (!tops.length || tops.some((id) => rowOfHead(tree, id))) return []
   const target = prevSibling(tree, tops[0], new Set(tops))
   const tb = target ? tree.get(target) : undefined
   if (!target || !tb || !isTextType(tb.type) || !sameParent(tree, tops, tb.parentId)) return []
@@ -294,7 +369,10 @@ export function indentOps(tree: Tree, ids: readonly string[]): Op[] {
   return ops
 }
 
-/** Shift+Tab: the blocks move out to follow their parent. A no-op at the top level. */
+/**
+ * Shift+Tab: the blocks move out to follow their parent. A no-op at the top level. Out of a
+ * column (its head is the parent) they follow the whole row, never landing between two columns.
+ */
 export function outdentOps(tree: Tree, ids: readonly string[]): Op[] {
   const tops = topLevel(tree, ids)
   const first = tops.length ? tree.get(tops[0]) : undefined
@@ -302,7 +380,8 @@ export function outdentOps(tree: Tree, ids: readonly string[]): Op[] {
   if (!first || !parent || parent.id === tree.pageId || !parent.parentId) return []
   if (!sameParent(tree, tops, parent.id)) return []
   const ops: Op[] = []
-  let after = parent.id
+  const row = rowOfHead(tree, parent.id)
+  let after = row ? row[row.length - 1].id : parent.id
   for (const id of tops) {
     ops.push({ op: 'move', id, parentId: parent.parentId, afterId: after })
     after = id

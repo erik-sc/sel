@@ -3,6 +3,7 @@ import type { Block, BlockProps, BlockType, Op } from '@shared/types'
 import { applyOpsToMap, type BlockMap } from '../store/ops'
 import { invertOps } from './ops'
 import { rowRepairOps, rowsOf } from './layout'
+import { END, textSel } from './types'
 import {
   backspacePlan,
   canDropBeside,
@@ -16,10 +17,12 @@ import {
   moveToOps,
   nextVisible,
   order,
+  outdentLeavesRow,
   outdentOps,
   placeForDrop,
   prevVisible,
   redoPlan,
+  rowOfHead,
   splitPlan,
   topLevel,
   turnIntoOps,
@@ -809,5 +812,231 @@ describe('columnsOps (the slash items "2 columns" and "3 columns")', () => {
     expect(canMakeColumns(treeOf(w), 'r1')).toBe(false)
     expect(canMakeColumns(treeOf(w), 'q1')).toBe(false)
     expect(columnsOps(treeOf(w), 'q1', [], 2, ids())).toBeNull()
+  })
+})
+
+/**
+ * A page with a row of two columns and a block after it (0.9.0 A1c):
+ * page
+ * ├─ x       text "Before"
+ * ├─ l       text "Left"   ┐ one row: two columns
+ * ├─ r       text "Right"  ┘ (beside)
+ * │  ├─ r1   text "R-one"
+ * │  └─ r2   text ""        (the column's empty last line)
+ * └─ after   text "After"
+ */
+function columnsWorld(): BlockMap {
+  const list = [
+    block('page', 'page', null, ['x', 'l', 'r', 'after']),
+    block('x', 'text', 'page', [], { title: [['Before']] }),
+    block('l', 'text', 'page', [], { title: [['Left']] }),
+    block('r', 'text', 'page', ['r1', 'r2'], { title: [['Right']], beside: true }),
+    block('r1', 'text', 'r', [], { title: [['R-one']] }),
+    block('r2', 'text', 'r', [], { title: [] }),
+    block('after', 'text', 'page', [], { title: [['After']] })
+  ]
+  return Object.fromEntries(list.map((b) => [b.id, b]))
+}
+
+/** The world with `id`'s props replaced, and its children when given. */
+function withBlock(w: BlockMap, id: string, props: BlockProps, content?: string[]): BlockMap {
+  return { ...w, [id]: { ...w[id], props, ...(content ? { content } : {}) } }
+}
+
+/** The rows of columnsWorld as they are: the row of two between "Before" and "After". */
+const ROW = [['x'], ['l', 'r'], ['after']]
+
+describe('typing inside a column (A1c)', () => {
+  it('finds the heads of a row, and nothing for a lone or nested block', () => {
+    const t = treeOf(columnsWorld())
+    expect(rowOfHead(t, 'l')?.map((b) => b.id)).toEqual(['l', 'r'])
+    expect(rowOfHead(t, 'r')?.map((b) => b.id)).toEqual(['l', 'r'])
+    expect(rowOfHead(t, 'x')).toBeNull()
+    expect(rowOfHead(t, 'r1')).toBeNull()
+  })
+
+  it('Enter at the end of a lone head puts the new line under it, in its column', () => {
+    const w = columnsWorld()
+    const plan = committed(splitPlan(treeOf(w), 'l', 4, 4, ids()))
+    expect(plan.ops).toEqual([{ op: 'create', input: { id: 'n1', type: 'text', parentId: 'l', afterId: null, props: { title: [] } } }])
+    expect(plan.after).toEqual(textSel('n1', 0))
+    const after = applyAndUndo(w, plan.ops)
+    const { rows, repair } = rowsAfter(w, plan.ops)
+    expect(rows).toEqual(ROW)
+    expect(repair).toEqual([])
+    expect(reading(after)).toEqual(['Before', 'Left', '', 'Right', 'R-one', '', 'After'])
+  })
+
+  it('Enter in the middle of a lone head carries the rest of its text into the column', () => {
+    const w = columnsWorld()
+    const plan = committed(splitPlan(treeOf(w), 'l', 2, 2, ids()))
+    const after = applyAndUndo(w, plan.ops)
+    expect(reading(after)).toEqual(['Before', 'Le', 'ft', 'Right', 'R-one', '', 'After'])
+    expect(after.n1.parentId).toBe('l')
+    expect(rowsAfter(w, plan.ops).rows).toEqual(ROW)
+  })
+
+  it('Enter at the end of a head with children puts the new line first under it', () => {
+    const w = columnsWorld()
+    const plan = committed(splitPlan(treeOf(w), 'r', 5, 5, ids()))
+    const after = applyAndUndo(w, plan.ops)
+    expect(after.r.content).toEqual(['n1', 'r1', 'r2'])
+    expect(rowsAfter(w, plan.ops).rows).toEqual(ROW)
+    expect(reading(after)).toEqual(['Before', 'Left', 'Right', '', 'R-one', '', 'After'])
+  })
+
+  it('Enter at the end of an empty head adds a line under it instead of splitting the row', () => {
+    const w = withBlock(columnsWorld(), 'l', { title: [] })
+    const plan = committed(splitPlan(treeOf(w), 'l', 0, 0, ids()))
+    expect(applyAndUndo(w, plan.ops).l.content).toEqual(['n1'])
+    expect(rowsAfter(w, plan.ops).rows).toEqual(ROW)
+  })
+
+  it('Enter at the end of a collapsed toggle heading a column opens it and keeps the line inside', () => {
+    const base = columnsWorld()
+    const w: BlockMap = { ...base, l: { ...base.l, type: 'toggle', props: { title: [['Left']], collapsed: true } } }
+    const plan = committed(splitPlan(treeOf(w), 'l', 4, 4, ids()))
+    const after = applyAndUndo(w, plan.ops)
+    expect(after.l.props.collapsed).toBe(false)
+    expect(after.l.content).toEqual(['n1'])
+    expect(rowsAfter(w, plan.ops).rows).toEqual(ROW)
+  })
+
+  it('Enter at the start of a head puts an empty line above it, in its column', () => {
+    for (const head of ['l', 'r']) {
+      const w = columnsWorld()
+      const plan = committed(splitPlan(treeOf(w), head, 0, 0, ids()))
+      expect(plan.after, head).toEqual(textSel(head, 0))
+      const after = applyAndUndo(w, plan.ops)
+      const { rows, repair } = rowsAfter(w, plan.ops)
+      expect(rows, head).toEqual(head === 'l' ? [['x'], ['n1', 'r'], ['after']] : [['x'], ['l', 'n1'], ['after']])
+      expect(repair, head).toEqual([])
+      expect(after[head].props.beside, head).toBeUndefined()
+      expect(reading(after), head).toEqual(
+        head === 'l' ? ['Before', '', 'Left', 'Right', 'R-one', '', 'After'] : ['Before', 'Left', '', 'Right', 'R-one', '', 'After']
+      )
+    }
+    // The head's children follow it, one under the other at the column's edge.
+    const w = columnsWorld()
+    const after = applyAndUndo(w, committed(splitPlan(treeOf(w), 'r', 0, 0, ids())).ops)
+    expect(after.n1.content).toEqual(['r', 'r1', 'r2'])
+    expect(after.r.content).toEqual([])
+  })
+
+  it('Enter on the empty last line of a column takes it out of the row, after the last column', () => {
+    const w = columnsWorld()
+    expect(splitPlan(treeOf(w), 'r2', 0, 0, ids())).toEqual({ do: 'outdent' })
+    expect(outdentLeavesRow(treeOf(w), ['r2'])).toBe(true)
+    const ops = outdentOps(treeOf(w), ['r2'])
+    const after = applyAndUndo(w, ops)
+    expect(after.page.content).toEqual(['x', 'l', 'r', 'r2', 'after'])
+    expect(after.r.content).toEqual(['r1'])
+    const { rows, repair } = rowsAfter(w, ops)
+    expect(rows).toEqual([['x'], ['l', 'r'], ['r2'], ['after']])
+    expect(repair).toEqual([])
+  })
+
+  it('from the first column too, the line lands after the whole row, never between two columns', () => {
+    const base = withBlock(columnsWorld(), 'l', { title: [['Left']] }, ['l1'])
+    const w: BlockMap = { ...base, l1: block('l1', 'text', 'l', [], { title: [] }) }
+    expect(splitPlan(treeOf(w), 'l1', 0, 0, ids())).toEqual({ do: 'outdent' })
+    const ops = outdentOps(treeOf(w), ['l1'])
+    expect(applyAndUndo(w, ops).page.content).toEqual(['x', 'l', 'r', 'l1', 'after'])
+    expect(rowsAfter(w, ops).rows).toEqual([['x'], ['l', 'r'], ['l1'], ['after']])
+  })
+
+  it('Shift+Tab on a line of a column moves it after the row; the lines below it stay', () => {
+    const w = columnsWorld()
+    expect(outdentLeavesRow(treeOf(w), ['r1'])).toBe(true)
+    const ops = outdentOps(treeOf(w), ['r1'])
+    const after = applyAndUndo(w, ops)
+    expect(after.page.content).toEqual(['x', 'l', 'r', 'r1', 'after'])
+    expect(after.r.content).toEqual(['r2'])
+    expect(rowsAfter(w, ops).rows).toEqual([['x'], ['l', 'r'], ['r1'], ['after']])
+    // Several lines go together, in order.
+    const both = applyAndUndo(w, outdentOps(treeOf(w), ['r2', 'r1']))
+    expect(both.page.content).toEqual(['x', 'l', 'r', 'r1', 'r2', 'after'])
+  })
+
+  it('Shift+Tab deeper in a column only lifts the block one level, inside the column', () => {
+    const base = withBlock(columnsWorld(), 'r1', { title: [['R-one']] }, ['deep'])
+    const w: BlockMap = { ...base, deep: block('deep', 'text', 'r1', [], { title: [['deep']] }) }
+    expect(outdentLeavesRow(treeOf(w), ['deep'])).toBe(false)
+    const after = applyAndUndo(w, outdentOps(treeOf(w), ['deep']))
+    expect(after.r.content).toEqual(['r1', 'deep', 'r2'])
+  })
+
+  it('Tab on a head does nothing; Tab on a line of a column still indents it there', () => {
+    const w = columnsWorld()
+    expect(indentOps(treeOf(w), ['r'])).toEqual([])
+    expect(indentOps(treeOf(w), ['l'])).toEqual([])
+    expect(indentOps(treeOf(w), ['l', 'r'])).toEqual([])
+    const after = applyAndUndo(w, indentOps(treeOf(w), ['r2']))
+    expect(after.r1.content).toEqual(['r2'])
+  })
+
+  it('Backspace in an empty head deletes it, closes the row up and puts the caret at the end of the block above', () => {
+    // The second column: the caret goes to the end of the first column's last block.
+    const second = withBlock(columnsWorld(), 'r', { title: [], beside: true }, [])
+    const plan = committed(backspacePlan(treeOf(second), 'r'))
+    expect(plan.ops).toEqual([{ op: 'delete', id: 'r' }])
+    expect(plan.after).toEqual(textSel('l', END))
+    expect(rowsAfter(second, plan.ops).rows).toEqual([['x'], ['l'], ['after']])
+
+    // The first column: the next one becomes the head (the repair clears its mark), and the caret
+    // goes to the end of the block before the row.
+    const first = withBlock(columnsWorld(), 'l', { title: [] })
+    const gone = committed(backspacePlan(treeOf(first), 'l'))
+    expect(gone.after).toEqual(textSel('x', END))
+    const { rows, repair, map } = rowsAfter(first, gone.ops)
+    expect(rows).toEqual([['x'], ['r'], ['after']])
+    expect(repair).toEqual([{ op: 'update', id: 'r', patch: { props: { beside: null } } }])
+    expect(map.r.content).toEqual(['r1', 'r2'])
+
+    // After a column with lines, the caret goes to the end of its last line.
+    const third = withBlock(columnsWorld(), 'after', { title: [], beside: true })
+    expect(committed(backspacePlan(treeOf(third), 'after')).after).toEqual(textSel('r2', END))
+  })
+
+  it('Backspace at the start of a head that holds text or lines never merges it', () => {
+    const w = columnsWorld()
+    expect(backspacePlan(treeOf(w), 'r')).toEqual({ do: 'focus', id: 'l', where: 'end' })
+    expect(backspacePlan(treeOf(w), 'l')).toEqual({ do: 'focus', id: 'x', where: 'end' })
+    // An empty head with lines under it is not deleted: its lines would lose their column.
+    const empty = withBlock(w, 'r', { title: [], beside: true })
+    expect(backspacePlan(treeOf(empty), 'r')).toEqual({ do: 'focus', id: 'l', where: 'end' })
+    // A heading still turns into text first.
+    const heading: BlockMap = { ...w, l: { ...w.l, type: 'heading_2' } }
+    expect(backspacePlan(treeOf(heading), 'l')).toEqual({ do: 'turnText' })
+  })
+
+  it('Backspace at the start of a column’s last line joins it to the line above, in the column', () => {
+    const w = withBlock(columnsWorld(), 'r2', { title: [['two']] })
+    const plan = committed(backspacePlan(treeOf(w), 'r2'))
+    expect(plan.after).toEqual(textSel('r1', 5))
+    const after = applyAndUndo(w, plan.ops)
+    expect(reading(after)).toEqual(['Before', 'Left', 'Right', 'R-onetwo', 'After'])
+    expect(rowsAfter(w, plan.ops).rows).toEqual(ROW)
+  })
+
+  it('Delete at the end of a column does not pull the next column’s head in', () => {
+    const w = columnsWorld()
+    expect(deleteForwardPlan(treeOf(w), 'l')).toBeNull()
+    // Nor at the end of the block above the row.
+    expect(deleteForwardPlan(treeOf(w), 'x')).toBeNull()
+    // Inside a column it still joins the lines.
+    const after = applyAndUndo(w, committed(deleteForwardPlan(treeOf(w), 'r')).ops)
+    expect(reading(after)).toEqual(['Before', 'Left', 'RightR-one', '', 'After'])
+  })
+
+  it('a block alone in its row types as before', () => {
+    const w = withBlock(columnsWorld(), 'r', { title: [['Right']] }, ['r1', 'r2'])
+    expect(rowOfHead(treeOf(w), 'l')).toBeNull()
+    const plan = committed(splitPlan(treeOf(w), 'l', 4, 4, ids()))
+    expect(plan.ops).toEqual([{ op: 'create', input: { id: 'n1', type: 'text', parentId: 'page', afterId: 'l', props: { title: [] } } }])
+    expect(backspacePlan(treeOf(w), 'r2')).toEqual({ do: 'outdent' })
+    expect(indentOps(treeOf(w), ['r']).length).toBeGreaterThan(0)
+    expect(outdentOps(treeOf(w), ['r1'])[0]).toEqual({ op: 'move', id: 'r1', parentId: 'page', afterId: 'r' })
+    expect(outdentLeavesRow(treeOf(w), ['r1'])).toBe(false)
   })
 })

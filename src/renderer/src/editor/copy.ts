@@ -20,6 +20,8 @@ export interface EditorCopy {
   columns: (count: number) => string
   /** The slash item's hint under "2 columns" and "3 columns". */
   columnsHint: (count: number) => string
+  /** Said after a line left a row of columns for the line below it (Enter on an empty last line, Shift+Tab). */
+  outOfColumns: string
 }
 
 const COUNT_EN: Readonly<Record<number, string>> = { 2: 'Two', 3: 'Three', 4: 'Four' }
@@ -32,7 +34,8 @@ export const EDITOR_COPY: Record<HomeLocale, EditorCopy> = {
     placedBeside: 'Placed beside',
     placedBelow: 'Placed below',
     columns: (count) => `${count} columns`,
-    columnsHint: (count) => `${COUNT_EN[count] ?? count} blocks side by side`
+    columnsHint: (count) => `${COUNT_EN[count] ?? count} blocks side by side`,
+    outOfColumns: 'Out of the columns'
   },
   'pt-BR': {
     placeBeside: 'Colocar ao lado do bloco anterior',
@@ -40,7 +43,8 @@ export const EDITOR_COPY: Record<HomeLocale, EditorCopy> = {
     placedBeside: 'Colocado ao lado',
     placedBelow: 'Colocado abaixo',
     columns: (count) => `${count} colunas`,
-    columnsHint: (count) => `${COUNT_PT[count] ?? count} blocos lado a lado`
+    columnsHint: (count) => `${COUNT_PT[count] ?? count} blocos lado a lado`,
+    outOfColumns: 'Fora das colunas'
   }
 }
 

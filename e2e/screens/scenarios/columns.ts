@@ -159,6 +159,36 @@ async function slash(page: Page, after: string, typed: string): Promise<void> {
   await page.keyboard.type(typed)
 }
 
+/** A row of two columns whose first column is a lone line, to type in (0.9.0 A1c). */
+const LONE_HEAD = 'What to bring'
+const LONE: Node[] = [
+  { type: 'heading_1', text: 'Saturday market' },
+  { type: 'text', text: LONE_HEAD },
+  {
+    type: 'callout',
+    beside: true,
+    text: 'The cheese stall closes at eleven. Go there first.',
+    props: { icon: '💡', color: 'yellow_background' }
+  },
+  { type: 'heading_2', text: 'After' },
+  { type: 'text', text: 'Coffee at the corner, then home before the rain.' }
+]
+
+/** Puts the caret at the end of the line `text`, as a click and End would. */
+async function caretAtEnd(page: Page, text: string): Promise<void> {
+  await see(page, text)
+  await page.getByText(text, { exact: true }).click()
+  await page.keyboard.press('End')
+}
+
+/** Throws unless the line `text` is drawn in a row of columns (`inside`) or out of every row. */
+async function lineIn(page: Page, text: string, inside: boolean): Promise<void> {
+  await see(page, text)
+  const inRow = await page.locator('.blk-beside').filter({ hasText: text }).count()
+  if (inside !== inRow > 0) throw new Error(`"${text}" is ${inRow ? 'inside' : 'outside'} the columns`)
+  if ((await page.locator('.blk-beside').count()) !== 1) throw new Error('the row of columns is not whole')
+}
+
 /** Opens a block's menu with its handle, as a pointer would: hover the block, click ⋮⋮. */
 async function openBlockMenu(page: Page, text: string): Promise<void> {
   const row = page.locator('.blk > .blk-row').filter({ hasText: text }).first()
@@ -277,6 +307,31 @@ export default [
       await page.getByRole('option', { name: /2 columns/ }).waitFor({ state: 'visible', timeout: 20_000 })
       await page.keyboard.press('Enter')
       await page.locator('.blk-beside:focus-within').waitFor({ state: 'attached', timeout: 20_000 })
+    }
+  },
+  {
+    id: 'columns-enter-inside',
+    description: 'Enter at the end of a lone column and a line typed: the new line under it, inside the column, the row whole',
+    workspace: columnsPage(LONE),
+    run: async (page) => {
+      await openPage(page, PAGE)
+      await caretAtEnd(page, LONE_HEAD)
+      await page.keyboard.press('Enter')
+      await page.keyboard.type('Two cloth bags')
+      await lineIn(page, 'Two cloth bags', true)
+    }
+  },
+  {
+    id: 'columns-enter-out',
+    description: 'Enter twice at the end of a column’s last line: the caret’s line under the row, the row whole',
+    workspace: columnsPage(TWO),
+    run: async (page) => {
+      await openPage(page, PAGE)
+      await caretAtEnd(page, 'Coins for the bread stall')
+      await page.keyboard.press('Enter')
+      await page.keyboard.press('Enter')
+      await page.keyboard.type('Home by noon')
+      await lineIn(page, 'Home by noon', false)
     }
   },
   {
