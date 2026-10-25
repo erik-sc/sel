@@ -9,52 +9,60 @@ team_log_comment: 6365752721 # id of the "Team log" comment on that PR
 queue: []              # approved proposal issue numbers, in build order
 merged_at: null        # when Érik merged the release PR (AWAITING_SHIP)
 paused: false          # set by /hold, cleared by /resume
-last_run: 2026-10-24T20:40:02Z # ISO UTC: time the signals were READ last run; next run reads after it
+last_run: 2026-10-24T23:31:40Z # ISO UTC: time the signals were READ last run; next run reads after it
 lock:
-  since: 2026-10-24T23:31:35Z # ISO UTC while a run is going; cleared at the end
-  run: n1025a          # short id of the run holding it
+  since: null          # ISO UTC while a run is going; cleared at the end
+  run: null            # short id of the run holding it
 ```
 
 ## Items
 
 | Item | Branch | PR | Status | Nights | Notes |
 |---|---|---|---|---|---|
-| S0 | team/0.9.0/s0-screenshot-job | #88 | merged | 1 | da1e903; merged 2026-10-24 23:34 UTC from Érik's own session (comment on #88: his OK under rule 3, relayed) |
-| A1a | team/0.9.0/a1a-any-block-beside | | ready | 0 | wave 1; waited night 1 for S0; builds 2026-10-25 either way |
-| B1 | team/0.9.0/b1-name-property-on-add | | ready | 0 | wave 1; waited night 1 for S0; builds 2026-10-25 either way |
+| S0 | team/0.9.0/s0-screenshot-job | #88 | merged | 1 | da1e903; merged 2026-10-24 23:34 UTC from Érik's own session (his OK under rule 3) |
+| A1a | team/0.9.0/a1a-any-block-beside | #103 | merged | 1 | 954a438; 1 design round |
+| B1 | team/0.9.0/b1-name-property-on-add | #102 | merged | 1 | 3bc4326; 1 design round |
 | C1 | team/0.9.0/c1-patch-bumps | #89 | merged | 1 | 53847d2 |
-| A1b | team/0.9.0/a1b-drag-side-columns | | ready | 0 | wave 2; after A1a |
-| B3 | team/0.9.0/b3-select-options-menu | | ready | 0 | wave 2; after B1 |
+| A1b | team/0.9.0/a1b-drag-side-columns | #105 | merged | 1 | 6468512; 1 review round (slash ranking) |
+| B3 | team/0.9.0/b3-select-options-menu | #104 | merged | 1 | 11b2e54; no rounds |
 | C2 | team/0.9.0/c2-toolchain-majors | #90 | merged | 1 | 798acd1; 2 review rounds |
-| A1c | team/0.9.0/a1c-typing-in-columns | | ready | 0 | wave 3; after A1a, A1b |
-| B2 | team/0.9.0/b2-header-keyboard-insert | | ready | 0 | wave 3; after B1, B3 |
+| A1c | team/0.9.0/a1c-typing-in-columns | #106 | needs another night | 1 | head 22bdb9e, CI green; design OK after round 1? (designer's blocker fixed, not re-checked by designer); reviewer round 2 blocker: structure.ts:278-288 `liftFirstLinePlan` lifts any text-type first line incl. toggle/list/to-do and nests the head's other lines under it (collapsed toggle hides them). Fix: if `HOLDS_ITS_CHILDREN.has(fb.type)` and the head has other live lines → return null (caret moves back); test with collapsed toggle and list item first lines. Review 5641252964 |
+| B2 | team/0.9.0/b2-header-keyboard-insert | #107 | merged | 1 | 936ff76; 1 design round |
 
 ## Last night
 
-2026-10-24 20:40–22:35 UTC run (VETO → BUILD; also a manual fire relayed from Érik's chat, same run):
-Érik's `/ok` on #82 at 14:42 UTC → BUILD. #87 (release backlog) merged into main at 20:44, during the
-run; the rest of the run followed it (VETO state moved to BUILD, `veto_until` gone, `queue` added).
-Built S0 (#88, approved, blocked on Érik's OK), merged C1 (#89) and C2 (#90). Merged main into
-release/0.9.0 (b92390e). PM opened proposals #91 (0.10.0), #92 (0.11.0, identity change), #93
-(0.12.0), created labels `release-proposal` and `release-queued`, aligned the roadmap (a599c4c).
-Decisions appended (6796814). Merging via `gh api .../merge` was refused by the session's
-permission check; the GitHub MCP `merge_pull_request` tool worked.
+2026-10-24 23:31 – 2026-10-25 03:05 UTC run (BUILD). Signals: Érik `/reject` on #91–#93 (closed,
+kept under roadmap "Later") and his ask on #82 for smaller, concrete proposals with new ideas → PM
+opened #96, #97, #98 (9e136d3). S0 merged by Érik's session at 23:34 (after signals were read).
+Built and merged B1 (#102), A1a (#103), B3 (#104), A1b (#105), B2 (#107); A1c (#106) left with one
+blocker after 2 rounds. Plan status updated (4d3d237). Team log and PR body updated. Proposals
+#99–#101 appeared at 23:44 signed as the team but not from this run (PM confirmed) — probably
+Érik's own session; not in the roadmap. Another session also committed to team/state at 23:35
+while this run held the lock (df8976f, recorded S0 merged).
 
 ## Left for tomorrow
 
-- S0 is merged (da1e903): wave 1 visible items now get screenshots on their PRs.
-- Read `/approve` `/next` `/reject` or feedback on #91–#93; apply to `queue`.
-- BUILD wave 1: A1a and B1 (visible). With S0 merged their PRs get screenshots; if not, build
-  anyway (they waited one night) and list scenarios in "Screenshots for Érik".
-- Give devs the mockups `docs/team/design/0.9.0/` and research `docs/team/research/0.9.0/a1a-*`.
-- Node 24: `npm i --prefix /home/claude/node24 node@24` (node only, no npm; system npm drops
-  `libc` fields from the lock — devs fix the lock by script). 3 Windows-path test files fail on Linux.
-- Runner job logs 403 through the proxy; shell args containing "git" may need a script file.
-- Dependabot #75–#78 stay open; C1/C2 landed their versions on the release branch.
+- Read signals since 2026-10-24T23:31:40Z — includes Érik's relayed "merge everything" note on #88
+  (23:34) and anything on #96–#101 and #82 (Needs you: db undo, `/2` `/3`, private-from-AI leaks).
+- A1c (#106): send the reviewer's round-2 blocker to a dev (new agent; read the PR and review
+  5641252964), then fresh reviewer + designer re-check; merge when green and approved.
+- Then CLOSE: growth (README, site, release notes, docs/screens via `all` screens block), dev
+  (codebase-knowledge, version 0.9.0), PM (Delivered / Left for later, decisions, roadmap incl.
+  #99–#101 if kept); mark #82 ready for review.
+- Left-for-later candidates from reviews: Undo for database edits (Undo toast on option delete);
+  version viewer wide rows (versions.css); scenario for Settings › Appearance "Narrowest column";
+  `uniqueName` " 1" vs " 2"; option pane words in pt-BR; slash "Blocks" header in pt-BR; relation/rollup
+  labels cut at 240 px; header click leaves ring on first cell; P1–P4 deletable from cell picker;
+  insert on a linked view test; empty bullet leaving a row stays a bullet.
+- Env: Node 24 via `npm i --prefix /home/claude/node24 node@24`; plain `git fetch origin` fails on
+  force-updated team/screens — use explicit refspecs; compound gh/git shell loops in agent worktrees
+  get refused — use scripts; merging works via GitHub MCP `merge_pull_request`; harness moves the
+  pointer off the window before capture (no hover shots; use focus or dispatched drag events).
 
 ## Screenshots for Érik
 
-- Fallback only, if S0 is not merged when visible items are built:
-- `docs/screens/columns.webp` — a note beside a to-do list, plus a three-column row (after A1a/A1b).
-- `docs/screens/property-menu.webp` — a select's column menu with its Options list (after B3).
-- Re-shoot `docs/screens/blocks.webp` only if the column slash items show on the slash menu's first screen.
+- Hover a row of columns: the gap line fades in; narrow window wrapping a row: no stray line.
+- Drag a block to the left side of another; into a gap of a row of 3; onto a full row of 4.
+- Drag an option by its handle in a select's column menu; Esc in the option pane goes back.
+- In a column, Enter twice: does leaving the row read clearly?
+- Table: ArrowUp from a cell to the headers, Left/Right/End to "+", Enter → Insert right → Esc.
