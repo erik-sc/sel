@@ -111,6 +111,17 @@ export default [
     }
   },
   {
+    id: 'columns-hover',
+    description: 'The two-column row hovered: the thin line in the middle of the gap',
+    workspace: columnsPage(TWO),
+    run: async (page) => {
+      await openPage(page, PAGE)
+      await see(page, 'The cheese stall closes at eleven. Go there first.')
+      // The middle of the row is the gap between its columns: the line shows, no block's handles do.
+      await page.locator('.blk-beside').first().hover()
+    }
+  },
+  {
     id: 'columns-four',
     description: 'Four blocks in one row (text, heading, to-do, callout) at the database width',
     workspace: columnsPage(FOUR),

@@ -228,6 +228,18 @@ export function parseClipboardBlocks(json: string): ClipNode[] {
   return parseClipNodes(parseJson(json))
 }
 
+/**
+ * Blocks about to be pasted: the first loses its place beside the block before it, which was a
+ * block of the page it was copied from, so it never joins whatever it lands after. The ones after
+ * it keep theirs, so a whole row pasted is still a row. (Duplicate keeps every place: the copy
+ * lands right after its original, in the same row.)
+ */
+export function pastedNodes(nodes: readonly ClipNode[]): ClipNode[] {
+  if (!nodes.length || nodes[0].props.beside !== true) return [...nodes]
+  const { beside: _, ...props } = nodes[0].props
+  return [{ ...nodes[0], props }, ...nodes.slice(1)]
+}
+
 /** Rich text from a `MIME_RICHTEXT` clipboard string; empty when it is missing or invalid. */
 export function parseClipboardRichText(json: string): RichText {
   return parseRichText(parseJson(json))

@@ -10,6 +10,7 @@ import {
   nodesToText,
   parseClipboardBlocks,
   parseClipboardRichText,
+  pastedNodes,
   serializeBlocks,
   type ClipNode
 } from './clipboard'
@@ -131,7 +132,7 @@ function inlineSpans(nodes: readonly ClipNode[]): RichText | null {
  * converted to our own blocks (html.ts); everything else is plain text / Markdown.
  */
 export function handlePaste(ctrl: EditorController, dt: DataTransfer, targetId: string | null): boolean {
-  const nodes = parseClipboardBlocks(dt.getData(MIME_BLOCKS))
+  const nodes = pastedNodes(parseClipboardBlocks(dt.getData(MIME_BLOCKS)))
   if (nodes.length) {
     insertNodes(ctrl, nodes, placeFor(ctrl, targetId))
     return true

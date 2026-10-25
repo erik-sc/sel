@@ -775,9 +775,11 @@ span[class*='rt-bg-'] {
   column-gap: var(--pe-column-gap);
 }
 
+/* Every column starts at the row's top: a heading's extra space above (.blk-heading_*) does not apply in a row. */
 .blk-beside > .blk {
   flex: 1 1 0;
   min-width: min(100%, var(--column-min));
+  margin-top: var(--block-gap);
 }
 
 .blk-beside > .blk-database {
@@ -801,8 +803,11 @@ span[class*='rt-bg-'] {
   border-left-color: var(--border);
 }
 
-/* A column's children start at its left edge; a toggle's keep their indent, so it still reads as one. */
-.blk-beside > .blk:not(.blk-toggle) > .blk-children {
+/*
+ * A column's children start at its left edge. A toggle's, a list item's and a to-do's keep their
+ * indent, so the head still reads as holding them.
+ */
+.blk-beside > .blk:not(.blk-toggle, .blk-bulleted_list, .blk-numbered_list, .blk-to_do) > .blk-children {
   padding-left: 0;
 }
 
