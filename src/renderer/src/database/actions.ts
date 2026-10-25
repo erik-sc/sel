@@ -265,7 +265,8 @@ export function deleteView(databaseId: string, viewId: string): void {
 /**
  * Adds a property and shows it in the given view (other views keep it hidden): at the end, or
  * before the visible property `before` names (a table's "Insert left / right"). Schema and view
- * are one write, so one undo step, and the place is the view's own order (`visibleProperties`).
+ * are one write (one `applyOps` batch, so a future database undo reverses it whole; there is none
+ * yet), and the place is the view's own order (`visibleProperties`).
  * With `groupView`, that view is also laid out by the new property (board / calendar).
  */
 export function addProperty(

@@ -488,19 +488,20 @@ export function PropertyMenu({
       }))
     })
   }
-  if (onInsert) {
-    items.push(
-      { separator: true },
-      { id: 'insert-left', label: words.insertLeft, icon: <InsertLeft size={14} />, onSelect: () => insert('left') },
-      { id: 'insert-right', label: words.insertRight, icon: <InsertRight size={14} />, onSelect: () => insert('right') }
-    )
-  }
   if (prop.type === 'relation') items.push(...relationItems(databaseId, prop, cells, () => pick('target'), words))
   if (prop.type === 'rollup') items.push(...rollupItems(databaseId, prop, actions.snapshot(databaseId).schema, cells, words))
   if (prop.type === 'formula') {
     items.push(
       { separator: true },
       { id: 'formula-edit', label: words.editFormula, icon: <Formula size={14} />, onSelect: () => pick('formula') }
+    )
+  }
+  // After the column's own settings (a relation's database, a rollup's sum, a formula), before sort.
+  if (onInsert) {
+    items.push(
+      { separator: true },
+      { id: 'insert-left', label: words.insertLeft, icon: <InsertLeft size={14} />, onSelect: () => insert('left') },
+      { id: 'insert-right', label: words.insertRight, icon: <InsertRight size={14} />, onSelect: () => insert('right') }
     )
   }
   if (view) {

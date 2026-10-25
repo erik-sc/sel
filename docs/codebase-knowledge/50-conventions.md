@@ -135,7 +135,7 @@ while its row is drawn. Rows carry `aria-rowindex` (the header row is 1), cells 
 and `aria-rowcount` counts every row of the view, drawn or not. Since 0.9.0 (B2) the headers are
 active descendants too (`headerId` in TableView.tsx; a cell and a header are never active
 together): ArrowUp from the first row goes to the column's header, Left/Right/Home/End move along
-the headers and end on "+", ArrowDown goes back, Enter, Space, F2 or the Menu key open the header's
+the headers and end on "+", ArrowDown goes back, Enter, Space, F2, Shift+F10 or the Menu key open the header's
 `PropertyMenu`, and Escape there comes back to the same header. From a table that menu also offers
 "Insert left / right" (`onInsert`): the add menu takes its place on the header, and
 `actions.addProperty(..., { before })` writes the new property and its place in the view's

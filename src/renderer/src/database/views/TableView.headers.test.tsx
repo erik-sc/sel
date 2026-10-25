@@ -233,6 +233,14 @@ describe('the headers from the keyboard', () => {
     expect(databases.find((entry) => entry.id === 'db-header')?.keys).toEqual(['Up'])
   })
 
+  it('keeps the header active on Escape, with no menu to close', async () => {
+    await onFirstRow(1)
+    await press(grid(), 'ArrowUp')
+    await press(grid(), 'Escape')
+    expect(active()?.textContent).toBe('Author')
+    expect(active()?.classList.contains('is-focused')).toBe(true)
+  })
+
   it('starts on the first header when the table has no rows', async () => {
     putBlocks([database([])])
     await render(<Table />)
@@ -262,6 +270,28 @@ describe('Insert left and Insert right', () => {
     const left = item('Insert left') as HTMLElement
     expect(left.previousElementSibling?.classList.contains('ui-menu-separator')).toBe(true)
     expect(await seriousViolations()).toEqual([])
+  })
+
+  it('come after a relation’s own settings, so Type and those stay together', async () => {
+    putBlocks([
+      {
+        ...database(['r1', 'r2']),
+        props: {
+          ...database([]).props,
+          schema: {
+            ...database([]).props.schema,
+            similar: { id: 'similar', name: 'Similar', type: 'relation', relation: { databaseId: 'db' } }
+          },
+          views: [{ ...VIEW, visibleProperties: ['title', 'similar', 'author', 'pages'] }]
+        }
+      }
+    ])
+    await headerMenu('Similar')
+    const labels = [...document.querySelectorAll<HTMLElement>('.ui-popover [role="menuitem"]')].map((el) => el.textContent ?? '')
+    const at = (start: string): number => labels.findIndex((label) => label.startsWith(start))
+    expect(at('Related to:')).toBe(at('Type: Relation') + 1)
+    expect(at('Insert left')).toBeGreaterThan(at('Two-way'))
+    expect(at('Sort ascending')).toBe(at('Insert right') + 1)
   })
 
   it('adds a property between the first and second columns from the second one’s Insert left, in one write that one undo reverses', async () => {

@@ -27,8 +27,8 @@ function make(body: ReactNode, filled = false) {
 export const Plus = make(<path d="M8 3v10M3 8h10" />)
 
 /** A column (the line) with a new one added on its left, or on its right. */
-export const InsertLeft = make(<path d="M11.5 3v10M2.5 8h5M5 5.5v5" />)
-export const InsertRight = make(<path d="M4.5 3v10M8.5 8h5M11 5.5v5" />)
+export const InsertLeft = make(<path d="M12 3v10M2 8h6M5 5v6" />)
+export const InsertRight = make(<path d="M4 3v10M8 8h6M11 5v6" />)
 
 export const Trash = make(
   <>

@@ -383,7 +383,7 @@ export function TableView(p: ViewProps): JSX.Element {
           openHeaderMenu(at)
           break
         case 'Escape':
-          setHeader(null)
+          // Nothing to close: the header stays the active one (ArrowDown goes back to the rows).
           break
         default:
           handled = false
@@ -609,6 +609,7 @@ export function TableView(p: ViewProps): JSX.Element {
                   }}
                   onContextMenu={(event) => {
                     event.preventDefault()
+                    setAdding(null)
                     setMenu({ propId: prop.id, anchor: event.currentTarget })
                   }}
                 >

@@ -179,7 +179,7 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
       {
         id: 'db-header-menu',
         label: "Open a column header's menu: rename, insert left or right",
-        keys: ['Enter', 'F2'],
+        keys: ['Enter', 'Space', 'F2', 'Shift+F10'],
         keywords: ['column', 'property', 'rename']
       },
       { id: 'db-open', label: 'Open the row as a page', keys: ['CmdOrCtrl+Enter'] },
