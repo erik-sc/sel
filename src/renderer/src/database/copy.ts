@@ -35,6 +35,9 @@ export interface DatabaseCopy {
     filter: string
     hide: string
     deleteProperty: string
+    /** From a table's header: add a property on that side of this one (0.9.0, B2). */
+    insertLeft: string
+    insertRight: string
     /** A relation: where it points, how many pages, and the other side. */
     relatedTo: (name: string) => string
     deletedDatabase: string
@@ -108,6 +111,8 @@ export const DATABASE_COPY: Record<HomeLocale, DatabaseCopy> = {
       filter: 'Filter',
       hide: 'Hide in view',
       deleteProperty: 'Delete property',
+      insertLeft: 'Insert left',
+      insertRight: 'Insert right',
       relatedTo: (name) => `Related to: ${name}`,
       deletedDatabase: 'a deleted database',
       chooseDatabase: 'Choose a database…',
@@ -190,6 +195,8 @@ export const DATABASE_COPY: Record<HomeLocale, DatabaseCopy> = {
       // Not "nesta visualização": 26 characters are cut at the menu's 240 px.
       hide: 'Ocultar na visualização',
       deleteProperty: 'Excluir propriedade',
+      insertLeft: 'Inserir à esquerda',
+      insertRight: 'Inserir à direita',
       relatedTo: (name) => `Relacionada a: ${name}`,
       deletedDatabase: 'um banco de dados excluído',
       chooseDatabase: 'Escolher um banco de dados…',

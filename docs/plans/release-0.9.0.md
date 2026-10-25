@@ -1,7 +1,8 @@
 # Release 0.9.0 — Pages and databases you can shape
 
-Status: **building** · 2026-10-24 · branch `release/0.9.0` (from `main` at 8da2eb4, v0.8.0)
-· approved by Érik's `/ok` on #82, 2026-10-24 · S0 built (#88, waits for his OK) · C1 merged (#89) · C2 merged (#90)
+Status: **building** · 2026-10-25 · branch `release/0.9.0` (from `main` at 8da2eb4, v0.8.0)
+· approved by Érik's `/ok` on #82, 2026-10-24 · merged: S0 (#88, Érik's OK), C1 (#89), C2 (#90), B1 (#102),
+A1a (#103), B3 (#104), A1b (#105), B2 (#107) · A1c (#106) in review, needs another night
 
 Érik's second pain, in his words: "the multi-column page layout does not work; too many clicks to
 edit columns". Today only database blocks can sit side by side, so a page cannot put a note
@@ -24,7 +25,7 @@ release PR asks Érik to confirm instead of planning more there.
 - New or changed words come in English and Brazilian Portuguese, picked by the home's locale
   (`useHome((s) => s.locale)`, as `src/renderer/src/database/dateCopy.ts` does). The editor and
   database menus are English-only today; this release translates only the menus it touches
-  (the rest is planned for 0.11.0).
+  (the rest is left for later; the 0.11.0 proposal that held it is parked in the roadmap's "Later").
 - Undo (Ctrl+Z) reverses each change as one step.
 - `npm run typecheck`, `npm run lint` and `npx vitest run --dir src` green on Node 24 before the PR.
 - Every item a user sees (A1a, A1b, A1c, B1, B2, B3) shows itself through S0's screenshot job:
@@ -715,7 +716,7 @@ the branch does not have. Anything an item drops is left out.
   slash items are where the feature is discovered.
   - The B3 empty state is only the add field, and that is enough.
   - A pt-BR newcomer will still see a mostly English block menu with two Portuguese entries.
-    That is already under Risks and is planned for 0.11.0.
+    That is already under Risks and is left for later (roadmap, "Later").
 - **Issue templates and contributor docs.** `.github/` has no `ISSUE_TEMPLATE/`, no
   `CONTRIBUTING.md` and no PR template. In-app feedback (`Ctrl+K`, "Say what's wrong") is
   the reporting path the README describes. The roadmap places the contributor guide in 0.13.0
@@ -752,7 +753,7 @@ the branch does not have. Anything an item drops is left out.
 - **Electron 44.9 ships to users.** It is a minor update inside the pinned major, so allowed, but
   it changes the runtime Érik installs; the release notes say so.
 - **Mixed languages for pt-BR users.** The block menu gets two Portuguese entries among English
-  ones until 0.11.0 translates the editor; the database property menus become fully bilingual.
+  ones until a later release translates the editor (roadmap, "Later"); the database property menus become fully bilingual.
 
 ## Delivered
 
