@@ -144,3 +144,34 @@ Each of these is felt on every page, adds no stored data, channel or dependency 
 and the order follows a real dependency (#98's outline jumps with #97's reveal).
 **To undo.** `/reject` or comment on any of #96–#98; say "bring back X" for anything in "Later"
 and it becomes a new, smaller proposal; "privacy leaks now" on #82 makes them an item.
+
+## 2026-10-25 — The roadmap made to agree with six open proposals (#96–#101)
+**Decision.**
+- Six proposals are open, two per target version (#96 and #99 on 0.10.0, #97 and #100 on 0.11.0,
+  #98 and #101 on 0.12.0), from two sessions. None is closed or rewritten; the roadmap lists all six
+  in one suggested order and says every target version is a guess set when Érik approves.
+- Suggested order: #99, #97, #101, #98, #100, #96. Érik's own screen (Today, pain 1) first, then
+  the panel's strongest (#97); #101 after #99 because it reuses #99's moves and row component;
+  #98 after #97 because its outline jumps with #97's reveal; #100 fifth as the panel was
+  indifferent and the issue itself says rejecting it is fine; #96 last because by the panel rule
+  (most indifferent, simulated Érik among them) it should be cut or shrunk to plain paste.
+- The versioned rows after 0.9.0 in "Themes, release by release" become ordered rows without
+  numbers ("next", "after them", "then"); "Ready for another developer" and the polish pass keep
+  their place before 1.0.0, behind whatever Érik approves. The 0.8.0 leftovers that pointed at
+  0.13.0 and 0.14.0 now point at those themes by name. Issue templates and `CONTRIBUTING.md`
+  (0.9.0 plan, "First run") are named in "Ready for another developer".
+- The 1.0.0 milestone gets a note: none of the six moves pains 3, 4 or 5, so 1.0.0 still needs
+  them back in a shape Érik chooses, and its predecessor's version is not fixed.
+- The 0.9.0 plan parks the editor's pt-BR menus under the roadmap's "Later", which had no such
+  line. A "Parked by the 0.9.0 plan" table now holds it and points at #100, which also takes
+  "one language throughout" from rejected #92; if #100 is rejected, the line returns as parked.
+  #100 says the 0.9.0 plan "promises" 0.11.0; the plan only says "a later release". Not
+  corrected on the issue (its body is not edited tonight).
+- #96, #97 and #98 carry panel verdicts with "pending: next run". The roadmap marks them as
+  "panel changes still to apply" and says they are applied before any of them is built.
+**Why.** The skill says the roadmap and the open proposals must agree; renumbering or closing
+proposals Érik has not read would decide for him. Order follows his pain first, then real
+dependencies, then the panel.
+**To undo.** `/next` on any proposal puts it first whatever the suggested order; `/reject` on
+#96 or #100 removes it from the table (and #100's rejection sends the editor translation back to
+"Later"); say "keep version numbers" on #82 and the themes table gets them back.
