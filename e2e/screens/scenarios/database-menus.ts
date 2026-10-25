@@ -76,7 +76,8 @@ function readingList(repo: Repository): void {
 async function openAddMenu(page: Page): Promise<void> {
   await openPage(page, DB_NAME)
   await see(page, 'Middlemarch')
-  await page.getByRole('grid').getByRole('button', { name: 'Add a property' }).click()
+  // By its class: its name is translated since 0.9.0 ("Adicionar uma propriedade" in pt-BR).
+  await page.locator('.db-th.is-add').click()
   await page.locator('.ui-popover [role="menu"]').waitFor({ state: 'visible' })
 }
 

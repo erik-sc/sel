@@ -425,7 +425,7 @@ types in `PropertyMenu`'s name field. The same menu is used by the table's "+" h
   shape as `dateCopy.ts`):
   - field placeholder and label: "Property name" / "Nome da propriedade"
   - list header: "Type" / "Tipo"
-  - hint under the field: "Enter adds a text property" / "Enter cria uma propriedade de texto"
+  - hint under the field: "Enter adds a text property" / "Enter cria como texto" (the longer "Enter cria uma propriedade de texto" wraps in the 240 px menu)
   - popover label: "Add a property" / "Adicionar uma propriedade"
   - type names: Text / Texto · Number / Número · Select / Seleção única · Multi-select / Seleção
     múltipla · Date / Data · Checkbox / Caixa de seleção · URL / URL · Created time / Criado em ·
@@ -452,8 +452,8 @@ Enter or click away: 3 clicks + typing. New: "+", type the name, Enter (text) or
 1–2 clicks + typing. Same on a row page and in the properties panel.
 - **Layout** mirrors `PropertyMenu` exactly, so adding and editing look like one thing: the name
   field in `.db-prop-menu-name` with `.ui-input`, focused, then the menu header "Type" / "Tipo" and
-  the types with their icons. The hint "Enter adds a text property" / "Enter cria uma propriedade
-  de texto" is a single line in `--text-xs`, `--text-tertiary`, under the field and shown **only
+  the types with their icons. The hint "Enter adds a text property" / "Enter cria como
+  texto" is a single line in `--text-xs`, `--text-tertiary`, under the field and shown **only
   once something is typed** (an empty field explains nothing and should say nothing).
 - **Keys.** Enter in the field: Text with that name; on an empty field Enter moves into the list
   (as ArrowDown) instead of adding an unnamed Text. ArrowUp on the first type goes back to the
@@ -461,7 +461,7 @@ Enter or click away: 3 clicks + typing. New: "+", type the name, Enter (text) or
 - **After adding** in a table, the new column scrolls into view and the grid's active cell goes
   to its first row (the "+" button keeps focus when there are no rows), so the next keystroke
   edits it. Announced: "Added {name}" / "Propriedade {name} adicionada".
-- **States.** A name that exists already gets " 2" as `uniqueName` does today, silently. Long
+- **States.** A name that exists already gets " 1" as `uniqueName` does today, silently. Long
   names are capped by `L.MAX_NAME_LENGTH` (the field's `maxLength`, as in `PropertyMenu`).
   Relation: the picker replaces the list as today and the typed name is kept; formula: the
   editor opens with it.

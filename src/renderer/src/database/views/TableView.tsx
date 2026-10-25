@@ -9,6 +9,7 @@ import * as actions from '../actions'
 import { bulkEditItems } from '../bulkEdit'
 import { isTextLike, type EditMove } from '../cells'
 import { Floating, TypeIcon, beginDrag, draggedOf, endDrag, type ViewProps } from '../common'
+import { useDatabaseCopy } from '../copy'
 import { AddPropertyMenu, PropertyMenu } from '../propertyMenus'
 import { TableRow, cellId, cellKey } from './TableRow'
 import { WINDOW_THRESHOLD, scrollToRow, useRowHeight, useWindowedRange } from './tableWindow'
@@ -37,6 +38,7 @@ export function TableView(p: ViewProps): JSX.Element {
   const gridRef = useRef<HTMLDivElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const gridId = useId()
+  const copy = useDatabaseCopy()
 
   const [liveWidths, setLiveWidths] = useState<Record<string, number>>({})
   const [focus, setFocus] = useState<CellRef | null>(null)
@@ -47,6 +49,7 @@ export function TableView(p: ViewProps): JSX.Element {
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null)
   // A property just added from the "+" header: brought into view once the menu has closed.
   const [addedProp, setAddedProp] = useState<string | null>(null)
+  const addRef = useRef<HTMLButtonElement>(null)
   const [editAnchor, setEditAnchor] = useState<HTMLElement | null>(null)
   const [rowDrop, setRowDrop] = useState<DropEdge | null>(null)
   const [colDrop, setColDrop] = useState<DropEdge | null>(null)
@@ -100,13 +103,15 @@ export function TableView(p: ViewProps): JSX.Element {
   }, [focus])
 
   // After an add, the new column scrolls into view and its first cell becomes the active one, so
-  // the next key edits it. Waits for the menu to close (a formula's editor stays open first) and
-  // for the column to be drawn. With no rows, the focus stays on "+", where the menu returns it.
+  // the next key edits it. Waits for the menu to close (a formula's editor stays open first). The
+  // "+" header is what is scrolled to: the new column sits just before it, so both are in view.
+  // With no rows, the focus stays on "+", where the menu returns it. A column that never shows
+  // (a dropped write) is forgotten once the menu has closed.
   useEffect(() => {
-    if (!addedProp || addAnchor || !props.some((prop) => prop.id === addedProp)) return
+    if (!addedProp || addAnchor) return
     setAddedProp(null)
-    const header = rootRef.current?.querySelector<HTMLElement>(`[data-prop-id="${CSS.escape(addedProp)}"]`)
-    header?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    if (!props.some((prop) => prop.id === addedProp)) return
+    addRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     if (!rows.length) return
     // The grid first: focusing it picks a cell of its own when none is focused yet.
     gridRef.current?.focus({ preventScroll: true })
@@ -458,7 +463,6 @@ export function TableView(p: ViewProps): JSX.Element {
                   style={{ width: widths[index] }}
                   role="columnheader"
                   aria-colindex={index + 2}
-                  data-prop-id={prop.id}
                   draggable
                   onDragStart={(event) => beginDrag(event, { kind: 'column', id: prop.id, databaseId })}
                   onDragEnd={() => {
@@ -508,9 +512,10 @@ export function TableView(p: ViewProps): JSX.Element {
             <div className="db-th-slot" role="columnheader" aria-colindex={props.length + 2}>
               <button
                 type="button"
+                ref={addRef}
                 className="db-th is-add"
-                aria-label="Add a property"
-                title="Add a property"
+                aria-label={copy.addProperty.label}
+                title={copy.addProperty.label}
                 onClick={(event) => setAddAnchor(event.currentTarget)}
               >
                 <Plus size={14} />

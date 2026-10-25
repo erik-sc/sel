@@ -1956,6 +1956,10 @@ button.db-formula-item:hover {
   width: 240px;
 }
 
+.db-add-prop-hint.is-hidden {
+  visibility: hidden;
+}
+
 .db-add-prop-hint {
   padding: 2px 10px 0;
   font-size: var(--text-xs);

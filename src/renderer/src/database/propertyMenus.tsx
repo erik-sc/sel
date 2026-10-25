@@ -133,11 +133,10 @@ export function AddPropertyMenu({
                 }
               }}
             />
-            {typed && (
-              <div className="db-add-prop-hint" id={hintId}>
-                {copy.addProperty.enterHint}
-              </div>
-            )}
+            {/* Its line is kept while hidden, so the list does not move when the first letter is typed. */}
+            <div className={typed ? 'db-add-prop-hint' : 'db-add-prop-hint is-hidden'} id={hintId} aria-hidden={!typed || undefined}>
+              {copy.addProperty.enterHint}
+            </div>
           </div>
           <Menu
             key={listTurn.key}

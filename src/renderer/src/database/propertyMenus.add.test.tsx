@@ -102,7 +102,11 @@ describe('the add-property menu', () => {
     expect(field().getAttribute('aria-label')).toBe('Property name')
     expect(document.querySelector('.ui-menu-header')?.textContent).toBe('Type')
     expect(item('Number')).toBeTruthy()
-    expect(document.querySelector('.db-add-prop-hint')).toBeNull()
+    // Its line is kept (the list does not move when typing starts), but it shows and says nothing.
+    const hint = document.querySelector('.db-add-prop-hint') as HTMLElement
+    expect(hint.classList.contains('is-hidden')).toBe(true)
+    expect(hint.getAttribute('aria-hidden')).toBe('true')
+    expect(field().hasAttribute('aria-describedby')).toBe(false)
     expect(document.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe('Add a property')
     expect(await seriousViolations()).toEqual([])
   })
@@ -112,6 +116,8 @@ describe('the add-property menu', () => {
     await type('Budget')
     const hint = document.querySelector('.db-add-prop-hint') as HTMLElement
     expect(hint.textContent).toBe('Enter adds a text property')
+    expect(hint.classList.contains('is-hidden')).toBe(false)
+    expect(hint.hasAttribute('aria-hidden')).toBe(false)
     expect(field().getAttribute('aria-describedby')).toBe(hint.id)
     expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(L.PROPERTY_TYPES.length)
     expect(await seriousViolations()).toEqual([])
@@ -273,9 +279,16 @@ describe('adding from the table header', () => {
     const active = document.getElementById(grid.getAttribute('aria-activedescendant') ?? '')
     expect(active?.closest('[data-cell]')?.getAttribute('data-cell') ?? active?.getAttribute('data-cell')).toContain(prop.id)
     expect(active?.closest('[role="row"]')?.getAttribute('aria-rowindex')).toBe('2')
-    const header = document.querySelector(`[data-prop-id="${prop.id}"]`)
-    expect(scrolled.mock.contexts).toContain(header)
+    // "+" is what is scrolled to: the new column sits just before it, so both stay in view.
+    expect(scrolled.mock.contexts).toContain(plus)
     scrolled.mockRestore()
+  })
+
+  it('names "+" in the home’s language', async () => {
+    useHome.setState({ locale: 'pt-BR' })
+    await render(<Table />)
+    const plus = document.querySelector('.db-th.is-add') as HTMLElement
+    expect(plus.getAttribute('aria-label')).toBe('Adicionar uma propriedade')
   })
 
   it('leaves the focus on "+" when there are no rows', async () => {
