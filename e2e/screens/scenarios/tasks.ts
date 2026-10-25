@@ -11,12 +11,8 @@ async function openView(page: Page, view: string): Promise<void> {
 
 /** The Tasks screen on its Today list, three rows picked with Shift+Down from the first. */
 async function pickThree(page: Page): Promise<void> {
-  await openFromSidebar(page, 'Tasks')
-  await page
-    .locator('.tasks-nav-item')
-    .filter({ hasText: /^Today/ })
-    .first()
-    .click()
+  // Today is the list the screen opens on; the sidebar and the list names are in the home's language.
+  await openFromSidebar(page, '(?:Tasks|Tarefas)')
   await see(page, 'Write the launch post')
   await page.locator('.tasks-list [data-task-row]').first().focus()
   await page.keyboard.press('Shift+ArrowDown')
@@ -69,7 +65,7 @@ export default [
     description: 'The Tasks list Today with three rows selected and the strip at the foot ("3 selected")',
     run: async (page) => {
       await pickThree(page)
-      await page.getByRole('toolbar', { name: 'Selected tasks' }).waitFor({ state: 'visible', timeout: 20_000 })
+      await page.getByRole('group', { name: 'Selected tasks' }).waitFor({ state: 'visible', timeout: 20_000 })
     }
   },
   {
@@ -78,7 +74,7 @@ export default [
     locale: 'pt-BR',
     run: async (page) => {
       await pickThree(page)
-      await page.getByRole('toolbar', { name: 'Tarefas selecionadas' }).waitFor({ state: 'visible', timeout: 20_000 })
+      await page.getByRole('group', { name: 'Tarefas selecionadas' }).waitFor({ state: 'visible', timeout: 20_000 })
     }
   },
   {
@@ -86,7 +82,7 @@ export default [
     description: 'Let go pressed on the strip: the "Let go of 3 tasks?" question',
     run: async (page) => {
       await pickThree(page)
-      await page.getByRole('toolbar', { name: 'Selected tasks' }).getByRole('button', { name: 'Let go' }).click()
+      await page.getByRole('group', { name: 'Selected tasks' }).getByRole('button', { name: 'Let go' }).click()
       await page.getByRole('dialog', { name: 'Let go of 3 tasks?' }).waitFor({ state: 'visible', timeout: 20_000 })
     }
   }

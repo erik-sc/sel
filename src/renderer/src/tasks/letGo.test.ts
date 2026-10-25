@@ -74,6 +74,9 @@ beforeEach(() => {
       pages: {
         restore: (id: string) => {
           store.restored.push(id)
+          // As the main process does: the page comes back out of the trash, at the end of its parent.
+          const db = store.blocks[TASKS_DATABASE_ID] as Block
+          store.blocks = { ...store.blocks, [id]: task(id), [db.id]: { ...db, content: [...db.content.filter((each) => each !== id), id] } }
           return Promise.resolve()
         }
       }
@@ -104,6 +107,14 @@ describe('letting go of several tasks', () => {
     ])
     toasts[0].action?.run()
     await vi.waitFor(() => expect(store.restored).toEqual(['a', 'b']))
+  })
+
+  it('puts the tasks back in their order with the move batch of Undo', async () => {
+    seed([task('a'), task('b'), task('c')])
+    letGoTasks(['a', 'c'])
+    toasts[0].action?.run()
+    await vi.waitFor(() => expect(store.batches).toHaveLength(2))
+    expect((store.blocks[TASKS_DATABASE_ID] as Block).content).toEqual(['a', 'b', 'c'])
   })
 
   it('says the task is gone and writes nothing when none is left', () => {

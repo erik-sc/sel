@@ -29,7 +29,7 @@ import { refineQueue } from './refineWalk'
 import { QuickAdd } from './QuickAdd'
 import { TaskPanel } from './lazy'
 import type { ManyAction } from './model'
-import { TaskRow, useTaskRows } from './TaskRow'
+import { ROW_SELECTOR, TaskRow, useTaskRows } from './TaskRow'
 import { BulkPopover } from './BulkPopover'
 import { SelectionBar } from './SelectionBar'
 import { setPriorityMany, toggleDoneMany } from './bulk'
@@ -498,7 +498,11 @@ export function TasksScreen(): JSX.Element {
             ids={picked.selection.ids}
             onMenu={(field, anchor) => setMany({ field, anchor })}
             onToggle={() => toggleDoneMany(picked.selection.ids)}
-            onClear={picked.clear}
+            onClear={() => {
+              // The button goes with the strip: the focus goes back to the list's Tab stop first.
+              document.querySelector<HTMLElement>(`.tasks-list ${ROW_SELECTOR}[tabindex="0"]`)?.focus({ preventScroll: true })
+              picked.clear()
+            }}
             onLetGo={() =>
               requestAnimationFrame(() =>
                 document.querySelector<HTMLElement>('.tasks-list [data-task-row]')?.focus({ preventScroll: true })

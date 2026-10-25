@@ -427,31 +427,41 @@ body.is-quick-add {
   position: sticky;
   bottom: 0;
   z-index: 2;
-  display: flex;
   flex: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   box-sizing: border-box;
   width: 100%;
-  max-width: calc(var(--page-width) + var(--page-padding-x) * 2);
-  margin: 0 auto;
-  padding: 8px var(--page-padding-x);
-  border-top: var(--hairline) solid var(--border);
+  padding: 0 var(--page-padding-x);
   background-color: var(--bg);
   font-size: var(--text-sm);
 }
 
+/* The strip is as wide as the list's column, so its hairline does not run past the rows. */
+.task-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: 8px 0;
+  border-top: var(--hairline) solid var(--border);
+}
+
 .task-bar-count {
+  flex: none;
+  white-space: nowrap;
   color: var(--text-secondary);
   font-weight: var(--weight-semibold);
 }
 
 .task-bar-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  align-items: center;
   justify-content: flex-end;
   gap: 4px;
+  white-space: nowrap;
 }
 
 .task-ask {
@@ -461,7 +471,7 @@ body.is-quick-add {
 
 .task-ask-title {
   margin: 0 0 8px;
-  font-size: var(--text-lg, 1.125rem);
+  font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
 }
 

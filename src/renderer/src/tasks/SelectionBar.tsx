@@ -4,9 +4,10 @@
 // tasks to the Trash with one Undo (edit.ts). Absent for one row or none: nothing is shown that
 // the user did not pick.
 import { useId, useState } from 'react'
+import { Close } from '@/ui/icons'
 import type { JSX } from 'react'
 import { useHome } from '@/home/store'
-import { Button } from '@/ui/Button'
+import { Button, IconButton } from '@/ui/Button'
 import { Modal } from '@/ui/Modal'
 import { TASK_COPY } from './copy'
 import { letGoTasks } from './edit'
@@ -33,27 +34,29 @@ export function SelectionBar({ ids, onMenu, onToggle, onClear, onLetGo }: Select
   if (ids.length < MANY) return null
   return (
     <>
-      <div className="task-bar" role="toolbar" aria-label={words.barLabel}>
-        <span className="task-bar-count">{words.selected(ids.length)}</span>
-        <div className="task-bar-actions">
-          <Button variant="ghost" onClick={(event) => onMenu('date', event.currentTarget)}>
-            {words.field.date}
-          </Button>
-          <Button variant="ghost" onClick={(event) => onMenu('priority', event.currentTarget)}>
-            {words.field.priority}
-          </Button>
-          <Button variant="ghost" onClick={(event) => onMenu('project', event.currentTarget)}>
-            {words.field.project}
-          </Button>
-          <Button variant="ghost" onClick={onToggle}>
-            {words.markDone}
-          </Button>
-          <Button variant="ghost" onClick={() => setAsking(true)}>
-            {words.letGo}
-          </Button>
-          <Button variant="ghost" onClick={onClear}>
-            {words.deselect}
-          </Button>
+      <div className="task-bar">
+        <div className="task-bar-inner" role="group" aria-label={words.barLabel}>
+          <span className="task-bar-count">{words.selected(ids.length)}</span>
+          <div className="task-bar-actions">
+            <Button variant="ghost" onClick={(event) => onMenu('date', event.currentTarget)}>
+              {words.field.date}
+            </Button>
+            <Button variant="ghost" onClick={(event) => onMenu('priority', event.currentTarget)}>
+              {words.field.priority}
+            </Button>
+            <Button variant="ghost" onClick={(event) => onMenu('project', event.currentTarget)}>
+              {words.field.project}
+            </Button>
+            <Button variant="ghost" onClick={onToggle}>
+              {words.markDone}
+            </Button>
+            <Button variant="ghost" onClick={() => setAsking(true)}>
+              {words.letGo}
+            </Button>
+            <IconButton label={words.deselect} size="small" onClick={onClear}>
+              <Close />
+            </IconButton>
+          </div>
         </div>
       </div>
       <Modal open={asking} onClose={() => setAsking(false)} labelledBy={titleId} className="task-ask">

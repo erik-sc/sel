@@ -43,7 +43,7 @@ describe('SelectionBar', () => {
     await click(button(/^Priority$/))
     await click(button(/^Project$/))
     await click(button(/^Done$/))
-    await click(button(/^Deselect$/))
+    await click(document.querySelector<HTMLButtonElement>('button[aria-label="Deselect"]')!)
     expect(on.onMenu.mock.calls.map((call) => call[0])).toEqual(['date', 'priority', 'project'])
     expect(on.onToggle).toHaveBeenCalledOnce()
     expect(on.onClear).toHaveBeenCalledOnce()
@@ -76,15 +76,15 @@ describe('SelectionBar', () => {
     useHome.setState({ locale: 'pt-BR' })
     await render(<SelectionBar ids={['a', 'b', 'c']} {...handlers()} />)
     expect(document.querySelector('.task-bar')?.textContent).toContain('3 selecionadas')
-    for (const name of [/^Data$/, /^Prioridade$/, /^Projeto$/, /^Concluir$/, /^Deixar ir$/, /^Desmarcar$/])
-      expect(button(name)).toBeTruthy()
+    expect(document.querySelector('button[aria-label="Desmarcar"]')).toBeTruthy()
+    for (const name of [/^Data$/, /^Prioridade$/, /^Projeto$/, /^Concluir$/, /^Deixar ir$/]) expect(button(name)).toBeTruthy()
     await click(button(/^Deixar ir$/))
     expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Deixar ir 3 tarefas?')
   })
 
-  it('is a toolbar named for what it holds, with no aria-selected', async () => {
+  it('is a group named for what it holds, with no aria-selected', async () => {
     await render(<SelectionBar ids={['a', 'b']} {...handlers()} />)
-    expect(document.querySelector('[role="toolbar"]')?.getAttribute('aria-label')).toBe('Selected tasks')
+    expect(document.querySelector('[role="group"]')?.getAttribute('aria-label')).toBe('Selected tasks')
     expect(document.querySelector('.task-bar [aria-selected]')).toBeNull()
   })
 })
