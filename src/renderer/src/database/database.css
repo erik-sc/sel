@@ -1956,6 +1956,126 @@ button.db-formula-item:hover {
   width: 240px;
 }
 
+/*
+ * A property's menu keeps one width too (B1's add menu has the same): it does not change as
+ * options are added or renamed. An option's edit pane opens in the same box.
+ */
+.db-prop-menu {
+  width: 240px;
+}
+
+.db-prop-menu .ui-menu {
+  min-width: 0;
+}
+
+.db-prop-menu-pane {
+  padding: 6px;
+  font-size: var(--text-ui);
+}
+
+/* ---- a select's options, in its property menu ---- */
+.db-option-section {
+  padding: 0 5px;
+}
+
+/* Six rows and half of the next one: the half row says there is more. */
+.db-option-list {
+  max-height: calc(var(--row-height) * 6.5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.db-option-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--row-height);
+  border-radius: var(--radius-s);
+}
+
+.db-option-row:hover {
+  background: var(--bg-hover);
+}
+
+.db-option-button {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px 0 10px;
+  border-radius: inherit;
+  text-align: left;
+  outline: none;
+}
+
+/* The focused option is the menu's active row: its tint and the prompt at its left. */
+.db-option-row:has(.db-option-button:focus-visible),
+.db-option-row.is-dragging {
+  background: var(--bg-menu-active);
+  color: var(--text-menu-active);
+}
+
+.db-option-button:focus-visible::before {
+  content: '>';
+  position: absolute;
+  left: 2px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+
+.db-option-button .db-tag {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.db-option-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-right: 6px;
+  border-radius: var(--radius-s);
+  color: var(--text-tertiary);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity var(--duration-fast) var(--ease);
+}
+
+.db-option-row:hover .db-option-handle,
+.db-option-row:focus-within .db-option-handle,
+.db-option-row.is-dragging .db-option-handle {
+  opacity: 1;
+}
+
+/* Where a dragged option lands: 2 px, as the database's other drop marks. */
+.db-option-row.drop-before::before,
+.db-option-row.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.db-option-row.drop-before::before {
+  top: -1px;
+}
+
+.db-option-row.drop-after::after {
+  bottom: -1px;
+}
+
+.db-option-add {
+  padding: 4px 3px;
+}
+
 .db-add-prop-hint.is-hidden {
   visibility: hidden;
 }
