@@ -162,4 +162,21 @@ describe('a change to several tasks', () => {
     expect(toasts[0].message).toBe('Priority changed on 1 task.')
     expect(valuesOf('b')).toEqual({})
   })
+
+  it('Undo puts back only what the change touched and leaves a later edit alone', () => {
+    seed([task('a', { [TASK_PROPS.due]: { start: '2026-10-20' } }), task('b')])
+    setDateMany(['a', 'b'], 'tomorrow', NOW)
+    // Afterwards: a gets a priority, and b's date is moved by hand.
+    store.blocks.a = {
+      ...(store.blocks.a as Block),
+      props: { ...(store.blocks.a as Block).props, values: { ...valuesOf('a'), [TASK_PROPS.priority]: 'tasks.p1' } }
+    }
+    store.blocks.b = {
+      ...(store.blocks.b as Block),
+      props: { ...(store.blocks.b as Block).props, values: { [TASK_PROPS.due]: { start: '2026-11-01' } } }
+    }
+    toasts[0].action?.run()
+    expect(valuesOf('a')).toEqual({ [TASK_PROPS.due]: { start: '2026-10-20' }, [TASK_PROPS.priority]: 'tasks.p1' })
+    expect(valuesOf('b')[TASK_PROPS.due]).toEqual({ start: '2026-11-01' })
+  })
 })

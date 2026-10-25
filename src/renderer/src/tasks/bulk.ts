@@ -30,12 +30,41 @@ function valuesOf(id: string): L.Values {
   return row && L.isPlainObject(row.props.values) ? (row.props.values as L.Values) : {}
 }
 
-/** Puts back the values the tasks had before the change (those still there). */
-function restore(before: ReadonlyMap<string, L.Values>): void {
+/** What one change did to a task: for each property it touched, the value before and the value it wrote. */
+type Touched = Record<string, { before: unknown; after: unknown }>
+
+const same = (a: unknown, b: unknown): boolean => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+const UNSAFE = new Set(['__proto__', 'constructor', 'prototype'])
+
+function touched(before: L.Values, after: L.Values): Touched {
+  const result: Touched = {}
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (UNSAFE.has(key)) continue
+    const was = Object.hasOwn(before, key) ? before[key] : undefined
+    const now = Object.hasOwn(after, key) ? after[key] : undefined
+    if (!same(was, now)) result[key] = { before: was, after: now }
+  }
+  return result
+}
+
+/**
+ * Takes the change back: only the properties it touched, merged over the values the task has now,
+ * and a property edited since (it no longer holds what the change wrote) is left as it is.
+ */
+function restore(changes: ReadonlyMap<string, Touched>): void {
   const ops: Op[] = []
-  for (const [id, values] of before) {
+  for (const [id, keys] of changes) {
     const row = getBlock(id)
-    if (row && !row.trashedAt) ops.push({ op: 'update', id, patch: { props: { values } } })
+    if (!row || row.trashedAt) continue
+    const values = { ...valuesOf(id) }
+    let changed = false
+    for (const [key, { before, after }] of Object.entries(keys)) {
+      if (!same(values[key], after)) continue
+      if (before === undefined) delete values[key]
+      else values[key] = before as L.Values[string]
+      changed = true
+    }
+    if (changed) ops.push({ op: 'update', id, patch: { props: { values } } })
   }
   actions.runOps(ops)
   toast(copy().undone, { kind: 'info', duration: 3000 })
@@ -54,7 +83,8 @@ function applyMany(ids: readonly string[], property: string, change: L.BulkChang
   }
   const before = new Map(rows.map((id) => [id, valuesOf(id)]))
   actions.editCells(rows, prop, change)
-  toast(message(rows.length), { action: { label: copy().undo, run: () => restore(before) } })
+  const changes = new Map(rows.map((id) => [id, touched(before.get(id) ?? {}, valuesOf(id))]))
+  toast(message(rows.length), { action: { label: copy().undo, run: () => restore(changes) } })
 }
 
 /** Every task's date to a quick choice (the day, each keeping its time of day), or none. */
