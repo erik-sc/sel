@@ -1091,3 +1091,49 @@ describe('typing inside a column (A1c), review round 1', () => {
     applyAndUndo(w, plan.ops)
   })
 })
+
+describe('typing inside a column (A1c), review round 2', () => {
+  /** columnsWorld with an empty second head whose first line r1 is of `type` (plus `props`). */
+  function headOver(type: BlockType, props: BlockProps, lines = ['r1', 'r2']): BlockMap {
+    const base = withBlock(columnsWorld(), 'r', { title: [], beside: true }, lines)
+    return { ...base, r1: { ...base.r1, type, props: { ...base.r1.props, ...props } } }
+  }
+
+  it('Backspace in an empty head over a collapsed toggle and other lines only moves the caret', () => {
+    const w = headOver('toggle', { collapsed: true })
+    expect(backspacePlan(treeOf(w), 'r')).toEqual({ do: 'focus', id: 'l', where: 'end' })
+    // Alone in the column, the toggle still takes the head's place: nothing would be hidden.
+    const alone = headOver('toggle', { collapsed: true }, ['r1'])
+    const plan = committed(backspacePlan(treeOf(alone), 'r'))
+    expect(plan.after).toEqual(textSel('r1', 0))
+    expect(rowsAfter(alone, plan.ops).rows).toEqual([['x'], ['l', 'r1'], ['after']])
+  })
+
+  it('Backspace in an empty head over a list item or to-do and other lines only moves the caret', () => {
+    for (const type of ['bulleted_list', 'numbered_list', 'to_do'] as const) {
+      const w = headOver(type, type === 'to_do' ? { checked: false } : {})
+      expect(backspacePlan(treeOf(w), 'r'), type).toEqual({ do: 'focus', id: 'l', where: 'end' })
+    }
+    // A trashed line does not count as another line.
+    const base = headOver('bulleted_list', {})
+    const trashed: BlockMap = { ...base, r2: { ...base.r2, trashedAt: 1 } }
+    expect(committed(backspacePlan(treeOf(trashed), 'r')).after).toEqual(textSel('r1', 0))
+  })
+
+  it('Enter at the start of a to-do or toggle head, then Backspace twice, gives the starting page back', () => {
+    for (const type of ['to_do', 'toggle'] as const) {
+      const base = columnsWorld()
+      const props = { ...base.r.props, ...(type === 'to_do' ? { checked: false } : {}) }
+      const w: BlockMap = { ...base, r: { ...base.r, type, props } }
+      const entered = rowsAfter(w, committed(splitPlan(treeOf(w), 'r', 0, 0, ids())).ops).map
+      expect(entered.n1.content, type).toEqual(['r'])
+      expect(backspacePlan(treeOf(entered), 'n1'), type).toEqual({ do: 'turnText' })
+      const text = applyOpsToMap(entered, turnIntoOps(treeOf(entered), ['n1'], 'text')).map
+      const back = committed(backspacePlan(treeOf(text), 'n1'))
+      expect(back.after, type).toEqual(textSel('r', 0))
+      const { map, repair } = rowsAfter(text, back.ops)
+      expect(repair, type).toEqual([])
+      expect(shape(map), type).toEqual(shape(w))
+    }
+  })
+})

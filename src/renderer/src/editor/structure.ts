@@ -271,13 +271,18 @@ function headStartPlan(tree: Tree, b: Block, row: readonly Block[], id2: string,
  * Backspace at the start of an empty head whose first line holds text: the reverse of
  * headStartPlan. The head goes, its first line takes its place in the row (with its `beside`) and
  * the head's other lines follow under that line, so they keep their column; the next column keeps
- * its place beside it. The caret goes to the start of that line. Null when the head is not empty
- * or its first line is not text.
+ * its place beside it. The caret goes to the start of that line. Null when the head is not empty,
+ * its first line is not text, or that line is a toggle, list item or to-do (HOLDS_ITS_CHILDREN)
+ * and the head has other lines: under it they would be indented, or hidden in a collapsed toggle.
+ * Enter at the start of such a head leaves it as the new head's only line, so the round trip holds.
  */
 function liftFirstLinePlan(tree: Tree, b: Block, row: readonly Block[]): Plan {
-  const first = liveChildren(tree, b)[0]
-  const fb = first ? tree.get(first) : undefined
+  const live = liveChildren(tree, b)
+  const fb = live.length > 0 ? tree.get(live[0]) : undefined
   if (!fb || !isTextType(fb.type) || rtLength(titleOf(b)) > 0) return null
+  // A toggle, list item or to-do draws what it holds indented (or hidden, when collapsed): the
+  // head's other lines would stop reading as the column, so only the caret moves.
+  if (HOLDS_ITS_CHILDREN.has(fb.type) && live.length > 1) return null
   const ops: Op[] = [{ op: 'move', id: fb.id, parentId: tree.pageId, afterId: b.id }]
   if (b.props.beside === true) ops.push({ op: 'update', id: fb.id, patch: { props: { beside: true } } })
   else if (fb.props.beside === true) ops.push({ op: 'update', id: fb.id, patch: { props: { beside: null } } })
