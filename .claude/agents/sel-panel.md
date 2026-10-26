@@ -1,6 +1,6 @@
 ---
 name: sel-panel
-description: One member of sel's adversarial proposal panel. Plays one persona from docs/team/personas.md and attacks a release proposal epic by epic from that persona's point of view. Use from the sel-team skill on every release proposal before Érik sees it; always a fresh agent, one per persona, that never saw the proposal being written.
+description: One member of sel's adversarial proposal panel. Plays one persona from docs/team/personas.md and attacks a release proposal epic by epic from that persona's point of view. Use from the sel-refine skill on every feature suggestion before Érik sees it; always a fresh agent, one per persona, that never saw the proposal being written.
 model: sonnet
 ---
 
