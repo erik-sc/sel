@@ -65,11 +65,8 @@ gh api "$R/issues/<n>/labels" -f 'labels[]=triaged'
 gh api "$R/issues/<n>/comments" -F body=@/tmp/reply.md
 gh api -X PATCH "$R/issues/<n>" -f state=closed -f state_reason=completed
 
-# release backlog
-gh api "$R/labels" -f name=release-proposal -f color=8a7f6a -f description='A proposed release, waiting for Érik'   # once
-gh api "$R/labels" -f name=release-queued -f color=4d7a5c -f description='Approved; in the team queue'               # once
-gh api "$R/issues?labels=release-proposal&state=open&per_page=100" --jq '.[] | {number, title, labels: [.labels[].name]}'
-gh api "$R/issues" -f title='Proposal: <theme> (target 0.10.0)' -F body=@/tmp/proposal.md -f 'labels[]=release-proposal'
-gh api -X PATCH "$R/issues/<n>" -F body=@/tmp/proposal.md            # revise after feedback
-gh api -X PATCH "$R/issues/<n>" -f state=closed -f state_reason=not_planned   # /reject
+# backlog (on team/state)
+gh api "$R/contents/backlog.md?ref=team/state" --jq .content | base64 -d
+# latest release
+gh api "$R/releases?per_page=1" --jq '.[0].tag_name'
 ```
