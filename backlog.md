@@ -51,6 +51,9 @@ Approved by Érik, 2026-10-25, on #96. **Brief.** Issue #96; the panel recommend
 
 - Database edits you can take back (#112) — waiting for Érik.
 - From your notes to your tasks (#113) — waiting for Érik.
+- Duplicate a task (proposed 2026-10-26, refinement) — waiting for Érik. Row menu + Ctrl+K "Duplicate" (Ctrl+D only if free): copies title, project, labels, priority, repeat; reopens; no subtasks; past dates not copied; toast names a repeat; Esc keeps the copy; one Undo. Touches TaskRow.tsx, tasks/copy.ts, database/actions.ts duplicateRow, shortcuts catalog. Panel: for.
+- Finish "Select several tasks" (proposed 2026-10-26) — waiting for Érik. Pick any date for many (same picker and typed field as the chips, keyboard only) + aria-selected on rows. Touches BulkPopover.tsx, bulk.ts, SelectionBar.tsx, TaskRow.tsx. Panel: indifferent except the date.
+- Dark-mode pass on Today and Tasks (proposed 2026-10-26) — waiting for Érik. Fix only token pairs failing AA, change the token once; real combinations tested (chip on selection strip/hover); before/after dark screenshots via e2e/screens/scenarios/today.ts, tasks.ts. Panel: mixed (Lia against).
 
 ## Shipped
 
