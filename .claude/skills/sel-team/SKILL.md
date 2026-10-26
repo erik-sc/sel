@@ -185,6 +185,10 @@ approved with `/ok` or its window passed) or stays a proposal, as Érik's commen
 - `sel-dev`: `docs/codebase-knowledge/` updated for what changed; version in `package.json`.
 - `sel-pm`: the plan's "Delivered" and "Left for later", the decisions the team took on its
   own (for Érik to review), the roadmap updated.
+- Last check before marking ready: on the release branch head, `package.json` and
+  `package-lock.json` carry the new version (above the latest tag), and the plan's "Delivered"
+  section is there. A later commit must not have undone them (0.10.0 shipped with 0.9.0 because
+  a README commit rewrote files from a stale copy).
 - Mark the PR ready for review (`references/github.md`). If that route fails, ask him in
   "Needs you" to mark it. Phase → `AWAITING_SHIP`.
 
