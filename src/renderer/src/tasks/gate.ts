@@ -17,12 +17,14 @@ interface TasksGate {
   focus: number
   /** The refine mode (Refine.tsx), walking the Inbox's tasks to refine or all of them; null when off. */
   refining: RefineFrom | null
+  /** Bumped to ask the list on screen to select all its tasks (the "Select all in this list" command). */
+  selectAll: number
 }
 
 /** Which tasks the refine mode walks: those of the Inbox, or every one still to refine. */
 export type RefineFrom = 'inbox' | 'refine'
 
-export const useTasksGate = create<TasksGate>(() => ({ list: { kind: 'today' }, focus: 0, refining: null }))
+export const useTasksGate = create<TasksGate>(() => ({ list: { kind: 'today' }, focus: 0, refining: null, selectAll: 0 }))
 
 export function showTaskList(list: TaskListKey): void {
   useTasksGate.setState({ list })
@@ -31,6 +33,11 @@ export function showTaskList(list: TaskListKey): void {
 /** Puts the caret in the quick-add input (once the screen is there). */
 export function focusQuickAdd(): void {
   useTasksGate.setState((state) => ({ focus: state.focus + 1 }))
+}
+
+/** Selects every task of the list the screen shows (once the screen is there). */
+export function selectAllTasks(): void {
+  useTasksGate.setState((state) => ({ selectAll: state.selectAll + 1 }))
 }
 
 /** True in the small window the system-wide quick-add shortcut opens (`?quickadd=1`, see main/tasks/window.ts). */

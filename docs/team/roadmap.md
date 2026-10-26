@@ -10,7 +10,7 @@ rejected those three (#91, #92, #93) and asked for smaller, concrete releases he
 use, and for new ideas from the team beyond the listed pains (comment on #82); revised on
 2026-10-25 to agree with the six open proposals (#96–#101) after three more (#99–#101) were posted
 and the panel review reached all six; revised at 0.9.0's CLOSE (2026-10-25): 0.9.0 delivered and
-ready to ship, its leftovers placed below ("Left for later from 0.9.0").
+ready to ship, its leftovers placed below ("Left for later from 0.9.0"); revised on 2026-10-25 at the start of 0.10.0: 0.9.0 shipped (v0.9.0), Érik approved the queue (#101, #100, #98, #97, #96) and rejected #99.
 
 ## Milestones (Érik's, 2026-10-21)
 
@@ -44,8 +44,13 @@ One theme each; polish before novelty. Versions after the next one are intention
 
 | Version | Theme | What it holds |
 |---|---|---|
-| **0.9.0** (delivered, ready to ship, 2026-10-25) | **Pages and databases you can shape** (pain 2) | Columns for any block (block menu, drag to the side, typing inside a column); a new property named as it is made; select options edited from the column's menu; table headers renamed in place, reachable by keyboard, with insert left or right. Housekeeping: land the dev-toolchain bumps Dependabot opened (#75–#78) on the release branch. First, at Érik's request: a CI job that screenshots the real app (Windows, seeded demo workspace, both themes) before and after on every visible PR |
-| next | **The open proposals, in Érik's order** | Six proposals wait for approval (see "Release backlog" below, which gives the team's suggested order). Each one approved becomes the next release; one theme per release |
+| **0.9.0** (shipped, v0.9.0, 2026-10-25) | **Pages and databases you can shape** (pain 2) | Columns for any block (block menu, drag to the side, typing inside a column); a new property named as it is made; select options edited from the column's menu; table headers renamed in place, reachable by keyboard, with insert left or right. Housekeeping: land the dev-toolchain bumps Dependabot opened (#75–#78) on the release branch. First, at Érik's request: a CI job that screenshots the real app (Windows, seeded demo workspace, both themes) before and after on every visible PR |
+| **0.10.0** (building) | **Select several tasks** (#101; pain 1) | Select several tasks in the Tasks lists and change them with the keys you know; a thin strip with Let go (E1a, E1b) |
+| 0.11.0 | **sel in your language** (#100) | Mixed-language editor menus in pt-BR, a language setting |
+| 0.12.0 | **Long pages you can work in** (#98) | Find and replace; a way to jump to a heading |
+| 0.13.0 | **Land where you meant to go** (#97) | Arriving at a block selects it; keeping the place; marking the matched word |
+| 0.14.0 | **Text that behaves like the rest of Windows** (#96) | Panel says cut or plain paste only |
+| 0.15.0 / 0.16.0 | **#112** Database edits you can take back; **#113** From your notes to your tasks | Open proposals, waiting for Érik's approval; placed after the queue |
 | after them | **Ready for another developer** | README and `site/` that take a stranger from clone to running app; a contributor guide drawn from `docs/codebase-knowledge/`; a first run that works without Claude Code installed and says what AI adds; the line citations in `docs/codebase-knowledge` checked; issue templates and `CONTRIBUTING.md` (0.9.0 plan, "First run") |
 | then | **Polish pass before 1.0** | A pass over every screen in `docs/screens/` for clicks, copy, focus and dark mode; importer gaps (non-image attachments, Notion relations as relations); backup comparison measured on a large workspace; the 0.9.0 leftovers below (columns, database menus, screens); whatever Érik's daily use has turned up |
 | **1.0.0** | **Usable and polished** | Only fixes and polish on top of the polish pass; the five pains confirmed solved by Érik |
@@ -62,24 +67,26 @@ Every release after the one in progress starts as a proposal issue (label `relea
 approves (`/approve`, `/next`) or rejects (`/reject`) it there, and the queue order is the build
 order (skill, "Release backlog"). This table and the open proposals must agree.
 
-Six proposals are open, two per target version: #96–#98 were written by the team's run on the
-evening of 2026-10-24, #99–#101 by a later session that also ran the panel on all six. **Every
-target version below is a guess written when the proposal was posted; the real version is set when
-Érik approves and the release starts, in the queue order he chooses.** No proposal was closed or
-rewritten to make the numbers line up. The team's suggested order, with why:
+Érik approved on 2026-10-25, in this order: **#101, #100, #98, #97, #96** (the queue), and rejected
+#99. Two more proposals are open and unapproved: #112 and #113. Versions below are assigned in queue
+order; each is set for real when its release starts.
 
-| Order | Proposal | Target as posted | Theme | Why here | State |
-|---|---|---|---|---|---|
-| 1 | #99 | 0.10.0 | Today, with fewer clicks (3 items) | Today is the screen Érik opens every day and pain 1's home; simulated Érik wants it after two panel rounds; touches nothing 0.9.0 changes | waiting for approval; panel done (2 rounds) |
-| 2 | #97 | 0.11.0 | Land where you meant to go (3 items) | The panel's strongest (4 of 5 want it); its reveal mechanism is what #98's outline would jump with | waiting for approval; panel changes still to apply (select the block on arrival, keep the place on Today and Tasks too, mark the matched word) |
-| 3 | #101 | 0.12.0 | Select several tasks (1 item) | Inbox work (pain 1) at its largest; reuses #99's Let go and tomorrow moves and the same row component, so it must follow #99 | waiting for approval; panel done (2 rounds; Lia still against) |
-| 4 | #98 | 0.12.0 | Long pages you can work in (2 items) | Needs #97 first; find and replace survives the panel, the margin outline does not as written (simulated Érik indifferent) | waiting for approval; panel changes still to apply (whole word and match case, a count before Replace all, outline replaced by "Go to heading" or off until asked) |
-| 5 | #100 | 0.11.0 | sel in your language (2–3 items) | Pays the mixed-language debt 0.9.0 leaves in the editor (see "Later"); panel mostly indifferent and the issue says rejecting it is fine; cheap, could move up if Érik wants pt-BR sooner | waiting for approval; panel done (2 rounds), posted as rejectable |
-| 6 | #96 | 0.10.0 | Text that behaves like the rest of Windows (2 items) | Panel rule says cut: most of the panel, simulated Érik included, is indifferent. If kept, plain paste (T2) alone, small enough to ride in the polish pass | waiting for approval; panel changes still to apply (cut, or T2 alone) |
+| Order | Proposal | Version | Theme | State |
+|---|---|---|---|---|
+| 1 | #101 | 0.10.0 | Select several tasks | building (plan `docs/plans/release-0.10.0.md`) |
+| 2 | #100 | 0.11.0 | sel in your language | queued; panel done |
+| 3 | #98 | 0.12.0 | Long pages you can work in | queued; panel changes still to apply (whole word and match case, a count before Replace all, outline replaced by "Go to heading" or off until asked) |
+| 4 | #97 | 0.13.0 | Land where you meant to go | queued; panel changes still to apply (select the block on arrival, keep the place on Today and Tasks too, mark the matched word) |
+| 5 | #96 | 0.14.0 | Text that behaves like the rest of Windows | queued; panel rule says cut, or plain paste (T2) alone |
+| - | #112 | 0.15.0 (guess) | Database edits you can take back | waiting for approval |
+| - | #113 | 0.16.0 (guess) | From your notes to your tasks | waiting for approval |
 
-The panel's recommendations on #96, #97 and #98 are recorded on the issues as "pending: next run";
-the team applies them (step 3 of "Panel review") before any of those three is built, and says so on
-the issue. The suggested order is only a suggestion: `/next` on any proposal puts it first.
+**Dependency flag.** #98 was written to follow #97 (its jump-to-heading reuses #97's reveal
+mechanism), but Érik's order puts #98 first. The team did not reorder; #98's plan will either build
+its own reveal or move #98 behind #97, decided when #98 starts and noted in the Team log. #101 had
+leaned on #99's Let go and tomorrow moves; with #99 rejected, 0.10.0 builds Let go itself (E1b).
+
+The panel's recommendations on #96, #97 and #98 are applied before each is built.
 
 How proposals are sized since 2026-10-24 (Érik, on #82): small and concrete, two to four items,
 things felt in daily use; and at least some new ideas from the team, not only the listed pains.
@@ -149,6 +156,10 @@ order above is unchanged.
 
 ## Not doing (and why)
 
+- **Today, with fewer clicks (#99).** Rejected by Érik on 2026-10-25 (closed, not planned). Today
+  already carries the row chips, the context menu and Refine from 0.7.0; he did not want more on that
+  screen. Its Let go and tomorrow moves are not coming back as a Today feature; Let go lives in the
+  Tasks selection strip (0.10.0) only.
 - **Web search for the persona.** Érik decided against it.
 - **A persona that writes on its own.** Assisted, never autonomous: every change waits for Apply.
 - **Scores, streaks, badges, "records", or notifications nobody asked for.** Against the zen

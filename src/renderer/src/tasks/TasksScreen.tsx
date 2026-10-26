@@ -3,7 +3,7 @@
 // own views), the tasks of the chosen one in the middle, and the task panel on the right while a
 // task is open in it. Rows are pages of the database, drawn by TaskRow: a click opens the panel,
 // Ctrl+click the page, the round checkbox completes it through the same path as the Today screen.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
 import { projectSummaries, readPlans, readProjectTasks } from '@shared/tasks/projects'
@@ -28,7 +28,12 @@ import { Refine } from './Refine'
 import { refineQueue } from './refineWalk'
 import { QuickAdd } from './QuickAdd'
 import { TaskPanel } from './lazy'
-import { TaskRow, useTaskRows } from './TaskRow'
+import type { ManyAction } from './model'
+import { ROW_SELECTOR, TaskRow, useTaskRows } from './TaskRow'
+import { BulkPopover } from './BulkPopover'
+import { SelectionBar } from './SelectionBar'
+import { setPriorityMany, toggleDoneMany } from './bulk'
+import { rowSelectionOf, useTaskSelection } from './useTaskSelection'
 import { TasksTools } from './TasksTools'
 import './tasks.css'
 
@@ -186,7 +191,44 @@ export function TasksScreen(): JSX.Element {
     [rows, schema, pending]
   )
   const groups = useMemo(() => listTasks(tasks, schema, list, today), [tasks, schema, list, today])
-  const rowList = useTaskRows(useMemo(() => groups.flatMap((group) => group.items.map((task) => task.id)), [groups]))
+  const order = useMemo(() => groups.flatMap((group) => group.items.map((task) => task.id)), [groups])
+  const rowList = useTaskRows(order)
+  // Picked rows (E1a): Shift+arrows, Shift+click, "Select all in this list". The keys act on them when there are two or more.
+  const picked = useTaskSelection(order)
+  const [many, setMany] = useState<{ field: 'date' | 'project' | 'priority'; anchor: HTMLElement } | null>(null)
+  const listId = `${list.kind}:${'id' in list ? list.id : ''}`
+  // Another list is another selection.
+  const resetPicked = picked.reset
+  useEffect(() => {
+    resetPicked()
+    setMany(null)
+  }, [listId, resetPicked])
+  // The "Select all in this list" command bumps a counter; only a bump after this screen was drawn counts.
+  const selectAllTick = useTasksGate((state) => state.selectAll)
+  const handledTick = useRef(selectAllTick)
+  const pickAll = picked.selectAll
+  useEffect(() => {
+    if (selectAllTick === handledTick.current) return
+    handledTick.current = selectAllTick
+    if (!useTasksGate.getState().refining && list.kind !== 'view') pickAll()
+  }, [selectAllTick, pickAll, list.kind])
+  const onMany = (action: ManyAction, anchor: HTMLElement): void => {
+    const ids = picked.selection.ids
+    switch (action.kind) {
+      case 'date':
+      case 'project':
+        setMany({ field: action.kind, anchor })
+        break
+      case 'priority':
+        setPriorityMany(ids, action.level)
+        break
+      case 'toggle':
+        toggleDoneMany(ids)
+        break
+      case 'ignore':
+        break
+    }
+  }
   const toggle = useCallback(
     (task: TaskItem): void => (task.done ? reopen(task) : complete(task, openDescendants(tasks, task.id))),
     [complete, reopen, tasks]
@@ -379,7 +421,15 @@ export function TasksScreen(): JSX.Element {
             <DatabaseView key={list.id} databaseId={TASKS_DATABASE_ID} onOpenPage={openPage} />
           </div>
         ) : (
-          <div className="tasks-list" {...rowList.listProps}>
+          <div
+            className="tasks-list"
+            {...rowList.listProps}
+            onKeyDown={(event) => {
+              rowList.listProps.onKeyDown(event)
+              // Moving along the list with the plain arrows lets go of the selection; Shift+arrows extend it.
+              picked.onListKey(event)
+            }}
+          >
             <div className="tasks-heading-row">
               <h1 className="tasks-heading">{heading}</h1>
               {list.kind === 'project' && (
@@ -432,6 +482,7 @@ export function TasksScreen(): JSX.Element {
                           onOpen={() => setPanel(task.id)}
                           onLeave={rowList.leave}
                           emptyChips={emptyChipsOf(task)}
+                          selection={rowSelectionOf(picked, task.id, rowList.stop, onMany)}
                           {...moves(group, index)}
                         />
                       ))}
@@ -442,7 +493,25 @@ export function TasksScreen(): JSX.Element {
             )}
           </div>
         )}
+        {!refining && list.kind !== 'view' && (
+          <SelectionBar
+            ids={picked.selection.ids}
+            onMenu={(field, anchor) => setMany({ field, anchor })}
+            onToggle={() => toggleDoneMany(picked.selection.ids)}
+            onClear={() => {
+              // The button goes with the strip: the focus goes back to the list's Tab stop first.
+              document.querySelector<HTMLElement>(`.tasks-list ${ROW_SELECTOR}[tabindex="0"]`)?.focus({ preventScroll: true })
+              picked.clear()
+            }}
+            onLetGo={() =>
+              requestAnimationFrame(() =>
+                document.querySelector<HTMLElement>('.tasks-list [data-task-row]')?.focus({ preventScroll: true })
+              )
+            }
+          />
+        )}
       </div>
+      {many && <BulkPopover field={many.field} ids={picked.selection.ids} anchor={many.anchor} onClose={() => setMany(null)} />}
       {panel && list.kind !== 'view' && (
         <TaskPanel taskId={panel} today={today} onClose={() => setPanel(null)} onToggle={(task) => toggle(task)} onSelect={setPanel} />
       )}

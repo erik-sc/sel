@@ -410,3 +410,84 @@ body.is-quick-add {
   color: var(--text-tertiary);
   font-size: var(--text-sm);
 }
+
+/* ---- the strip of a selection (SelectionBar.tsx) ---- */
+
+/* Only while the strip is there, the main area becomes a column so the strip rests at its foot. */
+.tasks-main:has(> .task-bar) {
+  display: flex;
+  flex-direction: column;
+}
+
+.tasks-main:has(> .task-bar) > .tasks-list {
+  flex: 1 0 auto;
+}
+
+.task-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  flex: none;
+  box-sizing: border-box;
+  width: 100%;
+  /* The same room on both sides keeps Herman's corner clear without shifting the strip off the list's column. */
+  padding: 0 max(var(--page-padding-x), 96px);
+  background-color: var(--bg);
+  font-size: var(--text-sm);
+}
+
+/* The strip is as wide as the list's column, so its hairline does not run past the rows. */
+.task-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: 8px 0;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.task-bar-count {
+  flex: none;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+}
+
+.task-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.task-ask {
+  width: 380px;
+  padding: 20px;
+}
+
+.task-ask-title {
+  margin: 0 0 8px;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.task-ask-body {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+}
+
+.task-ask-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.task-bar-actions .ui-button {
+  white-space: nowrap;
+}

@@ -14,7 +14,9 @@ const calls = vi.hoisted(() => ({
   deleted: [] as string[],
   opened: [] as unknown[][],
   editor: [] as string[],
-  next: [] as unknown[][]
+  next: [] as unknown[][],
+  many: [] as unknown[][],
+  popover: [] as unknown[][]
 }))
 
 vi.mock('./edit', () => ({
@@ -36,6 +38,7 @@ vi.mock('./projects', () => ({ setNextAction: (...args: unknown[]) => void calls
 vi.mock('@/store/tabs', () => ({ openPage: (...args: unknown[]) => void calls.opened.push(args) }))
 
 const { TaskRow, useTaskRows } = await import('./TaskRow')
+const { rowSelectionOf, useTaskSelection } = await import('./useTaskSelection')
 
 const task = (id: string, title: string, extra: Partial<TaskView> = {}): TaskView => ({
   id,
@@ -102,6 +105,8 @@ beforeEach(() => {
   calls.deleted.length = 0
   calls.opened.length = 0
   calls.editor.length = 0
+  calls.many.length = 0
+  calls.popover.length = 0
 })
 
 afterEach(cleanup)
@@ -268,5 +273,153 @@ describe('a list of task rows', () => {
     await settle()
     const labels = [...document.querySelectorAll('[role="menuitem"]')].map((each) => each.textContent ?? '')
     expect(labels.some((label) => label.includes('Make next action'))).toBe(false)
+  })
+})
+
+/** A list wired the way the Tasks screen wires its rows to a selection. */
+function PickList({ onOpen }: { onOpen: (task: TaskView) => void }): JSX.Element {
+  const order = TASKS.map((item) => item.id)
+  const rows = useTaskRows(order)
+  const picked = useTaskSelection(order)
+  return (
+    <ul
+      {...rows.listProps}
+      onKeyDown={(event) => {
+        rows.listProps.onKeyDown(event)
+        picked.onListKey(event)
+      }}
+    >
+      {TASKS.map((item) => (
+        <TaskRow
+          key={item.id}
+          task={item}
+          today="2026-10-15"
+          tabStop={rows.stop === item.id}
+          onToggle={() => undefined}
+          onOpen={onOpen}
+          onLeave={rows.leave}
+          selection={rowSelectionOf(picked, item.id, rows.stop, (action, anchor) => {
+            if (action.kind === 'date' || action.kind === 'project')
+              calls.popover.push([action.kind, picked.selection.ids, anchor.dataset.taskId])
+            else if (action.kind === 'priority') calls.many.push(['priority', picked.selection.ids, action.level])
+            else if (action.kind === 'toggle') calls.many.push(['done', picked.selection.ids])
+          })}
+        />
+      ))}
+      <li data-picked>{picked.count}</li>
+    </ul>
+  )
+}
+
+const selectedIds = (): string[] =>
+  [...document.querySelectorAll('[data-task-row].is-selected')].map((el) => (el as HTMLElement).dataset.taskId ?? '')
+
+async function pickThree(): Promise<void> {
+  await focus(rowOf('a'))
+  await press(rowOf('a'), 'ArrowDown', { shiftKey: true })
+  await press(rowOf('b'), 'ArrowDown', { shiftKey: true })
+}
+
+describe('a selection in a list of task rows', () => {
+  it('grows with Shift+Down from the focused row, marks the rows and keeps one Tab stop', async () => {
+    await render(<PickList onOpen={() => undefined} />)
+    await pickThree()
+    expect(selectedIds()).toEqual(['a', 'b', 'c'])
+    expect(document.activeElement).toBe(rowOf('c'))
+    // More than colour: the tick, and the word for a screen reader.
+    expect(rowOf('b').querySelector('.task-selected-mark')).not.toBeNull()
+    expect(rowOf('b').getAttribute('aria-label')).toContain('selected')
+    expect(document.querySelector('[data-announcer]')?.textContent).toBeDefined()
+    expect(TASKS.map((item) => rowOf(item.id).tabIndex).filter((index) => index === 0)).toHaveLength(1)
+    expect(await seriousViolations()).toEqual([])
+  })
+
+  it('selects a range on Shift+click, and a plain click clears it and opens the panel', async () => {
+    const opened: string[] = []
+    await render(<PickList onOpen={(item) => opened.push(item.id)} />)
+    await focus(rowOf('a'))
+    await act(async () => rowOf('c').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })))
+    expect(selectedIds()).toEqual(['a', 'b', 'c'])
+    expect(opened).toEqual([])
+    await act(async () => rowOf('b').dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(opened).toEqual(['b'])
+    expect(selectedIds()).toEqual([])
+  })
+
+  it('clears on Escape', async () => {
+    await render(<PickList onOpen={() => undefined} />)
+    await pickThree()
+    await press(rowOf('c'), 'Escape')
+    expect(selectedIds()).toEqual([])
+  })
+
+  it('lets go of the selection when the plain arrows move along', async () => {
+    await render(<PickList onOpen={() => undefined} />)
+    await pickThree()
+    await press(rowOf('c'), 'ArrowUp')
+    expect(document.activeElement).toBe(rowOf('b'))
+    expect(selectedIds()).toEqual([])
+  })
+
+  it('sends D, # and 1–4 and Space to all the selected rows', async () => {
+    await render(<PickList onOpen={() => undefined} />)
+    await pickThree()
+    await press(rowOf('c'), 'd')
+    await press(rowOf('c'), '#', { shiftKey: true })
+    await press(rowOf('c'), '2')
+    await press(rowOf('c'), ' ')
+    expect(calls.popover).toEqual([
+      ['date', ['a', 'b', 'c'], 'c'],
+      ['project', ['a', 'b', 'c'], 'c']
+    ])
+    expect(calls.many).toEqual([
+      ['priority', ['a', 'b', 'c'], 2],
+      ['done', ['a', 'b', 'c']]
+    ])
+    // Nothing of the single-task path ran.
+    expect(calls.priority).toEqual([])
+    expect(calls.editor).toEqual([])
+  })
+
+  it('does nothing for R, L, @, F2 and Delete with several selected', async () => {
+    await render(<PickList onOpen={() => undefined} />)
+    await pickThree()
+    for (const [k, init] of [['r'], ['l'], ['@', { shiftKey: true }], ['F2'], ['Delete']] as [string, KeyboardEventInit?][]) {
+      await press(rowOf('c'), k, init)
+    }
+    expect(calls.editor).toEqual([])
+    expect(calls.deleted).toEqual([])
+    expect(document.querySelector('input')).toBeNull()
+    expect(selectedIds()).toEqual(['a', 'b', 'c'])
+  })
+
+  it('keeps the keys of one row when only one is selected, or the focus is outside the selection', async () => {
+    await render(<PickList onOpen={() => undefined} />)
+    await focus(rowOf('a'))
+    await press(rowOf('a'), 'ArrowDown', { shiftKey: true })
+    await focus(rowOf('c'))
+    await press(rowOf('c'), '3')
+    expect(calls.priority).toEqual([['c', 3]])
+    expect(calls.many).toEqual([])
+    await press(rowOf('c'), 'Delete')
+    expect(calls.deleted).toEqual(['c'])
+  })
+
+  it('opens the focused row with Enter even with several selected', async () => {
+    const opened: string[] = []
+    await render(<PickList onOpen={(item) => opened.push(item.id)} />)
+    await pickThree()
+    await press(rowOf('c'), 'Enter')
+    expect(opened).toEqual(['c'])
+  })
+
+  it('offers "Select all in this list" in the row menu', async () => {
+    await render(<PickList onOpen={() => undefined} />)
+    await focus(rowOf('b'))
+    await press(rowOf('b'), 'F10', { shiftKey: true })
+    const item = [...document.querySelectorAll('[role="menuitem"]')].find((el) => el.textContent?.includes('Select all in this list'))
+    expect(item).toBeDefined()
+    await act(async () => (item as HTMLElement).click())
+    expect(selectedIds()).toEqual(['a', 'b', 'c'])
   })
 })

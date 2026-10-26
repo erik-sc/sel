@@ -226,3 +226,32 @@
 .task-editor {
   display: contents;
 }
+
+/* A row picked into a selection (0.10.0): a bar at its edge and a tick, not only a tint. */
+.task-row.is-selected {
+  position: relative;
+  background-color: var(--accent-soft);
+}
+
+.task-row.is-selected::before {
+  content: '';
+  position: absolute;
+  inset: 3px auto 3px 0;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background-color: var(--accent);
+}
+
+/* The tick sits at the same x on every selected row, whatever else the row shows beside it. */
+.task-row.is-selected .task-side {
+  padding-right: 20px;
+}
+
+.task-selected-mark {
+  position: absolute;
+  top: 9px;
+  right: 6px;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  line-height: 1;
+}

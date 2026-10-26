@@ -248,3 +248,11 @@ their dependencies.
 columns in use before they are worth a night.
 **To undo.** Say on #82 which line to take sooner (it becomes an item of the next release), or
 that database undo can wait for the polish pass.
+
+## 2026-10-25 — 0.10.0 plan: Let go built inside #101, E1 split in two
+**Decision.** #101 relied on #99's Let go and tomorrow moves; #99 was rejected, so Let go is built in
+0.10.0 (E1b) with its own copy, reusing `deleteRows`/`restoreRows`. Today and the Overdue menu mentioned
+in the proposal are not touched. E1 is split into E1a (selection and keys) and E1b (strip and Let go), two
+waves, so each fits a night. Scope as approved is unchanged. Versions in the roadmap follow Érik's order.
+**Why.** The approved text already described Let go in full; the split keeps files from overlapping.
+**To undo.** Say on the release PR; E1b can be dropped with `/drop E1b` and the keys of E1a ship alone.

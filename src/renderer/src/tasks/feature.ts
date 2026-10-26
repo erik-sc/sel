@@ -1,5 +1,6 @@
 import { defineFeature } from '@/feature'
-import { focusQuickAdd, openTasks, startRefine } from './gate'
+import { tabPage, activeTab } from '@/store/tabs'
+import { focusQuickAdd, isTasksRoute, openTasks, selectAllTasks, startRefine, useTasksGate } from './gate'
 import { initRefining } from './refining'
 
 export const tasksFeature = defineFeature({
@@ -14,6 +15,11 @@ export const tasksFeature = defineFeature({
         focusQuickAdd()
       }
     },
-    'refine-tasks': { run: () => startRefine('refine') }
+    'refine-tasks': { run: () => startRefine('refine') },
+    // Only where there is a list of tasks to select from: the Tasks screen, on one of its lists.
+    'select-all-tasks': {
+      run: () => selectAllTasks(),
+      when: () => isTasksRoute(tabPage(activeTab())) && useTasksGate.getState().list.kind !== 'view' && !useTasksGate.getState().refining
+    }
   }
 })
