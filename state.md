@@ -7,7 +7,7 @@ release_branch: release/0.10.0 # release/X.Y.Z once cut
 release_pr: 114        # number of the release PR; kept after it merges until the next one opens
 team_log_comment: 6404436624 # id of the "Team log" comment on that PR
 queue: [100, 98, 97, 96]              # approved proposal issue numbers, in build order
-merged_at: null        # when Érik merged the release PR (AWAITING_SHIP)
+merged_at: 2026-10-26T13:52:00Z        # when Érik merged the release PR (AWAITING_SHIP)
 paused: false          # set by /hold, cleared by /resume
 last_run: 2026-10-25T22:40:00Z # ISO UTC: time the signals were READ last run; next run reads after it
 lock:
