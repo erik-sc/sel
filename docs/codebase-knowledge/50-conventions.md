@@ -182,46 +182,7 @@ hook for components and a reader for code outside React: src/renderer/src/editor
 (`EDITOR_COPY`, `useEditorCopy`, `editorCopy`) and src/renderer/src/database/copy.ts
 (`DATABASE_COPY`, `useDatabaseCopy`, `databaseCopy`). A new word goes into both languages of its
 area's module, never inline in a component; what is said to a screen reader goes there too. The
-rest of the editor and database UI is still English (the full translation is proposal #100,
-docs/team/roadmap.md:103). A translated menu gets a `-pt` screenshot scenario (`locale: 'pt-BR'`).
-
-## Screens
-
-Since 0.9.0 (S0): every pull request that changes what a user sees shows it. Its body holds a
-`screens` block naming scenarios, one `<id>: <text>` per line; the Screens workflow
-(.github/workflows/screens.yml) captures them on the PR's head and on its merge base and posts one
-comment with the pairs, light above dark, before on the left (e2e/screens/README.md).
-
-- **Adding a scenario** is part of the item that needs it:
-  1. Add an entry to the area's file under e2e/screens/scenarios/ (columns.ts, database-menus.ts,
-     pages.ts, tasks.ts, today.ts, or a new file: every file there is loaded, there is no index).
-     Its `id` is kebab-case and unique across files (e2e/screens/registry.ts:33); `locale`
-     (`'pt-BR'` for a translated menu) and `themes` are optional; `workspace(repo, now)` adds to
-     the demo workspace for that scenario only (e2e/screens/seed.ts:104).
-  2. `run(page)` starts on the open app (Today, one tab) and drives it as a user would, by role
-     and name (the common steps are in e2e/screens/ui.ts: `openFromSidebar`, `openPage`, `see`),
-     and returns only once what should be pictured is on screen.
-  3. `npm run screens:test` checks the registry (ids, shapes); `SCREENS_IDS="<id>" xvfb-run -a
-     npm run screens` tries the capture on Linux (e2e/screens/README.md).
-  4. Name the id in the PR body's `screens` block. A `run` that fails on base shows as "not in
-     base" (the feature is new); one that fails on head turns the job red.
-- **What the capture does after `run`** (e2e/screens/capture.pw.ts:118-128): it moves the pointer
-  off the window, to its right edge (`mouse.move(WIDTH - 1, HEIGHT / 2)`), so no hover state is
-  pictured by accident; waits for the fonts and two frames; and saves the whole window at
-  1280×800 with animations disabled and the caret hidden. So a scenario cannot show a hover: show
-  the state through the focus instead where the app draws it for both (`columns-hover` clicks into
-  a column, so the row's `:focus-within` draws the line). And a drag made with the mouse ends when
-  the pointer moves: to picture one mid-drag, dispatch the drag events the window gets from a real
-  drag (`holdOnRightOf`, e2e/screens/scenarios/columns.ts:135).
-- **The demo workspace** is written by the app's own `Repository` on `node:sqlite`, from fixed
-  ids and English text, dated around the run's day. Base is seeded with base's own `Repository`,
-  so a new migration never leaves base with a database it refuses.
-- **Locally**: `npm run screens:test` runs the pure tests (block, registry, seed, comment) on
-  Node 24; `npm run screens` captures, on Linux under `xvfb-run` (README). The pictures of record
-  come only from the Windows job: fonts, DPI and window chrome differ elsewhere, and Windows is
-  the only platform sel ships for.
-- **Nothing in `src/` exists for the harness.** The window is found by role and text; reduced
-  motion is emulated so Herman draws still.
+rest of the editor and database UI is still English.
 
 ## Error handling
 
@@ -244,7 +205,6 @@ comment with the pairs, light above dark, before on the left (e2e/screens/README
 - External programs are replaced by scripted fakes selected with markers in the prompt (src/main/ai/fixtures/fake-claude.mjs:6-8).
 - Sync tests need a real git binary and skip themselves without one (src/main/sync/harness.ts:18-24).
 - Some suites are opt-in through environment flags (src/main/db/bench.test.ts:14, src/main/briefing/net.test.ts:405).
-- The screenshot harness's own pure tests live under e2e/screens/ (`*.test.ts`) and run with `npm run screens:test` (`vitest run --dir e2e`), not with `npm test`.
 - Before a PR: `npm run typecheck`, `npm run lint` and `npx vitest run --dir src` on Node 24 (package.json:12-14). CI runs the tests on Windows; a few suites exercise Windows paths or programs and fail on Linux (ai.test.ts, sync/security.test.ts, whisper.test.ts), so compare with the base branch before calling a failure yours.
 
 ## Configuration and feature flags

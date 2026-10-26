@@ -13,8 +13,6 @@
     "test": "vitest run",
     "lint": "biome check",
     "format": "biome format --write",
-    "screens": "playwright test -c e2e/screens/playwright.config.ts",
-    "screens:test": "vitest run --dir e2e",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "pack": "electron-vite build && electron-builder --dir",
     "dist": "electron-vite build && electron-builder --publish never"
@@ -28,7 +26,6 @@
     "@electron/rebuild": "^4.2.1",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/newsreader": "^5.3.0",
-    "@playwright/test": "1.64.0",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",

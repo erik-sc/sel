@@ -1,9 +1,9 @@
 # History and ownership
 
 At the 0.9.0 close the visible history is 352 commits, 210 of them non-merge, over twelve days
-from 2026-10-13 to 2026-10-25 (`git log`). Since 0.9.0 most commits come from the automated team
-(skill `.claude/skills/sel-team/SKILL.md`), several releases a week, so dates say little about
-pace; order matters more.
+from 2026-10-13 to 2026-10-25 (`git log`). From 0.9.0 to 0.10.0 most commits came from an automated
+team (removed on 2026-10-26), several releases a week, so dates say little about pace; order
+matters more.
 
 ## Timeline of structural decisions
 
@@ -71,8 +71,8 @@ Each is inferred from code and commit messages; none exists as a decision record
 6. **Conflict policy: merge field by field; where both sides changed the same thing differently the later edit wins, and the loser is kept as a version.** (src/main/sync/merge.ts:8-20, src/main/sync/engine.ts:778-791, src/main/db/repository.ts:1470-1479).
 7. **Few runtime dependencies.** Everything is bundled except the native SQLite module and electron-updater, required only when an update check runs (electron.vite.config.ts:77-79, package.json:22-25).
 8. **Charts, diffing, iCalendar parsing and zip reading are hand-written rather than imported.** (src/renderer/src/database/views/chartPlot.tsx:178, src/renderer/src/versions/diff.ts:3-6, src/main/briefing/ical.ts:680, src/main/meetings/whisper/zip.ts:137); consistent with README.md:42.
-9. **Unit tests avoid Electron.** Services are Electron-free with injected clocks (src/main/herman/service.ts:69-70); components are tested in happy-dom rather than jsdom (package.json:26-50, "Testing" in 50-conventions.md). Only the screenshot harness (e2e/screens/, 0.9.0) launches the real app, and it gates nothing but the pictures.
+9. **Unit tests avoid Electron.** Services are Electron-free with injected clocks (src/main/herman/service.ts:69-70); components are tested in happy-dom rather than jsdom (package.json:26-50, "Testing" in 50-conventions.md). Nothing launches the real app in tests.
 10. **Rename without data loss.** Legacy profile adoption and URL rewriting are kept as permanent code (src/main/legacy.ts:18, src/shared/legacy.ts:12); commit adde475.
-11. **Visible changes are seen before they merge, on the real app (0.9.0, S0).** Pull requests name scenarios in a `screens` block; the Screens workflow captures head and merge base on Windows through Playwright's Electron driver and posts the pairs as one comment (.github/workflows/screens.yml, e2e/screens/). The capture job holds only a read token; a separate job with write access checks the artifact as untrusted data before committing images to the orphan branch `team/screens`. The harness lives outside `src/` and the app has no test hooks for it.
+11. **Screenshots in pull requests (0.9.0 S0, removed 2026-10-26).** A Playwright harness under `e2e/screens/` and a Screens workflow captured the real app on every visible PR; both were removed with the automated team.
 
 Abandoned approaches visible in history: emojis as page icons (commit 5f979c1), the "Glass" look as default (src/renderer/src/appearance/presets.ts:4-5; commit 5f843cb), two concurrent AI runs (commit 8acaec9).

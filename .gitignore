@@ -5,4 +5,3 @@ release
 *.log
 *.tsbuildinfo
 .claude/worktrees/
-e2e/screens/.output/
