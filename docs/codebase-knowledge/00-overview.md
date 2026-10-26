@@ -23,12 +23,12 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 ## Repository shape
 
 - 1486 tracked files at the 0.9.0 close; TypeScript 944, CSS 50 (`git ls-files`).
-- Top-level: `src` 1313 files, `docs` 105, `e2e` 21 (the screenshot harness, since 0.9.0),
-  `scripts` 14, `.github` 5, `site` 2 (`git ls-files`).
+- Top-level: `src` 1313 files, `docs` 105,
+  `scripts` 14, `.github` 4, `site` 2 (`git ls-files`).
 - `src/main` (Electron main process), `src/preload`, `src/renderer`, `src/shared` (README.md:73-76).
 - Since 0.7.0 each feature has a folder of its own in each process (`ls src/main src/renderer/src`);
   see "Adicionar uma feature" in [Conventions](50-conventions.md).
-- 246 test files under `src` (`*.test.ts`, `*.test.tsx`) and 5 under `e2e` (`git ls-files`).
+- 246 test files under `src` (`*.test.ts`, `*.test.tsx`) (`git ls-files`).
 - Two runtime dependencies, `better-sqlite3` and `electron-updater` (package.json:22-25); React,
   zustand, Electron, Vite 8 (Rolldown, through electron-vite 6), vitest, happy-dom, Biome and
   Playwright are dev dependencies, and what the app runs is bundled at build time
@@ -41,9 +41,8 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 | Node.js 24 or newer is required (a chart test fails on Node 22) | verified in README.md:53 |
 | `npm run dev` runs `electron-vite dev` | verified in package.json:9 |
 | `npm run build` runs `electron-vite build`; output entry is `./out/main/index.js` | verified in package.json:10, package.json:5 |
-| `npm run typecheck` runs `tsc --noEmit` twice, for `tsconfig.node.json` (which also covers `e2e/`) and `tsconfig.web.json` | verified in package.json:12, tsconfig.node.json:20 |
-| `npm test` runs `vitest run`; `npm run lint` runs `biome check` over `src/`, `e2e/` and the root files | verified in package.json:13-14, biome.json |
-| `npm run screens:test` runs the screenshot harness's pure tests (`vitest run --dir e2e`); `npm run screens` captures with Playwright's Electron driver | verified in package.json:16-17, e2e/screens/README.md |
+| `npm run typecheck` runs `tsc --noEmit` twice, for `tsconfig.node.json` and `tsconfig.web.json` | verified in package.json:12, tsconfig.node.json:20 |
+| `npm test` runs `vitest run`; `npm run lint` runs `biome check` over `src/` and the root files | verified in package.json:13-14, biome.json |
 | vitest.config.ts restricts tests to `src/`, excludes `.claude/`, `out/`, `release/` and `node_modules/`, and resolves the `@shared` and `@` aliases; environment stays Node | verified in vitest.config.ts:15-26 |
 | `npm test` and `npx vitest run --dir src` collect the same test files; worktree copies under `.claude/` are not collected | verified: both runs, and `vitest list --filesOnly` with a probe file under `.claude/worktrees` (this session) |
 | `npm run pack` builds an unpacked app into `release/`; `npm run dist` builds the installer | verified in package.json:19-20, electron-builder.yml:7 |
@@ -52,7 +51,6 @@ features are vertical slices that exist once under `src/main/<feature>` and once
 | Path aliases: `@shared` everywhere, `@` (renderer source) in the renderer only | verified in electron.vite.config.ts:80, electron.vite.config.ts:99, electron.vite.config.ts:105 |
 | The pure database logic is shared code (`src/shared/database`), compiled by both tsconfigs; the node one compiles no renderer file | verified in tsconfig.node.json |
 | CI (GitHub Actions) runs `npm run typecheck` and `npm run lint` (Ubuntu), an `npm audit` of the runtime dependencies, and `npx vitest run --dir src` (Windows) on Node 24, on every pull request and push to `main`; install is `npm ci --ignore-scripts` | verified in .github/workflows/ci.yml:43-72 |
-| The Screens workflow captures the scenarios a pull request names, on its head and merge base, on Windows, and posts them as one comment (0.9.0 S0) | verified in .github/workflows/screens.yml:1-20 |
 
 ## Entry points
 

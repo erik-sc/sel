@@ -6,10 +6,7 @@ recording with local transcription, git-based sync between the user's own device
 assistant ("Herman") that runs through the user's local Claude Code CLI. It is Electron 44
 (44.9 since 0.9.0) with React 19 and zustand in the renderer and better-sqlite3 in the main
 process, built by electron-vite 6 on Vite 8 (Rolldown), written in TypeScript, linted by Biome
-and tested with vitest, components in happy-dom (package.json:8-50, README.md:5). Since 0.9.0 a
-Playwright harness outside `src/` (e2e/screens/) drives the built app for the screenshots every
-visible pull request shows (.github/workflows/screens.yml; "Screens" in
-[Conventions](50-conventions.md)).
+and tested with vitest, components in happy-dom (package.json:8-50, README.md:5).
 
 **Architectural hypothesis (verified):** a sandboxed renderer holds only client state and
 reaches everything else through one typed `window.api` bridge; the main process validates
@@ -40,10 +37,8 @@ src/main/ipc.ts:119-140, src/renderer/index.html:19).
    same undo step; sync, Apply and import do not (src/renderer/src/editor/layout.ts:36,
    src/renderer/src/editor/layout.ts:91, src/renderer/src/editor/controller.ts:211).
 4. **Tests only come from `src/`.** vitest.config.ts limits discovery to `src/` (so copies
-   under `.claude/worktrees` are skipped; the screenshot harness's own tests run with
-   `npm run screens:test`, which is `vitest run --dir e2e`) and gives tests the build's
-   `@shared` and `@` aliases; older modules still import values by relative path
-   (vitest.config.ts:15-26, package.json:17).
+   under `.claude/worktrees` are skipped) and gives tests the build's `@shared` and `@`
+   aliases; older modules still import values by relative path (vitest.config.ts:15-26).
 5. **Sync has no change log.** Each upload recomputes page fingerprints and compares them
    with `sync_state` (src/main/sync/engine.ts:834-850).
 
@@ -60,8 +55,7 @@ Also worth knowing:
   menu's beside/below entries, the columns slash items and announcements) and
   src/renderer/src/database/copy.ts (`useDatabaseCopy`, `databaseCopy`: the add-property menu,
   a property's own menu with a select's options and Insert left/right, the table's "+" header).
-  The rest of the editor and database UI is still English (proposal #100,
-  docs/team/roadmap.md:103); see "Words" in [Conventions](50-conventions.md).
+  The rest of the editor and database UI is still English; see "Words" in [Conventions](50-conventions.md).
 - The columns model is in src/renderer/src/editor/layout.ts (`canShareRow`, `rowsOf`,
   `rowWidth`, `besideChoice`, `rowRepairOps`, `MAX_BESIDE` = 4); the drag and keyboard plans
   that respect rows are in src/renderer/src/editor/structure.ts (`rowOfHead`, `canDropBeside`,

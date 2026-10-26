@@ -17,6 +17,6 @@
     "types": ["node", "electron-vite/node"],
     "paths": { "@shared/*": ["./src/shared/*"] }
   },
-  "include": ["electron.vite.config.ts", "vitest.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "e2e/**/*"],
+  "include": ["electron.vite.config.ts", "vitest.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"],
   "exclude": ["src/renderer/**/*.test.ts"]
 }
