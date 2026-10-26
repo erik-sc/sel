@@ -45,7 +45,7 @@ One theme each; polish before novelty. Versions after the next one are intention
 | Version | Theme | What it holds |
 |---|---|---|
 | **0.9.0** (shipped, v0.9.0, 2026-10-25) | **Pages and databases you can shape** (pain 2) | Columns for any block (block menu, drag to the side, typing inside a column); a new property named as it is made; select options edited from the column's menu; table headers renamed in place, reachable by keyboard, with insert left or right. Housekeeping: land the dev-toolchain bumps Dependabot opened (#75–#78) on the release branch. First, at Érik's request: a CI job that screenshots the real app (Windows, seeded demo workspace, both themes) before and after on every visible PR |
-| **0.10.0** (building) | **Select several tasks** (#101; pain 1) | Select several tasks in the Tasks lists and change them with the keys you know; a thin strip with Let go (E1a, E1b) |
+| **0.10.0** (closing, E1a and E1b merged) | **Select several tasks** (#101; pain 1) | Select several tasks in the Tasks lists and change them with the keys you know; a thin strip with the count, Change, Done, Let go and x (E1a, E1b). Left for the polish pass: pick-any-date for many, Space on many with subtasks, `aria-selected` |
 | 0.11.0 | **sel in your language** (#100) | Mixed-language editor menus in pt-BR, a language setting |
 | 0.12.0 | **Long pages you can work in** (#98) | Find and replace; a way to jump to a heading |
 | 0.13.0 | **Land where you meant to go** (#97) | Arriving at a block selects it; keeping the place; marking the matched word |
@@ -73,7 +73,7 @@ order; each is set for real when its release starts.
 
 | Order | Proposal | Version | Theme | State |
 |---|---|---|---|---|
-| 1 | #101 | 0.10.0 | Select several tasks | building (plan `docs/plans/release-0.10.0.md`) |
+| 1 | #101 | 0.10.0 | Select several tasks | closing; both items merged (plan `docs/plans/release-0.10.0.md`) |
 | 2 | #100 | 0.11.0 | sel in your language | queued; panel done |
 | 3 | #98 | 0.12.0 | Long pages you can work in | queued; panel changes still to apply (whole word and match case, a count before Replace all, outline replaced by "Go to heading" or off until asked) |
 | 4 | #97 | 0.13.0 | Land where you meant to go | queued; panel changes still to apply (select the block on arrival, keep the place on Today and Tasks too, mark the matched word) |
