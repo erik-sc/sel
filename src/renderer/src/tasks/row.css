@@ -255,3 +255,68 @@
   font-size: var(--text-sm);
   line-height: 1;
 }
+
+/*
+ * Completing without hurry (Today, `calm`). The ring keeps the colour of the priority and fills
+ * with it; the tick is drawn in a fast beat, then the strike and the grey ink take a slow one;
+ * 1.5 s later the row folds from its own height to nothing, without a jump or a scale. Reduced
+ * motion zeroes the durations (global.css): the row stays whole for the same 1.5 s, then goes.
+ */
+.task-row.is-calm .task-check:not([class*='is-p']) {
+  --task-colour: var(--border-control, var(--border-strong));
+}
+
+.task-tick {
+  width: 11px;
+  height: 11px;
+  margin: auto;
+  display: block;
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 2.2;
+  stroke-linecap: square;
+  stroke-dasharray: 14;
+  stroke-dashoffset: 14;
+}
+
+.task-row.is-calm.is-done .task-tick {
+  animation: task-draw var(--duration-fast) var(--ease) forwards;
+}
+
+/* The strike is a line that starts clear, so it fades in with the ink instead of appearing at once. */
+.task-row.is-calm .task-title {
+  text-decoration: line-through transparent;
+  transition:
+    color var(--duration) var(--ease) var(--duration-fast),
+    text-decoration-color var(--duration) var(--ease) var(--duration-fast);
+}
+
+.task-row.is-calm.is-done .task-title {
+  color: var(--text-tertiary);
+  text-decoration: line-through var(--text-tertiary);
+}
+
+.task-row.is-folding {
+  overflow: hidden;
+  animation: task-fold var(--duration) var(--ease) forwards;
+}
+
+@keyframes task-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes task-fold {
+  from {
+    max-height: var(--fold-from, 80px);
+    opacity: 1;
+  }
+  to {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-bottom-width: 0;
+  }
+}

@@ -166,9 +166,9 @@ describe('folding the task list', () => {
 
   it('shows the first tasks across the groups and counts the rest', () => {
     const folded = taskGroups(tasks, false)
-    expect(folded.groups.map((group) => [group.key, group.label, group.tasks.length])).toEqual([
-      ['overdue', 'Overdue', 2],
-      ['today', 'Today', 2]
+    expect(folded.groups.map((group) => [group.key, group.tasks.length])).toEqual([
+      ['overdue', 2],
+      ['today', 2]
     ])
     expect(folded.hidden).toBe(2)
     expect(taskGroups(tasks, true).hidden).toBe(0)
@@ -186,14 +186,12 @@ describe('folding the task list', () => {
     const done = new Set([tickedKey(daily)])
     expect(taskGroups({ overdue: [], today: [daily], more: 0 }, false, done).groups).toEqual([])
     const moved = { ...daily, due: '2026-10-16' }
-    expect(taskGroups({ overdue: [], today: [moved], more: 0 }, false, done).groups).toEqual([
-      { key: 'today', label: 'Today', tasks: [moved] }
-    ])
+    expect(taskGroups({ overdue: [], today: [moved], more: 0 }, false, done).groups).toEqual([{ key: 'today', tasks: [moved] }])
   })
 
   it('handles a briefing without the optional group, and an empty one', () => {
     expect(taskGroups({ overdue: [], today: [task('a')], more: 0 }, false)).toEqual({
-      groups: [{ key: 'today', label: 'Today', tasks: [task('a')] }],
+      groups: [{ key: 'today', tasks: [task('a')] }],
       hidden: 0
     })
     expect(taskGroups({ overdue: [], today: [], more: 0 }, false)).toEqual({ groups: [], hidden: 0 })
