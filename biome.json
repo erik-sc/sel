@@ -20,6 +20,7 @@
     }
   },
   "css": { "formatter": { "enabled": false }, "linter": { "enabled": false } },
+  "markdown": { "formatter": { "enabled": false } },
   "assist": { "enabled": false },
   "linter": {
     "enabled": true,
