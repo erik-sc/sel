@@ -31,7 +31,7 @@
 
 /* The checkbox: a ring in the colour of the priority, filled when hovered or done. */
 .task-check {
-  --task-colour: var(--border-strong);
+  --task-colour: var(--border-control, var(--border-strong));
   box-sizing: border-box;
   flex-shrink: 0;
   width: 18px;
@@ -169,8 +169,37 @@
 
 /* A field the task has not got yet, offered as a chip ("+ Date"). */
 .task-chip.is-empty {
-  border-style: dashed;
-  border-color: var(--border-strong);
+  border: 1px dashed var(--border-control, var(--border-strong));
+}
+
+/* The key of an empty chip, only on the row in focus (the keys act on the focused row). */
+.task-chip-key {
+  display: none;
+  min-width: 1.2em;
+  margin-right: 4px;
+  padding: 0 3px;
+  border: 1px solid var(--border-control, var(--border-strong));
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 15px;
+  text-align: center;
+}
+
+.task-row:focus-within .task-chip-key {
+  display: inline-block;
+}
+
+/* A task that got a project leaves the Inbox: it fades for --duration (useLeaving.ts waits as long). */
+.task-row.is-leaving {
+  animation: task-leave var(--duration) var(--ease) forwards;
+  pointer-events: none;
+}
+
+@keyframes task-leave {
+  to {
+    opacity: 0;
+  }
 }
 
 .task-flag {

@@ -35,6 +35,7 @@ import { SelectionBar } from './SelectionBar'
 import { setPriorityMany, toggleDoneMany } from './bulk'
 import { rowSelectionOf, useTaskSelection } from './useTaskSelection'
 import { TasksTools } from './TasksTools'
+import { useLeaving } from './useLeaving'
 import './tasks.css'
 
 /** The local day, kept current across midnight. */
@@ -190,8 +191,10 @@ export function TasksScreen(): JSX.Element {
     () => readTasks(rows, schema).filter((task) => task.done || !isPending(pending.get(task.id), task)),
     [rows, schema, pending]
   )
-  const groups = useMemo(() => listTasks(tasks, schema, list, today), [tasks, schema, list, today])
-  const order = useMemo(() => groups.flatMap((group) => group.items.map((task) => task.id)), [groups])
+  const listed = useMemo(() => listTasks(tasks, schema, list, today), [tasks, schema, list, today])
+  // A task given a project fades out of the Inbox instead of vanishing (useLeaving.ts).
+  const { groups, leaving } = useLeaving(listed, tasks, `${list.kind}:${'id' in list ? list.id : ''}`, list.kind === 'inbox')
+  const order = useMemo(() => listed.flatMap((group) => group.items.map((task) => task.id)), [listed])
   const rowList = useTaskRows(order)
   // Picked rows (E1a): Shift+arrows, Shift+click, "Select all in this list". The keys act on them when there are two or more.
   const picked = useTaskSelection(order)
@@ -482,6 +485,7 @@ export function TasksScreen(): JSX.Element {
                           onOpen={() => setPanel(task.id)}
                           onLeave={rowList.leave}
                           emptyChips={emptyChipsOf(task)}
+                          leaving={leaving.has(task.id)}
                           selection={rowSelectionOf(picked, task.id, rowList.stop, onMany)}
                           {...moves(group, index)}
                         />
