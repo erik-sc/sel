@@ -23,6 +23,7 @@ import { Herman64 } from './Herman64'
 import { caretBox, editable } from './avoid'
 import { useHerman, usePersona } from './gate'
 import { cornerAfterKey, editingSince, near, nearestCorner, poseFor, type Box } from './mood'
+import { bracketed, datedTasks, offeredVerb } from './note'
 
 /** How long a line of his stays before it leaves by itself. */
 const BUBBLE_MS = 20_000
@@ -42,6 +43,8 @@ interface Bubble {
   /** Set for a nudge: how the main process knows it. */
   id?: string
   text: string
+  /** The note's second line: what the verb changes. */
+  effect?: string
   action?: HermanNudge['action']
   greeting?: boolean
   /** Said while AI is turned off: the line offers the settings. */
@@ -415,6 +418,12 @@ export function Dock(): JSX.Element | null {
       case 'new-meeting':
         void newMeeting({ event: command.event })
         break
+      case 'date-tasks': {
+        // The one verb that changes data: the bulk edit says so in a toast with Undo.
+        const ids = datedTasks(command, isBlockId)
+        if (ids.length) void import('./dating').then(({ dateTasks }) => dateTasks(ids, command.day))
+        break
+      }
       case 'ask':
         if (!aiOn) break
         // Written into the conversation for the user to send or change: never sent from here.
@@ -436,6 +445,7 @@ export function Dock(): JSX.Element | null {
 
   if (!state?.enabled) return null
 
+  const verb = offeredVerb(bubble?.action, aiOn)
   const pose = poseFor({ mood, attended: attended || (bubble !== null && !fresh), saying: fresh, asleep: state.quiet || !front })
   const classes = ['herman-dock', `is-${corner}`, `is-${state.size}`]
   if (away) classes.push('is-away')
@@ -468,11 +478,11 @@ export function Dock(): JSX.Element | null {
       </button>
       {/* Announced politely; nothing here ever takes the focus. */}
       <div className="herman-live" aria-live="polite" aria-atomic="true">
-        {bubble ? `${name}: ${bubble.text}` : ''}
+        {bubble ? `${name}: ${bubble.text}${bubble.effect ? ` ${bubble.effect}` : ''}` : ''}
       </div>
       {bubble && (
         <div
-          className="herman-bubble"
+          className={bubble.id ? 'herman-bubble is-note' : 'herman-bubble'}
           role="group"
           aria-label={`${name} says`}
           onPointerEnter={() => setHeld(true)}
@@ -487,10 +497,16 @@ export function Dock(): JSX.Element | null {
           }}
         >
           <p className="herman-bubble-text">{bubble.text}</p>
+          {bubble.effect && <p className="herman-bubble-effect">{bubble.effect}</p>}
           <div className="herman-bubble-actions">
-            {bubble.action && (
-              <button type="button" className="is-primary" onClick={() => bubble.action && run(bubble.action.command)}>
-                {bubble.action.label}
+            {verb && (
+              <button
+                type="button"
+                className="is-primary"
+                aria-label={bubble.id ? verb.label : undefined}
+                onClick={() => run(verb.command)}
+              >
+                {bubble.id ? bracketed(verb.label) : verb.label}
               </button>
             )}
             {bubble.choices?.map((choice) => (
@@ -513,10 +529,10 @@ export function Dock(): JSX.Element | null {
             )}
             {bubble.id ? (
               <>
-                <button type="button" onClick={() => dismiss('not-now')}>
-                  {state.lines.notNow}
+                <button type="button" className="is-secondary" aria-label={state.lines.notNow} onClick={() => dismiss('not-now')}>
+                  {bracketed(state.lines.notNow)}
                 </button>
-                <button type="button" onClick={() => dismiss('fewer')}>
+                <button type="button" className="is-quiet" onClick={() => dismiss('fewer')}>
                   {state.lines.fewer}
                 </button>
               </>

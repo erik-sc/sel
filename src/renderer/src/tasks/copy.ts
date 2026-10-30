@@ -51,6 +51,8 @@ export interface TaskCopy {
   notes: string
   openAsPage: string
   gone: string
+  /** Herman offered to date tasks that have a date, are done or are gone by the time the verb is used. */
+  nothingToDate: string
   /** A field's chip, for the screen reader: "Date: Tomorrow. Change". */
   change: (field: string, value: string) => string
   none: string
@@ -133,6 +135,7 @@ const EN: TaskCopy = {
   notes: 'Notes',
   openAsPage: 'Open as page',
   gone: 'This task is no longer here.',
+  nothingToDate: 'Those tasks already have a date, are done or are gone. Nothing to date.',
   change: (field, value) => `${field}: ${value}`,
   none: 'none',
   willSet: (parts) => `Will set ${parts.join(', ')}`,
@@ -206,6 +209,7 @@ const PT: TaskCopy = {
   notes: 'Notas',
   openAsPage: 'Abrir como página',
   gone: 'Esta tarefa não está mais aqui.',
+  nothingToDate: 'Essas tarefas já têm data, estão feitas ou não existem mais. Nada a datar.',
   change: (field, value) => `${field}: ${value}`,
   none: 'nenhum',
   willSet: (parts) => `Vai definir ${parts.join(', ')}`,
