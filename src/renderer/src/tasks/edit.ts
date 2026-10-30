@@ -84,7 +84,16 @@ export function setProject(id: string, optionId: string | null): void {
     if (!name || optionId === before) return
     const words = copy()
     toast(words.movedTo(L.titleOf(row) || words.untitled, name), {
-      action: { label: words.undo, run: () => setValue(id, TASK_PROPS.project, before) }
+      action: {
+        label: words.undo,
+        // Only while the project is still the one this toast set: a later change is not this Undo's to revert.
+        run: () => {
+          const prop = propOf(TASK_PROPS.project)
+          const now = getBlock(id)
+          if (prop && now && projectBefore(now, prop) !== optionId) return
+          setValue(id, TASK_PROPS.project, before)
+        }
+      }
     })
   })
 }

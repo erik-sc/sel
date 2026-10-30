@@ -25,18 +25,23 @@ export function useLeaving(
   const [fading, setFading] = useState<Fading>(NONE)
   const shown = useRef<{ listId: string; groups: readonly TaskGroup[] }>({ listId, groups })
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  // Tasks whose fade is over: `shown` still holds them until the next render, so they are not "newly gone".
+  const faded = useRef(new Set<string>())
 
   const displayed = useMemo(() => withFading(fading.before, groups, fading.items), [fading, groups])
 
   useLayoutEffect(() => {
     const previous = shown.current
     if (previous.listId !== listId) {
+      faded.current.clear()
       setFading(NONE)
       return
     }
+    // One that is back in the list can fade again later.
+    for (const group of groups) for (const task of group.items) faded.current.delete(task.id)
     if (!fades || reducedMotion()) return
     // Those already fading are in `previous` and not in `groups` too: they started their fade already.
-    const left = leftWithProject(previous.groups, groups, tasks).filter((task) => !fading.items.has(task.id))
+    const left = leftWithProject(previous.groups, groups, tasks).filter((task) => !fading.items.has(task.id) && !faded.current.has(task.id))
     if (!left.length) return
     setFading((now) => ({
       before: previous.groups,
@@ -45,6 +50,7 @@ export function useLeaving(
     const ids = left.map((task) => task.id)
     const timer = setTimeout(() => {
       timers.current.delete(timer)
+      for (const id of ids) faded.current.add(id)
       setFading((now) => {
         const items = new Map(now.items)
         for (const id of ids) items.delete(id)
