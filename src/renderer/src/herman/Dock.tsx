@@ -421,7 +421,7 @@ export function Dock(): JSX.Element | null {
       case 'date-tasks': {
         // The one verb that changes data: the bulk edit says so in a toast with Undo.
         const ids = datedTasks(command, isBlockId)
-        if (ids.length) void import('@/tasks/bulk').then(({ setDateMany }) => setDateMany(ids, command.day))
+        if (ids.length) void import('./dating').then(({ dateTasks }) => dateTasks(ids, command.day))
         break
       }
       case 'ask':
@@ -500,7 +500,12 @@ export function Dock(): JSX.Element | null {
           {bubble.effect && <p className="herman-bubble-effect">{bubble.effect}</p>}
           <div className="herman-bubble-actions">
             {verb && (
-              <button type="button" className="is-primary" onClick={() => run(verb.command)}>
+              <button
+                type="button"
+                className="is-primary"
+                aria-label={bubble.id ? verb.label : undefined}
+                onClick={() => run(verb.command)}
+              >
                 {bubble.id ? bracketed(verb.label) : verb.label}
               </button>
             )}
@@ -524,7 +529,7 @@ export function Dock(): JSX.Element | null {
             )}
             {bubble.id ? (
               <>
-                <button type="button" className="is-secondary" onClick={() => dismiss('not-now')}>
+                <button type="button" className="is-secondary" aria-label={state.lines.notNow} onClick={() => dismiss('not-now')}>
                   {bracketed(state.lines.notNow)}
                 </button>
                 <button type="button" className="is-quiet" onClick={() => dismiss('fewer')}>
