@@ -22,7 +22,7 @@
     "electron-updater": "^6.8.11"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
+    "@biomejs/biome": "2.6.3",
     "@electron/rebuild": "^4.2.1",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@fontsource/newsreader": "^5.3.0",
