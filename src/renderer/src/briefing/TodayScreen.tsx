@@ -22,6 +22,7 @@ import {
   phraseSource,
   phraseText,
   taskGroups,
+  tickedKey,
   updatedLabel
 } from './format'
 import { openFlows } from '@/flows/route'
@@ -32,7 +33,9 @@ import { startRefine } from '@/tasks/gate'
 import { TaskPanel } from '@/tasks/lazy'
 import { initRefining, useRefining } from '@/tasks/refining'
 import { useTaskRows } from '@/tasks/TaskRow'
-import { BriefingTaskItem, EventRow, Lines, openSettings, useCompleteTask, useLive, useNow, useTaskViews } from './parts'
+import { useCompleteTask } from './complete'
+import { BRIEFING_COPY } from './copy'
+import { BriefingTaskItem, EventRow, Lines, openSettings, useLive, useNow, useTaskViews } from './parts'
 import { DayPlan, planDragSource, usePlanDrag, type PlanDrag, type PlanPatch } from './DayPlan'
 import { patchTasks } from './plan'
 import './today.css'
@@ -308,7 +311,8 @@ function Tasks({
   setPanel: (id: string | null) => void
 }): JSX.Element {
   const [expanded, setExpanded] = useState(false)
-  const { done, complete } = useCompleteTask()
+  const { done, settling, complete, reopen } = useCompleteTask({ calm: true })
+  const words = BRIEFING_COPY[useHome((state) => state.locale)]
   const { groups, hidden } = useMemo(() => taskGroups(briefing.tasks, expanded, done), [briefing.tasks, expanded, done])
   const shown = useMemo(() => groups.flatMap((group) => group.tasks), [groups])
   const views = useTaskViews(shown)
@@ -318,14 +322,14 @@ function Tasks({
   return (
     <section className="today-section" aria-labelledby="today-tasks" {...rows.listProps}>
       <h2 className="today-label" id="today-tasks">
-        Open tasks
+        {words.openTasks}
       </h2>
       {groups.length === 0 && hidden === 0 ? (
-        <p className="today-quiet">Nothing open for today.</p>
+        <p className="today-quiet">{words.nothingOpen}</p>
       ) : (
         groups.map((group) => (
-          <div key={group.key} className={`today-group is-${group.key}`} role="group" aria-label={group.label}>
-            {(groups.length > 1 || group.key !== 'today') && <h3 className="today-group-label">{group.label}</h3>}
+          <div key={group.key} className={`today-group is-${group.key}`} role="group" aria-label={words.groups[group.key]}>
+            {(groups.length > 1 || group.key !== 'today') && <h3 className="today-group-label">{words.groups[group.key]}</h3>}
             <ul className="today-list">
               {group.tasks.map((task) => (
                 <BriefingTaskItem
@@ -337,6 +341,8 @@ function Tasks({
                   rows={rows}
                   panel={panel}
                   onComplete={complete}
+                  onReopen={reopen}
+                  settling={settling.get(tickedKey(task))}
                   onOpen={setPanel}
                   drag={planDragSource(drag, task)}
                 />

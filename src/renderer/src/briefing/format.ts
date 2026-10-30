@@ -263,7 +263,6 @@ export function phraseText(phrase: Pick<BriefingPhrase, 'text' | 'author' | 'wor
 
 export interface TaskGroup {
   key: 'overdue' | 'today' | 'noDate'
-  label: string
   tasks: BriefingTask[]
 }
 
@@ -286,9 +285,9 @@ export function taskGroups(
   done: ReadonlySet<string> = new Set()
 ): { groups: TaskGroup[]; hidden: number } {
   const all: TaskGroup[] = [
-    { key: 'overdue', label: 'Overdue', tasks: tasks.overdue },
-    { key: 'today', label: 'Today', tasks: tasks.today },
-    { key: 'noDate', label: 'No date', tasks: tasks.noDate ?? [] }
+    { key: 'overdue', tasks: tasks.overdue },
+    { key: 'today', tasks: tasks.today },
+    { key: 'noDate', tasks: tasks.noDate ?? [] }
   ]
   const total = all.reduce((sum, group) => sum + group.tasks.length, 0)
   let room = expanded ? Infinity : Math.max(0, total - Math.max(0, tasks.more))
