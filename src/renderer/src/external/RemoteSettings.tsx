@@ -71,6 +71,16 @@ export function RemoteSection(): JSX.Element {
       .finally(() => setBusy(false))
   }
 
+  const pair = (): void => {
+    window.api.mcp
+      .pairRemote()
+      .then((next) => {
+        setStatus(next)
+        toast('For the next 10 minutes, a new app can connect.', { kind: 'success' })
+      })
+      .catch((error) => notifyError('It could not be opened.', error))
+  }
+
   const revoke = (id?: string): void => {
     window.api.mcp
       .revokeRemote(id)
@@ -203,6 +213,21 @@ export function RemoteSection(): JSX.Element {
           </div>
           {status.mcpUrl ? (
             <>
+              <div className="ap-row">
+                <div className="ap-row-text">
+                  <span className="ap-row-label">Connect a new app</span>
+                  <span className="ap-row-help">
+                    {status.pairingUntil
+                      ? `Open until ${new Date(status.pairingUntil).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}: add the connector in Claude now.`
+                      : 'New apps are refused unless you open this for 10 minutes first, so nobody else can register one. Apps already connected are not affected.'}
+                  </span>
+                </div>
+                <div className="ap-row-control">
+                  <Button disabled={!status.running} onClick={pair}>
+                    {status.pairingUntil ? 'Open' : 'Allow for 10 minutes'}
+                  </Button>
+                </div>
+              </div>
               <div className="ap-row is-stacked">
                 <div className="ap-row-text">
                   <span className="ap-row-label">Claude (phone, claude.ai, desktop)</span>

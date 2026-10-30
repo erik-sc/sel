@@ -100,12 +100,14 @@ describe('the remote server', () => {
   let base: string
   let saved: string | null
   let githubUser: string
+  let githubId: number
+  let clock: number
   const config: RemoteConfig = { ...DEFAULT_REMOTE_CONFIG, enabled: true, githubClientId: 'Iv1.abc', githubLogin: 'erik-sc' }
 
   const fakeGitHub: Fetch = async (url) => {
     if (url.startsWith('https://github.com/login/oauth/access_token'))
       return { ok: true, status: 200, json: async () => ({ access_token: 'gho_x' }) }
-    if (url === 'https://api.github.com/user') return { ok: true, status: 200, json: async () => ({ login: githubUser }) }
+    if (url === 'https://api.github.com/user') return { ok: true, status: 200, json: async () => ({ login: githubUser, id: githubId }) }
     return { ok: false, status: 404, json: async () => ({}) }
   }
 
@@ -114,11 +116,14 @@ describe('the remote server', () => {
     ensureTasksDatabase(repo)
     saved = null
     githubUser = 'Erik-SC'
+    githubId = 42
+    clock = Date.now()
     const made = await createRemoteServer(repo, {
       config: () => config,
       secret: () => 'secret-123456',
       changed: () => undefined,
       fetch: fakeGitHub,
+      now: () => clock,
       load: () => saved,
       save: (text) => {
         saved = text
@@ -126,6 +131,7 @@ describe('the remote server', () => {
     })
     server = made.server
     auth = made.auth
+    auth.openPairing()
     await server.start(0)
     base = `http://127.0.0.1:${server.port}`
   })
@@ -208,6 +214,22 @@ describe('the remote server', () => {
     expect(as['scopes_supported']).toContain('offline_access')
   })
 
+  it('refuses new apps unless pairing was opened in Settings', async () => {
+    auth.closePairing()
+    const reply = await post('/register', { client_name: 'Claude', redirect_uris: [LOOPBACK] })
+    expect(reply.status).toBe(403)
+    expect(((await reply.json()) as { error: string }).error).toBe('access_denied')
+    auth.openPairing()
+    clock += 11 * 60 * 1000
+    expect((await post('/register', { redirect_uris: [LOOPBACK] })).status).toBe(403)
+  })
+
+  it('registers a client asking for a secret as a public one', async () => {
+    const reply = await post('/register', { redirect_uris: [LOOPBACK], token_endpoint_auth_method: 'client_secret_post' })
+    expect(reply.status).toBe(201)
+    expect(((await reply.json()) as { token_endpoint_auth_method: string }).token_endpoint_auth_method).toBe('none')
+  })
+
   it('refuses to register a redirect that is not Claude or this computer', async () => {
     const reply = await post('/register', { redirect_uris: ['https://evil.example/cb'] })
     expect(reply.status).toBe(400)
@@ -236,6 +258,19 @@ describe('the remote server', () => {
     expect(saved).not.toContain(access_token)
   })
 
+  it('lets a refresh be retried at once, without ending the grant or cutting calls in flight', async () => {
+    const first = await tokens()
+    const refresh = (): Promise<Response> =>
+      form('/token', { grant_type: 'refresh_token', refresh_token: first.refresh_token, client_id: first.clientId })
+    expect((await refresh()).status).toBe(200)
+    // The token from before the refresh still works until it expires.
+    const ping = await post('/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' }, { Authorization: `Bearer ${first.access_token}` })
+    expect(ping.status).toBe(200)
+    const retried = (await (await refresh()).json()) as { access_token: string }
+    expect(retried.access_token).toMatch(/^sel_at_/u)
+    expect(auth.list()).toHaveLength(1)
+  })
+
   it('rotates refresh tokens and ends the grant when a spent one comes back', async () => {
     const first = await tokens()
     const second = (await (
@@ -245,6 +280,7 @@ describe('the remote server', () => {
       refresh_token: string
     }
     expect(second.refresh_token).not.toBe(first.refresh_token)
+    clock += 2 * 60 * 1000
     const replay = await form('/token', { grant_type: 'refresh_token', refresh_token: first.refresh_token, client_id: first.clientId })
     expect(((await replay.json()) as { error: string }).error).toBe('invalid_grant')
     const after = await post('/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' }, { Authorization: `Bearer ${second.access_token}` })
@@ -291,6 +327,12 @@ describe('the remote server', () => {
     expect(stolen.status).toBe(400)
   })
 
+  it('pins the GitHub account by id: the same login with another id is refused', async () => {
+    await tokens()
+    githubId = 7
+    await expect(authorize()).rejects.toThrow()
+  })
+
   it('keeps grants across restarts, and revoking ends them', async () => {
     const { access_token } = await tokens()
     const again = new AuthStore({ load: () => saved, save: () => undefined })
@@ -298,5 +340,27 @@ describe('the remote server', () => {
     auth.revoke()
     const after = await post('/mcp', { jsonrpc: '2.0', id: 1, method: 'ping' }, { Authorization: `Bearer ${access_token}` })
     expect(after.status).toBe(401)
+  })
+})
+
+describe('private projects', () => {
+  it('cannot take rows through the database tools either', async () => {
+    const repo = openTestRepository()
+    ensureTasksDatabase(repo)
+    callTaskTool(repo, 'add_task', { text: 'Visible #Work' }, NOW)
+    const database = repo.get(TASKS_DATABASE_ID)
+    const work = database?.props.schema?.[TASK_PROPS.project]?.options?.[0]?.id as string
+    repo.update(TASKS_DATABASE_ID, { props: { aiPrivateProjects: [work] } })
+    const { callWriteTool } = await import('../ai/writes')
+    const markdown = await import('../markdown')
+    expect(() =>
+      callWriteTool({ repo, markdown }, 'add_database_row', { database: TASKS_DATABASE_ID, values: { Task: 'x', Project: 'Work' } })
+    ).toThrow(AI_PRIVATE_MESSAGE)
+    expect(() => callTaskTool(repo, 'add_task', { text: 'Another #Work' }, NOW)).toThrow(AI_PRIVATE_MESSAGE)
+  })
+
+  it('refuses a public address with a path', () => {
+    expect(cleanPublicUrl('https://host.example/sel')).toBeNull()
+    expect(cleanPublicUrl('https://host.example/')).toBe('https://host.example')
   })
 })

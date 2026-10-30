@@ -1,4 +1,5 @@
-import { AI_PRIVATE_MESSAGE, isPrivateForAi } from '../../shared/aiPrivate'
+import { AI_PRIVATE_MESSAGE, isPrivateForAi, privateProjects } from '../../shared/aiPrivate'
+import { TASK_PROPS } from '../../shared/tasks'
 import { sourceIdOf } from '../../shared/linked'
 import type { Block, PropertySchema, PropertyValue, RichText } from '../../shared/types'
 import type { Repository } from '../db/repository'
@@ -179,6 +180,9 @@ function rowChange(repo: Repository, database: Block, raw: unknown): RowChange {
     }
     change.values[property.id] = storedValue(repo, property, value)
   }
+  // A project kept private from the AI takes no row from it: neither a new one nor one moved in.
+  const project = change.values[TASK_PROPS.project]
+  if (typeof project === 'string' && privateProjects(database).includes(project)) throw new ToolError(AI_PRIVATE_MESSAGE)
   return change
 }
 

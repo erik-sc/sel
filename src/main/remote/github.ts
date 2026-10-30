@@ -34,8 +34,8 @@ export function githubAuthorizeUrl(app: Pick<GitHubApp, 'clientId'>, callback: s
   return url.toString()
 }
 
-/** The GitHub login the code belongs to. Throws with a message the page may show. */
-export async function githubLogin(app: GitHubApp, callback: string, code: string, fetch: Fetch): Promise<string> {
+/** The GitHub account the code belongs to: its login and its numeric id. Throws with a message the page may show. */
+export async function githubLogin(app: GitHubApp, callback: string, code: string, fetch: Fetch): Promise<{ login: string; id: number }> {
   const signal = AbortSignal.timeout(TIMEOUT_MS)
   const tokenReply = await fetch(TOKEN, {
     method: 'POST',
@@ -55,6 +55,7 @@ export async function githubLogin(app: GitHubApp, callback: string, code: string
   })
   const user = (await userReply.json().catch(() => null)) as Record<string, unknown> | null
   const login = user && typeof user['login'] === 'string' ? user['login'] : null
-  if (!userReply.ok || !login) throw new Error('GitHub did not say who signed in.')
-  return login
+  const id = user && typeof user['id'] === 'number' ? user['id'] : null
+  if (!userReply.ok || !login || id === null) throw new Error('GitHub did not say who signed in.')
+  return { login, id }
 }

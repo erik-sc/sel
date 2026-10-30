@@ -116,7 +116,8 @@ export function registerExternalIpc({ repo, ready, changed }: { repo: Repository
       },
       'mcp:remoteStatus': () => remote.status(),
       'mcp:configureRemote': ([input]) => remote.configure(input),
-      'mcp:revokeRemote': ([id]) => remote.revoke(id)
+      'mcp:revokeRemote': ([id]) => remote.revoke(id),
+      'mcp:pairRemote': () => remote.pair()
     },
     settingChanged: () => void follow()
   }

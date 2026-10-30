@@ -16,7 +16,12 @@ export const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const CODE_TTL_MS = 60 * 1000
 const PENDING_TTL_MS = 10 * 60 * 1000
 const MAX_CLIENTS = 50
-const MAX_PENDING = 20
+const MAX_PENDING = 50
+const MAX_PENDING_PER_CLIENT = 5
+/** A refresh retried this soon after it was used (a reply lost on the way) gets a new pair instead of ending the grant. */
+const REFRESH_GRACE_MS = 60 * 1000
+/** How long the user's "Connect a new app" in Settings lets new apps register. */
+export const PAIRING_MS = 10 * 60 * 1000
 const MAX_GRANTS = 50
 
 /** Where a Claude app is sent back to: claude.ai's callback, or a loopback port (Claude Code). */
@@ -113,12 +118,23 @@ interface StoredGrant extends RemoteGrant {
   refreshExpiresAt: number
   /** Refresh tokens already used: shown again, they end the grant. */
   spent: string[]
+  /** The refresh token used last, and when: a retry within the grace gets a new pair. */
+  previousRefresh?: { hash: string; spentAt: number } | null
+  /** The access token before the latest refresh, still valid until it expires (calls in flight). */
+  previousAccess?: { hash: string; expiresAt: number } | null
+}
+
+/** The GitHub account let in, pinned by its numeric id at the first sign-in: a login can be renamed and taken. */
+interface Owner {
+  login: string
+  id: number
 }
 
 interface Stored {
   version: 1
   clients: Client[]
   grants: StoredGrant[]
+  owner?: Owner | null
 }
 
 export interface Tokens {
@@ -139,6 +155,7 @@ export class OAuthError extends Error {
       | 'unsupported_grant_type'
       | 'invalid_scope'
       | 'invalid_client_metadata'
+      | 'access_denied'
       | 'invalid_redirect_uri',
     message: string
   ) {
@@ -157,6 +174,8 @@ export class AuthStore {
   private grants: StoredGrant[] = []
   private pending: Pending[] = []
   private codes: Code[] = []
+  private owner: Owner | null = null
+  private pairing = 0
   private readonly now: () => number
 
   constructor(private readonly options: AuthStoreOptions) {
@@ -173,20 +192,57 @@ export class AuthStore {
       if (stored.version !== 1) return
       this.clients = Array.isArray(stored.clients) ? stored.clients.filter((c) => typeof c?.id === 'string') : []
       this.grants = Array.isArray(stored.grants) ? stored.grants.filter((g) => typeof g?.id === 'string') : []
+      const owner = stored.owner
+      this.owner = owner && typeof owner.login === 'string' && typeof owner.id === 'number' ? owner : null
     } catch {
       /* unreadable: start over; every app signs in again */
     }
   }
 
   private persist(): void {
-    const stored: Stored = { version: 1, clients: this.clients, grants: this.grants }
+    const stored: Stored = { version: 1, clients: this.clients, grants: this.grants, owner: this.owner }
     this.options.save(JSON.stringify(stored))
   }
 
   // ---- clients ----
 
-  /** Dynamic client registration: a public client (PKCE, no secret) with Claude's redirects only. */
+  /**
+   * Lets new apps register for a while (Settings → MCP → Connect a new app). Registration is
+   * closed otherwise: a stranger who knows the address cannot make an app of their own and send
+   * the owner a real consent screen for it.
+   */
+  openPairing(ms: number = PAIRING_MS): void {
+    this.pairing = this.now() + ms
+  }
+
+  closePairing(): void {
+    this.pairing = 0
+  }
+
+  /** Until when new apps may register, or null when they may not. */
+  get pairingUntil(): number | null {
+    return this.pairing > this.now() ? this.pairing : null
+  }
+
+  /**
+   * Whether the GitHub account that signed in is the one let in: its login is the one in
+   * Settings, and its id is the one pinned the first time that login signed in.
+   */
+  isOwner(login: string, id: number, allowed: string): boolean {
+    if (login.toLowerCase() !== allowed.toLowerCase()) return false
+    if (this.owner && this.owner.login.toLowerCase() === allowed.toLowerCase()) return this.owner.id === id
+    this.owner = { login, id }
+    this.persist()
+    return true
+  }
+
+  /** Dynamic client registration: a public client (PKCE, no secret) with Claude's redirects only, while pairing is open. */
   register(metadata: unknown): Client {
+    if (!this.pairingUntil)
+      throw new OAuthError(
+        'access_denied',
+        'sel is not accepting new apps. In sel, open Settings → MCP and choose "Connect a new app", then try again.'
+      )
     const record =
       metadata !== null && typeof metadata === 'object' && !Array.isArray(metadata) ? (metadata as Record<string, unknown>) : {}
     const uris = record['redirect_uris']
@@ -194,13 +250,11 @@ export class AuthStore {
       throw new OAuthError('invalid_redirect_uri', 'redirect_uris must list where to send the user back.')
     if (!uris.every((uri) => allowedRedirect(uri as string)))
       throw new OAuthError('invalid_redirect_uri', 'sel only sends codes back to Claude (claude.ai) or to this computer (localhost).')
-    const method = record['token_endpoint_auth_method']
-    if (method !== undefined && method !== 'none')
-      throw new OAuthError('invalid_client_metadata', 'sel registers public clients only (token_endpoint_auth_method "none").')
+    // Whatever method is asked for, a public client is registered (RFC 7591 §3.2.1: the response says so).
     const rawName = typeof record['client_name'] === 'string' ? record['client_name'] : ''
     const name =
       rawName
-        .replace(/[\u0000-\u001f\u007f]/gu, '')
+        .replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/gu, '')
         .trim()
         .slice(0, 80) || 'An MCP app'
     const client: Client = { id: randomUUID(), name, redirectUris: [...new Set(uris as string[])], createdAt: this.now() }
@@ -230,6 +284,9 @@ export class AuthStore {
       createdAt: this.now(),
       login: null
     }
+    // One app cannot crowd out the others' sign-ins: a few each, the oldest dropped first.
+    const own = this.pending.filter((each) => each.clientId === input.clientId)
+    if (own.length >= MAX_PENDING_PER_CLIENT) this.end(own[0].id)
     this.pending.push(pending)
     if (this.pending.length > MAX_PENDING) this.pending.splice(0, this.pending.length - MAX_PENDING)
     return pending
@@ -305,7 +362,11 @@ export class AuthStore {
     const access = secret('sel_at')
     const refresh = secret('sel_rt')
     const now = this.now()
-    if (grant.refreshHash) grant.spent = [...grant.spent, grant.refreshHash].slice(-20)
+    if (grant.refreshHash) {
+      grant.spent = [...grant.spent, grant.refreshHash].slice(-20)
+      grant.previousRefresh = { hash: grant.refreshHash, spentAt: now }
+    }
+    grant.previousAccess = grant.accessHash ? { hash: grant.accessHash, expiresAt: grant.accessExpiresAt } : null
     grant.accessHash = hashOf(access)
     grant.accessExpiresAt = now + ACCESS_TTL_MS
     grant.refreshHash = hashOf(refresh)
@@ -340,6 +401,14 @@ export class AuthStore {
   /** grant_type=refresh_token: a new pair; the old refresh token is spent. */
   refresh(input: { token: string; clientId: string }): Tokens {
     const hash = hashOf(input.token)
+    const now = this.now()
+    const retried = this.grants.find(
+      (each) => each.previousRefresh && same(each.previousRefresh.hash, hash) && now - each.previousRefresh.spentAt < REFRESH_GRACE_MS
+    )
+    if (retried) {
+      if (retried.clientId !== input.clientId) throw new OAuthError('invalid_grant', 'That refresh token was given to another client.')
+      return this.issue(retried)
+    }
     const stolen = this.grants.find((each) => each.spent.includes(hash))
     if (stolen) {
       // A spent token came back: someone has a copy. Nobody keeps this grant.
@@ -357,8 +426,12 @@ export class AuthStore {
     if (!token.startsWith('sel_at_')) return null
     const hash = hashOf(token)
     const now = this.now()
-    const grant = this.grants.find((each) => each.accessHash !== null && same(each.accessHash, hash))
-    if (!grant || grant.accessExpiresAt <= now) return null
+    const grant = this.grants.find(
+      (each) =>
+        (each.accessHash !== null && same(each.accessHash, hash) && each.accessExpiresAt > now) ||
+        (!!each.previousAccess && same(each.previousAccess.hash, hash) && each.previousAccess.expiresAt > now)
+    )
+    if (!grant) return null
     // Written down at most once a minute: every call would otherwise rewrite the file.
     if (!grant.lastUsedAt || now - grant.lastUsedAt > 60_000) {
       grant.lastUsedAt = now
@@ -376,7 +449,7 @@ export class AuthStore {
   /** Revokes the grant a token (access or refresh) belongs to (RFC 7009); unknown tokens are ignored. */
   revokeToken(token: string): void {
     const hash = hashOf(token)
-    const grant = this.grants.find((each) => each.accessHash === hash || each.refreshHash === hash)
+    const grant = this.grants.find((each) => each.accessHash === hash || each.refreshHash === hash || each.previousAccess?.hash === hash)
     if (grant) this.revoke(grant.id)
   }
 

@@ -56,6 +56,8 @@ export interface McpApi {
   configureRemote(input: RemoteConfigInput): Promise<RemoteStatus>
   /** Ends one authorization (or all, with no id): its tokens stop working at once. */
   revokeRemote(id?: string): Promise<RemoteStatus>
+  /** Lets a new app register for ten minutes: the window in which you add the connector in Claude. */
+  pairRemote(): Promise<RemoteStatus>
 }
 
 /** Whether other apps may connect decides whether sel opens an endpoint for them: a boolean. */
@@ -67,7 +69,8 @@ export const MCP_INVOKE = {
   'mcp:rotateToken': true,
   'mcp:remoteStatus': true,
   'mcp:configureRemote': true,
-  'mcp:revokeRemote': true
+  'mcp:revokeRemote': true,
+  'mcp:pairRemote': true
 } as const satisfies Record<InvokeChannels<{ mcp: McpApi }>, true>
 
 // ---- from anywhere: the remote connector -----------------------------------------
@@ -121,8 +124,10 @@ export function cleanPublicUrl(value: unknown): string | null {
   } catch {
     return null
   }
+  // An origin only: sel answers at the root (/mcp, /.well-known/…), so a path would break discovery.
   if (url.protocol !== 'https:' || !url.hostname || url.username || url.password || url.search || url.hash) return null
-  return `${url.origin}${url.pathname.replace(/\/+$/u, '')}`
+  if (url.pathname !== '/') return null
+  return url.origin
 }
 
 /** The stored config, with the default for anything malformed. */
@@ -170,6 +175,8 @@ export interface RemoteStatus extends RemoteConfig {
   claudeCode: string
   grants: RemoteGrant[]
   calls: McpCall[]
+  /** Until when new apps may register (after "Connect a new app"), or null: registration is closed. */
+  pairingUntil: number | null
   /** sel stays running in the notification area when its windows close (alarms.tray): the server needs it. */
   staysRunning: boolean
 }

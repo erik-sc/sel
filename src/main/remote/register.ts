@@ -33,6 +33,7 @@ export interface RemoteHooks {
   status(): RemoteStatus
   configure(raw: unknown): Promise<RemoteStatus>
   revoke(raw: unknown): Promise<RemoteStatus>
+  pair(): Promise<RemoteStatus>
 }
 
 export function registerRemote({ repo, ready, changed }: { repo: Repository; ready: Promise<void>; changed(): void }): RemoteHooks {
@@ -108,7 +109,10 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
           const { server } = await load()
           if (server.running && server.port !== wanted.port) await server.stop()
           await server.start(wanted.port)
-        } else if (loaded) await loaded.server.stop()
+        } else if (loaded) {
+          loaded.auth.closePairing()
+          await loaded.server.stop()
+        }
       } catch (err) {
         failure = loaded?.server.error ?? 'The remote connector could not be started.'
         console.error('[remote] the server could not follow the setting', err)
@@ -129,6 +133,7 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
       claudeCode: mcpUrl ? `claude mcp add --transport http --scope user sel ${mcpUrl}` : '',
       grants: loaded?.auth.list() ?? [],
       calls: loaded?.server.calls ?? [],
+      pairingUntil: loaded?.server.running ? loaded.auth.pairingUntil : null,
       staysRunning: repo.getSetting(ALARMS_SETTING.tray) === true
     }
   }
@@ -158,6 +163,12 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
       const id = raw === undefined || raw === null ? undefined : arg.id(raw, 'authorization')
       const { auth } = await load()
       auth.revoke(id)
+      return status()
+    },
+    pair: async () => {
+      const { server, auth } = await load()
+      if (!server.running) throw new Error('Turn the remote connector on first.')
+      auth.openPairing()
       return status()
     }
   }

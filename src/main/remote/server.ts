@@ -45,7 +45,10 @@ export interface RemoteServerOptions {
 
 const MAX_BODY = 1024 * 1024
 const CALL_LOG_SIZE = 30
-const COOKIE = 'sel_flow'
+/** One cookie per sign-in in flight (`sel_flow_<id>`), so two at once do not undo each other. */
+const COOKIE = 'sel_flow_'
+/** The MCP versions sel answers in, the newest first. */
+const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
 const SERVER_INSTRUCTIONS =
   "The user's sel workspace, on their own computer: their tasks (list, add with quick-add words, complete, reschedule) and, depending on what they granted, their pages and databases (search, read, create pages, append, add or update rows). Nothing can be deleted, and what the user keeps private from the AI can be neither read nor changed. Ids are shown in square brackets after titles."
 
@@ -73,7 +76,14 @@ button.go{background:var(--accent);border-color:var(--accent);color:var(--bg);fo
 </style></head><body><main>${body}</main></body></html>`
 }
 
-function consentPage(input: { flow: string; client: string; redirectHost: string; login: string; scopes: RemoteScope[] }): string {
+function consentPage(input: {
+  flow: string
+  client: string
+  redirectHost: string
+  login: string
+  scopes: RemoteScope[]
+  registered: number
+}): string {
   const boxes = REMOTE_SCOPES.map(
     (scope) =>
       `<label><input type="checkbox" name="scope" value="${scope}"${input.scopes.includes(scope) ? ' checked' : ''}><span>${escape(SCOPE_TEXT[scope])}</span></label>`
@@ -81,7 +91,7 @@ function consentPage(input: { flow: string; client: string; redirectHost: string
   return page(
     'Allow access',
     `<h1>Let ${escape(input.client)} use sel?</h1>
-<p>Signed in on GitHub as <b>${escape(input.login)}</b>. It will be sent back to <code>${escape(input.redirectHost)}</code>. Nothing can be deleted, and what you keep private from the AI stays out. You can end this any time in sel → Settings → MCP.</p>
+<p>Signed in on GitHub as <b>${escape(input.login)}</b>. It will be sent back to <code>${escape(input.redirectHost)}</code>. This app was connected to sel on ${escape(new Date(input.registered).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}: if you did not just add it, choose Deny. Nothing can be deleted, and what you keep private from the AI stays out. You can end this any time in sel → Settings → MCP.</p>
 <form method="post" action="/oauth/consent"><input type="hidden" name="flow" value="${escape(input.flow)}">${boxes}
 <div class="row"><button type="submit" name="decision" value="deny">Deny</button><button class="go" type="submit" name="decision" value="allow">Allow</button></div></form>`
   )
@@ -110,16 +120,12 @@ function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let size = 0
     const chunks: Buffer[] = []
+    // Past the limit the rest is read and dropped, so the 413 still reaches the client.
     req.on('data', (chunk: Buffer) => {
       size += chunk.length
-      if (size > MAX_BODY) {
-        reject(new HttpError(413, 'Too large.'))
-        req.destroy()
-        return
-      }
-      chunks.push(chunk)
+      if (size <= MAX_BODY) chunks.push(chunk)
     })
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+    req.on('end', () => (size > MAX_BODY ? reject(new HttpError(413, 'Too large.')) : resolve(Buffer.concat(chunks).toString('utf8'))))
     req.on('error', reject)
   })
 }
@@ -162,6 +168,7 @@ export class RemoteServer {
   private log: McpCall[] = []
   private recent: number[] = []
   private recentAuth: number[] = []
+  private recentToken: number[] = []
   private readonly now: () => number
   private readonly perMinute: number
   error: string | null = null
@@ -255,11 +262,22 @@ export class RemoteServer {
     this.send(res, 302, '', { Location: location, ...headers })
   }
 
-  private limited(bucket: 'mcp' | 'auth'): boolean {
+  /**
+   * Calls in the last minute, per bucket: tools, /token (refreshes must get through) and the rest
+   * of the sign-in. Behind a tunnel every caller looks like 127.0.0.1, so the buckets are global.
+   */
+  private limited(bucket: 'mcp' | 'token' | 'auth'): boolean {
     const now = this.now()
-    const list = (bucket === 'mcp' ? this.recent : this.recentAuth).filter((at) => now - at < 60_000)
-    const max = bucket === 'mcp' ? this.perMinute : Math.max(10, Math.floor(this.perMinute / 4))
+    const lists = { mcp: this.recent, token: this.recentToken, auth: this.recentAuth }
+    const list = lists[bucket].filter((at) => now - at < 60_000)
+    const max =
+      bucket === 'mcp'
+        ? this.perMinute
+        : bucket === 'token'
+          ? Math.max(20, Math.floor(this.perMinute / 2))
+          : Math.max(10, Math.floor(this.perMinute / 4))
     if (bucket === 'mcp') this.recent = list
+    else if (bucket === 'token') this.recentToken = list
     else this.recentAuth = list
     if (list.length >= max) return true
     list.push(now)
@@ -275,16 +293,19 @@ export class RemoteServer {
       if (method === 'GET' && (path === '/.well-known/oauth-protected-resource' || path === '/.well-known/oauth-protected-resource/mcp'))
         return this.json(res, 200, this.resourceMetadata())
       if (method === 'GET' && path === '/.well-known/oauth-authorization-server') return this.json(res, 200, this.serverMetadata())
-      if (this.limited('auth')) return this.json(res, 429, { error: 'slow_down', error_description: 'Too many requests.' })
+      if (method === 'GET' && path === '/')
+        return this.html(res, 200, errorPage('sel', 'This is the sel connector. Add its /mcp address to Claude.'))
+      const route = `${method} ${path}`
+      const routes = ['POST /register', 'GET /authorize', 'GET /oauth/callback', 'POST /oauth/consent', 'POST /token', 'POST /revoke']
+      if (!routes.includes(route)) return this.json(res, 404, { error: 'not_found' })
+      if (this.limited(route === 'POST /token' ? 'token' : 'auth'))
+        return this.json(res, 429, { error: 'slow_down', error_description: 'Too many requests.' })
       if (method === 'POST' && path === '/register') return await this.register(req, res)
       if (method === 'GET' && path === '/authorize') return this.authorize(url, res)
       if (method === 'GET' && path === '/oauth/callback') return await this.callback(url, req, res)
       if (method === 'POST' && path === '/oauth/consent') return await this.consent(req, res)
       if (method === 'POST' && path === '/token') return await this.token(req, res)
-      if (method === 'POST' && path === '/revoke') return await this.revoke(req, res)
-      if (method === 'GET' && path === '/')
-        return this.html(res, 200, errorPage('sel', 'This is the sel connector. Add its /mcp address to Claude.'))
-      this.json(res, 404, { error: 'not_found' })
+      return await this.revoke(req, res)
     } catch (err) {
       if (err instanceof HttpError) return this.json(res, err.status, { error: err.message })
       console.error('[remote] a request failed', err)
@@ -344,7 +365,8 @@ export class RemoteServer {
         client_id_issued_at: Math.floor(client.createdAt / 1000)
       })
     } catch (err) {
-      if (err instanceof OAuthError) return this.json(res, 400, { error: err.code, error_description: err.message })
+      if (err instanceof OAuthError)
+        return this.json(res, err.code === 'access_denied' ? 403 : 400, { error: err.code, error_description: err.message })
       throw err
     }
   }
@@ -402,25 +424,31 @@ export class RemoteServer {
     const secure = this.base().startsWith('https:') ? '; Secure' : ''
     const config = this.options.config()
     this.redirect(res, githubAuthorizeUrl({ clientId: config.githubClientId }, `${this.base()}/oauth/callback`, pending.id), {
-      'Set-Cookie': `${COOKIE}=${pending.nonce}; HttpOnly; SameSite=Lax; Path=/; Max-Age=600${secure}`
+      'Set-Cookie': `${COOKIE}${pending.id}=${pending.nonce}; HttpOnly; SameSite=Lax; Path=/; Max-Age=600${secure}`
     })
   }
 
   private async callback(url: URL, req: IncomingMessage, res: ServerResponse): Promise<void> {
     const auth = this.options.auth
-    const pending = auth.flow(url.searchParams.get('state'), cookieOf(req, COOKIE))
+    const state = url.searchParams.get('state') ?? ''
+    const pending = auth.flow(state, cookieOf(req, `${COOKIE}${state}`))
     if (!pending) return this.html(res, 400, errorPage('This sign-in expired', 'Start again from Claude.'))
     const code = url.searchParams.get('code')
     if (!code) {
+      // Cancelled on GitHub: the app hears it, rather than waiting.
       auth.end(pending.id)
-      return this.html(res, 400, errorPage('Sign-in cancelled', 'GitHub did not sign you in. Start again from Claude.'))
+      const target = new URL(pending.redirectUri)
+      target.searchParams.set('error', 'access_denied')
+      if (pending.state) target.searchParams.set('state', pending.state)
+      target.searchParams.set('iss', this.base())
+      return this.redirect(res, target.toString(), { 'Set-Cookie': `${COOKIE}${pending.id}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` })
     }
     const config = this.options.config()
     const secret = this.options.secret()
     if (!secret) return this.html(res, 503, errorPage('sel is not set up yet', 'The GitHub client secret is missing.'))
-    let login: string
+    let account: { login: string; id: number }
     try {
-      login = await githubLogin(
+      account = await githubLogin(
         { clientId: config.githubClientId, clientSecret: secret },
         `${this.base()}/oauth/callback`,
         code,
@@ -430,7 +458,8 @@ export class RemoteServer {
       auth.end(pending.id)
       return this.html(res, 502, errorPage('GitHub sign-in failed', err instanceof Error ? err.message : 'Try again.'))
     }
-    if (login.toLowerCase() !== config.githubLogin.toLowerCase()) {
+    const { login } = account
+    if (!auth.isOwner(login, account.id, config.githubLogin)) {
       auth.end(pending.id)
       return this.html(res, 403, errorPage('Not allowed', `The GitHub account ${login} is not the one this sel lets in.`))
     }
@@ -444,7 +473,8 @@ export class RemoteServer {
         client: client?.name ?? 'An app',
         redirectHost: new URL(pending.redirectUri).host,
         login,
-        scopes: pending.scopes
+        scopes: pending.scopes,
+        registered: client?.createdAt ?? this.now()
       })
     )
   }
@@ -452,9 +482,10 @@ export class RemoteServer {
   private async consent(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const auth = this.options.auth
     const fields = fieldsOf(req, await readBody(req))
-    const pending = auth.flow(one(fields['flow']), cookieOf(req, COOKIE))
+    const flow = one(fields['flow'])
+    const pending = auth.flow(flow, cookieOf(req, `${COOKIE}${flow}`))
     if (!pending || !pending.login) return this.html(res, 400, errorPage('This sign-in expired', 'Start again from Claude.'))
-    const clear = { 'Set-Cookie': `${COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }
+    const clear = { 'Set-Cookie': `${COOKIE}${pending.id}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` }
     const target = new URL(pending.redirectUri)
     if (pending.state) target.searchParams.set('state', pending.state)
     target.searchParams.set('iss', this.base())
@@ -545,7 +576,9 @@ export class RemoteServer {
       case 'initialize':
         return {
           result: {
-            protocolVersion: typeof params['protocolVersion'] === 'string' ? params['protocolVersion'] : '2025-06-18',
+            protocolVersion: PROTOCOL_VERSIONS.includes(params['protocolVersion'] as string)
+              ? params['protocolVersion']
+              : PROTOCOL_VERSIONS[0],
             capabilities: { tools: {} },
             serverInfo: { name: 'sel', version: '1' },
             instructions: SERVER_INSTRUCTIONS
