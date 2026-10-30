@@ -425,6 +425,70 @@ describe('changing a property type', () => {
   })
 })
 
+describe('undoing a type change', () => {
+  const undoOf = (): (() => void) => {
+    let undo: (() => void) | undefined
+    actions.changePropertyType('db', 'txt', 'number', undefined, (fn) => {
+      undo = fn
+    })
+    return undo as () => void
+  }
+
+  it('puts back only the converted column, keeping edits made to other columns and properties since', async () => {
+    seed([page('r1', 'One', { txt: '12', num: 1 }), page('r2', 'Two', { txt: '7', num: 2 })])
+    const undo = undoOf()
+    // Meanwhile: another column edited, a property renamed, one cell of the converted column edited.
+    actions.renameProperty('db', 'num', 'Cost')
+    const row = store.blocks.r1 as Block
+    store.blocks.r1 = { ...row, props: { ...row.props, values: { ...(row.props.values as object), num: 99 } } } as Block
+    const r2 = store.blocks.r2 as Block
+    store.blocks.r2 = { ...r2, props: { ...r2.props, values: { txt: 8, num: 2 } } } as Block
+    undo()
+    await flush()
+    expect(valuesOf('r1')).toEqual({ txt: '12', num: 99 })
+    expect(valuesOf('r2')).toEqual({ txt: 8, num: 2 })
+    expect(dbProps().schema!.txt.type).toBe('text')
+    expect(dbProps().schema!.num.name).toBe('Cost')
+  })
+
+  it('keeps filters and sorts set meanwhile on the views', async () => {
+    seed([page('r1', 'One', { txt: '12' })])
+    const undo = undoOf()
+    const views = dbProps().views as DatabaseView[]
+    const filter = { propertyId: 'num', operator: 'is_not_empty' }
+    ;(store.blocks.db as Block).props = {
+      ...(store.blocks.db as Block).props,
+      views: views.map((v) => (v.id === tableView.id ? { ...v, filters: [filter] } : v))
+    } as Block['props']
+    undo()
+    await flush()
+    expect((dbProps().views as DatabaseView[]).find((v) => v.id === tableView.id)!.filters).toEqual([filter])
+  })
+})
+
+describe('counting what a type change would lose', () => {
+  it('counts every type at once from the rows in the store', () => {
+    seed([page('r1', 'One', { txt: 'abc' }), page('r2', 'Two', { txt: '5' })])
+    const counts = actions.typeLossCounts('db', 'txt')
+    expect(counts.number).toBe(1)
+    expect(counts.text).toBe(0)
+  })
+
+  it('loads the rows first when only some are in the store', async () => {
+    const unloaded = page('r2', 'Two', { txt: 'abc' })
+    seed([page('r1', 'One', { txt: '5' }), unloaded])
+    delete store.blocks.r2
+    store.unloaded = [unloaded]
+    let done = false
+    actions.loadAllRows('db', () => {
+      done = true
+    })
+    await flush()
+    expect(done).toBe(true)
+    expect(actions.typeLossCounts('db', 'txt').number).toBe(1)
+  })
+})
+
 describe('linked views', () => {
   const linkedView: DatabaseView = { id: 'lv1', name: 'Mine', type: 'table', visibleProperties: ['t', 'num'], filters: [], sorts: [] }
 
