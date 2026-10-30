@@ -70,8 +70,29 @@ export function setPriority(id: string, level: Priority | null): void {
   setValue(id, TASK_PROPS.priority, priorityValue(level))
 }
 
+/**
+ * Writes the task's project. Giving it one says where it went, with "Undo" to put the project it
+ * had back (none, for a task from the Inbox).
+ */
 export function setProject(id: string, optionId: string | null): void {
-  setValue(id, TASK_PROPS.project, optionId)
+  withRow(id, (row) => {
+    const prop = propOf(TASK_PROPS.project)
+    if (!prop) return
+    const before = projectBefore(row, prop)
+    actions.setCell(row.id, prop, optionId)
+    const name = optionId ? L.optionsOf(prop).find((option) => option.id === optionId)?.name : undefined
+    if (!name || optionId === before) return
+    const words = copy()
+    toast(words.movedTo(L.titleOf(row) || words.untitled, name), {
+      action: { label: words.undo, run: () => setValue(id, TASK_PROPS.project, before) }
+    })
+  })
+}
+
+/** The project option the row has now, or null. */
+function projectBefore(row: Block, prop: PropertySchema): string | null {
+  const value = L.getCellValue(row, prop)
+  return typeof value === 'string' ? value : null
 }
 
 /** Changes the labels from what the store has when the change lands. */

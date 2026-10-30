@@ -38,6 +38,8 @@ export interface TaskCopy {
   deleted: (title: string) => string
   undo: string
   undone: string
+  /** A task given a project (with Undo): it leaves the Inbox. */
+  movedTo: (title: string, project: string) => string
   deleteFailed: string
   restoreFailed: string
   saveFailed: string
@@ -120,6 +122,7 @@ const EN: TaskCopy = {
   deleted: (title) => `Deleted "${title}".`,
   undo: 'Undo',
   undone: 'Put back.',
+  movedTo: (title, project) => `"${title}" went to #${project}.`,
   deleteFailed: 'Could not delete the task.',
   restoreFailed: 'Could not bring the task back.',
   saveFailed: 'Could not save the change to the task.',
@@ -192,6 +195,7 @@ const PT: TaskCopy = {
   deleted: (title) => `"${title}" apagada.`,
   undo: 'Desfazer',
   undone: 'Voltou para onde estava.',
+  movedTo: (title, project) => `"${title}" foi para #${project}.`,
   deleteFailed: 'Não foi possível apagar a tarefa.',
   restoreFailed: 'Não foi possível trazer a tarefa de volta.',
   saveFailed: 'Não foi possível salvar a mudança na tarefa.',
