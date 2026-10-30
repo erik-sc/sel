@@ -60,6 +60,16 @@ export function useCompleteTask(options: { calm?: boolean } = {}): Completing {
     return () => own?.dispose()
   }, [])
 
+  /** Taking it back failed: the wait starts over, if the row is still ticked and in place. */
+  const phasesRef = useRef(phases)
+  phasesRef.current = phases
+  const restart = useCallback(
+    (key: string): void => {
+      if (calm && phasesRef.current.get(key) === 'done') settler.current?.start(key)
+    },
+    [calm]
+  )
+
   const complete = useCallback(
     (task: BriefingTask): void => {
       const key = tickedKey(task)
@@ -85,11 +95,21 @@ export function useCompleteTask(options: { calm?: boolean } = {}): Completing {
               label: words.undo,
               run: () => {
                 // Within the wait the row stays whole; if taking it back fails, the wait starts over.
+                // The entry goes at once: a second take-back finds none and the token is used once.
+                if (!entry || pending.current.get(key) !== entry) return
+                pending.current.delete(key)
                 settler.current?.cancel(key)
-                window.api.briefing.undoCompleteTask(token).then(restore, (error: unknown) => {
-                  if (calm && entry) settler.current?.start(key)
-                  notifyError(words.undoFailed, error)
-                })
+                window.api.briefing.undoCompleteTask(token).then(
+                  () => {
+                    settler.current?.cancel(key)
+                    setPhase(key, null)
+                  },
+                  (error: unknown) => {
+                    pending.current.set(key, entry)
+                    restart(key)
+                    notifyError(words.undoFailed, error)
+                  }
+                )
               }
             }
           })
@@ -101,7 +121,7 @@ export function useCompleteTask(options: { calm?: boolean } = {}): Completing {
         }
       )
     },
-    [calm, setPhase]
+    [calm, setPhase, restart]
   )
 
   const reopen = useCallback(
@@ -110,24 +130,23 @@ export function useCompleteTask(options: { calm?: boolean } = {}): Completing {
       const entry = pending.current.get(key)
       const words = BRIEFING_COPY[localeRef.current]
       if (!entry) return
+      pending.current.delete(key)
       settler.current?.cancel(key)
       entry.call
         .then(
           ({ token }) => {
             if (entry.toastId) dismissToast(entry.toastId)
-            return window.api.briefing.undoCompleteTask(token).then(() => {
-              pending.current.delete(key)
-              setPhase(key, null)
-            })
+            return window.api.briefing.undoCompleteTask(token).then(() => setPhase(key, null))
           },
           () => undefined
         )
         .catch((error: unknown) => {
-          if (calm) settler.current?.start(key)
+          pending.current.set(key, entry)
+          restart(key)
           notifyError(words.undoFailed, error)
         })
     },
-    [calm, setPhase]
+    [calm, setPhase, restart]
   )
 
   const done = useMemo(() => new Set([...phases].filter(([, phase]) => phase === 'gone').map(([key]) => key)), [phases])

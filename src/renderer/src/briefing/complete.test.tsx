@@ -106,6 +106,39 @@ describe('ticking a task on Today', () => {
     expect(latest.done.has(key)).toBe(true)
   })
 
+  it('takes it back once when ticked twice, and the row does not vanish later', async () => {
+    let fail = false
+    undoCompleteTask.mockImplementation(() => (fail ? Promise.reject(new Error('used')) : Promise.resolve()))
+    await render(<Probe calm />)
+    await act(async () => latest.complete(task))
+    await flush(0)
+    await act(async () => {
+      latest.reopen(task)
+      latest.reopen(task)
+    })
+    fail = true
+    await flush(0)
+    expect(undoCompleteTask).toHaveBeenCalledTimes(1)
+    await flush(10_000)
+    expect(latest.done.has(key)).toBe(false)
+    expect(latest.settling.size).toBe(0)
+  })
+
+  it('takes it back once when the checkbox and the toast Undo both fire', async () => {
+    await render(<Probe calm />)
+    await act(async () => latest.complete(task))
+    await flush(0)
+    const undo = useToasts.getState().toasts[0].action
+    await act(async () => {
+      latest.reopen(task)
+      undo?.run()
+    })
+    await flush(10_000)
+    expect(undoCompleteTask).toHaveBeenCalledTimes(1)
+    expect(latest.done.has(key)).toBe(false)
+    expect(latest.settling.size).toBe(0)
+  })
+
   it('puts the row back when the task could not be done', async () => {
     completeTask.mockRejectedValue(new Error('no'))
     await render(<Probe calm />)

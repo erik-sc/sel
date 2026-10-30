@@ -303,6 +303,40 @@ export function taskGroups(
   return { groups, hidden }
 }
 
+/** A task held in its list while it settles: where it was and the task as last loaded. */
+export interface KeptTask {
+  group: 'overdue' | 'today' | 'noDate'
+  index: number
+  task: BriefingTask
+}
+
+/**
+ * `tasks` with the ticked tasks that are settling (keys of `settling`) kept in place. A reload of
+ * the briefing no longer has a task once it is done; it stays until its fold ends. `kept` is the
+ * memory between calls: it learns each settling task while the briefing still has it, and forgets
+ * the ones that stopped settling.
+ */
+export function keepSettling(tasks: BriefingTasks, settling: ReadonlyMap<string, unknown>, kept: Map<string, KeptTask>): BriefingTasks {
+  const groups = { overdue: tasks.overdue, today: tasks.today, noDate: tasks.noDate ?? [] }
+  for (const key of kept.keys()) if (!settling.has(key)) kept.delete(key)
+  for (const name of ['overdue', 'today', 'noDate'] as const) {
+    groups[name].forEach((task, index) => {
+      const key = tickedKey(task)
+      if (settling.has(key)) kept.set(key, { group: name, index, task })
+    })
+  }
+  const present = new Set(Object.values(groups).flatMap((list) => list.map(tickedKey)))
+  const missing = [...kept].filter(([key]) => !present.has(key)).sort((a, b) => a[1].index - b[1].index)
+  if (missing.length === 0) return tasks
+  const merged = { ...groups }
+  for (const [, entry] of missing) {
+    const list = [...merged[entry.group]]
+    list.splice(Math.min(entry.index, list.length), 0, entry.task)
+    merged[entry.group] = list
+  }
+  return { ...tasks, ...merged }
+}
+
 /** Milliseconds from `now` to the next local midnight (never less than a second). */
 export function untilMidnight(now: number): number {
   const date = new Date(now)

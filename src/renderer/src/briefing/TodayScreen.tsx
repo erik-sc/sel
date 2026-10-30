@@ -21,7 +21,6 @@ import {
   longDate,
   phraseSource,
   phraseText,
-  taskGroups,
   tickedKey,
   updatedLabel
 } from './format'
@@ -33,9 +32,8 @@ import { startRefine } from '@/tasks/gate'
 import { TaskPanel } from '@/tasks/lazy'
 import { initRefining, useRefining } from '@/tasks/refining'
 import { useTaskRows } from '@/tasks/TaskRow'
-import { useCompleteTask } from './complete'
 import { BRIEFING_COPY } from './copy'
-import { BriefingTaskItem, EventRow, Lines, openSettings, useLive, useNow, useTaskViews } from './parts'
+import { BriefingTaskItem, EventRow, Lines, openSettings, useLive, useNow, useTodayTasks } from './parts'
 import { DayPlan, planDragSource, usePlanDrag, type PlanDrag, type PlanPatch } from './DayPlan'
 import { patchTasks } from './plan'
 import './today.css'
@@ -311,11 +309,8 @@ function Tasks({
   setPanel: (id: string | null) => void
 }): JSX.Element {
   const [expanded, setExpanded] = useState(false)
-  const { done, settling, complete, reopen } = useCompleteTask({ calm: true })
+  const { settling, complete, reopen, groups, hidden, shown, views } = useTodayTasks(briefing.tasks, expanded)
   const words = BRIEFING_COPY[useHome((state) => state.locale)]
-  const { groups, hidden } = useMemo(() => taskGroups(briefing.tasks, expanded, done), [briefing.tasks, expanded, done])
-  const shown = useMemo(() => groups.flatMap((group) => group.tasks), [groups])
-  const views = useTaskViews(shown)
   const rows = useTaskRows(useMemo(() => shown.filter((task) => views.get(task.id)).map((task) => task.id), [shown, views]))
   const byId = useMemo(() => new Map(shown.map((task) => [task.id, task])), [shown])
 

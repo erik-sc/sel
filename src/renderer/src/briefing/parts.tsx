@@ -3,7 +3,7 @@
 // built-in Tasks database are the task lists' own (tasks/TaskRow.tsx).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import type { BriefingCalendar, BriefingEvent, BriefingTask } from '@shared/briefing'
+import type { BriefingCalendar, BriefingEvent, BriefingTask, BriefingTasks } from '@shared/briefing'
 import type { Block } from '@shared/types'
 import { TASKS_DATABASE_ID } from '@shared/tasks'
 import { newMeeting } from '@/meetings/gate'
@@ -16,7 +16,8 @@ import { TaskRow as ListTaskRow, type RowDrag, type useTaskRows } from '@/tasks/
 import { useHome } from '@/home/store'
 import { TASK_COPY } from '@/tasks/copy'
 import { setSettingsOpen, useUi } from '@/store/ui'
-import { dueLabel, untilMidnight, type EventMoment } from './format'
+import { dueLabel, keepSettling, taskGroups, tickedKey, type KeptTask, untilMidnight, type EventMoment } from './format'
+import { useCompleteTask } from './complete'
 import type { Phase } from './settle'
 import { requestTodaySettings } from './route'
 
@@ -197,9 +198,13 @@ export function EventRow({
 /**
  * The built-in Tasks database's tasks among `tasks`, as their rows draw them: from the store once
  * it has them (an edit shows at once), from the briefing until then. Null for one that is gone.
- * Other tasks are not in the map: they keep their plain row.
+ * Other tasks are not in the map: they keep their plain row. A task in `settling` (ticked a moment
+ * ago) keeps its view, done, though the store already has it done.
  */
-export function useTaskViews(tasks: readonly BriefingTask[]): ReadonlyMap<string, TaskView | null> {
+export function useTaskViews(
+  tasks: readonly BriefingTask[],
+  settling?: ReadonlyMap<string, unknown>
+): ReadonlyMap<string, TaskView | null> {
   const ids = useMemo(() => tasks.filter((task) => viewOfBriefing(task)).map((task) => task.id), [tasks])
   const blocks = useBlocks(ids)
   const database = useBlock(ids.length ? TASKS_DATABASE_ID : null)
@@ -212,10 +217,28 @@ export function useTaskViews(tasks: readonly BriefingTask[]): ReadonlyMap<string
       const view = viewOfBriefing(task)
       if (!view) continue
       const row = rows.find((block) => block.id === task.id)
-      views.set(task.id, row?.trashedAt || live.get(task.id)?.done ? null : (live.get(task.id) ?? view))
+      const current = live.get(task.id) ?? view
+      if (row?.trashedAt) views.set(task.id, null)
+      else if (settling?.has(tickedKey(task))) views.set(task.id, { ...current, done: true })
+      else views.set(task.id, live.get(task.id)?.done ? null : current)
     }
     return views
-  }, [tasks, blocks, database])
+  }, [tasks, blocks, database, settling])
+}
+
+/**
+ * The open tasks of Today as the screen lists them: ticking is calm, so a ticked task stays in its
+ * place, done, through the store's refresh and the briefing's reload (which no longer has it),
+ * until its fold ends.
+ */
+export function useTodayTasks(tasks: BriefingTasks, expanded: boolean) {
+  const { done, settling, complete, reopen } = useCompleteTask({ calm: true })
+  const kept = useRef(new Map<string, KeptTask>())
+  const listed = useMemo(() => keepSettling(tasks, settling, kept.current), [tasks, settling])
+  const { groups, hidden } = useMemo(() => taskGroups(listed, expanded, done), [listed, expanded, done])
+  const shown = useMemo(() => groups.flatMap((group) => group.tasks), [groups])
+  const views = useTaskViews(shown, settling)
+  return { settling, complete, reopen, groups, hidden, shown, views }
 }
 
 /**
