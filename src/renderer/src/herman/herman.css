@@ -298,6 +298,89 @@
   outline-offset: 2px;
 }
 
+/*
+ * The note: what he says unasked has one fixed shape. An observation in the serif, an effect line
+ * in mono saying what the verb changes, a verb and "Not now" as buttons, and a quieter "Fewer like
+ * this". Square, framed, with a stamped shadow, like a slip of paper.
+ */
+.herman-bubble.is-note {
+  width: 330px;
+  max-width: 330px;
+  padding: 12px 14px 10px;
+  --note-size: calc(16px * var(--font-scale));
+  --note-frame: 0 0 0 1px var(--frame), 3px 3px 0 0 var(--frame);
+  --note-stamp: 2px 2px 0 0 var(--frame);
+  --note-outline: 0 0 0 1px var(--border-control);
+  --note-flat: none;
+  box-shadow: var(--note-frame);
+}
+
+.is-note .herman-bubble-text {
+  font-size: var(--note-size);
+  line-height: 1.4;
+}
+
+.herman-bubble-effect {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.is-note .herman-bubble-actions {
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 12px;
+}
+
+.is-note .herman-bubble-actions button.is-primary,
+.is-note .herman-bubble-actions button.is-secondary {
+  height: 26px;
+  padding: 0 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.is-note .herman-bubble-actions button.is-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: var(--note-stamp);
+  transition:
+    transform var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+.is-note .herman-bubble-actions button.is-primary:active {
+  transform: translate(2px, 2px);
+  box-shadow: var(--note-flat);
+}
+
+.is-note .herman-bubble-actions button.is-primary:focus-visible {
+  outline-offset: 4px;
+}
+
+.is-note .herman-bubble-actions button.is-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: var(--note-outline);
+}
+
+.is-note .herman-bubble-actions button.is-secondary:hover,
+.is-note .herman-bubble-actions button.is-secondary:focus-visible {
+  color: var(--accent);
+}
+
+.is-note .herman-bubble-actions button.is-quiet {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
 @keyframes herman-rise {
   from {
     opacity: 0;

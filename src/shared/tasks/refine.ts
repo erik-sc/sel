@@ -113,9 +113,14 @@ export interface RefineSummary {
   waiting: number
   /** The one of them that has waited longest. */
   oldest: { id: string; title: string; days: number } | null
+  /** Of the waiting ones, those still without a date, oldest first (at most `UNDATED_CAP`): what Herman offers to date. */
+  undated: { id: string; title: string }[]
 }
 
-export const NOTHING_TO_REFINE: RefineSummary = { count: 0, waiting: 0, oldest: null }
+/** How many undated tasks `refineSummary` names. */
+export const UNDATED_CAP = 20
+
+export const NOTHING_TO_REFINE: RefineSummary = { count: 0, waiting: 0, oldest: null, undated: [] }
 
 /** What there is to refine among the rows of the Tasks database, at `now`. */
 export function refineSummary(database: Block, rows: readonly Block[], now: number): RefineSummary {
@@ -123,6 +128,7 @@ export function refineSummary(database: Block, rows: readonly Block[], now: numb
   let count = 0
   let waiting = 0
   let oldest: { row: Block; days: number } | null = null
+  const undated: { row: Block }[] = []
   for (const row of rows) {
     if (row.type !== 'page' || row.trashedAt !== null || row.parentId !== database.id) continue
     const task = refinableRow(row, projects)
@@ -133,11 +139,14 @@ export function refineSummary(database: Block, rows: readonly Block[], now: numb
     if (days < INBOX_WAIT_DAYS) continue
     waiting++
     if (!oldest || row.createdAt < oldest.row.createdAt) oldest = { row, days }
+    if (task.due === null) undated.push({ row })
   }
+  undated.sort((a, b) => a.row.createdAt - b.row.createdAt || (a.row.id < b.row.id ? -1 : 1))
   return {
     count,
     waiting,
-    oldest: oldest ? { id: oldest.row.id, title: plainText(oldest.row.props.title ?? []).trim(), days: oldest.days } : null
+    oldest: oldest ? { id: oldest.row.id, title: plainText(oldest.row.props.title ?? []).trim(), days: oldest.days } : null,
+    undated: undated.slice(0, UNDATED_CAP).map(({ row }) => ({ id: row.id, title: plainText(row.props.title ?? []).trim() }))
   }
 }
 

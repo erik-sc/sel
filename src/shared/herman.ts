@@ -172,6 +172,8 @@ export type HermanCommand =
   | { type: 'new-meeting'; event: { title: string; start: number; end: number } }
   /** Opens the conversation with a question written into the field. It is not sent. */
   | { type: 'ask'; question: string }
+  /** Gives these tasks the day (the renderer's bulk edit, with its toast and Undo): the one verb of his that changes data. */
+  | { type: 'date-tasks'; pageIds: string[]; day: 'tomorrow' }
 
 export interface HermanNudge {
   id: string
@@ -181,6 +183,8 @@ export interface HermanNudge {
    */
   kind: HermanNudgeKind | 'sky' | 'rhythm'
   text: string
+  /** What the verb changes, with names: "→ 3 without a date". Absent for the lines outside the counsel (the Sky, the rhythm). */
+  effect?: string
   action?: { label: string; command: HermanCommand }
 }
 

@@ -163,7 +163,8 @@ describe('asking him', () => {
     const reply = await service.next(idle)
     expect(reply.nudge).toMatchObject({
       kind: 'overdue',
-      text: 'One thing has been waiting since Monday. Is it actually yours to do?',
+      text: 'One thing has been waiting since Monday.',
+      effect: '→ opens Today, the overdue one first',
       action: { label: 'Open Today', command: { type: 'open-today' } }
     })
     expect(reply.nudge?.id).toMatch(/^[0-9a-f-]{36}$/)
@@ -413,7 +414,7 @@ describe('a streak', () => {
     clock.now += MIN
     const nudge = await service.completed()
     expect(nudge).toMatchObject({ kind: 'streak', text: 'Three done. Notice how that feels.' })
-    expect(nudge?.action).toBeUndefined()
+    expect(nudge?.action?.command).toEqual({ type: 'open-today' })
     clock.now += MIN
     expect(await service.completed()).toBeNull()
   })

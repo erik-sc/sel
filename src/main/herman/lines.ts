@@ -5,8 +5,13 @@ import type { HermanLocale, HermanNudgeKind, PersonaId } from '../../shared/herm
  * Brazilian Portuguese. Every line was written for this app; none is a quotation. They are
  * chosen and filled in locally (see ./counsel.ts): no model writes or sees them.
  *
- * His voice: observant, kind, a little dry, and few words. One short sentence, two at most; a
- * question more often than an instruction; never a scolding, never an explanation of himself.
+ * His voice: observant, kind, a little dry, and few words. One short sentence, two at most; he
+ * observes, and never asks an open question; never a scolding, never an explanation of himself.
+ *
+ * A nudge is a note of a fixed shape (docs: design "Herman: bilhete, não chat"): the line is the
+ * observation; below it goes an effect line saying what the verb changes, with names (`effectOf`);
+ * then the verb (the action's label) and "Not now". A line therefore never carries the action in
+ * its own words, and never ends in a question.
  */
 
 /** The words a line can be built from, already in the right language and form. */
@@ -47,98 +52,95 @@ const s = (w: Words, one: string, many: string): string => (w.one ? one : many)
 
 const EN: Record<HermanNudgeKind, Line[]> = {
   overdue: [
-    line(
-      (w) =>
-        `${w.N} ${s(w, 'thing has', 'things have')} been waiting ${w.since}. ${s(w, 'Is it actually yours to do?', 'Which one is actually yours to do?')}`
-    ),
+    line((w) => `${w.N} ${s(w, 'thing has', 'things have')} been waiting ${w.since}.`),
     line((w) => `${w.N} overdue. ${s(w, 'Do it, or drop it.', 'Do one, or drop one.')}`),
     titled((w) => `“${w.title}” has waited ${w.since}. Do it, or drop it.`),
-    line((w) => `Something has waited ${w.since}. The smallest step?`),
-    line((w) => `${w.N} late. What is that telling you?`),
-    titled((w) => `You keep walking past “${w.title}”. Why?`),
-    line((w) => `${w.N} overdue. ${s(w, 'Does it still matter?', 'Which still matters?')}`),
-    line((w) => `The oldest task has waited ${w.since}. Still true?`),
+    line((w) => `Something has waited ${w.since}. The smallest step is enough.`),
+    line((w) => `${w.N} late. ${s(w, 'It weighs', 'They weigh')} more every day.`),
+    titled((w) => `You keep walking past “${w.title}”.`),
+    line((w) => `${w.N} overdue. ${s(w, 'It may no longer matter.', 'Some may no longer matter.')}`),
+    line((w) => `The oldest task has waited ${w.since}. It may no longer be true.`),
     line((w) => `${w.N} waiting ${w.since}. Ten minutes would change the day.`),
     line(() => 'Old tasks weigh more in the head. Look at them.')
   ],
   today: [
-    line((w) => `${w.N} for today. ${s(w, 'When will you do it?', 'Which one first?')}`),
+    line((w) => `${w.N} for today. ${s(w, 'Just that one.', 'One at a time.')}`),
     line((w) => `${w.N} today. ${s(w, 'Start before you think about it.', 'Start with the one you would rather not.')}`),
     line((w) => `${w.N} ${s(w, 'thing', 'things')} today. That fits in a day.`),
-    titled((w) => `“${w.title}” is for today. Now?`),
+    titled((w) => `“${w.title}” is for today.`),
     line((w) => `${w.N} ${s(w, 'task', 'tasks')} today. ${s(w, 'Do it whole, then stop.', 'One at a time, each one whole.')}`),
     line(() => 'Today’s list can be finished.'),
     line((w) => `${w.N} for today. Just the first ten minutes.`),
-    line(() => 'What did you promise yourself today?')
+    line(() => 'Today’s list is a promise you made yourself.')
   ],
   // Tasks in the Inbox for two days or more, still without a date, a priority or a project.
   inbox: [
-    line((w) => `${w.N} ${s(w, 'thing has', 'things have')} waited in the Inbox ${w.since}. A minute to sort ${s(w, 'it', 'them')}?`),
-    titled((w) => `“${w.title}” has sat in the Inbox ${w.since}. Where does it belong?`),
-    line((w) => `The Inbox has held ${w.n} ${s(w, 'thing', 'things')} ${w.since}. A day and a place for ${s(w, 'it', 'each')}?`),
+    line((w) => `${w.N} ${s(w, 'thing has', 'things have')} waited in the Inbox ${w.since}.`),
+    titled((w) => `“${w.title}” has sat in the Inbox ${w.since}.`),
+    line((w) => `The Inbox has held ${w.n} ${s(w, 'thing', 'things')} ${w.since}.`),
     line((w) => `Things have waited in the Inbox ${w.since}. Decided, they weigh less.`),
-    line((w) => `${w.N} in the Inbox, unsorted. When, how urgent, where?`),
-    line((w) => `${w.N} without a place ${w.since}. Which one is easy to place?`),
-    titled((w) => `“${w.title}” is still in the Inbox. A date, a weight, a home?`),
-    line(() => 'The Inbox is for catching, not keeping. Sort a few?')
+    line((w) => `${w.N} in the Inbox, unsorted. A date is the first step.`),
+    line((w) => `${w.N} without a place ${w.since}. ${s(w, 'It is easy to place.', 'Some are easy to place.')}`),
+    titled((w) => `“${w.title}” is still in the Inbox, without a home.`),
+    line(() => 'The Inbox is for catching, not keeping.')
   ],
   'free-block': [
-    line((w) => `Nothing scheduled ${w.until}. What deserves it?`),
+    line((w) => `Nothing scheduled ${w.until}. Something deserves it.`),
     line((w) => `${w.Span} free. Give it to deep work.`),
     line((w) => `Clear ${w.until}. Choose one thing.`),
     line((w) => `No meetings ${w.until}. Use it well.`),
     line((w) => `${w.Span} without interruption. Close the rest.`),
-    line((w) => `Quiet ${w.until}. Which page is waiting?`),
-    line(() => 'Empty time fills itself. What should fill this?'),
+    line((w) => `Quiet ${w.until}. A page is waiting.`),
+    line(() => 'Empty time fills itself. Decide what fills this.'),
     line((w) => `Nothing booked ${w.until}. Slow work is allowed.`)
   ],
   'long-session': [
     line((w) => `${w.Minutes} minutes. Stand up.`),
     line((w) => `${w.Minutes} minutes here. Look far away.`),
-    line((w) => `${w.Minutes} minutes. Is the work still moving?`),
+    line((w) => `${w.Minutes} minutes. The work may have stopped moving.`),
     line((w) => `${w.Minutes} minutes without a pause. Try the window.`),
     line(() => 'A long sitting. Drink some water.'),
     line((w) => `${w.Minutes} minutes. Say in one line what this page wants.`),
     line(() => 'Tired eyes edit badly. Five minutes away.'),
-    line((w) => `Still here after ${w.minutes} minutes. A short walk?`),
+    line((w) => `Still here after ${w.minutes} minutes. A short walk would help.`),
     line((w) => `${w.Minutes} minutes in. Note what comes next, then breathe.`)
   ],
   reopened: [
-    line((w) => `Untouched for ${w.ago}. Still true?`),
+    line((w) => `Untouched for ${w.ago}. It may not be true anymore.`),
     line((w) => `${w.Ago} since you were here. Read it fresh.`),
-    line(() => 'An old page. What brought you back?'),
-    line((w) => `Resting for ${w.ago}. Has it improved?`),
-    line((w) => `Left ${w.ago} ago. Keep, finish or let go?`),
-    line((w) => `${w.Ago} of dust. What is still alive here?`),
+    line(() => 'An old page. Something brought you back.'),
+    line((w) => `Resting for ${w.ago}. It may have improved.`),
+    line((w) => `Left ${w.ago} ago. Keep it, finish it or let it go.`),
+    line((w) => `${w.Ago} of dust. Something here is still alive.`),
     line((w) => `This waited ${w.ago} for a reply.`),
     line((w) => `Back after ${w.ago}. Read before you change it.`)
   ],
   morning: [
-    line(() => 'Morning. What is the one thing?'),
+    line(() => 'Morning. Pick the one thing.'),
     line(() => 'A new day. Leave yesterday behind.'),
     line(() => 'Good morning. Look at the day once, slowly.'),
-    line(() => 'Here again. What would make today enough?'),
+    line(() => 'Here again. Decide what would make today enough.'),
     line(() => 'Morning. Listen for what matters.'),
-    line(() => 'Before anything asks: what do you want today?'),
+    line(() => 'Before anything asks, choose what you want today.'),
     line(() => 'Another morning. Begin small.'),
     line(() => 'Good morning. Start with what is in front of you.')
   ],
   // Each is an invitation to close the day: its button opens the ritual.
   evening: [
-    line(() => 'Enough for today. What is worth keeping?'),
-    line(() => 'The day is closing. Shall we close it properly?'),
+    line(() => 'Enough for today. Keep what is worth keeping.'),
+    line(() => 'The day is closing. Let us close it properly.'),
     line(() => 'Evening. The unfinished can wait until tomorrow.'),
-    line(() => 'A good place to end. One line for your Meditations?'),
+    line(() => 'A good place to end. One line for your Meditations.'),
     line(() => 'Late enough. Leave tomorrow three small things.'),
     line(() => 'Close the day before it closes you.'),
-    line(() => 'Day’s end. One thing you would repeat?'),
+    line(() => 'Day’s end. Name one thing you would repeat.'),
     line(() => 'You gave today what you had. Close gently.')
   ],
   streak: [
     line((w) => `${w.N} done. Notice how that feels.`),
     line((w) => `${w.N} in a row. Be pleased.`),
     line((w) => `${w.N} crossed off. Keep the door open.`),
-    line((w) => `${w.N} done. Which one mattered?`),
+    line((w) => `${w.N} done. One of them mattered most.`),
     line((w) => `${w.N} in a row. Now the one you avoid.`),
     line(() => 'Done, done, done. Rest a minute.'),
     line((w) => `${w.N} closed. Less to carry.`),
@@ -148,94 +150,97 @@ const EN: Record<HermanNudgeKind, Line[]> = {
 
 const PT: Record<HermanNudgeKind, Line[]> = {
   overdue: [
-    line((w) => `${w.N} ${s(w, 'coisa espera', 'coisas esperam')} ${w.since}. ${s(w, 'Ela é mesmo sua?', 'Qual delas é mesmo sua?')}`),
+    line((w) => `${w.N} ${s(w, 'coisa espera', 'coisas esperam')} ${w.since}.`),
     line((w) => `${w.N} ${s(w, 'atrasada', 'atrasadas')}. ${s(w, 'Faça, ou solte.', 'Faça uma, ou solte uma.')}`),
     titled((w) => `“${w.title}” espera ${w.since}. Faça, ou solte.`),
-    line((w) => `Algo espera ${w.since}. Qual o menor passo?`),
-    line((w) => `${w.N} ${s(w, 'tarefa atrasada', 'tarefas atrasadas')}. O que isso diz?`),
-    titled((w) => `Você passa por “${w.title}” sem olhar. Por quê?`),
-    line((w) => `${w.N} ${s(w, 'pendência vencida', 'pendências vencidas')}. ${s(w, 'Ainda importa?', 'Qual ainda importa?')}`),
-    line((w) => `A tarefa mais antiga espera ${w.since}. Ainda vale?`),
+    line((w) => `Algo espera ${w.since}. O menor passo já basta.`),
+    line((w) => `${w.N} ${s(w, 'tarefa atrasada', 'tarefas atrasadas')}. ${s(w, 'Pesa', 'Pesam')} mais a cada dia.`),
+    titled((w) => `Você passa por “${w.title}” sem olhar.`),
+    line(
+      (w) =>
+        `${w.N} ${s(w, 'pendência vencida', 'pendências vencidas')}. ${s(w, 'Pode já não importar.', 'Algumas podem já não importar.')}`
+    ),
+    line((w) => `A tarefa mais antiga espera ${w.since}. Pode já não ser verdade.`),
     line((w) => `${w.N} esperando ${w.since}. Dez minutos mudam o dia.`),
     line(() => 'Tarefa velha pesa mais na cabeça. Olhe para elas.')
   ],
   today: [
-    line((w) => `${w.N} ${s(w, 'coisa', 'coisas')} para hoje. ${s(w, 'Quando você faz?', 'Qual vem primeiro?')}`),
+    line((w) => `${w.N} ${s(w, 'coisa', 'coisas')} para hoje. ${s(w, 'Só essa.', 'Uma de cada vez.')}`),
     line((w) => `${w.N} na lista de hoje. ${s(w, 'Comece antes de pensar.', 'Comece pela que menos quer.')}`),
     line((w) => `Hoje pede ${w.n} ${s(w, 'coisa', 'coisas')}. Cabe num dia.`),
-    titled((w) => `“${w.title}” é para hoje. Agora?`),
+    titled((w) => `“${w.title}” é para hoje.`),
     line((w) => `${w.N} ${s(w, 'tarefa', 'tarefas')} hoje. ${s(w, 'Inteira, e pare.', 'Uma de cada vez, inteira.')}`),
     line(() => 'A lista de hoje dá para terminar.'),
     line((w) => `${w.N} para hoje. Só os primeiros dez minutos.`),
-    line(() => 'O que você prometeu a si para hoje?')
+    line(() => 'A lista de hoje é uma promessa que você fez a si.')
   ],
   // Tasks in the Inbox for two days or more, still without a date, a priority or a project.
   inbox: [
-    line((w) => `${w.N} ${s(w, 'coisa espera', 'coisas esperam')} no Inbox ${w.since}. Um minuto para pontuar?`),
-    titled((w) => `“${w.title}” está no Inbox ${w.since}. Onde ela mora?`),
-    line((w) => `O Inbox guarda ${w.n} ${s(w, 'coisa', 'coisas')} ${w.since}. Um dia e um lugar para ${s(w, 'ela', 'cada uma')}?`),
+    line((w) => `${w.N} ${s(w, 'coisa espera', 'coisas esperam')} no Inbox ${w.since}.`),
+    titled((w) => `“${w.title}” está no Inbox ${w.since}.`),
+    line((w) => `O Inbox guarda ${w.n} ${s(w, 'coisa', 'coisas')} ${w.since}.`),
     line((w) => `Há coisas no Inbox ${w.since}. Decididas, pesam menos.`),
-    line((w) => `${w.N} no Inbox, sem pontuar. Quando, quão urgente, onde?`),
-    line((w) => `${w.N} sem lugar ${w.since}. Qual é fácil de encaixar?`),
-    titled((w) => `“${w.title}” ainda está no Inbox. Uma data, um peso, uma casa?`),
-    line(() => 'O Inbox é para pegar, não para guardar. Pontua algumas?')
+    line((w) => `${w.N} no Inbox, sem pontuar. A data é o primeiro passo.`),
+    line((w) => `${w.N} sem lugar ${w.since}. ${s(w, 'É fácil de encaixar.', 'Algumas são fáceis de encaixar.')}`),
+    titled((w) => `“${w.title}” ainda está no Inbox, sem casa.`),
+    line(() => 'O Inbox é para pegar, não para guardar.')
   ],
   'free-block': [
-    line((w) => `Nada na agenda ${w.until}. O que merece esse tempo?`),
+    line((w) => `Nada na agenda ${w.until}. Algo merece esse tempo.`),
     line((w) => `${w.Span} sem ninguém pedindo nada. Use bem.`),
     line((w) => `Livre ${w.until}. Escolha uma coisa.`),
     line((w) => `Sem reuniões ${w.until}. Aproveite.`),
     line((w) => `${w.Span} sem interrupção. Feche o resto.`),
-    line((w) => `Agenda quieta ${w.until}. Qual página espera você?`),
-    line(() => 'Tempo vazio se enche sozinho. O que cabe aqui?'),
+    line((w) => `Agenda quieta ${w.until}. Uma página espera você.`),
+    line(() => 'Tempo vazio se enche sozinho. Decida o que cabe aqui.'),
     line((w) => `Nada marcado ${w.until}. Trabalho lento é permitido.`)
   ],
   'long-session': [
     line((w) => `${w.Minutes} minutos. Levante-se.`),
     line((w) => `${w.Minutes} minutos aqui. Olhe para longe.`),
-    line((w) => `${w.Minutes} minutos. O trabalho ainda anda?`),
+    line((w) => `${w.Minutes} minutos. O trabalho pode ter parado de andar.`),
     line((w) => `${w.Minutes} minutos sem pausa. Vá até a janela.`),
     line(() => 'Uma sentada longa. Beba água.'),
     line((w) => `${w.Minutes} minutos. Diga numa linha o que esta página quer.`),
     line(() => 'Olho cansado revisa mal. Cinco minutos longe.'),
-    line((w) => `Ainda aqui depois de ${w.minutes} minutos. Uma caminhada?`),
+    line((w) => `Ainda aqui depois de ${w.minutes} minutos. Uma caminhada ajudaria.`),
     line((w) => `${w.Minutes} minutos. Anote o que vem depois, e respire.`)
   ],
   reopened: [
-    line((w) => `Sem mexer há ${w.ago}. Ainda é verdade?`),
+    line((w) => `Sem mexer há ${w.ago}. Pode já não ser verdade.`),
     line((w) => `${w.Ago} desde a última vez. Leia com olhos novos.`),
-    line(() => 'Uma página antiga. O que trouxe você de volta?'),
-    line((w) => `Descansou por ${w.ago}. Melhorou?`),
-    line((w) => `Deixada há ${w.ago}. Guardar, terminar ou soltar?`),
-    line((w) => `${w.Ago} de poeira. O que ainda vive aqui?`),
+    line(() => 'Uma página antiga. Algo trouxe você de volta.'),
+    line((w) => `Descansou por ${w.ago}. Pode ter melhorado.`),
+    line((w) => `Deixada há ${w.ago}. Guarde, termine ou solte.`),
+    line((w) => `${w.Ago} de poeira. Algo aqui ainda vive.`),
     line((w) => `Esta esperou ${w.ago} por uma resposta.`),
     line((w) => `De volta após ${w.ago}. Leia antes de mudar.`)
   ],
   morning: [
-    line(() => 'Bom dia. Qual é a coisa de hoje?'),
+    line(() => 'Bom dia. Escolha a coisa de hoje.'),
     line(() => 'Dia novo. Deixe o de ontem para trás.'),
     line(() => 'Bom dia. Olhe o dia uma vez, devagar.'),
-    line(() => 'De novo aqui. O que faria hoje bastar?'),
+    line(() => 'De novo aqui. Decida o que faria hoje bastar.'),
     line(() => 'Bom dia. Escute o que importa.'),
-    line(() => 'Antes que peçam algo: o que você quer de hoje?'),
+    line(() => 'Antes que peçam algo, escolha o que quer de hoje.'),
     line(() => 'Mais uma manhã. Comece pequeno.'),
     line(() => 'Bom dia. Comece pelo que está na frente.')
   ],
   evening: [
-    line(() => 'Chega por hoje. O que vale guardar?'),
-    line(() => 'O dia está fechando. Vamos fechá-lo direito?'),
+    line(() => 'Chega por hoje. Guarde o que vale guardar.'),
+    line(() => 'O dia está fechando. Vamos fechá-lo direito.'),
     line(() => 'Fim de tarde. O inacabado pode esperar até amanhã.'),
-    line(() => 'Bom lugar para parar. Uma linha para as Meditações?'),
+    line(() => 'Bom lugar para parar. Uma linha para as Meditações.'),
     line(() => 'Já é tarde. Deixe três coisas pequenas para amanhã.'),
     line(() => 'Feche o dia antes que ele feche você.'),
-    line(() => 'Fim do dia. Uma coisa que você repetiria?'),
+    line(() => 'Fim do dia. Escolha uma coisa que você repetiria.'),
     line(() => 'Você deu a hoje o que tinha. Feche com calma.')
   ],
   streak: [
     line((w) => `${w.N} feitas. Repare em como é.`),
     line((w) => `${w.N} em sequência. Pode ficar contente.`),
     line((w) => `${w.N} riscadas. Deixe a porta aberta.`),
-    line((w) => `${w.N} feitas. Qual delas importava?`),
+    line((w) => `${w.N} feitas. Uma delas importou mais.`),
     line((w) => `${w.N} em sequência. Agora aquela que você evita.`),
     line(() => 'Feita, feita, feita. Descanse um minuto.'),
     line((w) => `${w.N} fechadas. Menos peso.`),
@@ -292,6 +297,79 @@ export const PHRASES: Record<
     aiOff: 'A IA está desligada em Settings.',
     askFirst: 'O que devo fazer primeiro hoje?',
     askPage: 'Sobre o que é esta página, de verdade?'
+  }
+}
+
+// ---- the effect line ------------------------------------------------------------------
+//
+// Under the observation, in mono: what the verb will change, with names. Written as the results
+// the app already has (a screen opens, tasks move); it never promises more than the verb does.
+
+/** What a verb does, as far as the effect line says it. */
+export type EffectKind =
+  | 'open-today'
+  | 'open-today-overdue'
+  | 'open-today-left'
+  | 'open-task'
+  | 'date-tasks'
+  | 'refine'
+  | 'ask'
+  | 'close-day'
+
+export interface EffectFacts {
+  /** How many are meant (overdue tasks, tasks to go through). */
+  count?: number
+  /** The title a verb opens. */
+  title?: string
+  /** The tasks a verb changes, already tidied, in order. */
+  names?: readonly string[]
+}
+
+/** How many names the effect line spells out before saying "and N more". */
+export const EFFECT_NAMES = 3
+
+/** "A, B and C", "A, B, C and 2 more". */
+export function nameList(names: readonly string[], locale: HermanLocale): string {
+  const pt = locale === 'pt-BR'
+  const shown = names.slice(0, EFFECT_NAMES)
+  const rest = names.length - shown.length
+  const items = rest > 0 ? [...shown, pt ? `mais ${rest}` : `${rest} more`] : shown
+  if (items.length <= 1) return items[0] ?? ''
+  return `${items.slice(0, -1).join(', ')} ${pt ? 'e' : 'and'} ${items[items.length - 1]}`
+}
+
+/** The verb that dates tasks: "Date the 3" / "Datar as 3". */
+export function dateVerb(count: number, locale: HermanLocale): string {
+  if (locale === 'pt-BR') return count === 1 ? 'Datar' : `Datar as ${count}`
+  return count === 1 ? 'Date it' : `Date the ${count}`
+}
+
+/** "→ 3 without a date" style line: what the verb changes, with names. */
+export function effectOf(locale: HermanLocale, kind: EffectKind, facts: EffectFacts = {}): string {
+  const pt = locale === 'pt-BR'
+  const count = facts.count ?? 0
+  switch (kind) {
+    case 'open-today':
+      return pt ? '→ abre Hoje, na ordem do prazo' : '→ opens Today, in order of deadline'
+    case 'open-today-overdue':
+      if (pt) return count === 1 ? '→ abre Hoje, a atrasada primeiro' : `→ abre Hoje, ${count} atrasadas primeiro`
+      return count === 1 ? '→ opens Today, the overdue one first' : `→ opens Today, ${count} overdue first`
+    case 'open-today-left':
+      return pt ? '→ abre Hoje, para ver o que falta' : '→ opens Today, to see what is left'
+    case 'open-task':
+      return pt ? `→ abre “${facts.title ?? ''}”` : `→ opens “${facts.title ?? ''}”`
+    case 'date-tasks': {
+      const names = facts.names ?? []
+      const list = nameList(names, locale)
+      if (pt) return `→ ${list} ${names.length === 1 ? 'vai' : 'vão'} para amanhã`
+      return `→ ${list} ${names.length === 1 ? 'moves' : 'move'} to tomorrow`
+    }
+    case 'refine':
+      return pt ? `→ abre o modo de refino, ${count} para passar` : `→ opens the refine mode, ${count} to go through`
+    case 'ask':
+      return pt ? '→ escreve uma pergunta no chat, nada é enviado' : '→ writes a question in the chat, nothing is sent'
+    case 'close-day':
+      return pt ? '→ abre os passos de fechar o dia, poucos minutos' : '→ opens the steps that close the day, a few minutes'
   }
 }
 

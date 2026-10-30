@@ -51,7 +51,7 @@ export interface HermanDay {
   tasks: { overdue: readonly CounselTask[]; today: readonly CounselTask[] }
   events: readonly CounselEvent[]
   /** The Inbox's tasks still to refine after two days or more (shared/tasks/refine.ts). */
-  inbox?: { waiting: number; title: string; days: number } | null
+  inbox?: { waiting: number; title: string; days: number; undated?: readonly { id: string; title: string }[] } | null
 }
 
 /**
@@ -354,6 +354,7 @@ export class HermanService {
       streak: now - (this.completions[this.completions.length - 1] ?? 0) <= STREAK_GAP_MS ? this.completions.length : 0,
       lastKind: memory.lastKind,
       saidToday: memory.said,
+      snoozed: memory.snoozed,
       weights: memory.weights,
       recent: memory.recent,
       random: this.random,
@@ -370,6 +371,7 @@ export class HermanService {
       id: randomUUID(),
       kind: counsel.kind,
       text: counsel.text,
+      ...(counsel.effect ? { effect: counsel.effect } : {}),
       ...(counsel.action ? { action: counsel.action } : {})
     }
     this.remember(record(memory, { id: nudge.id, kind: counsel.kind, variant: counsel.variant }, now))

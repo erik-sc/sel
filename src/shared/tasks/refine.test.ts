@@ -11,7 +11,8 @@ import {
   REFINE_DEFAULTS,
   REFINE_SETTING,
   refineList,
-  refineSummary
+  refineSummary,
+  UNDATED_CAP
 } from './refine'
 
 const at = (day: number, hour = 12): number => new Date(2026, 9, day, hour).getTime()
@@ -112,9 +113,22 @@ describe('what is stored', () => {
     expect(refineSummary(database, rows, at(21, 10))).toEqual({
       count: 6,
       waiting: 2,
-      oldest: { id: 'oldest', title: 'oldest', days: 4 }
+      oldest: { id: 'oldest', title: 'oldest', days: 4 },
+      // The waiting ones without a date, oldest first.
+      undated: [
+        { id: 'oldest', title: 'oldest' },
+        { id: 'waiting', title: 'waiting' }
+      ]
     })
-    expect(refineSummary(database, [row('refined', refined, at(1))], at(21))).toEqual({ count: 0, waiting: 0, oldest: null })
+    expect(refineSummary(database, [row('refined', refined, at(1))], at(21))).toEqual({ count: 0, waiting: 0, oldest: null, undated: [] })
+  })
+  it('names the waiting tasks that have no date, leaving out one that has its date and capping the list', () => {
+    const dated = row('dated', { [TASK_PROPS.due]: { start: '2026-10-25' } }, at(17, 9))
+    const summary = refineSummary(database, [dated, row('plain', {}, at(18, 9))], at(21, 10))
+    expect(summary.waiting).toBe(2)
+    expect(summary.undated).toEqual([{ id: 'plain', title: 'plain' }])
+    const many = Array.from({ length: UNDATED_CAP + 5 }, (_, index) => row(`t${index}`, {}, at(10, index)))
+    expect(refineSummary(database, many, at(21, 10)).undated).toHaveLength(UNDATED_CAP)
   })
 })
 
