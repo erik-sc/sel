@@ -201,6 +201,17 @@ describe('what he remembers', () => {
     expect(refusal(decide(config, after, { now: at(14, 11, 45), idleMs: idle }))).toBe('ok')
   })
 
+  it('"Not now" also leaves that kind alone until the next day', () => {
+    const memory = said(EMPTY_MEMORY, at(14, 10), 'long-session', 'n1')
+    const after = feedback(memory, 'n1', 'not-now', at(14, 10, 15))
+    expect(after.snoozed).toEqual(['long-session'])
+    // Twice is still once, and the next day starts clean.
+    expect(feedback(after, 'n1', 'not-now', at(14, 10, 16)).snoozed).toEqual(['long-session'])
+    expect(forDay(after, at(15, 9)).snoozed).toEqual([])
+    expect(readMemory(JSON.parse(JSON.stringify(after))).snoozed).toEqual(['long-session'])
+    expect(readMemory({ snoozed: ['nonsense', 'overdue'] }).snoozed).toEqual(['overdue'])
+  })
+
   it('"Fewer like this" halves that kind, down to a floor, and only that kind', () => {
     let memory = said(EMPTY_MEMORY, at(14, 10), 'long-session', 'n1')
     memory = feedback(memory, 'n1', 'fewer', at(14, 10, 1))

@@ -140,8 +140,16 @@ export const TOKENS: TokenDef[] = [
 
   // ---- text ----
   color('Text', '--text', 'Primary text', '#24221d', '#e8e3d9'),
-  color('Text', '--text-secondary', 'Secondary text', '#615d54', '#a8a297'),
-  color('Text', '--text-tertiary', 'Tertiary text', '#6d685d', '#959188'),
+  color('Text', '--text-secondary', 'Secondary text', '#57534b', '#c3beb3'),
+  color('Text', '--text-tertiary', 'Tertiary text', '#656056', '#aeaaa0'),
+  color(
+    'Text',
+    '--text-disabled',
+    'Disabled text',
+    '#a19b8f',
+    '#6f6b63',
+    'Exempt from the contrast bar: it only has to look switched off.'
+  ),
   color('Text', '--text-code', 'Inline code text', '#8a4530', '#d99a82'),
   def('Text', 'number', '--text-faded-opacity', 'Faded blocks in focus mode', '0.32', undefined, {
     min: 0.1,
@@ -153,14 +161,22 @@ export const TOKENS: TokenDef[] = [
   // ---- lines ----
   color('Lines', '--border', 'Separator', 'rgba(70, 58, 36, 0.11)', 'rgba(232, 222, 200, 0.09)'),
   color('Lines', '--border-strong', 'Strong separator', 'rgba(70, 58, 36, 0.24)', 'rgba(232, 222, 200, 0.2)'),
+  color(
+    'Lines',
+    '--border-control',
+    'Control outline',
+    '#87806e',
+    '#8d887e',
+    'The outline of checkboxes, fields and secondary buttons, at 3:1 on the surfaces they sit on.'
+  ),
   color('Lines', '--frame', 'Frame', '#24221d', '#e8e3d9', 'The solid line around menus, dialogs and toasts.'),
 
   // ---- accents ----
   color('Accents', '--accent', 'Accent', '#3b4f7d', '#a3b1d9'),
   color('Accents', '--accent-text', 'Text on accent', '#fbf9f4', '#16181f'),
   color('Accents', '--accent-soft', 'Soft accent', 'rgba(59, 79, 125, 0.11)', 'rgba(163, 177, 217, 0.15)'),
-  color('Accents', '--danger', 'Danger', '#b0432f', '#dc7a68'),
-  color('Accents', '--success', 'Success', '#55794c', '#92b586'),
+  color('Accents', '--danger', 'Danger', '#ac422f', '#df9686'),
+  color('Accents', '--success', 'Success', '#4e6c45', '#92b586'),
   color('Accents', '--moon', 'Moon', 'rgba(196, 163, 58, 0.22)', 'rgba(232, 214, 160, 0.3)', 'The lit part of the moon in the Sky.'),
   color('Accents', '--moon-lit', 'Moon, lit', '#d1b660', '#d1b660', 'The lit part of the moon, drawn solid in the pixel Sky.'),
   color(
@@ -319,13 +335,13 @@ export const TOKENS: TokenDef[] = [
   // ---- tag colours ----
   ...tag('gray', 'Gray', '#63605a', 'rgba(110, 104, 92, 0.14)', '#b0aba0', 'rgba(170, 164, 150, 0.16)'),
   ...tag('brown', 'Brown', '#7a5632', 'rgba(128, 98, 70, 0.19)', '#c9a37e', 'rgba(160, 130, 104, 0.24)'),
-  ...tag('orange', 'Orange', '#9b4f14', 'rgba(206, 132, 50, 0.2)', '#d39a5e', 'rgba(214, 142, 60, 0.2)'),
+  ...tag('orange', 'Orange', '#8f4b15', 'rgba(206, 132, 50, 0.14)', '#d9b082', 'rgba(214, 142, 60, 0.12)'),
   ...tag('yellow', 'Yellow', '#75600c', 'rgba(196, 163, 58, 0.22)', '#d1b660', 'rgba(204, 174, 76, 0.18)'),
   ...tag('green', 'Green', '#456a38', 'rgba(98, 140, 80, 0.2)', '#9bbb8a', 'rgba(120, 160, 100, 0.2)'),
-  ...tag('blue', 'Blue', '#3f5f8a', 'rgba(70, 112, 170, 0.18)', '#93acce', 'rgba(96, 138, 190, 0.22)'),
+  ...tag('blue', 'Blue', '#3e5c85', 'rgba(70, 112, 170, 0.13)', '#a4b7d0', 'rgba(96, 138, 190, 0.13)'),
   ...tag('purple', 'Purple', '#6f528c', 'rgba(128, 94, 168, 0.18)', '#b3a0cc', 'rgba(146, 116, 184, 0.22)'),
   ...tag('pink', 'Pink', '#9a4268', 'rgba(196, 100, 144, 0.18)', '#cf9aae', 'rgba(200, 112, 148, 0.2)'),
-  ...tag('red', 'Red', '#a3363a', 'rgba(196, 72, 72, 0.17)', '#e2827e', 'rgba(210, 90, 90, 0.2)')
+  ...tag('red', 'Red', '#a03639', 'rgba(196, 72, 72, 0.12)', '#e4a09a', 'rgba(210, 90, 90, 0.12)')
 ]
 
 /** By name. Has no prototype, so `TOKEN_MAP['constructor']` and the like are undefined. */

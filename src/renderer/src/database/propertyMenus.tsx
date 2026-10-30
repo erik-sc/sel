@@ -1,4 +1,4 @@
-import { Suspense, useId, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { JSX, KeyboardEvent } from 'react'
 import { systemKindOf } from '@shared/system'
 import { TASK_PROPS, isTaskCoreProperty } from '@shared/tasks'
@@ -157,6 +157,138 @@ export function AddPropertyMenu({
           />
         </div>
       )}
+    </Floating>
+  )
+}
+
+/** A column whose type never changes: the title, and a property the built-in Tasks database reads by id. */
+export function isTypeLocked(databaseId: string, prop: PropertySchema): boolean {
+  return prop.type === 'title' || (isTaskCoreProperty(prop.id) && systemKindOf(actions.snapshot(databaseId).source) === 'tasks')
+}
+
+/**
+ * The choice of a column's type alone, from the glyph in its header (the property menu has the
+ * same choice under "Type", among much else). A type that would empty cells says how many beside
+ * its name and asks first (Convert / Cancel); the others apply at once. Either way a toast offers
+ * to undo. A relation asks for its database, a formula opens its editor, as in the property menu.
+ */
+export function TypeMenu({
+  databaseId,
+  prop,
+  anchor,
+  onClose
+}: {
+  databaseId: string
+  prop: PropertySchema
+  anchor: PopoverAnchor
+  onClose: () => void
+}): JSX.Element {
+  const copy = useDatabaseCopy()
+  const words = copy.header
+  const [step, setStep] = useState<{ kind: 'confirm' | 'relation' | 'formula'; type?: PropertyType } | null>(null)
+  // The list closes itself after a pick; a step that replaces it keeps the popover.
+  const keepOpen = useRef(false)
+  const goTo = (next: NonNullable<typeof step>): void => {
+    keepOpen.current = true
+    setStep(next)
+  }
+
+  // The rows are loaded once, when the menu opens; what each type would lose is counted once for them.
+  const [loaded, setLoaded] = useState(0)
+  useEffect(() => {
+    let live = true
+    actions.loadAllRows(databaseId, () => live && setLoaded((n) => n + 1))
+    return () => {
+      live = false
+    }
+  }, [databaseId])
+  const losses = useMemo(() => actions.typeLossCounts(databaseId, prop.id), [databaseId, prop, loaded])
+
+  const apply = (type: PropertyType, relatedTo?: string): void => {
+    actions.retypeProperty(databaseId, prop.id, type, { changed: words.changed(prop.name, copy.types[type]), undo: words.undo }, relatedTo)
+  }
+  // Past the warning: a relation still needs its database, a formula its expression.
+  const proceed = (type: PropertyType): void => {
+    if (type === 'relation') goTo({ kind: 'relation' })
+    else {
+      apply(type)
+      if (type === 'formula') goTo({ kind: 'formula' })
+      else onClose()
+    }
+  }
+  const choose = (type: PropertyType): void => {
+    if (type === prop.type) return onClose()
+    if ((losses[type] ?? 0) > 0) goTo({ kind: 'confirm', type })
+    else proceed(type)
+  }
+
+  if (step?.kind === 'formula' && prop.type === 'formula') {
+    return (
+      <Floating open anchor={anchor} label={words.typeMenu(prop.name)} onClose={onClose}>
+        <Suspense fallback={<PartFallback kind="popover" />}>
+          <FormulaEditor databaseId={databaseId} prop={prop} onClose={onClose} />
+        </Suspense>
+      </Floating>
+    )
+  }
+  if (step?.kind === 'relation') {
+    return (
+      <Floating open anchor={anchor} label={words.typeMenu(prop.name)} onClose={onClose}>
+        <Suspense fallback={<PartFallback kind="popover" />}>
+          <RelationTargetPicker
+            databaseId={databaseId}
+            onPick={(targetId) => {
+              apply('relation', targetId)
+              onClose()
+            }}
+          />
+        </Suspense>
+      </Floating>
+    )
+  }
+  if (step?.kind === 'confirm' && step.type) {
+    const type = step.type
+    const count = losses[type] ?? 0
+    return (
+      <Floating open anchor={anchor} label={words.typeMenu(prop.name)} onClose={onClose}>
+        <div className="db-prop-menu db-prop-menu-pane db-type-confirm" onKeyDownCapture={keepTabInside}>
+          <p className="db-type-confirm-text" role="alert">
+            {words.warning(count, copy.types[type])}
+          </p>
+          <div className="db-type-confirm-actions">
+            <button type="button" className="ui-button" autoFocus onClick={onClose}>
+              {words.cancel}
+            </button>
+            <button type="button" className="ui-button is-danger" onClick={() => proceed(type)}>
+              {words.convert}
+            </button>
+          </div>
+        </div>
+      </Floating>
+    )
+  }
+
+  const items: MenuItem[] = L.PROPERTY_TYPES.map((type: PropertyType) => {
+    const lost = type === prop.type ? 0 : (losses[type] ?? 0)
+    return {
+      id: `type-${type}`,
+      label: copy.types[type],
+      icon: <TypeIcon type={type} />,
+      hint: type === prop.type ? '✓' : lost > 0 ? words.loses(lost) : undefined,
+      onSelect: () => choose(type)
+    }
+  })
+  return (
+    <Floating open anchor={anchor} label={words.typeMenu(prop.name)} onClose={onClose}>
+      <div className="db-prop-menu">
+        <Menu
+          items={items}
+          autoFocus
+          onClose={() => {
+            if (!keepOpen.current) onClose()
+          }}
+        />
+      </div>
     </Floating>
   )
 }
@@ -410,8 +542,8 @@ export function PropertyMenu({
   const [name, setName] = useState(prop.name)
   const isTitle = prop.type === 'title'
   // A property the built-in Tasks database is read by keeps its type and stays (the repository refuses too).
+  const locked = isTypeLocked(databaseId, prop)
   const inTasks = systemKindOf(actions.snapshot(databaseId).source) === 'tasks'
-  const locked = isTitle || (isTaskCoreProperty(prop.id) && inTasks)
   // The four priorities are read by id and in their order (TASK_PRIORITIES): renamed and
   // recoloured, never moved or deleted from here.
   const fixedOptions = inTasks && prop.id === TASK_PROPS.priority

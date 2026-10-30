@@ -44,6 +44,8 @@ export interface HermanMemory {
   shown: number
   /** Kinds said on `day`. */
   said: HermanNudgeKind[]
+  /** Kinds put away with "Not now" on `day`: not again until tomorrow. */
+  snoozed: HermanNudgeKind[]
   /** When he last spoke (ms), and of what. */
   lastAt: number
   lastKind: HermanNudgeKind | null
@@ -63,6 +65,7 @@ export const EMPTY_MEMORY: HermanMemory = {
   day: '',
   shown: 0,
   said: [],
+  snoozed: [],
   lastAt: 0,
   lastKind: null,
   lastId: null,
@@ -91,6 +94,7 @@ export function readMemory(raw: unknown): HermanMemory {
     day: day(value['day']),
     shown: typeof value['shown'] === 'number' && Number.isFinite(value['shown']) ? Math.max(0, Math.floor(value['shown'])) : 0,
     said: Array.isArray(value['said']) ? [...new Set(value['said'].filter(isKind))] : [],
+    snoozed: Array.isArray(value['snoozed']) ? [...new Set(value['snoozed'].filter(isKind))] : [],
     lastAt: typeof value['lastAt'] === 'number' && Number.isFinite(value['lastAt']) ? Math.max(0, value['lastAt']) : 0,
     lastKind: isKind(value['lastKind']) ? value['lastKind'] : null,
     lastId: typeof value['lastId'] === 'string' && value['lastId'].length <= 64 ? value['lastId'] : null,
@@ -109,7 +113,7 @@ export function readMemory(raw: unknown): HermanMemory {
  */
 export function forDay(memory: HermanMemory, now: number): HermanMemory {
   const day = localDay(now)
-  return memory.day === day ? memory : { ...memory, day, shown: 0, said: [], lastKind: null }
+  return memory.day === day ? memory : { ...memory, day, shown: 0, said: [], snoozed: [], lastKind: null }
 }
 
 function minuteOfDay(ms: number): number {
@@ -193,13 +197,18 @@ export function record(stored: HermanMemory, said: { id: string; kind: HermanNud
 }
 
 /**
- * The memory after the user answered a nudge. "Not now" starts the wait over from this moment;
+ * The memory after the user answered a nudge. "Not now" starts the wait over from this moment
+ * and leaves that kind alone until tomorrow;
  * "Fewer like this" makes that kind half as likely from here on. Feedback that names anything
  * but the last nudge changes nothing.
  */
 export function feedback(memory: HermanMemory, id: string, answer: HermanFeedback | undefined, now: number): HermanMemory {
   if (!answer || memory.lastId !== id || !memory.lastKind) return memory
-  if (answer === 'not-now') return { ...memory, lastAt: Math.max(memory.lastAt, now) }
+  if (answer === 'not-now') {
+    // The wait starts over, and that kind is left alone for the rest of the day.
+    const snoozed = memory.snoozed.includes(memory.lastKind) ? memory.snoozed : [...memory.snoozed, memory.lastKind]
+    return { ...memory, lastAt: Math.max(memory.lastAt, now), snoozed }
+  }
   const kind = memory.lastKind
   return { ...memory, weights: { ...memory.weights, [kind]: Math.max(MIN_WEIGHT, (memory.weights[kind] ?? 1) / 2) } }
 }

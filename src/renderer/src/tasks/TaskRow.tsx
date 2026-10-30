@@ -44,6 +44,8 @@ function focusRow(from: HTMLElement, id: string): void {
   const list = from.closest('.tasks-list') ?? from.ownerDocument
   list.querySelector<HTMLElement>(`${ROW_SELECTOR}[data-task-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: false })
 }
+/** The key that opens each field's editor on the focused row (model.ts `rowKeyAction`), shown inside its empty chip. */
+const FIELD_KEYS: Record<TaskField, string> = { date: 'D', repeat: 'R', priority: '1–4', project: '#', labels: '@', remind: 'L' }
 const KEYS = 'Enter Control+Enter F2 D R 1 2 3 4 # @ L Space Delete'
 
 /** A repeat in words, as a chip's title and the screen reader say it. */
@@ -64,6 +66,13 @@ export interface TaskRowProps {
   tabStop: boolean
   /** The task panel shows this task. */
   current?: boolean
+  /**
+   * Completing without hurry (Today): the ring keeps its colour and fills, the tick is drawn, the
+   * title is struck and greyed, and the row stays where it is until `folding` closes it.
+   */
+  calm?: boolean
+  /** A calm row that is closing up: it folds to nothing from the height it has. */
+  folding?: boolean
   onToggle: (task: TaskView) => void
   /** A click or Enter: the task panel. */
   onOpen: (task: TaskView) => void
@@ -74,6 +83,8 @@ export interface TaskRowProps {
   onOutdent?: () => void
   /** Fields shown as an empty chip when the task has none ("+ Date"). */
   emptyChips?: readonly TaskField[]
+  /** The row is on its way out of the list (it got a project in the Inbox): it fades. */
+  leaving?: boolean
   /** Anything else beside the chips (a source, on Today). */
   extra?: ReactNode
   /** Makes the row something to drag (onto Today's plan, briefing/DayPlan.tsx). */
@@ -120,12 +131,15 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     depth = 0,
     tabStop,
     current,
+    calm,
+    folding,
     onToggle,
     onOpen,
     onLeave,
     onIndent,
     onOutdent,
     emptyChips,
+    leaving,
     extra,
     drag,
     selection
@@ -136,6 +150,10 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
   const [renaming, setRenaming] = useState(false)
   const [menu, setMenu] = useState<PopoverAnchor>(null)
   const rowRef = useRef<HTMLLIElement>(null)
+  // Folding runs from the row's own height (a long title wraps), so nothing jumps at its start.
+  useLayoutEffect(() => {
+    if (folding && rowRef.current) rowRef.current.style.setProperty('--fold-from', `${rowRef.current.offsetHeight}px`)
+  }, [folding])
   const chips = useRef<Partial<Record<TaskField, HTMLElement | null>>>({})
 
   const title = task.title || words.untitled
@@ -149,7 +167,8 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     setEditing({ field, anchor: anchor ?? chips.current[field] ?? rowRef.current })
   const leave = (): void => onLeave?.(task.id)
   const toggle = (): void => {
-    if (!task.done) leave()
+    // A calm row stays a moment: the focus moves on when it folds away (useTaskRows).
+    if (!task.done && !calm) leave()
     onToggle(task)
   }
   const remove = (): void => {
@@ -296,7 +315,19 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     </button>
   )
   const empty = (field: TaskField): JSX.Element | null =>
-    emptyChips?.includes(field) ? chip(field, words.addField[field], words.none, 'is-empty') : null
+    emptyChips?.includes(field)
+      ? chip(
+          field,
+          <>
+            <kbd className="task-chip-key" aria-hidden="true">
+              {FIELD_KEYS[field]}
+            </kbd>
+            {words.addField[field]}
+          </>,
+          words.none,
+          'is-empty'
+        )
+      : null
 
   const details = [
     selection?.selected ? words.selectedRow : '',
@@ -310,7 +341,10 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
   const classes = ['task-row']
   if (task.done) classes.push('is-done')
   if (current) classes.push('is-current')
+  if (calm) classes.push('is-calm')
+  if (folding) classes.push('is-folding')
   if (selection?.selected) classes.push('is-selected')
+  if (leaving) classes.push('is-leaving')
 
   return (
     <li
@@ -345,7 +379,13 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
           event.stopPropagation()
           toggle()
         }}
-      />
+      >
+        {calm && (
+          <svg className="task-tick" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2 6.5 L5 9 L10 3" />
+          </svg>
+        )}
+      </button>
       <span className="task-body">
         {renaming ? (
           <TitleEditor

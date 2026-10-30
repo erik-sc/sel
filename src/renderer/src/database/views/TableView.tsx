@@ -10,7 +10,7 @@ import { bulkEditItems } from '../bulkEdit'
 import { isTextLike, type EditMove } from '../cells'
 import { Floating, TypeIcon, beginDrag, draggedOf, endDrag, type ViewProps } from '../common'
 import { useDatabaseCopy } from '../copy'
-import { AddPropertyMenu, PropertyMenu } from '../propertyMenus'
+import { AddPropertyMenu, PropertyMenu, TypeMenu, isTypeLocked } from '../propertyMenus'
 import { TableRow, cellId, cellKey } from './TableRow'
 import { WINDOW_THRESHOLD, scrollToRow, useRowHeight, useWindowedRange } from './tableWindow'
 
@@ -59,11 +59,16 @@ export function TableView(p: ViewProps): JSX.Element {
   const [focus, setFocus] = useState<CellRef | null>(null)
   // The header the keyboard is on (a property id, or ADD_HEADER), while no cell is focused.
   const [header, setHeader] = useState<string | null>(null)
+  // The header the last click opened a menu on: a second click on it, once that menu is gone, renames. Not the keyboard-active one.
+  const lastClicked = useRef<string | null>(null)
   const [editing, setEditing] = useState<EditingCell | null>(null)
   const [selected, setSelected] = useState<ReadonlySet<string>>(NO_SELECTION)
   const lastSelected = useRef<string | null>(null)
   const [menu, setMenu] = useState<{ propId: string; anchor: HTMLElement } | null>(null)
   const [adding, setAdding] = useState<Adding | null>(null)
+  // The glyph of a header opened the choice of type, or its name is a field (rename in place).
+  const [typeMenu, setTypeMenu] = useState<{ propId: string; anchor: HTMLElement } | null>(null)
+  const [renaming, setRenaming] = useState<string | null>(null)
   // A property just added (from "+" or a header's insert): brought into view once the menu has closed.
   const [addedProp, setAddedProp] = useState<{ id: string; inserted: boolean } | null>(null)
   const addRef = useRef<HTMLButtonElement>(null)
@@ -352,6 +357,23 @@ export function TableView(p: ViewProps): JSX.Element {
     setAdding({ anchor, inserted: true, before: side === 'left' ? propId : props[index + 1]?.id })
   }
 
+  /** Turns a header's name into a field, closing the menus that sit on it. */
+  const startRename = (id: string): void => {
+    setMenu(null)
+    setAdding(null)
+    setTypeMenu(null)
+    setHeader(id)
+    setRenaming(id)
+  }
+
+  /** Ends a rename: Enter and leaving the field save the name, Escape restores it. The header stays the active one. */
+  const finishRename = (prop: PropertySchema, name: string | null): void => {
+    setRenaming(null)
+    if (name !== null) actions.renameProperty(databaseId, prop.id, name)
+    setHeader(prop.id)
+    regainFocus()
+  }
+
   /** Keys on the header row: along it (ending on "+"), down to the first row, and into a header's menu. */
   const onHeaderKeyDown = (event: KeyboardEvent<HTMLDivElement>, at: string): void => {
     const ids = [...props.map((prop) => prop.id), ADD_HEADER]
@@ -377,9 +399,13 @@ export function TableView(p: ViewProps): JSX.Element {
           if (rows.length && prop) setFocus({ row: rows[0].id, prop: prop.id })
           break
         }
+        case 'F2':
+          // A column's name becomes a field in the header; "+" has no name.
+          if (at === ADD_HEADER) openHeaderMenu(at)
+          else startRename(at)
+          break
         case 'Enter':
         case ' ':
-        case 'F2':
           openHeaderMenu(at)
           break
         case 'Escape':
@@ -490,6 +516,7 @@ export function TableView(p: ViewProps): JSX.Element {
 
   const allSelected = rows.length > 0 && selected.size === rows.length
   const menuProp = menu ? L.propOf(schema, menu.propId) : undefined
+  const typeProp = typeMenu ? L.propOf(schema, typeMenu.propId) : undefined
   const visibleRows = rows.slice(range.start, range.end)
   // The focused cell, for the screen reader: only while its row is drawn (windowing).
   const focusIndex = focus ? rowIndex.get(focus.row) : undefined
@@ -579,8 +606,9 @@ export function TableView(p: ViewProps): JSX.Element {
                   style={{ width: widths[index] }}
                   role="columnheader"
                   aria-colindex={index + 2}
-                  draggable
+                  draggable={renaming !== prop.id}
                   onDragStart={(event) => beginDrag(event, { kind: 'column', id: prop.id, databaseId })}
+                  onDoubleClick={() => startRename(prop.id)}
                   onDragEnd={() => {
                     endDrag()
                     setColDrop(null)
@@ -599,12 +627,21 @@ export function TableView(p: ViewProps): JSX.Element {
                   }}
                   onDrop={(event) => onColumnDrop(event, index)}
                   onClick={(event) => {
+                    if (renaming === prop.id) return
+                    // A second click on a header, its menu gone meanwhile, renames it, as F2 does.
+                    if (lastClicked.current === prop.id && !menu && !adding && !typeMenu) {
+                      lastClicked.current = null
+                      startRename(prop.id)
+                      return
+                    }
                     const anchor = event.currentTarget
                     // A click on the header an insert's add menu sits on closes that menu, as it would its own.
                     if (adding?.anchor === anchor) {
                       setAdding(null)
                       return
                     }
+                    const closing = menu?.propId === prop.id
+                    lastClicked.current = closing ? null : prop.id
                     setMenu((prev) => (prev?.propId === prop.id ? null : { propId: prop.id, anchor }))
                   }}
                   onContextMenu={(event) => {
@@ -613,10 +650,40 @@ export function TableView(p: ViewProps): JSX.Element {
                     setMenu({ propId: prop.id, anchor: event.currentTarget })
                   }}
                 >
-                  <span className="db-th-icon">
-                    <TypeIcon type={prop.type} />
-                  </span>
-                  <span className="db-th-name">{prop.name}</span>
+                  {isTypeLocked(databaseId, prop) ? (
+                    <span className="db-th-icon" title={copy.header.fixedType(copy.types[prop.type])}>
+                      <TypeIcon type={prop.type} />
+                    </span>
+                  ) : (
+                    // Not a Tab stop: the keyboard reaches the type through the header's menu.
+                    <button
+                      type="button"
+                      className="db-th-type"
+                      tabIndex={-1}
+                      aria-haspopup="menu"
+                      aria-label={copy.header.typeGlyph(prop.name, copy.types[prop.type])}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        const anchor = event.currentTarget
+                        setMenu(null)
+                        setAdding(null)
+                        setTypeMenu((prev) => (prev?.propId === prop.id ? null : { propId: prop.id, anchor }))
+                      }}
+                      onDoubleClick={(event) => event.stopPropagation()}
+                      onContextMenu={(event) => event.stopPropagation()}
+                    >
+                      <TypeIcon type={prop.type} />
+                    </button>
+                  )}
+                  {renaming === prop.id ? (
+                    <HeaderNameField
+                      name={prop.name}
+                      label={copy.header.renameLabel(prop.name)}
+                      onDone={(name) => finishRename(prop, name)}
+                    />
+                  ) : (
+                    <span className="db-th-name">{prop.name}</span>
+                  )}
                   <span
                     className="db-resize-handle"
                     draggable={false}
@@ -718,6 +785,18 @@ export function TableView(p: ViewProps): JSX.Element {
           onInsert={(side) => insertBeside(menuProp.id, side, menu.anchor)}
         />
       )}
+      {typeMenu && typeProp && (
+        <TypeMenu
+          key={typeProp.id}
+          databaseId={databaseId}
+          prop={typeProp}
+          anchor={typeMenu.anchor}
+          onClose={() => {
+            setTypeMenu(null)
+            regainFocus()
+          }}
+        />
+      )}
       {adding && (
         <AddPropertyMenu
           databaseId={databaseId}
@@ -734,5 +813,47 @@ export function TableView(p: ViewProps): JSX.Element {
         />
       )}
     </div>
+  )
+}
+
+/**
+ * A header's name as a field, in the header itself. Enter and leaving the field save, Escape puts
+ * the old name back; the keys stop here so the grid does not take them for its own.
+ */
+function HeaderNameField({ name, label, onDone }: { name: string; label: string; onDone: (name: string | null) => void }): JSX.Element {
+  const [value, setValue] = useState(name)
+  // One ending only: Enter then the blur it causes, or Escape then the blur, must not write twice.
+  const done = useRef(false)
+  const end = (next: string | null): void => {
+    if (done.current) return
+    done.current = true
+    onDone(next)
+  }
+  return (
+    <input
+      className="db-th-input"
+      value={value}
+      aria-label={label}
+      maxLength={L.MAX_NAME_LENGTH}
+      autoFocus
+      onFocus={(event) => event.target.select()}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={() => end(value)}
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onContextMenu={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing) return
+        event.stopPropagation()
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          end(value)
+        } else if (event.key === 'Escape') {
+          event.preventDefault()
+          end(null)
+        }
+      }}
+    />
   )
 }

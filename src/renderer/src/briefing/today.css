@@ -500,3 +500,19 @@
   }
 }
 
+
+/* A plain task row ticked a moment ago (the task rows of the Tasks database have their own, row.css). */
+.today-task.is-done .today-check {
+  border-color: var(--accent);
+  background-color: var(--accent);
+}
+
+.today-task.is-done .today-task-title {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
+.today-task.is-folding {
+  overflow: hidden;
+  animation: task-fold var(--duration) var(--ease) forwards;
+}
