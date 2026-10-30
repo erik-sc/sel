@@ -6,6 +6,9 @@ import { PRESETS, type Preset } from './presets'
 import { TOKEN_MAP, defaultValue, type ThemeName } from './schema'
 
 const TEXT = ['--text', '--text-secondary', '--text-tertiary'] as const
+/** Inks that carry meaning in text (a late date, a done mark), held to the text bar too. */
+const INKS = ['--danger', '--success'] as const
+const TAGS = ['orange', 'red', 'blue'] as const
 const NEEDS: Record<string, number> = { '--text': 4.5, '--text-secondary': 4.5, '--text-tertiary': 4.5, '--focus-ring': 3 }
 
 /** Preset, theme and token that may stay below the bar, written down here and nowhere else. None today. */
@@ -83,4 +86,57 @@ describe('every preset, light and dark', () => {
       expect(worst, key).toBeLessThan(NEEDS[name])
     }
   })
+})
+
+/**
+ * The layers of the Contraste board, as the app paints them over the page (`--bg`, or `--bg-elevated` for a card
+ * and a menu): the sheet, a sunk block, the current row, a selected row, a card under the pointer, the active
+ * menu row. Each is an opaque colour, so ink and tags can be measured on it.
+ */
+function layers(theme: ThemeName): Record<string, Rgba> {
+  const p = DEFAULT
+  const bg = composite(color(p, theme, '--bg'), { r: 0, g: 0, b: 0, a: 1 })
+  const elevated = composite(color(p, theme, '--bg-elevated'), bg)
+  return {
+    sheet: bg,
+    sunk: composite(color(p, theme, '--bg-sunk'), bg),
+    'current row': composite(color(p, theme, '--bg-active'), bg),
+    'selected row': composite(color(p, theme, '--accent-soft'), bg),
+    'card under the pointer': composite(color(p, theme, '--bg-hover'), elevated),
+    'active menu row': composite(color(p, theme, '--bg-menu-active'), elevated)
+  }
+}
+
+describe('the ink where text actually lands (default look)', () => {
+  for (const theme of ['light', 'dark'] as ThemeName[]) {
+    it(`${theme}: text, danger and success reach 4.5:1 on every layer`, () => {
+      for (const [layer, ground] of Object.entries(layers(theme))) {
+        for (const name of [...TEXT, ...INKS]) {
+          expect(contrastRatio(color(DEFAULT, theme, name), ground), `${name} on ${layer}`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    })
+
+    it(`${theme}: control outlines reach 3:1 on every layer`, () => {
+      for (const [layer, ground] of Object.entries(layers(theme))) {
+        expect(contrastRatio(color(DEFAULT, theme, '--border-control'), ground), `--border-control on ${layer}`).toBeGreaterThanOrEqual(3)
+      }
+    })
+
+    it(`${theme}: a tag's text reaches 4.5:1 on its own fill, over every layer`, () => {
+      for (const [layer, ground] of Object.entries(layers(theme))) {
+        for (const tag of TAGS) {
+          const fill = composite(color(DEFAULT, theme, `--c-${tag}-bg`), ground)
+          expect(contrastRatio(color(DEFAULT, theme, `--c-${tag}`), fill), `${tag} tag on ${layer}`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    })
+
+    it(`${theme}: disabled text stays quieter than tertiary text`, () => {
+      const sheet = layers(theme).sheet
+      expect(contrastRatio(color(DEFAULT, theme, '--text-disabled'), sheet)).toBeLessThan(
+        contrastRatio(color(DEFAULT, theme, '--text-tertiary'), sheet)
+      )
+    })
+  }
 })

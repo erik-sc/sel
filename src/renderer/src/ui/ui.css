@@ -32,7 +32,7 @@
 }
 
 .ui-icon-button:disabled {
-  color: var(--text-tertiary);
+  color: var(--text-disabled);
 }
 
 .ui-button {
@@ -76,7 +76,7 @@
 }
 
 .ui-button:disabled {
-  color: var(--text-tertiary);
+  color: var(--text-disabled);
 }
 
 .ui-button.is-primary {
@@ -85,6 +85,16 @@
   font-weight: var(--weight-medium);
   /* the one stamped button on a screen: it sinks into its shadow when pressed */
   box-shadow: 2px 2px 0 0 var(--frame);
+  /* the stamp settles: the shadow and the offset ease in step */
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    transform var(--duration-fast) var(--ease),
+    box-shadow var(--duration-fast) var(--ease);
+}
+
+/* the ring sits clear of the stamp shadow instead of touching it */
+.ui-button.is-primary:focus-visible {
+  outline-offset: 4px;
 }
 
 .ui-button.is-primary::before,
@@ -100,7 +110,7 @@
 
 .ui-button.is-primary:disabled {
   background-color: var(--fill-3);
-  color: var(--text-tertiary);
+  color: var(--text-disabled);
   box-shadow: var(--shadow-control);
 }
 
@@ -223,7 +233,7 @@
 }
 
 .ui-menu-item.is-disabled {
-  color: var(--text-tertiary);
+  color: var(--text-disabled);
   cursor: default;
 }
 
