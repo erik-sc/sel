@@ -344,3 +344,41 @@ describe('row drag-reorder under a filtered view', () => {
     expect(L.rowDropTarget(visible, 'a', 'gone', 'after')).toEqual({ afterId: 'gone' })
   })
 })
+
+describe('typeChangeLoss', () => {
+  const rows = [
+    row('a', { sel: 'todo', txt: 'pending', num: 3, tags: ['todo', 'done'], chk: true }),
+    row('b', { sel: 'done', txt: '12', num: 4, tags: ['done'], chk: false }),
+    row('c', {})
+  ]
+
+  it('counts the cells the new type cannot keep', () => {
+    // "To do" and "Done" are not numbers; the empty row holds nothing.
+    expect(L.typeChangeLoss(schema, 'sel', 'number', rows)).toBe(2)
+    // "pending" is not a number, "12" is.
+    expect(L.typeChangeLoss(schema, 'txt', 'number', rows)).toBe(1)
+  })
+
+  it('is zero when everything is kept', () => {
+    expect(L.typeChangeLoss(schema, 'sel', 'text', rows)).toBe(0)
+    expect(L.typeChangeLoss(schema, 'num', 'text', rows)).toBe(0)
+    expect(L.typeChangeLoss(schema, 'txt', 'select', rows)).toBe(0)
+  })
+
+  it('counts a multi-select that keeps only its first option', () => {
+    expect(L.typeChangeLoss(schema, 'tags', 'select', rows)).toBe(1)
+    expect(L.typeChangeLoss(schema, 'tags', 'text', rows)).toBe(0)
+  })
+
+  it('does not count an unchecked box as a value', () => {
+    expect(L.typeChangeLoss(schema, 'chk', 'text', rows)).toBe(0)
+    expect(L.typeChangeLoss(schema, 'chk', 'number', rows)).toBe(0)
+  })
+
+  it('has nothing to lose for the title, the same type, a computed property or an unknown one', () => {
+    expect(L.typeChangeLoss(schema, 't', 'number', rows)).toBe(0)
+    expect(L.typeChangeLoss(schema, 'sel', 'select', rows)).toBe(0)
+    expect(L.typeChangeLoss(schema, 'created', 'number', [row('a', { created: 'stale' })])).toBe(0)
+    expect(L.typeChangeLoss(schema, 'nope', 'number', rows)).toBe(0)
+  })
+})

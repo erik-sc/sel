@@ -302,8 +302,19 @@ export function updateProperty(databaseId: string, propertyId: string, patch: Pa
   if (next !== schema) setSchema(databaseId, next)
 }
 
-/** Changes a property's type. Becoming a relation, it can be given its database (`relatedTo`) at once. */
-export function changePropertyType(databaseId: string, propertyId: string, type: PropertyType, relatedTo?: string): void {
+/**
+ * Changes a property's type. Becoming a relation, it can be given its database (`relatedTo`) at once.
+ * `onChanged` is given a function that puts the property back as it was (its schema, the views, the
+ * converted cells and a two-way partner), once the change is written; it does nothing if the
+ * property has changed type again since.
+ */
+export function changePropertyType(
+  databaseId: string,
+  propertyId: string,
+  type: PropertyType,
+  relatedTo?: string,
+  onChanged?: (undo: () => void) => void
+): void {
   const target = relatedTo ? getBlock(rowsOwnerId(relatedTo)) : undefined
   const relation = target?.type === 'database' && !L.isLinkedView(target) ? { databaseId: target.id } : undefined
   withAllRows(databaseId, () => {
@@ -312,8 +323,41 @@ export function changePropertyType(databaseId: string, propertyId: string, type:
     const result = L.changePropertyType(unlinked.schema, propertyId, type, rowsOf(databaseId, { includeTrashed: true }), relation)
     if (result.schema === unlinked.schema) return
     const rowOps = Object.keys(result.rowValues).map((id) => valuesOp(id, result.rowValues[id]))
+    // Read before the write: what undoing writes back.
+    const restore: Op[] = [
+      ...Object.keys(result.rowValues).map((id) => valuesOp(id, L.valuesOf(getBlock(id)))),
+      ...unlinked.ops.flatMap((op): Op[] => {
+        const schema = op.op === 'update' ? getBlock(op.id)?.props.schema : undefined
+        return op.op === 'update' && schema ? [{ op: 'update', id: op.id, patch: { props: { schema } } }] : []
+      })
+    ]
     setSchema(databaseId, result.schema, L.sanitizeViews(snap.views, result.schema), [...unlinked.ops, ...rowOps])
+    onChanged?.(() => {
+      if (L.propOf(snapshot(databaseId).schema, propertyId)?.type !== type) return
+      withAllRows(databaseId, () => setSchema(databaseId, snap.schema, snap.views, restore))
+    })
   })
+}
+
+/** How many cells would lose what they hold if the property became `type` (see `typeChangeLoss`). */
+export function countTypeLoss(databaseId: string, propertyId: string, type: PropertyType): number {
+  return L.typeChangeLoss(snapshot(databaseId).schema, propertyId, type, rowsOf(databaseId, { includeTrashed: true }))
+}
+
+/**
+ * A type change the user chose from the header's type glyph: written like `changePropertyType`, and
+ * announced with a toast whose action undoes it. The words come from the caller (the copy module).
+ */
+export function retypeProperty(
+  databaseId: string,
+  propertyId: string,
+  type: PropertyType,
+  words: { changed: string; undo: string },
+  relatedTo?: string
+): void {
+  changePropertyType(databaseId, propertyId, type, relatedTo, (undo) =>
+    toast(words.changed, { kind: 'success', action: { label: words.undo, run: undo } })
+  )
 }
 
 /** Deletes a property together with every view reference and every stored cell. */
