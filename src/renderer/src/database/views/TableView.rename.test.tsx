@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
-// A table header edited where it is: the name becomes a field in the header (click on the header
-// the keyboard is on, double click, F2; Enter saves, Escape restores) and the type glyph opens only
+// A table header edited where it is: the name becomes a field in the header (a second click, double click, F2; Enter saves, Escape restores) and the type glyph opens only
 // the choice of type, which warns before a conversion that empties cells and otherwise offers Undo.
 import { act } from 'react'
 import type { JSX } from 'react'
@@ -181,8 +180,32 @@ describe('renaming in the header', () => {
     expect(field()?.value).toBe('Status')
   })
 
-  it('a click on the header the keyboard is on renames it', async () => {
+  it('a click on the header the keyboard is on opens its menu, even after Enter and Escape closed one', async () => {
     await onStatusHeader()
+    await click(statusHeader())
+    await settle()
+    expect(document.querySelector('.db-prop-menu')).not.toBeNull()
+    expect(field()).toBeNull()
+    await cleanup()
+    await onStatusHeader()
+    await press(grid(), 'Enter')
+    await settle()
+    await press(document.activeElement as HTMLElement, 'Escape')
+    await settle()
+    expect(document.querySelector('.db-prop-menu')).toBeNull()
+    await click(statusHeader())
+    await settle()
+    expect(field()).toBeNull()
+    expect(document.querySelector('.db-prop-menu')).not.toBeNull()
+  })
+
+  it('a header clicked twice in a row, its menu closed between, is renamed', async () => {
+    await render(<Table />)
+    await click(statusHeader())
+    await settle()
+    await press(document.activeElement as HTMLElement, 'Escape')
+    await settle()
+    expect(document.querySelector('.db-prop-menu')).toBeNull()
     await click(statusHeader())
     await settle()
     expect(field()?.value).toBe('Status')

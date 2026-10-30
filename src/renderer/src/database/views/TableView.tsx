@@ -59,6 +59,8 @@ export function TableView(p: ViewProps): JSX.Element {
   const [focus, setFocus] = useState<CellRef | null>(null)
   // The header the keyboard is on (a property id, or ADD_HEADER), while no cell is focused.
   const [header, setHeader] = useState<string | null>(null)
+  // The header the last click opened a menu on: a second click on it, once that menu is gone, renames. Not the keyboard-active one.
+  const lastClicked = useRef<string | null>(null)
   const [editing, setEditing] = useState<EditingCell | null>(null)
   const [selected, setSelected] = useState<ReadonlySet<string>>(NO_SELECTION)
   const lastSelected = useRef<string | null>(null)
@@ -626,8 +628,9 @@ export function TableView(p: ViewProps): JSX.Element {
                   onDrop={(event) => onColumnDrop(event, index)}
                   onClick={(event) => {
                     if (renaming === prop.id) return
-                    // A click on the header the keyboard is already on renames it, as F2 does.
-                    if (activeHeader === prop.id && !menu && !adding && !typeMenu) {
+                    // A second click on a header, its menu gone meanwhile, renames it, as F2 does.
+                    if (lastClicked.current === prop.id && !menu && !adding && !typeMenu) {
+                      lastClicked.current = null
                       startRename(prop.id)
                       return
                     }
@@ -637,6 +640,8 @@ export function TableView(p: ViewProps): JSX.Element {
                       setAdding(null)
                       return
                     }
+                    const closing = menu?.propId === prop.id
+                    lastClicked.current = closing ? null : prop.id
                     setMenu((prev) => (prev?.propId === prop.id ? null : { propId: prop.id, anchor }))
                   }}
                   onContextMenu={(event) => {

@@ -323,25 +323,61 @@ export function changePropertyType(
     const result = L.changePropertyType(unlinked.schema, propertyId, type, rowsOf(databaseId, { includeTrashed: true }), relation)
     if (result.schema === unlinked.schema) return
     const rowOps = Object.keys(result.rowValues).map((id) => valuesOp(id, result.rowValues[id]))
-    // Read before the write: what undoing writes back.
-    const restore: Op[] = [
-      ...Object.keys(result.rowValues).map((id) => valuesOp(id, L.valuesOf(getBlock(id)))),
-      ...unlinked.ops.flatMap((op): Op[] => {
-        const schema = op.op === 'update' ? getBlock(op.id)?.props.schema : undefined
-        return op.op === 'update' && schema ? [{ op: 'update', id: op.id, patch: { props: { schema } } }] : []
-      })
-    ]
+    // Read before the write: what undoing writes back. Only what the change touched is put back, over what
+    // the database holds by then, so edits made meanwhile to other columns, properties or views stay.
+    const cells = Object.keys(result.rowValues).map((id) => {
+      const was = L.valuesOf(getBlock(id))
+      return { id, had: Object.hasOwn(was, propertyId), was: was[propertyId], converted: result.rowValues[id][propertyId] }
+    })
+    const own = snap.schema[propertyId]
+    const partner = partnerIn(snap, L.propOf(snap.schema, propertyId))
+    const partnerWas = partner
+      ? (partner.targetId === snap.sourceId ? snap.schema : snapshot(partner.targetId).schema)[partner.id]
+      : undefined
     setSchema(databaseId, result.schema, L.sanitizeViews(snap.views, result.schema), [...unlinked.ops, ...rowOps])
     onChanged?.(() => {
       if (L.propOf(snapshot(databaseId).schema, propertyId)?.type !== type) return
-      withAllRows(databaseId, () => setSchema(databaseId, snap.schema, snap.views, restore))
+      withAllRows(databaseId, () => {
+        const now = snapshot(databaseId)
+        const ops: Op[] = []
+        for (const cell of cells) {
+          const row = getBlock(cell.id)
+          if (!row || row.type !== 'page') continue
+          const values = { ...L.valuesOf(row) }
+          // A cell edited since no longer holds what the conversion wrote: it is left as it is.
+          if (JSON.stringify(values[propertyId]) !== JSON.stringify(cell.converted)) continue
+          if (cell.had) values[propertyId] = cell.was as L.Values[string]
+          else delete values[propertyId]
+          ops.push(valuesOp(cell.id, values))
+        }
+        let schema = { ...now.schema, [propertyId]: own }
+        if (partner && partnerWas) {
+          if (partner.targetId === snap.sourceId) {
+            if (schema[partner.id]) schema = { ...schema, [partner.id]: partnerWas }
+          } else {
+            const other = snapshot(partner.targetId).schema
+            if (other[partner.id])
+              ops.push({ op: 'update', id: partner.targetId, patch: { props: { schema: { ...other, [partner.id]: partnerWas } } } })
+          }
+        }
+        setSchema(databaseId, schema, L.sanitizeViews(now.views, schema), ops)
+      })
     })
   })
 }
 
-/** How many cells would lose what they hold if the property became `type` (see `typeChangeLoss`). */
-export function countTypeLoss(databaseId: string, propertyId: string, type: PropertyType): number {
-  return L.typeChangeLoss(snapshot(databaseId).schema, propertyId, type, rowsOf(databaseId, { includeTrashed: true }))
+/** Loads every row of the database (a type menu needs them all to count what a change would lose), then calls `done`. */
+export function loadAllRows(databaseId: string, done: () => void): void {
+  withRowsOf([databaseId], done)
+}
+
+/** For each type, how many cells would lose what they hold if the property became it (rows must be loaded: see `loadAllRows`). */
+export function typeLossCounts(databaseId: string, propertyId: string): Partial<Record<PropertyType, number>> {
+  const { schema } = snapshot(databaseId)
+  const rows = rowsOf(databaseId, { includeTrashed: true })
+  const out: Partial<Record<PropertyType, number>> = {}
+  for (const type of L.PROPERTY_TYPES) out[type] = L.typeChangeLoss(schema, propertyId, type, rows)
+  return out
 }
 
 /**

@@ -1,4 +1,4 @@
-import { Suspense, useId, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { JSX, KeyboardEvent } from 'react'
 import { systemKindOf } from '@shared/system'
 import { TASK_PROPS, isTaskCoreProperty } from '@shared/tasks'
@@ -193,6 +193,17 @@ export function TypeMenu({
     setStep(next)
   }
 
+  // The rows are loaded once, when the menu opens; what each type would lose is counted once for them.
+  const [loaded, setLoaded] = useState(0)
+  useEffect(() => {
+    let live = true
+    actions.loadAllRows(databaseId, () => live && setLoaded((n) => n + 1))
+    return () => {
+      live = false
+    }
+  }, [databaseId])
+  const losses = useMemo(() => actions.typeLossCounts(databaseId, prop.id), [databaseId, prop, loaded])
+
   const apply = (type: PropertyType, relatedTo?: string): void => {
     actions.retypeProperty(databaseId, prop.id, type, { changed: words.changed(prop.name, copy.types[type]), undo: words.undo }, relatedTo)
   }
@@ -207,7 +218,7 @@ export function TypeMenu({
   }
   const choose = (type: PropertyType): void => {
     if (type === prop.type) return onClose()
-    if (actions.countTypeLoss(databaseId, prop.id, type) > 0) goTo({ kind: 'confirm', type })
+    if ((losses[type] ?? 0) > 0) goTo({ kind: 'confirm', type })
     else proceed(type)
   }
 
@@ -237,7 +248,7 @@ export function TypeMenu({
   }
   if (step?.kind === 'confirm' && step.type) {
     const type = step.type
-    const count = actions.countTypeLoss(databaseId, prop.id, type)
+    const count = losses[type] ?? 0
     return (
       <Floating open anchor={anchor} label={words.typeMenu(prop.name)} onClose={onClose}>
         <div className="db-prop-menu db-prop-menu-pane db-type-confirm" onKeyDownCapture={keepTabInside}>
@@ -258,7 +269,7 @@ export function TypeMenu({
   }
 
   const items: MenuItem[] = L.PROPERTY_TYPES.map((type: PropertyType) => {
-    const lost = type === prop.type ? 0 : actions.countTypeLoss(databaseId, prop.id, type)
+    const lost = type === prop.type ? 0 : (losses[type] ?? 0)
     return {
       id: `type-${type}`,
       label: copy.types[type],
