@@ -64,6 +64,13 @@ export interface TaskRowProps {
   tabStop: boolean
   /** The task panel shows this task. */
   current?: boolean
+  /**
+   * Completing without hurry (Today): the ring keeps its colour and fills, the tick is drawn, the
+   * title is struck and greyed, and the row stays where it is until `folding` closes it.
+   */
+  calm?: boolean
+  /** A calm row that is closing up: it folds to nothing from the height it has. */
+  folding?: boolean
   onToggle: (task: TaskView) => void
   /** A click or Enter: the task panel. */
   onOpen: (task: TaskView) => void
@@ -120,6 +127,8 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     depth = 0,
     tabStop,
     current,
+    calm,
+    folding,
     onToggle,
     onOpen,
     onLeave,
@@ -136,6 +145,10 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
   const [renaming, setRenaming] = useState(false)
   const [menu, setMenu] = useState<PopoverAnchor>(null)
   const rowRef = useRef<HTMLLIElement>(null)
+  // Folding runs from the row's own height (a long title wraps), so nothing jumps at its start.
+  useLayoutEffect(() => {
+    if (folding && rowRef.current) rowRef.current.style.setProperty('--fold-from', `${rowRef.current.offsetHeight}px`)
+  }, [folding])
   const chips = useRef<Partial<Record<TaskField, HTMLElement | null>>>({})
 
   const title = task.title || words.untitled
@@ -149,7 +162,8 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     setEditing({ field, anchor: anchor ?? chips.current[field] ?? rowRef.current })
   const leave = (): void => onLeave?.(task.id)
   const toggle = (): void => {
-    if (!task.done) leave()
+    // A calm row stays a moment: the focus moves on when it folds away (useTaskRows).
+    if (!task.done && !calm) leave()
     onToggle(task)
   }
   const remove = (): void => {
@@ -310,6 +324,8 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
   const classes = ['task-row']
   if (task.done) classes.push('is-done')
   if (current) classes.push('is-current')
+  if (calm) classes.push('is-calm')
+  if (folding) classes.push('is-folding')
   if (selection?.selected) classes.push('is-selected')
 
   return (
@@ -345,7 +361,13 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
           event.stopPropagation()
           toggle()
         }}
-      />
+      >
+        {calm && (
+          <svg className="task-tick" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2 6.5 L5 9 L10 3" />
+          </svg>
+        )}
+      </button>
       <span className="task-body">
         {renaming ? (
           <TitleEditor

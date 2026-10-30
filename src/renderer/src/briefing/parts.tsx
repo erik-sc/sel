@@ -3,7 +3,7 @@
 // built-in Tasks database are the task lists' own (tasks/TaskRow.tsx).
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
-import { localDay, type BriefingCalendar, type BriefingEvent, type BriefingTask } from '@shared/briefing'
+import type { BriefingCalendar, BriefingEvent, BriefingTask } from '@shared/briefing'
 import type { Block } from '@shared/types'
 import { TASKS_DATABASE_ID } from '@shared/tasks'
 import { newMeeting } from '@/meetings/gate'
@@ -13,9 +13,11 @@ import * as L from '@/database/logic'
 import { emptyChipsOf, readTasks } from '@/tasks/lists'
 import { viewOfBriefing, type TaskView } from '@/tasks/model'
 import { TaskRow as ListTaskRow, type RowDrag, type useTaskRows } from '@/tasks/TaskRow'
+import { useHome } from '@/home/store'
+import { TASK_COPY } from '@/tasks/copy'
 import { setSettingsOpen, useUi } from '@/store/ui'
-import { notifyError, toast } from '@/ui/toast'
-import { dueLabel, tickedKey, untilMidnight, type EventMoment } from './format'
+import { dueLabel, untilMidnight, type EventMoment } from './format'
+import type { Phase } from './settle'
 import { requestTodaySettings } from './route'
 
 /** Data older than this is fetched again when the window gets the focus back. */
@@ -228,6 +230,8 @@ export function BriefingTaskItem({
   rows,
   panel,
   onComplete,
+  onReopen,
+  settling,
   onOpen,
   drag
 }: {
@@ -239,20 +243,27 @@ export function BriefingTaskItem({
   /** The task the panel shows. */
   panel: string | null
   onComplete: (task: BriefingTask) => void
+  /** The row ticked a moment ago, ticked again: takes it back. */
+  onReopen?: (task: BriefingTask) => void
+  /** Set while the task is ticked and still in place (`done`), then while it folds away. */
+  settling?: Exclude<Phase, 'gone'>
   onOpen: (id: string) => void
   /** Makes the row something to drag onto the day's plan. */
   drag?: RowDrag
 }): JSX.Element | null {
   if (view === null) return null
-  if (!view) return <TaskRow task={task} day={day} onComplete={onComplete} drag={drag} />
+  const toggle = (): void => (settling && onReopen ? onReopen(task) : onComplete(task))
+  if (!view) return <TaskRow task={task} day={day} onComplete={toggle} settling={settling} drag={drag} />
   return (
     <ListTaskRow
-      task={view}
+      task={settling ? { ...view, done: true } : view}
+      calm={onReopen !== undefined}
+      folding={settling === 'folding'}
       today={today}
       heading={day}
       tabStop={rows.stop === task.id}
       current={panel === task.id}
-      onToggle={() => onComplete(task)}
+      onToggle={toggle}
       onOpen={() => onOpen(task.id)}
       onLeave={rows.leave}
       emptyChips={emptyChipsOf(view)}
@@ -266,16 +277,28 @@ export function TaskRow({
   task,
   day,
   onComplete,
+  settling,
   drag
 }: {
   task: BriefingTask
   day: string
   onComplete: (task: BriefingTask) => void
+  /** Set while the task is ticked and still in place (`done`), then while it folds away. */
+  settling?: Exclude<Phase, 'gone'>
   drag?: RowDrag
 }): JSX.Element {
+  const words = TASK_COPY[useHome((state) => state.locale)]
+  const classes = ['today-task', settling ? 'is-done' : '', settling === 'folding' ? 'is-folding' : ''].filter(Boolean)
   return (
-    <li className="today-task" {...drag}>
-      <button type="button" className="today-check" aria-label={`Mark "${task.title}" as done`} onClick={() => onComplete(task)} />
+    <li className={classes.join(' ')} {...drag}>
+      <button
+        type="button"
+        className="today-check"
+        role="checkbox"
+        aria-checked={settling !== undefined}
+        aria-label={settling ? words.reopen(task.title) : words.complete(task.title)}
+        onClick={() => onComplete(task)}
+      />
       <button
         type="button"
         className="today-task-open"
@@ -288,43 +311,4 @@ export function TaskRow({
       </button>
     </li>
   )
-}
-
-/**
- * Marking tasks done from a list. `done` holds the `tickedKey` of those ticked here, to hide at
- * once; the next load no longer has them, or has a repeating one on its next date. A toast
- * offers to take it back.
- */
-export function useCompleteTask(): { done: ReadonlySet<string>; complete: (task: BriefingTask) => void } {
-  const [done, setDone] = useState<ReadonlySet<string>>(() => new Set())
-
-  const complete = useCallback((task: BriefingTask): void => {
-    const key = tickedKey(task)
-    setDone((current) => new Set(current).add(key))
-    const restore = (): void =>
-      setDone((current) => {
-        const next = new Set(current)
-        next.delete(key)
-        return next
-      })
-    window.api.briefing.completeTask(task.id).then(
-      ({ token, next }) => {
-        // A repeating task stays open with a later date: it is off today's list all the same.
-        toast(next ? `Done. Next: ${dueLabel(next.slice(0, 10), localDay())}.` : 'Marked as done.', {
-          action: {
-            label: 'Undo',
-            run: () => {
-              window.api.briefing.undoCompleteTask(token).then(restore, (error: unknown) => notifyError('Could not undo that.', error))
-            }
-          }
-        })
-      },
-      (error: unknown) => {
-        restore()
-        notifyError('Could not mark the task as done.', error)
-      }
-    )
-  }, [])
-
-  return { done, complete }
 }
