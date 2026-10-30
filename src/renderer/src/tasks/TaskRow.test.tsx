@@ -423,3 +423,43 @@ describe('a selection in a list of task rows', () => {
     expect(selectedIds()).toEqual(['a', 'b', 'c'])
   })
 })
+
+describe('the empty chips of the Inbox', () => {
+  const inbox = task('i', 'Book dentist')
+  const row = (extra: { leaving?: boolean } = {}): JSX.Element => (
+    <ul>
+      <TaskRow
+        task={inbox}
+        today="2026-10-15"
+        tabStop
+        onToggle={() => undefined}
+        onOpen={() => undefined}
+        emptyChips={['date', 'priority', 'project']}
+        {...extra}
+      />
+    </ul>
+  )
+
+  it('carry the key that works on the focused row, hidden from the screen reader', async () => {
+    await render(row())
+    const chips = [...rowOf('i').querySelectorAll('.task-chip.is-empty')]
+    expect(chips.map((chip) => chip.querySelector('kbd')?.textContent)).toEqual(['D', '1–4', '#'])
+    expect(chips.map((chip) => chip.textContent)).toEqual(['D+ date', '1–4+ priority', '#+ project'])
+    for (const chip of chips) expect(chip.querySelector('kbd')?.getAttribute('aria-hidden')).toBe('true')
+    // The chip is still named by its field alone.
+    expect(chips[2].getAttribute('aria-label')).toBe('Project: none')
+  })
+
+  it('open the editor with the very keys they show', async () => {
+    await render(row())
+    await press(rowOf('i'), '#')
+    expect(document.querySelector('[data-editor]')?.getAttribute('data-editor')).toBe('project')
+    await press(rowOf('i'), 'd')
+    expect(document.querySelector('[data-editor]')?.getAttribute('data-editor')).toBe('date')
+  })
+
+  it('fade out of the list when the row is leaving', async () => {
+    await render(row({ leaving: true }))
+    expect(rowOf('i').classList.contains('is-leaving')).toBe(true)
+  })
+})

@@ -44,6 +44,8 @@ function focusRow(from: HTMLElement, id: string): void {
   const list = from.closest('.tasks-list') ?? from.ownerDocument
   list.querySelector<HTMLElement>(`${ROW_SELECTOR}[data-task-id="${CSS.escape(id)}"]`)?.focus({ preventScroll: false })
 }
+/** The key that opens each field's editor on the focused row (model.ts `rowKeyAction`), shown inside its empty chip. */
+const FIELD_KEYS: Record<TaskField, string> = { date: 'D', repeat: 'R', priority: '1–4', project: '#', labels: '@', remind: 'L' }
 const KEYS = 'Enter Control+Enter F2 D R 1 2 3 4 # @ L Space Delete'
 
 /** A repeat in words, as a chip's title and the screen reader say it. */
@@ -74,6 +76,8 @@ export interface TaskRowProps {
   onOutdent?: () => void
   /** Fields shown as an empty chip when the task has none ("+ Date"). */
   emptyChips?: readonly TaskField[]
+  /** The row is on its way out of the list (it got a project in the Inbox): it fades. */
+  leaving?: boolean
   /** Anything else beside the chips (a source, on Today). */
   extra?: ReactNode
   /** Makes the row something to drag (onto Today's plan, briefing/DayPlan.tsx). */
@@ -126,6 +130,7 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     onIndent,
     onOutdent,
     emptyChips,
+    leaving,
     extra,
     drag,
     selection
@@ -296,7 +301,19 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     </button>
   )
   const empty = (field: TaskField): JSX.Element | null =>
-    emptyChips?.includes(field) ? chip(field, words.addField[field], words.none, 'is-empty') : null
+    emptyChips?.includes(field)
+      ? chip(
+          field,
+          <>
+            <kbd className="task-chip-key" aria-hidden="true">
+              {FIELD_KEYS[field]}
+            </kbd>
+            {words.addField[field]}
+          </>,
+          words.none,
+          'is-empty'
+        )
+      : null
 
   const details = [
     selection?.selected ? words.selectedRow : '',
@@ -311,6 +328,7 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
   if (task.done) classes.push('is-done')
   if (current) classes.push('is-current')
   if (selection?.selected) classes.push('is-selected')
+  if (leaving) classes.push('is-leaving')
 
   return (
     <li
