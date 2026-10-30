@@ -3,10 +3,11 @@ import { useCallback, useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import { MCP_ENABLED_KEY, type McpStatus } from '@shared/mcp'
 import { Segmented } from '@/appearance/controls'
-import { Button, IconButton } from '@/ui/Button'
-import { Check, Copy } from '@/ui/icons'
+import { Button } from '@/ui/Button'
 import { notifyError, toast } from '@/ui/toast'
 import { callTime, stateLine, TOOL_LABELS } from './labels'
+import { RemoteSection } from './RemoteSettings'
+import { Snippet } from './Snippet'
 import './mcp.css'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
@@ -16,30 +17,6 @@ const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
 
 /** How often the section asks again while it is open: the list of calls moves while apps work. */
 const REFRESH_MS = 2000
-
-function Snippet({ text, label, block = false }: { text: string; label: string; block?: boolean }): JSX.Element {
-  const [copied, setCopied] = useState(false)
-  return (
-    <div className={block ? 'mcp-snippet is-block' : 'mcp-snippet'}>
-      {block ? <pre>{text}</pre> : <code>{text}</code>}
-      <IconButton
-        label={copied ? 'Copied' : label}
-        size="small"
-        onClick={() => {
-          navigator.clipboard.writeText(text).then(
-            () => {
-              setCopied(true)
-              window.setTimeout(() => setCopied(false), 1600)
-            },
-            (error: unknown) => notifyError('Could not copy.', error)
-          )
-        }}
-      >
-        {copied ? <Check /> : <Copy />}
-      </IconButton>
-    </div>
-  )
-}
 
 export function McpSection(): JSX.Element {
   const [status, setStatus] = useState<McpStatus | null>(null)
@@ -190,6 +167,8 @@ export function McpSection(): JSX.Element {
         </div>
         <p className="ap-note">Only which tool and when. What the apps ask and what they get is not kept.</p>
       </section>
+
+      <RemoteSection />
     </div>
   )
 }

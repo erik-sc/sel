@@ -50,6 +50,14 @@ export interface McpApi {
   status(): Promise<McpStatus>
   /** Makes a new token: the old one stops working. Connected apps pick the new one up by themselves. */
   rotateToken(): Promise<McpStatus>
+  /** The remote connector: its settings, whether it listens, who is let in. */
+  remoteStatus(): Promise<RemoteStatus>
+  /** Stores the remote settings (and a new client secret when given), then opens or closes the server. */
+  configureRemote(input: RemoteConfigInput): Promise<RemoteStatus>
+  /** Ends one authorization (or all, with no id): its tokens stop working at once. */
+  revokeRemote(id?: string): Promise<RemoteStatus>
+  /** Lets a new app register for ten minutes: the window in which you add the connector in Claude. */
+  pairRemote(): Promise<RemoteStatus>
 }
 
 /** Whether other apps may connect decides whether sel opens an endpoint for them: a boolean. */
@@ -58,5 +66,119 @@ export const MCP_SETTINGS: SettingsSpec = { keys: MCP_KEYS, clean: cleanMcpSetti
 /** The invoke channels of `api.mcp` (see `INVOKE` in ./api.ts): every method of McpApi that returns a promise, and no other. */
 export const MCP_INVOKE = {
   'mcp:status': true,
-  'mcp:rotateToken': true
+  'mcp:rotateToken': true,
+  'mcp:remoteStatus': true,
+  'mcp:configureRemote': true,
+  'mcp:revokeRemote': true,
+  'mcp:pairRemote': true
 } as const satisfies Record<InvokeChannels<{ mcp: McpApi }>, true>
+
+// ---- from anywhere: the remote connector -----------------------------------------
+
+/**
+ * The remote connector (src/main/remote): the same tools over Streamable HTTP, for Claude on the
+ * phone, claude.ai and Claude Code on other machines. Off by default. sel listens on this
+ * computer only (127.0.0.1); a tunnel the user runs (Tailscale Funnel, Cloudflare Tunnel) gives it
+ * the public https address the Claude servers call (Claude Code on this computer can use
+ * 127.0.0.1 directly). sel is its own OAuth authorization server and lets in one person: the
+ * GitHub account that signed in first (GitHub's device flow, with sel's own app: nothing to set
+ * up on GitHub), then a consent screen.
+ */
+
+/** What the user set, stored as one value under `mcp.remote` (written by `mcp:configureRemote` only). */
+export interface RemoteConfig {
+  enabled: boolean
+  /** The https address the tunnel gives, without a path: `https://pc.tail1234.ts.net`. Empty until set. */
+  publicUrl: string
+  /** The local port the tunnel forwards to. */
+  port: number
+  /** Another GitHub OAuth App to sign in with (device flow on); empty: sel's own. */
+  githubClientId: string
+  /** When set, only this GitHub login may become the owner. Empty: whoever signs in first while pairing. */
+  githubLogin: string
+}
+
+export const REMOTE_CONFIG_KEY = 'mcp.remote'
+export const DEFAULT_REMOTE_PORT = 47615
+
+export const DEFAULT_REMOTE_CONFIG: RemoteConfig = {
+  enabled: false,
+  publicUrl: '',
+  port: DEFAULT_REMOTE_PORT,
+  githubClientId: '',
+  githubLogin: ''
+}
+
+/** What the remote connector may be granted, as the consent screen lists them. */
+export const REMOTE_SCOPES = ['read', 'tasks', 'write'] as const
+export type RemoteScope = (typeof REMOTE_SCOPES)[number]
+
+/** A clean public address: https, a host, no credentials, query or fragment; the trailing slash dropped. Null otherwise. */
+export function cleanPublicUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const text = value.trim()
+  if (!text) return ''
+  if (text.length > 300) return null
+  let url: URL
+  try {
+    url = new URL(text)
+  } catch {
+    return null
+  }
+  // An origin only: sel answers at the root (/mcp, /.well-known/…), so a path would break discovery.
+  if (url.protocol !== 'https:' || !url.hostname || url.username || url.password || url.search || url.hash) return null
+  if (url.pathname !== '/') return null
+  return url.origin
+}
+
+/** The stored config, with the default for anything malformed. */
+export function cleanRemoteConfig(value: unknown): RemoteConfig {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return { ...DEFAULT_REMOTE_CONFIG }
+  const record = value as Record<string, unknown>
+  const port = record['port']
+  const text = (key: string, re: RegExp): string => {
+    const raw = record[key]
+    return typeof raw === 'string' && re.test(raw.trim()) ? raw.trim() : ''
+  }
+  return {
+    enabled: record['enabled'] === true,
+    publicUrl: cleanPublicUrl(record['publicUrl']) ?? '',
+    port: typeof port === 'number' && Number.isInteger(port) && port >= 1024 && port <= 65535 ? port : DEFAULT_REMOTE_PORT,
+    githubClientId: text('githubClientId', /^[A-Za-z0-9._-]{1,100}$/u),
+    // GitHub logins: letters, digits and single hyphens, at most 39.
+    githubLogin: text('githubLogin', /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/u)
+  }
+}
+
+/** One authorization the user gave: a Claude app, signed in as `login`, until revoked. */
+export interface RemoteGrant {
+  id: string
+  /** The name the app registered with ("Claude"), and where it is sent back to. */
+  client: string
+  redirectHost: string
+  login: string
+  scopes: RemoteScope[]
+  createdAt: number
+  lastUsedAt: number | null
+}
+
+export interface RemoteStatus extends RemoteConfig {
+  /** The server is listening on 127.0.0.1:port. */
+  running: boolean
+  error: string | null
+  /** The GitHub account let in, once one signed in. */
+  owner: string | null
+  /** The address to give Claude: `<publicUrl>/mcp`, or this computer's when there is no public address. */
+  mcpUrl: string
+  /** `claude mcp add --transport http …` for Claude Code on any machine. */
+  claudeCode: string
+  grants: RemoteGrant[]
+  calls: McpCall[]
+  /** Until when new apps may register (after "Connect a new app"), or null: registration is closed. */
+  pairingUntil: number | null
+  /** sel stays running in the notification area when its windows close (alarms.tray): the server needs it. */
+  staysRunning: boolean
+}
+
+/** What `mcp:configureRemote` takes. */
+export type RemoteConfigInput = RemoteConfig
