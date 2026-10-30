@@ -3,7 +3,7 @@
  *
  * Pure: no React, no `window.api`. Unit-tested.
  */
-import type { McpStatus } from '../../../shared/mcp'
+import type { McpStatus, RemoteScope, RemoteStatus } from '../../../shared/mcp'
 
 /** The tools as the list of calls names them. */
 export const TOOL_LABELS: Record<string, string> = {
@@ -17,6 +17,10 @@ export const TOOL_LABELS: Record<string, string> = {
   append_to_page: 'Add to a page',
   add_database_row: 'Add a row',
   update_database_row: 'Change a row',
+  list_tasks: 'List tasks',
+  add_task: 'Add a task',
+  complete_task: 'Complete a task',
+  reschedule_task: 'Reschedule a task',
   unknown: 'Unknown tool'
 }
 
@@ -36,4 +40,26 @@ export function callTime(at: number, now: Date = new Date(), locale?: string): s
   return when.toDateString() === now.toDateString()
     ? time
     : `${when.toLocaleDateString(locale, { day: 'numeric', month: 'short' })} ${time}`
+}
+
+/** The line under "Remote connector": whether Claude can reach sel from anywhere now, or what is missing. */
+export function remoteLine(status: RemoteStatus): { text: string; error: boolean } {
+  if (!status.enabled) return { text: 'Off: nothing listens. Claude elsewhere cannot reach your notes.', error: false }
+  if (status.error) return { text: status.error, error: true }
+  if (!status.running) return { text: 'Starting…', error: false }
+  const missing = [
+    !status.publicUrl && 'the public address',
+    !status.githubLogin && 'your GitHub account',
+    !status.githubClientId && 'the GitHub client id',
+    !status.hasSecret && 'the GitHub client secret'
+  ].filter(Boolean)
+  if (missing.length) return { text: `Listening on port ${status.port}, but still needs ${missing.join(', ')}.`, error: true }
+  return { text: `On: listening on port ${status.port} for ${status.publicUrl}.`, error: false }
+}
+
+const SCOPE_WORDS: Record<RemoteScope, string> = { read: 'reads', tasks: 'manages tasks', write: 'writes pages' }
+
+/** What a grant may do, in words: "reads, manages tasks". */
+export function scopeWords(scopes: readonly RemoteScope[]): string {
+  return scopes.map((scope) => SCOPE_WORDS[scope]).join(', ') || 'nothing'
 }

@@ -5,7 +5,7 @@ import { lazyPanel } from '@/ui/lazyPanel'
 export const MCP_SECTION = settingsSection({
   id: 'mcp',
   label: 'MCP',
-  keywords: ['connect', 'other apps', 'claude desktop', 'claude code', 'token'],
+  keywords: ['connect', 'other apps', 'claude desktop', 'claude code', 'token', 'remote', 'phone', 'celular', 'tunnel', 'oauth', 'github'],
   order: 120,
   Section: lazyPanel(() => import('./McpSettings').then((module) => module.McpSection))
 })

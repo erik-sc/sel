@@ -9,6 +9,7 @@ import type { ExternalEndpoint } from './endpoint'
 import { DISCOVERY_FILE } from './protocol'
 import { connectSnippets } from './snippets'
 import { defineFeature, type Registered } from '../feature'
+import { registerRemote } from '../remote/register'
 
 /**
  * The `mcp:*` channels and the endpoint other apps connect to (see ./endpoint.ts). Nothing of
@@ -100,6 +101,8 @@ export function registerExternalIpc({ repo, ready, changed }: { repo: Repository
     calls: endpoint?.calls ?? []
   })
 
+  const remote = registerRemote({ repo, ready, changed })
+
   void ready.then(follow)
   // The pipe closes with the app; the discovery file stays, and the clients say sel is not open.
   app.on('will-quit', () => void endpoint?.stop(false))
@@ -110,7 +113,10 @@ export function registerExternalIpc({ repo, ready, changed }: { repo: Repository
       'mcp:rotateToken': async () => {
         await enqueue(async () => (await load()).rotate())
         return status()
-      }
+      },
+      'mcp:remoteStatus': () => remote.status(),
+      'mcp:configureRemote': ([input]) => remote.configure(input),
+      'mcp:revokeRemote': ([id]) => remote.revoke(id)
     },
     settingChanged: () => void follow()
   }

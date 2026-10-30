@@ -43,3 +43,10 @@
 .mcp-call-time.is-error {
   color: var(--danger);
 }
+
+.mcp-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
