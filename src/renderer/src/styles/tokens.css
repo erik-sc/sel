@@ -144,8 +144,10 @@
 
   /* ---- text (light): ink, not black ---- */
   --text: #24221d;
-  --text-secondary: #615d54;
-  --text-tertiary: #6d685d;
+  --text-secondary: #57534b;
+  --text-tertiary: #656056;
+  /* disabled text: exempt from contrast, quieter than --text-tertiary so a disabled control never looks active */
+  --text-disabled: #a19b8f;
   --text-code: #8a4530;
   /* focus mode, when it fades the blocks other than the one being written */
   --text-faded-opacity: 0.32;
@@ -153,6 +155,8 @@
   /* ---- lines (light) ---- */
   --border: rgba(70, 58, 36, 0.11);
   --border-strong: rgba(70, 58, 36, 0.24);
+  /* the outline of a control (checkbox, secondary button, field): 3:1 on every surface it sits on */
+  --border-control: #87806e;
   /* the solid 1px ink line around what floats (menus, dialogs, toasts) */
   --frame: #24221d;
 
@@ -160,8 +164,8 @@
   --accent: #3b4f7d;
   --accent-text: #fbf9f4;
   --accent-soft: rgba(59, 79, 125, 0.11);
-  --danger: #b0432f;
-  --success: #55794c;
+  --danger: #ac422f;
+  --success: #4e6c45;
   /* The Sky: the lit part of the moon, and the moon in an eclipse. */
   --moon: rgba(196, 163, 58, 0.22);
   /* the lit part of the moon in the Sky, drawn solid in pixels */
@@ -180,20 +184,20 @@
   --c-gray-bg: rgba(110, 104, 92, 0.14);
   --c-brown: #7a5632;
   --c-brown-bg: rgba(128, 98, 70, 0.19);
-  --c-orange: #9b4f14;
-  --c-orange-bg: rgba(206, 132, 50, 0.2);
+  --c-orange: #8f4b15;
+  --c-orange-bg: rgba(206, 132, 50, 0.14);
   --c-yellow: #75600c;
   --c-yellow-bg: rgba(196, 163, 58, 0.22);
   --c-green: #456a38;
   --c-green-bg: rgba(98, 140, 80, 0.2);
-  --c-blue: #3f5f8a;
-  --c-blue-bg: rgba(70, 112, 170, 0.18);
+  --c-blue: #3e5c85;
+  --c-blue-bg: rgba(70, 112, 170, 0.13);
   --c-purple: #6f528c;
   --c-purple-bg: rgba(128, 94, 168, 0.18);
   --c-pink: #9a4268;
   --c-pink-bg: rgba(196, 100, 144, 0.18);
-  --c-red: #a3363a;
-  --c-red-bg: rgba(196, 72, 72, 0.17);
+  --c-red: #a03639;
+  --c-red-bg: rgba(196, 72, 72, 0.12);
 }
 
 :root[data-theme='dark'] {
@@ -232,18 +236,20 @@
   --scrim: rgba(0, 0, 0, 0.42);
 
   --text: #e8e3d9;
-  --text-secondary: #a8a297;
-  --text-tertiary: #959188;
+  --text-secondary: #c3beb3;
+  --text-tertiary: #aeaaa0;
+  --text-disabled: #6f6b63;
   --text-code: #d99a82;
 
   --border: rgba(232, 222, 200, 0.09);
   --border-strong: rgba(232, 222, 200, 0.2);
+  --border-control: #8d887e;
   --frame: #e8e3d9;
 
   --accent: #a3b1d9;
   --accent-text: #16181f;
   --accent-soft: rgba(163, 177, 217, 0.15);
-  --danger: #dc7a68;
+  --danger: #df9686;
   --success: #92b586;
   --moon: rgba(232, 214, 160, 0.3);
   --moon-lit: #d1b660;
@@ -259,18 +265,18 @@
   --c-gray-bg: rgba(170, 164, 150, 0.16);
   --c-brown: #c9a37e;
   --c-brown-bg: rgba(160, 130, 104, 0.24);
-  --c-orange: #d39a5e;
-  --c-orange-bg: rgba(214, 142, 60, 0.2);
+  --c-orange: #d9b082;
+  --c-orange-bg: rgba(214, 142, 60, 0.12);
   --c-yellow: #d1b660;
   --c-yellow-bg: rgba(204, 174, 76, 0.18);
   --c-green: #9bbb8a;
   --c-green-bg: rgba(120, 160, 100, 0.2);
-  --c-blue: #93acce;
-  --c-blue-bg: rgba(96, 138, 190, 0.22);
+  --c-blue: #a4b7d0;
+  --c-blue-bg: rgba(96, 138, 190, 0.13);
   --c-purple: #b3a0cc;
   --c-purple-bg: rgba(146, 116, 184, 0.22);
   --c-pink: #cf9aae;
   --c-pink-bg: rgba(200, 112, 148, 0.2);
-  --c-red: #e2827e;
-  --c-red-bg: rgba(210, 90, 90, 0.2);
+  --c-red: #e4a09a;
+  --c-red-bg: rgba(210, 90, 90, 0.12);
 }
