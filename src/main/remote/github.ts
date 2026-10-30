@@ -20,7 +20,7 @@ export type Fetch = (
  * The client id of sel's OAuth App on GitHub, with "Enable Device Flow" on. Public by design: the
  * device flow takes no secret. Settings may name another app's (`mcp.remote.githubClientId`).
  */
-export const SEL_GITHUB_CLIENT_ID = ''
+export const SEL_GITHUB_CLIENT_ID = 'Ov23lijYuRS6VCYHR5xm'
 
 const DEVICE_CODE = 'https://github.com/login/device/code'
 const TOKEN = 'https://github.com/login/oauth/access_token'
