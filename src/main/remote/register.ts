@@ -1,6 +1,6 @@
 import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { app, safeStorage } from 'electron'
+import { app } from 'electron'
 import { ALARMS_SETTING } from '../../shared/alarms'
 import {
   cleanPublicUrl,
@@ -21,12 +21,10 @@ import type { RemoteServer } from './server'
  * opening or closing the server as its setting says. Nothing of it is loaded, and no port is
  * opened, until the user turns it on.
  *
- * Kept next to the database, never in it (the database is synced and exported):
- *  - remote-github.bin: the GitHub client secret, sealed with the system's protection for this user;
- *  - remote-auth.json: registered apps and grants, tokens as SHA-256 only.
+ * Kept next to the database, never in it (the database is synced and exported): remote-auth.json,
+ * the registered apps, the owner's GitHub account and the grants, tokens as SHA-256 only.
  */
 
-const SECRET_FILE = 'remote-github.bin'
 const AUTH_FILE = 'remote-auth.json'
 
 export interface RemoteHooks {
@@ -38,26 +36,8 @@ export interface RemoteHooks {
 
 export function registerRemote({ repo, ready, changed }: { repo: Repository; ready: Promise<void>; changed(): void }): RemoteHooks {
   const userData = app.getPath('userData')
-  const secretFile = join(userData, SECRET_FILE)
   const authFile = join(userData, AUTH_FILE)
-  const sealable = (): boolean => {
-    try {
-      return safeStorage.isEncryptionAvailable()
-    } catch {
-      return false
-    }
-  }
   const config = (): RemoteConfig => cleanRemoteConfig(repo.getSetting(REMOTE_CONFIG_KEY))
-  let cachedSecret: string | null | undefined
-  const secret = (): string | null => {
-    if (cachedSecret !== undefined) return cachedSecret
-    try {
-      cachedSecret = sealable() ? safeStorage.decryptString(readFileSync(secretFile)) || null : null
-    } catch {
-      cachedSecret = null
-    }
-    return cachedSecret
-  }
 
   let loaded: { server: RemoteServer; auth: AuthStore } | null = null
   let loading: Promise<{ server: RemoteServer; auth: AuthStore }> | null = null
@@ -67,7 +47,6 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
       .then(({ createRemoteServer }) =>
         createRemoteServer(repo, {
           config,
-          secret,
           changed,
           fetch: globalThis.fetch as unknown as Fetch,
           load: () => {
@@ -108,7 +87,10 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
         if (wanted.enabled) {
           const { server } = await load()
           if (server.running && server.port !== wanted.port) await server.stop()
+          const opening = !server.running
           await server.start(wanted.port)
+          // Just turned on: the first app may connect for the next minutes without another click.
+          if (opening && loaded && !loaded.auth.list().length) loaded.auth.openPairing()
         } else if (loaded) {
           loaded.auth.closePairing()
           await loaded.server.stop()
@@ -121,16 +103,15 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
 
   const status = (): RemoteStatus => {
     const current = config()
-    const base = current.publicUrl
-    const mcpUrl = base ? `${base}/mcp` : ''
+    // Without a public address: this computer's, for Claude Code here (the phone needs the tunnel).
+    const mcpUrl = `${current.publicUrl || `http://127.0.0.1:${current.port}`}/mcp`
     return {
       ...current,
       running: loaded?.server.running ?? false,
       error: loaded?.server.error ?? failure,
-      hasSecret: secret() !== null,
+      owner: loaded?.auth.ownerLogin ?? null,
       mcpUrl,
-      githubCallback: `${base || `http://127.0.0.1:${current.port}`}/oauth/callback`,
-      claudeCode: mcpUrl ? `claude mcp add --transport http --scope user sel ${mcpUrl}` : '',
+      claudeCode: `claude mcp add --transport http --scope user sel-remote ${mcpUrl}`,
       grants: loaded?.auth.list() ?? [],
       calls: loaded?.server.calls ?? [],
       pairingUntil: loaded?.server.running ? loaded.auth.pairingUntil : null,
@@ -148,13 +129,6 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
       if (input.publicUrl !== undefined && cleanPublicUrl(input.publicUrl) === null)
         throw new Error('The public address must be an https address, such as https://my-pc.tail1234.ts.net.')
       const next = cleanRemoteConfig({ ...config(), ...input })
-      const typed = typeof input.githubSecret === 'string' ? input.githubSecret.trim() : ''
-      if (typed) {
-        if (!/^[A-Za-z0-9._-]{8,200}$/u.test(typed)) throw new Error('That does not look like a GitHub client secret.')
-        if (!sealable()) throw new Error('This computer cannot keep the secret sealed, so sel cannot store it.')
-        writeFileSync(secretFile, safeStorage.encryptString(typed), { mode: 0o600 })
-        cachedSecret = typed
-      }
       repo.setSetting(REMOTE_CONFIG_KEY, next)
       await follow()
       return status()

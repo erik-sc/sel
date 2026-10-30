@@ -99,6 +99,9 @@ export interface Pending {
   createdAt: number
   /** The GitHub login, once GitHub said who signed in (and it is the one let in). */
   login: string | null
+  /** The GitHub device code being entered, and when GitHub may be asked again. */
+  device?: import('./github').DeviceCode | null
+  nextPollAt?: number
 }
 
 interface Code {
@@ -225,15 +228,22 @@ export class AuthStore {
   }
 
   /**
-   * Whether the GitHub account that signed in is the one let in: its login is the one in
-   * Settings, and its id is the one pinned the first time that login signed in.
+   * Whether the GitHub account that signed in is the one let in. The first account to sign in
+   * while pairing is open becomes the owner, pinned by its numeric id (a login can be renamed and
+   * taken); after that, only the owner. `allowed`, when Settings names a login, must match too.
    */
-  isOwner(login: string, id: number, allowed: string): boolean {
-    if (login.toLowerCase() !== allowed.toLowerCase()) return false
-    if (this.owner && this.owner.login.toLowerCase() === allowed.toLowerCase()) return this.owner.id === id
+  isOwner(login: string, id: number, allowed = ''): boolean {
+    if (allowed && login.toLowerCase() !== allowed.toLowerCase()) return false
+    if (this.owner) return this.owner.id === id
+    if (!this.pairingUntil) return false
     this.owner = { login, id }
     this.persist()
     return true
+  }
+
+  /** The GitHub account let in, once one signed in. */
+  get ownerLogin(): string | null {
+    return this.owner?.login ?? null
   }
 
   /** Dynamic client registration: a public client (PKCE, no secret) with Claude's redirects only, while pairing is open. */
@@ -443,6 +453,8 @@ export class AuthStore {
   /** Ends a grant, or every grant: their tokens stop working at once. */
   revoke(id?: string): void {
     this.grants = id ? this.grants.filter((each) => each.id !== id) : []
+    // Ending everything also forgets the owner: the next sign-in (while pairing) picks one again.
+    if (!id) this.owner = null
     this.persist()
   }
 

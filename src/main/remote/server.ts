@@ -3,8 +3,8 @@ import type { Socket } from 'node:net'
 import { REMOTE_SCOPES, type McpCall, type RemoteConfig, type RemoteGrant, type RemoteScope } from '../../shared/mcp'
 import type { ToolSpec } from '../ai/toolspecs'
 import { ToolError } from '../ai/tools'
-import { AuthStore, cleanScopes, OAuthError, redirectMatches } from './auth'
-import { githubAuthorizeUrl, githubLogin, type Fetch } from './github'
+import { type AuthStore, cleanScopes, OAuthError, type Pending, redirectMatches } from './auth'
+import { type DeviceCode, type DevicePoll, type Fetch, pollDeviceFlow, SEL_GITHUB_CLIENT_ID, startDeviceFlow } from './github'
 
 /**
  * The remote connector's server: OAuth 2.1 (as Claude's custom connectors expect it) and MCP
@@ -28,8 +28,6 @@ import { githubAuthorizeUrl, githubLogin, type Fetch } from './github'
 export interface RemoteServerOptions {
   /** The settings now: read on every request, so a change applies without a restart. */
   config(): RemoteConfig
-  /** The GitHub client secret, or null when none is kept. */
-  secret(): string | null
   auth: AuthStore
   /** The tools a grant with these scopes is offered. */
   tools(scopes: readonly RemoteScope[]): readonly ToolSpec[]
@@ -72,8 +70,20 @@ body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,-appl
 main{max-width:440px;margin:0 auto;padding:40px 16px}h1{font-size:22px;margin:0 0 8px}p{color:var(--muted);margin:0 0 16px}
 label{display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}label:last-of-type{border-bottom:1px solid var(--line)}
 .row{display:flex;gap:12px;margin-top:24px}button{flex:1;font:inherit;padding:12px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--fg)}
+a.go{flex:1;display:block;text-align:center;text-decoration:none;padding:12px;border-radius:10px;background:var(--accent);color:var(--bg);font-weight:600}.code{font:600 32px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:4px;color:var(--fg);text-align:center;user-select:all;margin:24px 0}.small{font-size:14px}
 button.go{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}code{font-size:14px}
 </style></head><body><main>${body}</main></body></html>`
+}
+
+function devicePage(flow: string, device: DeviceCode): string {
+  return page(
+    'Sign in with GitHub',
+    `<h1>Sign in with GitHub</h1>
+<p>Open GitHub, enter this code and choose Authorize. This page goes on by itself once you have.</p>
+<p class="code">${escape(device.userCode)}</p>
+<div class="row"><a class="go" href="${escape(device.verificationUri)}" target="_blank" rel="noopener noreferrer">Open GitHub</a></div>
+<p class="small">GitHub only tells sel who you are; sel gets no access to your GitHub account. Waiting… <a href="/oauth/device?flow=${escape(encodeURIComponent(flow))}">Check now</a></p>`
+  )
 }
 
 function consentPage(input: {
@@ -296,13 +306,14 @@ export class RemoteServer {
       if (method === 'GET' && path === '/')
         return this.html(res, 200, errorPage('sel', 'This is the sel connector. Add its /mcp address to Claude.'))
       const route = `${method} ${path}`
-      const routes = ['POST /register', 'GET /authorize', 'GET /oauth/callback', 'POST /oauth/consent', 'POST /token', 'POST /revoke']
+      const routes = ['POST /register', 'GET /authorize', 'GET /oauth/device', 'POST /oauth/consent', 'POST /token', 'POST /revoke']
       if (!routes.includes(route)) return this.json(res, 404, { error: 'not_found' })
-      if (this.limited(route === 'POST /token' ? 'token' : 'auth'))
+      // The waiting page reloads itself: it counts with /token, not with the rest of the sign-in.
+      if (this.limited(route === 'POST /token' || route === 'GET /oauth/device' ? 'token' : 'auth'))
         return this.json(res, 429, { error: 'slow_down', error_description: 'Too many requests.' })
       if (method === 'POST' && path === '/register') return await this.register(req, res)
-      if (method === 'GET' && path === '/authorize') return this.authorize(url, res)
-      if (method === 'GET' && path === '/oauth/callback') return await this.callback(url, req, res)
+      if (method === 'GET' && path === '/authorize') return await this.authorize(url, res)
+      if (method === 'GET' && path === '/oauth/device') return await this.device(url, req, res)
       if (method === 'POST' && path === '/oauth/consent') return await this.consent(req, res)
       if (method === 'POST' && path === '/token') return await this.token(req, res)
       return await this.revoke(req, res)
@@ -371,16 +382,11 @@ export class RemoteServer {
     }
   }
 
-  /** What is missing before anyone can sign in, or null. */
-  private notReady(): string | null {
-    const config = this.options.config()
-    if (!config.githubClientId || !this.options.secret())
-      return 'sel has no GitHub OAuth App yet. Add its client id and secret in sel → Settings → MCP.'
-    if (!config.githubLogin) return 'sel does not know whose GitHub account to let in. Set it in sel → Settings → MCP.'
-    return null
+  private clientId(): string {
+    return this.options.config().githubClientId || SEL_GITHUB_CLIENT_ID
   }
 
-  private authorize(url: URL, res: ServerResponse): void {
+  private async authorize(url: URL, res: ServerResponse): Promise<void> {
     const q = url.searchParams
     const auth = this.options.auth
     const client = auth.client(q.get('client_id'))
@@ -410,9 +416,15 @@ export class RemoteServer {
     const resource = q.get('resource')
     if (resource && resource.replace(/\/+$/u, '') !== `${this.base()}/mcp`)
       return back('invalid_target', 'That resource is not this server.')
-    const missing = this.notReady()
-    if (missing) return this.html(res, 503, errorPage('sel is not set up yet', missing))
+    const clientId = this.clientId()
+    if (!clientId) return this.html(res, 503, errorPage('sel is not set up yet', 'This build of sel has no GitHub app to sign in with.'))
     const asked = cleanScopes(q.get('scope'))
+    let device: DeviceCode
+    try {
+      device = await startDeviceFlow(clientId, this.options.fetch, this.now())
+    } catch (err) {
+      return this.html(res, 502, errorPage('GitHub sign-in failed', err instanceof Error ? err.message : 'Try again.'))
+    }
     const pending = auth.begin({
       clientId: client.id,
       redirectUri,
@@ -421,50 +433,26 @@ export class RemoteServer {
       // Nothing asked: reading and tasks, which is what the phone is for. Writing pages is opt-in.
       scopes: asked.length ? asked : ['read', 'tasks']
     })
+    pending.device = device
+    pending.nextPollAt = this.now() + device.interval * 1000
     const secure = this.base().startsWith('https:') ? '; Secure' : ''
-    const config = this.options.config()
-    this.redirect(res, githubAuthorizeUrl({ clientId: config.githubClientId }, `${this.base()}/oauth/callback`, pending.id), {
-      'Set-Cookie': `${COOKIE}${pending.id}=${pending.nonce}; HttpOnly; SameSite=Lax; Path=/; Max-Age=600${secure}`
+    this.redirect(res, `${this.base()}/oauth/device?flow=${encodeURIComponent(pending.id)}`, {
+      'Set-Cookie': `${COOKIE}${pending.id}=${pending.nonce}; HttpOnly; SameSite=Lax; Path=/; Max-Age=900${secure}`
     })
   }
 
-  private async callback(url: URL, req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const auth = this.options.auth
-    const state = url.searchParams.get('state') ?? ''
-    const pending = auth.flow(state, cookieOf(req, `${COOKIE}${state}`))
-    if (!pending) return this.html(res, 400, errorPage('This sign-in expired', 'Start again from Claude.'))
-    const code = url.searchParams.get('code')
-    if (!code) {
-      // Cancelled on GitHub: the app hears it, rather than waiting.
-      auth.end(pending.id)
-      const target = new URL(pending.redirectUri)
-      target.searchParams.set('error', 'access_denied')
-      if (pending.state) target.searchParams.set('state', pending.state)
-      target.searchParams.set('iss', this.base())
-      return this.redirect(res, target.toString(), { 'Set-Cookie': `${COOKIE}${pending.id}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` })
-    }
-    const config = this.options.config()
-    const secret = this.options.secret()
-    if (!secret) return this.html(res, 503, errorPage('sel is not set up yet', 'The GitHub client secret is missing.'))
-    let account: { login: string; id: number }
-    try {
-      account = await githubLogin(
-        { clientId: config.githubClientId, clientSecret: secret },
-        `${this.base()}/oauth/callback`,
-        code,
-        this.options.fetch
-      )
-    } catch (err) {
-      auth.end(pending.id)
-      return this.html(res, 502, errorPage('GitHub sign-in failed', err instanceof Error ? err.message : 'Try again.'))
-    }
-    const { login } = account
-    if (!auth.isOwner(login, account.id, config.githubLogin)) {
-      auth.end(pending.id)
-      return this.html(res, 403, errorPage('Not allowed', `The GitHub account ${login} is not the one this sel lets in.`))
-    }
-    pending.login = login
-    const client = auth.client(pending.clientId)
+  /** Back to the app with an error, ending the sign-in. */
+  private refuse(res: ServerResponse, pending: Pending, error: string): void {
+    this.options.auth.end(pending.id)
+    const target = new URL(pending.redirectUri)
+    target.searchParams.set('error', error)
+    if (pending.state) target.searchParams.set('state', pending.state)
+    target.searchParams.set('iss', this.base())
+    this.redirect(res, target.toString(), { 'Set-Cookie': `${COOKIE}${pending.id}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` })
+  }
+
+  private showConsent(res: ServerResponse, pending: Pending): void {
+    const client = this.options.auth.client(pending.clientId)
     this.html(
       res,
       200,
@@ -472,11 +460,55 @@ export class RemoteServer {
         flow: pending.id,
         client: client?.name ?? 'An app',
         redirectHost: new URL(pending.redirectUri).host,
-        login,
+        login: pending.login ?? '',
         scopes: pending.scopes,
         registered: client?.createdAt ?? this.now()
       })
     )
+  }
+
+  /**
+   * The page that shows the GitHub code and waits: it reloads itself every few seconds, and each
+   * load asks GitHub at most as often as GitHub allows. Once the code is entered, the consent screen.
+   */
+  private async device(url: URL, req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const auth = this.options.auth
+    const flow = url.searchParams.get('flow') ?? ''
+    const pending = auth.flow(flow, cookieOf(req, `${COOKIE}${flow}`))
+    if (!pending || !pending.device) return this.html(res, 400, errorPage('This sign-in expired', 'Start again from Claude.'))
+    if (pending.login) return this.showConsent(res, pending)
+    const device = pending.device
+    if (this.now() >= device.expiresAt) return this.refuse(res, pending, 'access_denied')
+    if (this.now() >= (pending.nextPollAt ?? 0)) {
+      let poll: DevicePoll
+      try {
+        poll = await pollDeviceFlow(this.clientId(), device.deviceCode, this.options.fetch)
+      } catch {
+        poll = { status: 'pending' }
+      }
+      if (poll.status === 'pending' && poll.interval) device.interval = poll.interval
+      pending.nextPollAt = this.now() + device.interval * 1000
+      if (poll.status === 'failed') {
+        auth.end(pending.id)
+        return this.html(res, 400, errorPage('GitHub sign-in failed', poll.message))
+      }
+      if (poll.status === 'done') {
+        if (!auth.isOwner(poll.login, poll.id, this.options.config().githubLogin)) {
+          auth.end(pending.id)
+          return this.html(
+            res,
+            403,
+            errorPage(
+              'Not allowed',
+              `The GitHub account ${poll.login} is not the one this sel lets in. To let a new account in, end every connection in sel → Settings → MCP and connect again.`
+            )
+          )
+        }
+        pending.login = poll.login
+        return this.showConsent(res, pending)
+      }
+    }
+    this.html(res, 200, devicePage(pending.id, device), { Refresh: String(Math.max(3, device.interval)) })
   }
 
   private async consent(req: IncomingMessage, res: ServerResponse): Promise<void> {

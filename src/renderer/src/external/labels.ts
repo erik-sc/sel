@@ -47,13 +47,8 @@ export function remoteLine(status: RemoteStatus): { text: string; error: boolean
   if (!status.enabled) return { text: 'Off: nothing listens. Claude elsewhere cannot reach your notes.', error: false }
   if (status.error) return { text: status.error, error: true }
   if (!status.running) return { text: 'Starting…', error: false }
-  const missing = [
-    !status.publicUrl && 'the public address',
-    !status.githubLogin && 'your GitHub account',
-    !status.githubClientId && 'the GitHub client id',
-    !status.hasSecret && 'the GitHub client secret'
-  ].filter(Boolean)
-  if (missing.length) return { text: `Listening on port ${status.port}, but still needs ${missing.join(', ')}.`, error: true }
+  if (!status.publicUrl)
+    return { text: `On, on this computer only (port ${status.port}). Add a public address for the phone.`, error: false }
   return { text: `On: listening on port ${status.port} for ${status.publicUrl}.`, error: false }
 }
 

@@ -79,9 +79,10 @@ export const MCP_INVOKE = {
  * The remote connector (src/main/remote): the same tools over Streamable HTTP, for Claude on the
  * phone, claude.ai and Claude Code on other machines. Off by default. sel listens on this
  * computer only (127.0.0.1); a tunnel the user runs (Tailscale Funnel, Cloudflare Tunnel) gives it
- * the public https address the Claude servers call. sel is its own OAuth authorization server
- * and lets in one person: the GitHub account named here, after a login on GitHub and a consent
- * screen. The GitHub client secret never travels in settings: it is sealed in a file of its own.
+ * the public https address the Claude servers call (Claude Code on this computer can use
+ * 127.0.0.1 directly). sel is its own OAuth authorization server and lets in one person: the
+ * GitHub account that signed in first (GitHub's device flow, with sel's own app: nothing to set
+ * up on GitHub), then a consent screen.
  */
 
 /** What the user set, stored as one value under `mcp.remote` (written by `mcp:configureRemote` only). */
@@ -91,9 +92,9 @@ export interface RemoteConfig {
   publicUrl: string
   /** The local port the tunnel forwards to. */
   port: number
-  /** The OAuth App the user made on GitHub (Settings → Developer settings → OAuth Apps). */
+  /** Another GitHub OAuth App to sign in with (device flow on); empty: sel's own. */
   githubClientId: string
-  /** The one GitHub login let in. */
+  /** When set, only this GitHub login may become the owner. Empty: whoever signs in first while pairing. */
   githubLogin: string
 }
 
@@ -165,12 +166,10 @@ export interface RemoteStatus extends RemoteConfig {
   /** The server is listening on 127.0.0.1:port. */
   running: boolean
   error: string | null
-  /** A client secret is kept (sealed); the secret itself never leaves the main process. */
-  hasSecret: boolean
-  /** The address to give Claude: `<publicUrl>/mcp`. Empty until the public address is set. */
+  /** The GitHub account let in, once one signed in. */
+  owner: string | null
+  /** The address to give Claude: `<publicUrl>/mcp`, or this computer's when there is no public address. */
   mcpUrl: string
-  /** The callback to give GitHub's OAuth App. */
-  githubCallback: string
   /** `claude mcp add --transport http …` for Claude Code on any machine. */
   claudeCode: string
   grants: RemoteGrant[]
@@ -181,7 +180,5 @@ export interface RemoteStatus extends RemoteConfig {
   staysRunning: boolean
 }
 
-/** What `mcp:configureRemote` takes: the config, and a new client secret when one is typed (empty keeps the old). */
-export interface RemoteConfigInput extends RemoteConfig {
-  githubSecret?: string
-}
+/** What `mcp:configureRemote` takes. */
+export type RemoteConfigInput = RemoteConfig

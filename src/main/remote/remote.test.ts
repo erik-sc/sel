@@ -102,11 +102,27 @@ describe('the remote server', () => {
   let githubUser: string
   let githubId: number
   let clock: number
-  const config: RemoteConfig = { ...DEFAULT_REMOTE_CONFIG, enabled: true, githubClientId: 'Iv1.abc', githubLogin: 'erik-sc' }
+  /** Polls GitHub answers "pending" before the code counts as entered. */
+  let pendingPolls: number
+  const config: RemoteConfig = { ...DEFAULT_REMOTE_CONFIG, enabled: true, githubClientId: 'Iv1.abc' }
 
   const fakeGitHub: Fetch = async (url) => {
-    if (url.startsWith('https://github.com/login/oauth/access_token'))
+    if (url === 'https://github.com/login/device/code')
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          device_code: 'dev',
+          user_code: 'ABCD-1234',
+          verification_uri: 'https://github.com/login/device',
+          expires_in: 900,
+          interval: 5
+        })
+      }
+    if (url === 'https://github.com/login/oauth/access_token') {
+      if (pendingPolls-- > 0) return { ok: true, status: 200, json: async () => ({ error: 'authorization_pending' }) }
       return { ok: true, status: 200, json: async () => ({ access_token: 'gho_x' }) }
+    }
     if (url === 'https://api.github.com/user') return { ok: true, status: 200, json: async () => ({ login: githubUser, id: githubId }) }
     return { ok: false, status: 404, json: async () => ({}) }
   }
@@ -118,9 +134,10 @@ describe('the remote server', () => {
     githubUser = 'Erik-SC'
     githubId = 42
     clock = Date.now()
+    pendingPolls = 1
+    config.githubLogin = ''
     const made = await createRemoteServer(repo, {
       config: () => config,
-      secret: () => 'secret-123456',
       changed: () => undefined,
       fetch: fakeGitHub,
       now: () => clock,
@@ -152,6 +169,26 @@ describe('the remote server', () => {
     })
   }
 
+  /** /authorize, then the waiting page until (fake) GitHub says the code was entered: the page it ends on. */
+  async function signIn(query: URLSearchParams): Promise<{ cookie: string; html: string; status: number; device: string }> {
+    const start = await fetch(`${base}/authorize?${query}`, { redirect: 'manual' })
+    expect(start.status).toBe(302)
+    const device = start.headers.get('location') as string
+    expect(device).toMatch(/\/oauth\/device\?flow=/u)
+    const cookie = (start.headers.get('set-cookie') as string).split(';')[0]
+    const waiting = await fetch(device, { headers: { cookie } })
+    expect(await waiting.text()).toContain('ABCD-1234')
+    expect(waiting.headers.get('refresh')).toBe('5')
+    let reply = waiting
+    for (let i = 0; i < 5; i++) {
+      clock += 6000
+      reply = await fetch(device, { headers: { cookie } })
+      const html = await reply.text()
+      if (!html.includes('ABCD-1234')) return { cookie, html, status: reply.status, device }
+    }
+    throw new Error('the sign-in never went on')
+  }
+
   /** Register, sign in on (fake) GitHub, allow: the code and the client. */
   async function authorize(scopes: string[] = ['read', 'tasks']): Promise<{ code: string; clientId: string; redirect: string }> {
     const registered = (await (await post('/register', { client_name: 'Claude', redirect_uris: [LOOPBACK] })).json()) as {
@@ -167,14 +204,7 @@ describe('the remote server', () => {
       state: 'xyz',
       resource: `${base}/mcp`
     })
-    const start = await fetch(`${base}/authorize?${query}`, { redirect: 'manual' })
-    expect(start.status).toBe(302)
-    const github = new URL(start.headers.get('location') as string)
-    expect(github.host).toBe('github.com')
-    const cookie = (start.headers.get('set-cookie') as string).split(';')[0]
-    const callback = await fetch(`${base}/oauth/callback?code=gh&state=${github.searchParams.get('state')}`, { headers: { cookie } })
-    expect(callback.status).toBe(200)
-    const html = await callback.text()
+    const { cookie, html } = await signIn(query)
     expect(html).toContain('Let Claude use sel?')
     const flow = /name="flow" value="([^"]+)"/u.exec(html)?.[1] as string
     const allowed = await form('/oauth/consent', { flow, decision: 'allow', scope: scopes }, { cookie })
@@ -307,7 +337,8 @@ describe('the remote server', () => {
     expect(((await again.json()) as { error: string }).error).toBe('invalid_grant')
   })
 
-  it('lets in only the GitHub account named in settings', async () => {
+  it('lets in only the GitHub account named in settings, when one is named', async () => {
+    config.githubLogin = 'erik-sc'
     githubUser = 'someone-else'
     const registered = (await (await post('/register', { redirect_uris: [LOOPBACK] })).json()) as { client_id: string }
     const query = new URLSearchParams({
@@ -317,14 +348,22 @@ describe('the remote server', () => {
       code_challenge: challengeOf(VERIFIER),
       code_challenge_method: 'S256'
     })
-    const start = await fetch(`${base}/authorize?${query}`, { redirect: 'manual' })
-    const state = new URL(start.headers.get('location') as string).searchParams.get('state')
-    const cookie = (start.headers.get('set-cookie') as string).split(';')[0]
-    const callback = await fetch(`${base}/oauth/callback?code=gh&state=${state}`, { headers: { cookie } })
-    expect(callback.status).toBe(403)
+    const { status, device } = await signIn(query)
+    expect(status).toBe(403)
     // Without the browser's cookie, the sign-in is not this one.
-    const stolen = await fetch(`${base}/oauth/callback?code=gh&state=${state}`)
-    expect(stolen.status).toBe(400)
+    expect((await fetch(device)).status).toBe(400)
+  })
+
+  it('makes the first account to sign in while pairing the owner, and only it', async () => {
+    await tokens()
+    expect(auth.ownerLogin).toBe('Erik-SC')
+    githubUser = 'someone-else'
+    githubId = 99
+    await expect(authorize()).rejects.toThrow()
+    // Ending everything forgets the owner; with pairing closed, nobody becomes one.
+    auth.revoke()
+    auth.closePairing()
+    expect(auth.isOwner('someone-else', 99)).toBe(false)
   })
 
   it('pins the GitHub account by id: the same login with another id is refused', async () => {

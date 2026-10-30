@@ -17,15 +17,9 @@ const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
 
 const REFRESH_MS = 3000
 
-type Draft = Pick<RemoteConfig, 'publicUrl' | 'githubClientId' | 'githubLogin'> & { port: string; secret: string }
+type Draft = Pick<RemoteConfig, 'publicUrl'> & { port: string }
 
-const draftOf = (status: RemoteStatus): Draft => ({
-  publicUrl: status.publicUrl,
-  githubClientId: status.githubClientId,
-  githubLogin: status.githubLogin,
-  port: String(status.port),
-  secret: ''
-})
+const draftOf = (status: RemoteStatus): Draft => ({ publicUrl: status.publicUrl, port: String(status.port) })
 
 export function RemoteSection(): JSX.Element {
   const ids = useId()
@@ -57,9 +51,8 @@ export function RemoteSection(): JSX.Element {
         enabled,
         publicUrl: draft.publicUrl.trim(),
         port: Number(draft.port) || status.port,
-        githubClientId: draft.githubClientId.trim(),
-        githubLogin: draft.githubLogin.trim(),
-        githubSecret: draft.secret
+        githubClientId: status.githubClientId,
+        githubLogin: status.githubLogin
       })
       .then((next) => {
         setStatus(next)
@@ -160,7 +153,7 @@ export function RemoteSection(): JSX.Element {
           {field(
             'publicUrl',
             'Public address',
-            'The https address your tunnel gives this computer (Tailscale Funnel or Cloudflare Tunnel).',
+            'For Claude on the phone: the https address your tunnel gives this computer (Tailscale Funnel or Cloudflare Tunnel). Not needed for Claude Code on this computer.',
             {
               placeholder: 'https://my-pc.tail1234.ts.net',
               maxLength: 300
@@ -170,23 +163,16 @@ export function RemoteSection(): JSX.Element {
             inputMode: 'numeric',
             maxLength: 5
           })}
-          {field('githubLogin', 'Your GitHub account', 'The only account let in. Anyone else who signs in is refused.', {
-            placeholder: 'your-login',
-            maxLength: 39
-          })}
-          {field('githubClientId', 'GitHub client id', 'From the OAuth App you create on GitHub for sel (see the callback below).', {
-            maxLength: 100
-          })}
-          {field(
-            'secret',
-            'GitHub client secret',
-            status.hasSecret ? 'Kept, sealed on this computer. Type a new one to replace it.' : 'Sealed on this computer; never synced.',
-            {
-              type: 'password',
-              placeholder: status.hasSecret ? '••••••••' : '',
-              maxLength: 200
-            }
-          )}
+          {status.owner ? (
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Signed in as</span>
+                <span className="ap-row-help">
+                  GitHub account {status.owner}: the only one let in. To change it, end every connection below.
+                </span>
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="mcp-actions">
           <Button disabled={busy} onClick={() => save(status.enabled)}>
@@ -200,17 +186,6 @@ export function RemoteSection(): JSX.Element {
           <h3 className="ap-group-title">Connect</h3>
         </div>
         <div className="ap-list">
-          <div className="ap-row is-stacked">
-            <div className="ap-row-text">
-              <span className="ap-row-label">GitHub OAuth App callback</span>
-              <span className="ap-row-help">
-                On github.com → Settings → Developer settings → OAuth Apps → New, use this as the Authorization callback URL.
-              </span>
-            </div>
-            <div className="ap-row-control">
-              <Snippet text={status.githubCallback} label="Copy callback" />
-            </div>
-          </div>
           {status.mcpUrl ? (
             <>
               <div className="ap-row">
@@ -219,7 +194,7 @@ export function RemoteSection(): JSX.Element {
                   <span className="ap-row-help">
                     {status.pairingUntil
                       ? `Open until ${new Date(status.pairingUntil).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}: add the connector in Claude now.`
-                      : 'New apps are refused unless you open this for 10 minutes first, so nobody else can register one. Apps already connected are not affected.'}
+                      : 'New apps are refused unless you open this for 10 minutes first, so nobody else can connect one. Apps already connected are not affected.'}
                   </span>
                 </div>
                 <div className="ap-row-control">
@@ -232,7 +207,7 @@ export function RemoteSection(): JSX.Element {
                 <div className="ap-row-text">
                   <span className="ap-row-label">Claude (phone, claude.ai, desktop)</span>
                   <span className="ap-row-help">
-                    Settings → Connectors → Add custom connector, with this address. Then sign in with GitHub.
+                    Settings → Connectors → Add custom connector, with this address. Then enter the code sel shows on GitHub and authorize.
                   </span>
                 </div>
                 <div className="ap-row-control">
