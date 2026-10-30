@@ -1239,6 +1239,51 @@ button.db-formula-item:hover {
   color: var(--text-tertiary);
 }
 
+/* The type glyph: opens only the choice of type. */
+.db-th-type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.db-th-type:hover {
+  background: var(--bg-active);
+  color: var(--text);
+}
+
+.db-th-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-xs);
+  background: var(--bg-solid);
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.db-type-confirm-text {
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.db-type-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .db-th-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1500,9 +1545,10 @@ button.db-formula-item:hover {
     box-shadow var(--duration-fast) var(--ease);
 }
 
+/* Hovered, the card keeps an outline (a transparent one left a card on a card without an edge). */
 .db-card:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-panel);
+  box-shadow: 0 0 0 1px var(--border-control);
 }
 
 .db-card.is-dragging {

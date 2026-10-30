@@ -27,6 +27,7 @@ import {
   getCellValue,
   getTitleProperty,
   isComputedType,
+  isEmptyValue,
   isSafeKey,
   isSelectType,
   makeId,
@@ -330,6 +331,28 @@ export function changePropertyType(
     if (!sameValue(nextValues[propertyId], stored)) rowValues[row.id] = nextValues
   }
   return { schema: { ...schema, [propertyId]: to }, rowValues }
+}
+
+/**
+ * How many cells would lose what they hold if the property became `type`: a value the new type
+ * cannot keep (the text "pending" as a number, linked pages as anything else), or the extra
+ * options of a multi-select that becomes a select. Cells that are empty, an unchecked box and a
+ * computed property's leftovers hold nothing to lose. Pure: it converts the rows as
+ * `changePropertyType` would and compares, so the two never disagree.
+ */
+export function typeChangeLoss(schema: Schema, propertyId: string, type: PropertyType, rows: Block[] = []): number {
+  const from = propOf(schema, propertyId)
+  if (!from || isComputedType(from.type)) return 0
+  const { rowValues } = changePropertyType(schema, propertyId, type, rows)
+  let lost = 0
+  for (const row of rows) {
+    const old = getCellValue(row, from)
+    if (old === false || isEmptyValue(old)) continue
+    const next = rowValues[row.id]?.[propertyId]
+    const stays = row.id in rowValues ? next !== undefined && !isEmptyValue(next) : true
+    if (!stays || (from.type === 'multi_select' && type === 'select' && Array.isArray(old) && old.length > 1)) lost += 1
+  }
+  return lost
 }
 
 /** Removes a property (never the title) and every reference to it in the views. */

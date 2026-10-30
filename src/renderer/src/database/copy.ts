@@ -64,6 +64,26 @@ export interface DatabaseCopy {
     checked: string
     unchecked: string
   }
+  /** A table header's own controls: renaming in place and the type glyph (its type menu). */
+  header: {
+    /** The header's name field while it is renamed (Enter saves, Esc restores). */
+    renameLabel: (name: string) => string
+    /** The type glyph, which opens only the choice of type. */
+    typeGlyph: (name: string, type: string) => string
+    /** The glyph of a column that never changes type (the title, or one the app reads by id). */
+    fixedType: (type: string) => string
+    /** The type menu's name, for a screen reader. */
+    typeMenu: (name: string) => string
+    /** Beside a type that would empty cells. */
+    loses: (count: number) => string
+    /** Over Convert / Cancel: what the conversion costs. */
+    warning: (count: number, type: string) => string
+    convert: string
+    cancel: string
+    /** The toast after a conversion. */
+    changed: (name: string, type: string) => string
+    undo: string
+  }
   /** The options of a select, in its property menu (0.9.0, B3). */
   options: {
     header: string
@@ -150,6 +170,21 @@ export const DATABASE_COPY: Record<HomeLocale, DatabaseCopy> = {
       checked: 'checked',
       unchecked: 'unchecked'
     },
+    header: {
+      renameLabel: (name) => `Rename column ${name}`,
+      typeGlyph: (name, type) => `Type of ${name}: ${type}. Change`,
+      fixedType: (type) => `${type}: fixed type`,
+      typeMenu: (name) => `Type of ${name}`,
+      loses: (count) => (count === 1 ? '1 value lost' : `${count} values lost`),
+      warning: (count, type) =>
+        count === 1
+          ? `1 cell has no counterpart as ${type} and will be emptied.`
+          : `${count} cells have no counterpart as ${type} and will be emptied.`,
+      convert: 'Convert',
+      cancel: 'Cancel',
+      changed: (name, type) => `${name} is now ${type}.`,
+      undo: 'Undo'
+    },
     options: {
       header: 'Options',
       add: 'Add an option',
@@ -233,6 +268,21 @@ export const DATABASE_COPY: Record<HomeLocale, DatabaseCopy> = {
       nothingToKeepBy: 'Nada para filtrar as linhas',
       checked: 'marcada',
       unchecked: 'desmarcada'
+    },
+    header: {
+      renameLabel: (name) => `Renomear a coluna ${name}`,
+      typeGlyph: (name, type) => `Tipo de ${name}: ${type}. Trocar`,
+      fixedType: (type) => `${type}: tipo fixo`,
+      typeMenu: (name) => `Tipo de ${name}`,
+      loses: (count) => (count === 1 ? '1 valor some' : `${count} valores somem`),
+      warning: (count, type) =>
+        count === 1
+          ? `1 célula não tem equivalente em ${type} e ficará vazia.`
+          : `${count} células não têm equivalente em ${type} e ficarão vazias.`,
+      convert: 'Converter',
+      cancel: 'Cancelar',
+      changed: (name, type) => `${name} agora é ${type}.`,
+      undo: 'Desfazer'
     },
     options: {
       header: 'Opções',

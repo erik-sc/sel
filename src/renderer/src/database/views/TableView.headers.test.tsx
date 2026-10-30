@@ -162,17 +162,12 @@ describe('the headers from the keyboard', () => {
     expect(await seriousViolations()).toEqual([])
   })
 
-  it('opens the menu with F2 too (rename), and with Space and Shift+F10', async () => {
+  it('opens the menu with Space and Shift+F10 (F2 renames in place, see TableView.rename.test)', async () => {
     await onFirstRow(2)
     await press(grid(), 'ArrowUp')
-    await press(grid(), 'F2')
-    await settle()
-    expect(document.activeElement).toBe(nameField())
-    expect(nameField()?.value).toBe('Pages')
-    await press(nameField() as HTMLElement, 'Escape')
-    await settle()
     await press(grid(), ' ')
     await settle()
+    expect(document.activeElement).toBe(nameField())
     expect(nameField()?.value).toBe('Pages')
     await press(nameField() as HTMLElement, 'Escape')
     await settle()
