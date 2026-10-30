@@ -76,11 +76,11 @@ export const hermanFeature = defineFeature({
       repo: ctx.repo,
       day: async () => {
         const { tasks, events } = await ctx.feature('briefing').stored()
-        const { waiting, oldest } = refineFacts(ctx.repo, Date.now())
+        const { waiting, oldest, undated } = refineFacts(ctx.repo, Date.now())
         return {
           tasks: { overdue: tasks.overdue, today: tasks.today },
           events: events.today,
-          inbox: oldest ? { waiting, title: oldest.title, days: oldest.days } : null
+          inbox: oldest ? { waiting, title: oldest.title, days: oldest.days, undated } : null
         }
       },
       recording: () => ctx.recording(),

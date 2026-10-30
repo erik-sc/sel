@@ -1,5 +1,5 @@
 import { HERMAN_NUDGE_KINDS, type HermanLocale, type HermanNudge, type HermanNudgeKind, type PersonaId } from '../../shared/herman'
-import { agoWords, capitalize, LINES, numberWord, phrasesOf, sinceWords, spanWords, type Words } from './lines'
+import { agoWords, capitalize, dateVerb, effectOf, LINES, numberWord, phrasesOf, sinceWords, spanWords, type Words } from './lines'
 
 /**
  * Herman's counsel without AI: one short line about the user's own day, composed here from what
@@ -73,7 +73,7 @@ export interface CounselInput {
    * Tasks in the Inbox, still to refine, for two days or more (shared/tasks/refine.ts): how many,
    * and the one that has waited longest. Absent when the user turned this reminder off.
    */
-  inbox?: { waiting: number; title: string; days: number } | null
+  inbox?: { waiting: number; title: string; days: number; undated?: readonly { id: string; title: string }[] } | null
   /** How long the current page has been edited without a real pause. */
   editingMs?: number
   /** The page in front, when it was opened after a long time untouched. */
@@ -88,6 +88,8 @@ export interface CounselInput {
   saidToday?: readonly HermanNudgeKind[]
   /** How welcome each kind is, from 1 (as written) down toward 0 ("Fewer like this"). */
   weights?: Partial<Record<HermanNudgeKind, number>>
+  /** Kinds put away with "Not now" today: not again until tomorrow, whichever kind they are. */
+  snoozed?: readonly HermanNudgeKind[]
   /** Lines used lately, as `kind:index`: he avoids repeating himself. */
   recent?: readonly string[]
   /** Only these kinds are considered (a nudge raised by one event, like a streak). */
@@ -100,6 +102,8 @@ export interface CounselInput {
 export interface Counsel {
   kind: HermanNudgeKind
   text: string
+  /** What the verb changes, with names: the line under the observation. */
+  effect?: string
   action?: HermanNudge['action']
   /** `kind:index` of the line used. */
   variant: string
@@ -138,6 +142,9 @@ interface Candidate {
   /** The action offered with a line that names no title, and with one that does. */
   action?: HermanNudge['action']
   titledAction?: HermanNudge['action']
+  /** The effect line of each action. */
+  effect?: string
+  titledEffect?: string
 }
 
 const BLANK: Words = {
@@ -178,21 +185,27 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
 
   const timed = input.events.filter((event) => !event.allDay && event.end > event.start)
 
-  if ((input.streak ?? 0) >= limits.streak) out.streak = { words: count(input.streak ?? 0) }
+  if ((input.streak ?? 0) >= limits.streak)
+    out.streak = { words: count(input.streak ?? 0), action: openToday, effect: effectOf(locale, 'open-today-left') }
 
-  if ((input.editingMs ?? 0) >= limits.longSessionMs) out['long-session'] = { words: minutesOf(input.editingMs ?? 0) }
+  if ((input.editingMs ?? 0) >= limits.longSessionMs)
+    out['long-session'] = { words: minutesOf(input.editingMs ?? 0), action: ask(phrases.askPage), effect: effectOf(locale, 'ask') }
 
   if (input.reopened && input.reopened.days >= limits.untouchedDays) {
     const ago = agoWords(input.reopened.days, locale)
-    out.reopened = { words: { ago, Ago: capitalize(ago) }, action: ask(phrases.askPage) }
+    out.reopened = { words: { ago, Ago: capitalize(ago) }, action: ask(phrases.askPage), effect: effectOf(locale, 'ask') }
   }
 
   if (input.firstLaunch && minuteOfDay >= limits.morningFrom && minuteOfDay < limits.morningTo)
-    out.morning = { words: {}, action: openToday }
+    out.morning = { words: {}, action: openToday, effect: effectOf(locale, 'open-today') }
 
   // The evening line is an invitation to close the day: a few quiet steps, then the window rests.
   if (minuteOfDay >= limits.eveningFrom && minuteOfDay < limits.eveningTo)
-    out.evening = { words: {}, action: { label: phrases.closeDay, command: { type: 'close-day' } } }
+    out.evening = {
+      words: {},
+      action: { label: phrases.closeDay, command: { type: 'close-day' } },
+      effect: effectOf(locale, 'close-day')
+    }
 
   // A stretch with nothing on the calendar, on a day that has a calendar at all.
   const busyNow = timed.some((event) => event.start <= input.now && event.end > input.now)
@@ -210,7 +223,11 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
         : locale === 'pt-BR'
           ? 'pelo resto do dia'
           : 'for the rest of the day'
-      out['free-block'] = { words: { until: phrase, span, Span: capitalize(span) }, action: ask(phrases.askFirst) }
+      out['free-block'] = {
+        words: { until: phrase, span, Span: capitalize(span) },
+        action: ask(phrases.askFirst),
+        effect: effectOf(locale, 'ask')
+      }
     }
   }
 
@@ -221,16 +238,35 @@ function candidates(input: CounselInput, limits: CounselThresholds): Partial<Rec
     out.overdue = {
       words: { ...count(overdue.length), title: tidyTitle(oldest.title), since: sinceWords(daysSince(oldest.due, now), now, locale) },
       action: openToday,
-      titledAction: openTask(oldest)
+      titledAction: openTask(oldest),
+      effect: effectOf(locale, 'open-today-overdue', { count: overdue.length }),
+      titledEffect: effectOf(locale, 'open-task', { title: tidyTitle(oldest.title) })
     }
   } else if (today.length > 0) {
-    out.today = { words: { ...count(today.length), title: tidyTitle(today[0].title) }, action: openToday, titledAction: openTask(today[0]) }
+    out.today = {
+      words: { ...count(today.length), title: tidyTitle(today[0].title) },
+      action: openToday,
+      titledAction: openTask(today[0]),
+      effect: effectOf(locale, 'open-today'),
+      titledEffect: effectOf(locale, 'open-task', { title: tidyTitle(today[0].title) })
+    }
   }
   const inbox = input.inbox
   if (inbox && inbox.waiting > 0) {
+    // With tasks still undated, the verb is the one that changes data: the day for all of them,
+    // with an Undo (renderer/tasks/bulk.ts). Without, it opens the refine mode.
+    const undated = (inbox.undated ?? []).filter((task) => task.id)
+    const names = undated.map((task) => tidyTitle(task.title)).filter(Boolean)
+    const dating = undated.length > 0 && names.length === undated.length
     out.inbox = {
       words: { ...count(inbox.waiting), title: tidyTitle(inbox.title), since: sinceWords(inbox.days, now, locale) },
-      action: { label: phrases.refineNow, command: { type: 'refine-inbox' } }
+      action: dating
+        ? {
+            label: dateVerb(undated.length, locale),
+            command: { type: 'date-tasks', pageIds: undated.map((task) => task.id), day: 'tomorrow' }
+          }
+        : { label: phrases.refineNow, command: { type: 'refine-inbox' } },
+      effect: dating ? effectOf(locale, 'date-tasks', { names }) : effectOf(locale, 'refine', { count: inbox.waiting })
     }
   }
   return out
@@ -248,11 +284,12 @@ export function compose(input: CounselInput): Counsel | null {
   const found = candidates(input, limits)
   const said = new Set(input.saidToday ?? [])
   const recent = new Set(input.recent ?? [])
+  const snoozed = new Set(input.snoozed ?? [])
   for (const kind of HERMAN_NUDGE_KINDS) {
     const candidate = found[kind]
     if (!candidate) continue
     if (input.only && !input.only.includes(kind)) continue
-    if (kind === input.lastKind) continue
+    if (kind === input.lastKind || snoozed.has(kind)) continue
     if (ONCE_A_DAY.has(kind) && said.has(kind)) continue
     const weight = input.weights?.[kind]
     if (typeof weight === 'number' && weight < 1 && random() >= Math.max(0, weight)) continue
@@ -265,7 +302,8 @@ export function compose(input: CounselInput): Counsel | null {
     const pool = fresh.length ? fresh : usable
     const { line, index } = pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))]
     const action = line.title ? (candidate.titledAction ?? candidate.action) : candidate.action
-    return { kind, text: line.text(words), variant: `${kind}:${index}`, ...(action ? { action } : {}) }
+    const effect = line.title && candidate.titledAction ? candidate.titledEffect : candidate.effect
+    return { kind, text: line.text(words), variant: `${kind}:${index}`, ...(effect ? { effect } : {}), ...(action ? { action } : {}) }
   }
   return null
 }
