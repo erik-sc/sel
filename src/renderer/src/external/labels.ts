@@ -48,6 +48,12 @@ export const TOOL_LABELS: Record<string, string> = {
   finance_budget: 'Finances: budget',
   finance_account: 'Finances: account',
   finance_box: 'Finances: box',
+  split_summary: 'Shared bills: summary',
+  split_config: 'Shared bills: set up',
+  split_add: 'Shared bills: add an expense',
+  split_bill: 'Shared bills: fixed bill',
+  split_launch: 'Shared bills: launch a bill',
+  split_settle: 'Shared bills: settle up',
   unknown: 'Unknown tool'
 }
 

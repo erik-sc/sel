@@ -21,6 +21,8 @@ export const SIDEBAR_ITEMS = [
   'today',
   'calendar',
   'tasks',
+  'finance',
+  'split',
   'meditations',
   'sky',
   'close-day',

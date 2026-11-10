@@ -63,6 +63,8 @@ const VIEW = [
   'Add a Task… (CmdOrCtrl+Alt+A)',
   'Weekly Review',
   'Meditations (CmdOrCtrl+Alt+N)',
+  'Finances',
+  'Shared Bills',
   'Sky (CmdOrCtrl+Alt+G)',
   'Flows',
   'Close the Day',

@@ -2,6 +2,7 @@ import { callTool, listTrash, repositorySource, ToolError } from '../ai/tools'
 import { callWriteTool } from '../ai/writes'
 import type { Repository } from '../db/repository'
 import { callFinanceTool } from '../finance/tools'
+import { callSplitTool } from '../split/tools'
 import { callTaskTool } from '../tasks/tools'
 import { PACK_OF, type PackId } from './catalog'
 
@@ -28,7 +29,8 @@ export function createToolRunner(repo: Repository, markdown: Markdown): Runner {
         : reads.has(name)
           ? callTool(source, name, args)
           : callWriteTool({ repo, markdown }, name, args),
-    finance: (name, args) => callFinanceTool({ repo, markdown }, name, args)
+    finance: (name, args) => callFinanceTool({ repo, markdown }, name, args),
+    split: (name, args) => callSplitTool({ repo, markdown }, name, args)
   }
   return (name, args) => {
     const pack = PACK_OF.get(name)

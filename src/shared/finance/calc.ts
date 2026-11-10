@@ -42,6 +42,11 @@ export interface Recurring {
   category: string | null
   account: string | null
   active: boolean
+  /** Who pays it. */
+  paidBy: string
+  /** A bill shared with the household (./household.ts): its group, and the user's part of it in percent. */
+  group: string | null
+  share: number | null
 }
 
 export interface BudgetLine {
@@ -153,6 +158,12 @@ export function mine(entry: Entry): number {
     return 0
   }
   return isMe(entry.paidBy) ? entry.cents : 0
+}
+
+/** What a recurring line costs or brings the user a month: their part of a shared bill, all of their own, none of what someone else pays alone. */
+export function myPart(line: Recurring): number {
+  if (line.share !== null) return Math.round((line.cents * Math.min(100, Math.max(0, line.share))) / 100)
+  return isMe(line.paidBy) ? line.cents : 0
 }
 
 // ---- balances of accounts and boxes ---------------------------------------------------
@@ -358,7 +369,8 @@ export function monthPicture(books: Books, month: string, today: string): MonthP
   const inAccounts = accounts.reduce((sum, account) => sum + account.cents, 0)
   const all = bills(books, month)
   const incomeLines = all.filter((line) => line.recurring.kind === 'income')
-  const billLines = all.filter((line) => line.recurring.kind === 'expense')
+  // The bills the user pays: what someone else of the household pays shows in what is owed, once it is launched.
+  const billLines = all.filter((line) => line.recurring.kind === 'expense' && isMe(line.recurring.paidBy))
   const settled = (lines: BillState[]): number => lines.reduce((sum, line) => sum + (line.entry?.cents ?? 0), 0)
   const open = (lines: BillState[]): number => lines.reduce((sum, line) => sum + (line.entry ? 0 : line.recurring.cents), 0)
   const invoices = books.accounts.filter((account) => account.type === 'card').map((card) => invoice(books, card, month))
@@ -406,8 +418,9 @@ export interface Forecast {
 /** A month ahead, from what repeats: the recurring income and bills, the budget's limits, and the invoices already known. */
 export function forecast(books: Books, month: string): Forecast {
   const active = books.recurring.filter((line) => line.active)
+  // What each line costs the user: their part of a bill shared with the household, whoever pays it.
   const sum = (kind: 'income' | 'expense'): number =>
-    active.filter((line) => line.kind === kind).reduce((total, line) => total + line.cents, 0)
+    active.filter((line) => line.kind === kind).reduce((total, line) => total + (kind === 'expense' ? myPart(line) : line.cents), 0)
   const invoices = books.accounts
     .filter((account) => account.type === 'card')
     .reduce((total, card) => total + invoice(books, card, month).cents, 0)

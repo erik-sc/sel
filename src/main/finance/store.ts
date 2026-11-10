@@ -17,6 +17,7 @@ import {
   ME,
   RECURRING
 } from '../../shared/finance'
+import { cleanHousehold, type Household, HOUSEHOLD_KEY } from '../../shared/finance/household'
 import { plainText } from '../../shared/richtext'
 import type { Block, Op, PropertySchema, PropertyValue } from '../../shared/types'
 import { ToolError } from '../ai/tools'
@@ -31,6 +32,26 @@ import type { Repository } from '../db/repository'
  */
 
 type Schema = Record<string, PropertySchema>
+
+/**
+ * "Private from AI" keeps the block from the apps connected over MCP, not from its owner: the
+ * window's own calls run inside `asUser`, where nothing is private. The tools are synchronous, so
+ * the mark holds exactly for the call it wraps.
+ */
+let user = false
+
+/** Runs `fn` as the user in their own window. */
+export function asUser<T>(fn: () => T): T {
+  const before = user
+  user = true
+  try {
+    return fn()
+  } finally {
+    user = before
+  }
+}
+
+const closed = (repo: Repository, id: string): boolean => !user && isPrivateForAi(repo, id)
 
 /**
  * Makes sure the Finance page and its five databases exist, the first time something is entered.
@@ -74,7 +95,7 @@ export function financeDatabase(repo: Repository, db: FinanceDb): Block {
   if (!financeExists(repo)) ensureFinance(repo)
   const block = repo.get(FINANCE_DB[db])
   if (!block || block.type !== 'database') throw new ToolError('The Finance block could not be set up.')
-  if (isPrivateForAi(repo, block.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
+  if (closed(repo, block.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
   return block
 }
 
@@ -141,7 +162,7 @@ const ACCOUNT_TYPE: Readonly<Record<string, AccountType>> = {
 
 /** The rows of a Finance database the AI may see. */
 export function rowsOf(repo: Repository, db: FinanceDb): Block[] {
-  const hidden = privacyChecker(repo)
+  const hidden = user ? () => false : privacyChecker(repo)
   return repo.children(FINANCE_DB[db]).filter((row) => row.type === 'page' && row.trashedAt === null && !hidden(row.id))
 }
 
@@ -187,7 +208,10 @@ export function readBooks(repo: Repository): Books {
         day: numberOrNull(own(row, RECURRING.day)),
         category: optionName(recurringSchema, RECURRING.category, own(row, RECURRING.category)),
         account: optionName(recurringSchema, RECURRING.account, own(row, RECURRING.account)),
-        active: own(row, RECURRING.active) !== false
+        active: own(row, RECURRING.active) !== false,
+        paidBy: optionName(recurringSchema, RECURRING.paidBy, own(row, RECURRING.paidBy)) ?? ME,
+        group: optionName(recurringSchema, RECURRING.group, own(row, RECURRING.group)),
+        share: numberOrNull(own(row, RECURRING.share))
       })
     ),
     budget: rowsOf(repo, 'budget').map(
@@ -271,6 +295,17 @@ export class Options {
   }
 }
 
+/** Who the user shares their household with (shared/finance/household.ts): a setting of this workspace. */
+export function readHousehold(repo: Repository): Household {
+  return cleanHousehold(repo.getSetting(HOUSEHOLD_KEY))
+}
+
+export function writeHousehold(repo: Repository, household: Household): Household {
+  const clean = cleanHousehold(household)
+  repo.setSetting(HOUSEHOLD_KEY, clean)
+  return clean
+}
+
 /** A row of one of the Finance databases, by id, that the AI may change. */
 export function financeRow(repo: Repository, raw: unknown): { row: Block; db: FinanceDb } {
   const id = typeof raw === 'string' ? raw.trim() : ''
@@ -278,7 +313,7 @@ export function financeRow(repo: Repository, raw: unknown): { row: Block; db: Fi
   const row = repo.get(id)
   const db = row ? FINANCE_ORDER.find((each) => FINANCE_DB[each] === row.parentId) : undefined
   if (!row || !db || row.type !== 'page' || row.trashedAt !== null) throw new ToolError('Nothing in Finance has that id.')
-  if (isPrivateForAi(repo, row.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
+  if (closed(repo, row.id)) throw new ToolError(AI_PRIVATE_MESSAGE)
   return { row, db }
 }
 

@@ -7,8 +7,29 @@ import type { ComponentType, ReactNode } from 'react'
 import type { SidebarItemId } from '@shared/sidebar'
 import { setQuickFindOpen, setSettingsOpen } from '@/store/ui'
 import { IconButton } from '@/ui/Button'
-import { Archive, Calendar, Check, Clock, Feedback, Home, Mic, Moon, Pen, Plus, Search, Settings, Sky, Star, Page, Trash } from '@/ui/icons'
+import {
+  Archive,
+  Calendar,
+  Check,
+  Clock,
+  Coins,
+  Feedback,
+  Home,
+  Mic,
+  Moon,
+  Pen,
+  Plus,
+  Search,
+  Settings,
+  Sky,
+  Split,
+  Star,
+  Page,
+  Trash
+} from '@/ui/icons'
 import { openFeedback } from '@/feedback/gate'
+import { openFinance } from '@/finance/route'
+import { openSplit } from '@/split/route'
 import { preloadFeedback } from '@/feedback/Host'
 import { openCalendar, openToday } from '@/briefing/route'
 import { openCloseDay, openNotebook } from '@/notebook/route'
@@ -152,6 +173,8 @@ export const SIDEBAR_ITEM_DEFS: Record<SidebarItemId, SidebarItemDef> = {
   today: { id: 'today', icon: <Clock />, Render: () => <Action id="today" icon={<Clock />} onClick={openToday} /> },
   calendar: { id: 'calendar', icon: <Calendar />, Render: () => <Action id="calendar" icon={<Calendar />} onClick={openCalendar} /> },
   tasks: { id: 'tasks', icon: <Check />, Render: TasksItem },
+  finance: { id: 'finance', icon: <Coins />, Render: () => <Action id="finance" icon={<Coins />} onClick={openFinance} /> },
+  split: { id: 'split', icon: <Split />, Render: () => <Action id="split" icon={<Split />} onClick={openSplit} /> },
   meditations: { id: 'meditations', icon: <Pen />, Render: () => <Action id="meditations" icon={<Pen />} onClick={openNotebook} /> },
   // Gone while the Sky is turned off (see useAvailableItem).
   sky: { id: 'sky', icon: <Sky />, Render: () => <Action id="sky" icon={<Sky />} onClick={openSky} /> },
