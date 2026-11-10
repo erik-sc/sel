@@ -72,8 +72,9 @@ export function McpSection(): JSX.Element {
             <div className="ap-row-text">
               <span className="ap-row-label">Connect other apps (MCP)</span>
               <span className="ap-row-help">
-                Lets Claude Desktop, Claude Code and other MCP apps on this computer search and read your notes, create pages, add to pages,
-                and add or change database rows. They can never delete anything. sel must be open.
+                Lets Claude Desktop, Claude Code and other MCP apps on this computer read and change your pages, databases, tasks and
+                finances. What they delete goes to the trash, never for good, and a page's history keeps what it said before. sel must be
+                open.
               </span>
             </div>
             <div className="ap-row-control">

@@ -1,8 +1,9 @@
 /**
  * The workspace tools as the MCP server lists them (see ./tools.ts for what they do, and
- * ../mcp.ts for the server). Plain data with no imports: the server script bundles this file
- * and nothing else of the app.
+ * ../mcp.ts for the server). Plain data: the server script bundles this file and the other
+ * blocks' specs (../tools/catalog.ts), and nothing else of the app.
  */
+import { definePack, scoped } from '../tools/pack'
 
 /** The name the server is given in the program's configuration: its tools are mcp__sel__<name>. */
 export const TOOL_SERVER = 'sel'
@@ -20,7 +21,11 @@ export const TOOL_CAPS = {
   auditPages: 4000,
   auditList: 25,
   /** A page untouched for this many days counts as stale. */
-  staleDays: 120
+  staleDays: 120,
+  trash: 50,
+  /** Properties a new database is given, and options a select is. */
+  properties: 30,
+  options: 50
 } as const
 
 export interface ToolSpec {
@@ -142,8 +147,139 @@ export const WRITE_TOOL_SPECS: readonly ToolSpec[] = [
   }
 ]
 
-/** Everything a connected app is offered: the reading tools, then the writing ones. */
-export const EXTERNAL_TOOL_SPECS: readonly ToolSpec[] = [...TOOL_SPECS, ...WRITE_TOOL_SPECS]
+const PROPERTY_TYPES = ['text', 'number', 'select', 'multi_select', 'date', 'checkbox', 'url'] as const
+
+const PROPERTY = {
+  type: 'object',
+  properties: {
+    name: { type: 'string' },
+    type: { type: 'string', enum: [...PROPERTY_TYPES] },
+    options: {
+      type: 'array',
+      items: { type: 'string' },
+      maxItems: TOOL_CAPS.options,
+      description: 'select and multi_select: the names of its options.'
+    },
+    format: { type: 'string', enum: ['number', 'percent', 'currency'], description: 'number only: how it is shown.' }
+  },
+  required: ['name', 'type'],
+  additionalProperties: false
+}
+
+/**
+ * What only the apps the user connected read, beyond what Herman has (TOOL_SPECS stays his
+ * list): the trash, to put something back.
+ */
+export const EXTRA_READ_SPECS: readonly ToolSpec[] = [
+  {
+    name: 'list_trash',
+    description: 'The pages, databases and rows in the trash, the latest first, with their ids: what restore_page can put back.',
+    inputSchema: {
+      type: 'object',
+      properties: { limit: { type: 'integer', minimum: 1, maximum: TOOL_CAPS.trash } },
+      additionalProperties: false
+    }
+  }
+]
+
+/**
+ * The tools that reorganise: they change or take away what is there, always in a way the user
+ * can undo in sel. A page's history keeps the state before a rewrite (Version history); what is
+ * deleted goes to the trash and stays there until the user empties it. Nothing is ever deleted
+ * for good from here.
+ */
+export const EDIT_TOOL_SPECS: readonly ToolSpec[] = [
+  {
+    name: 'update_page',
+    description:
+      'Changes a page: its title, its icon, or its whole text, replaced by new Markdown (the pages and databases inside it stay). The version history keeps what it said before. For a database or a row, only the title and icon.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: ID,
+        title: { type: 'string' },
+        icon: { type: ['string', 'null'], description: 'An emoji; null removes it.' },
+        markdown: { ...MARKDOWN, description: 'The new text of the page, in place of what it holds now.' }
+      },
+      required: ['id'],
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'move_page',
+    description: 'Moves a page or a database into another page, or to the top level of the workspace.',
+    inputSchema: {
+      type: 'object',
+      properties: { id: ID, parent: { type: ['string', 'null'], description: 'The page to move it into, by id; null for the top level.' } },
+      required: ['id', 'parent'],
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'delete_page',
+    description:
+      'Moves a page, a database or a row of a database to the trash, with what is inside it. It stays there until the user empties the trash: restore_page puts it back.',
+    inputSchema: { type: 'object', properties: { id: ID }, required: ['id'], additionalProperties: false }
+  },
+  {
+    name: 'restore_page',
+    description: 'Puts back something that is in the trash (see list_trash), where it was.',
+    inputSchema: { type: 'object', properties: { id: ID }, required: ['id'], additionalProperties: false }
+  },
+  {
+    name: 'create_database',
+    description:
+      'Creates a database with the properties given, at the top level or inside a page. It always has a title property; the others are text, number, select, multi_select, date, checkbox or url. Returns its id: add rows with add_database_row.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        parent: { ...ID, description: 'The page to create it in, by id. Leave it out for the top level.' },
+        title_property: { type: 'string', description: 'What the title property is called. Left out: "Name".' },
+        properties: { type: 'array', items: PROPERTY, maxItems: TOOL_CAPS.properties }
+      },
+      required: ['title'],
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'add_database_property',
+    description: 'Adds a property (a column) to a database.',
+    inputSchema: {
+      type: 'object',
+      properties: { database: ID, ...PROPERTY.properties },
+      required: ['database', 'name', 'type'],
+      additionalProperties: false
+    }
+  },
+  {
+    name: 'add_select_options',
+    description: 'Adds options to a select or multi_select property of a database, by name. The ones it already has are left as they are.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        database: ID,
+        property: { type: 'string', description: 'The property, by name.' },
+        options: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: TOOL_CAPS.options }
+      },
+      required: ['database', 'property', 'options'],
+      additionalProperties: false
+    }
+  }
+]
+
+export const EDIT_TOOL_NAMES: readonly string[] = EDIT_TOOL_SPECS.map((spec) => spec.name)
+
+/**
+ * The workspace as a block's tools (../tools/pack.ts): reading under `read`, everything that
+ * writes under `write`.
+ */
+export const WORKSPACE_PACK = definePack({
+  id: 'workspace',
+  title: 'Pages and databases',
+  summary: 'The pages and databases of the workspace: search, read, create, rewrite, move, and the trash.',
+  tools: [...scoped('read', [...TOOL_SPECS, ...EXTRA_READ_SPECS]), ...scoped('write', [...WRITE_TOOL_SPECS, ...EDIT_TOOL_SPECS])]
+})
 
 export const WRITE_TOOL_NAMES: readonly string[] = WRITE_TOOL_SPECS.map((spec) => spec.name)
 

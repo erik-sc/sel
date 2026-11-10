@@ -3,7 +3,7 @@ import { rm, unlink, writeFile } from 'node:fs/promises'
 import { createServer, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { EXTERNAL_TOOL_SPECS } from '../ai/toolspecs'
+import { EXTERNAL_TOOL_SPECS } from '../tools/catalog'
 import { ToolError } from '../ai/tools'
 import { serveLines } from '../ai/toolhost'
 import { DISCOVERY_FILE, EXTERNAL_MESSAGES, MAX_CALL_CHARS, type Discovery } from './protocol'
@@ -16,7 +16,8 @@ import { DISCOVERY_FILE, EXTERNAL_MESSAGES, MAX_CALL_CHARS, type Discovery } fro
  * database is opened by this process only.
  *
  * Unlike Herman's grants (../ai/toolhost.ts), which end with a request and only read, the token
- * here lasts until the user generates a new one, and it may write (../ai/writes.ts). So calls
+ * here lasts until the user generates a new one, and it may write: the tools of every block
+ * (../tools/catalog.ts). So calls
  * are bounded by rate and size instead of by count, and the last few are listed in Settings:
  * which tool, when, whether it worked. Never what was asked or answered.
  *

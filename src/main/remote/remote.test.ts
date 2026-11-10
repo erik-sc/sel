@@ -10,7 +10,7 @@ import { AuthStore, allowedRedirect, challengeOf, redirectMatches } from './auth
 import type { Fetch } from './github'
 import type { RemoteServer } from './server'
 import { createRemoteServer, toolsFor } from './service'
-import { callTaskTool } from './tasks'
+import { callTaskTool } from '../tasks/tools'
 
 // A Thursday, 10:00 local time.
 const NOW = new Date(2026, 9, 29, 10, 0)
@@ -76,6 +76,54 @@ describe('the task tools', () => {
     expect(callTaskTool(repo, 'list_tasks', { list: 'inbox' }, NOW)).toContain('Someday')
   })
 
+  it('changes, reopens and deletes a task, and lists projects and what was done', () => {
+    callTaskTool(repo, 'add_task', { text: 'Write the report #Work' }, NOW)
+    const id = /Write the report \[([^\]]+)\]/u.exec(callTaskTool(repo, 'list_tasks', { list: 'all' }, NOW))?.[1] as string
+    const changed = callTaskTool(
+      repo,
+      'update_task',
+      {
+        id,
+        title: 'Write the Q4 report',
+        priority: 1,
+        project: 'Clients',
+        labels: ['deep', 'writing'],
+        repeat: 'every week',
+        notes: 'First line\n\nSecond'
+      },
+      NOW
+    )
+    expect(changed).toContain('Updated (title, priority, project, labels, repeat, notes)')
+    expect(changed).toContain('Write the Q4 report')
+    expect(changed).toContain('P1 · #Clients · @deep · @writing · repeats every week')
+    expect(repo.children(id).map((block) => block.props.title?.[0]?.[0])).toEqual(['First line', 'Second'])
+    expect(() => callTaskTool(repo, 'update_task', { id }, NOW)).toThrow(/what to change/)
+    expect(() => callTaskTool(repo, 'update_task', { id, priority: 9 }, NOW)).toThrow(/priority/)
+    expect(callTaskTool(repo, 'update_task', { id, project: null, labels: [], priority: null, repeat: null }, NOW)).not.toMatch(
+      /#Clients|@deep|P1|repeats/
+    )
+
+    const projects = callTaskTool(repo, 'list_projects', {}, NOW)
+    expect(projects).toContain('- Work: 0 open')
+    expect(projects).toContain('- Clients: 0 open')
+    expect(projects).toContain('Inbox (no project): 1 open.')
+    callTaskTool(repo, 'update_task', { id, project: 'work' }, NOW)
+    expect(callTaskTool(repo, 'list_tasks', { list: 'all', project: 'WORK' }, NOW)).toContain('Write the Q4 report')
+    expect(callTaskTool(repo, 'list_tasks', { list: 'all', project: 'Clients' }, NOW)).toContain('nothing open')
+
+    callTaskTool(repo, 'complete_task', { id }, NOW)
+    expect(callTaskTool(repo, 'list_tasks', { list: 'completed' }, NOW)).toMatch(/Write the Q4 report .* done 2026-/u)
+    expect(callTaskTool(repo, 'reopen_task', { id }, NOW)).toContain('Open again')
+    expect(callTaskTool(repo, 'reopen_task', { id }, NOW)).toContain('already open')
+    expect(callTaskTool(repo, 'list_tasks', { list: 'completed' }, NOW)).toContain('nothing done')
+
+    expect(callTaskTool(repo, 'delete_task', { id }, NOW)).toContain('Moved to the trash')
+    expect(repo.get(id)?.trashedAt).not.toBeNull()
+    expect(() => callTaskTool(repo, 'complete_task', { id }, NOW)).toThrow(/No task has that id/)
+    repo.restore(id)
+    expect(callTaskTool(repo, 'list_tasks', { list: 'all' }, NOW)).toContain('Write the Q4 report')
+  })
+
   it('keeps a private Tasks database closed', () => {
     callTaskTool(repo, 'add_task', { text: 'Secret' }, NOW)
     repo.update(TASKS_DATABASE_ID, { props: { aiPrivate: true } })
@@ -87,7 +135,11 @@ describe('the task tools', () => {
     const names = (scopes: Parameters<typeof toolsFor>[0]): string[] => toolsFor(scopes).map((tool) => tool.name)
     expect(names(['read'])).toContain('list_tasks')
     expect(names(['read'])).not.toContain('add_task')
-    expect(names(['tasks'])).toEqual(['add_task', 'complete_task', 'reschedule_task'])
+    expect(names(['tasks'])).toEqual(['add_task', 'complete_task', 'reschedule_task', 'update_task', 'reopen_task', 'delete_task'])
+    expect(names(['read', 'tasks', 'write'])).not.toContain('finance_month')
+    expect(names(['finance'])).toContain('finance_add')
+    expect(names(['read'])).not.toContain('delete_page')
+    expect(names(['write'])).toContain('delete_page')
     expect(names(['read', 'tasks'])).not.toContain('create_page')
     expect(names(['write'])).toContain('create_page')
   })

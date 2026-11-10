@@ -20,11 +20,16 @@ On the consent screen you choose what each connection gets:
 
 | Access | Tools |
 | --- | --- |
-| Read | `list_tasks` (today with overdue, upcoming, inbox, all), `search`, `outline`, `read_page`, `read_database`, `recent`, `audit` |
-| Tasks | `add_task` (quick-add words in Portuguese or English: `Pagar aluguel amanhã 9h p1 #Casa @contas`), `complete_task` (a repeating task moves on), `reschedule_task` |
-| Write pages | `create_page`, `append_to_page`, `add_database_row`, `update_database_row` |
+| Read | `list_tasks` (today with overdue, upcoming, inbox, all, completed; by project or label), `list_projects`, `search`, `outline`, `read_page`, `read_database`, `recent`, `audit`, `list_trash` |
+| Tasks | `add_task` (quick-add words in Portuguese or English: `Pagar aluguel amanhã 9h p1 #Casa @contas`), `complete_task` (a repeating task moves on), `reschedule_task`, `update_task` (title, priority, project, labels, repeat, notes), `reopen_task`, `delete_task` |
+| Write pages | `create_page`, `append_to_page`, `update_page` (title, icon, or the whole text), `move_page`, `delete_page`, `restore_page`, `create_database`, `add_database_property`, `add_select_options`, `add_database_row`, `update_database_row` |
+| Finance | `finance_month` (the month at a glance, as text or as data for a dashboard), `finance_entries`, `finance_balances` (who owes whom), `finance_projection`, `finance_add` (expense, income, transfer; card instalments; shared), `finance_receipt` (a receipt line by line, split among people), `finance_update`, `finance_delete`, `finance_settle`, `finance_recurring`, `finance_pay`, `finance_pay_invoice`, `finance_budget`, `finance_account`, `finance_box` |
 
-Nothing can be deleted. What you keep private from the AI is left out of every list and refused
+The tools come from sel's blocks (src/main/tools/catalog.ts): each block declares its own, and an
+app connected on this computer (Settings → MCP → Connect other apps) gets all of them.
+
+Nothing is deleted for good: what a tool deletes goes to the trash (`list_trash`, `restore_page`), and
+a page's version history keeps what it said before `update_page` rewrote it. What you keep private from the AI is left out of every list and refused
 by id. Every change goes through the same path as an edit in the window, so version history has
 the state before it. Settings → MCP lists the signed-in apps (end any of them there) and the
 latest calls (which tool and when, never what was asked).
