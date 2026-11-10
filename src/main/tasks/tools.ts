@@ -5,75 +5,21 @@ import { fold } from '../../shared/tasks/dates'
 import { parseTask } from '../../shared/tasks/parse'
 import { completeTaskValues, readRecurrence } from '../../shared/tasks/recur'
 import type { Block, Op, PropertySchema, PropertyValue, SelectOption } from '../../shared/types'
-import type { ToolSpec } from '../ai/toolspecs'
 import { ToolError } from '../ai/tools'
 import { ensureTasksDatabase } from '../db/tasks'
 import type { Repository } from '../db/repository'
+import { TASK_TOOL_CAPS } from './toolspecs'
 
 /**
- * The task tools of the remote connector: what you ask Claude on the phone most ("what is on
+ * The Tasks block's tools (./toolspecs.ts): what you ask Claude on the phone most ("what is on
  * today", "add pay the rent tomorrow 9am p1 #Home", "done"). They work on the built-in Tasks
  * database (shared/tasks), through the repository as an edit in the window does: the history
  * keeps the state before, and the caller tells the windows and sync.
  *
  * `add_task` reads the line as the quick add does (shared/tasks/parse.ts), Portuguese and English
- * alike. What the user keeps private from the AI is left out of every list and refused by id.
+ * alike. `delete_task` moves a task to the trash, where it can be restored; nothing is deleted
+ * for good. What the user keeps private from the AI is left out of every list and refused by id.
  */
-
-export const TASK_TOOL_CAPS = { list: 100, text: 2000, notes: 8000 } as const
-
-const ID = { type: 'string', description: 'A task id, as shown in square brackets after its title.' }
-
-export const TASK_READ_SPECS: readonly ToolSpec[] = [
-  {
-    name: 'list_tasks',
-    description:
-      'The open tasks of a list of the Tasks screen. today: due today or overdue. upcoming: due in the next days. inbox: without a project. all: every open task. Each with its id, due date, priority, project and labels.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        list: { type: 'string', enum: ['today', 'upcoming', 'inbox', 'all'] },
-        limit: { type: 'integer', minimum: 1, maximum: TASK_TOOL_CAPS.list }
-      },
-      additionalProperties: false
-    }
-  }
-]
-
-export const TASK_WRITE_SPECS: readonly ToolSpec[] = [
-  {
-    name: 'add_task',
-    description:
-      'Adds a task from one line, read like sel\'s quick add (Portuguese or English): dates and times ("amanhã 9h", "friday", "em 3 dias"), repeats ("toda segunda", "every month"), priority (p1–p4), #project and @label. Returns the task as stored.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        text: { type: 'string', description: 'The task line, e.g. "Pagar aluguel amanhã 9h p1 #Casa @contas".' },
-        notes: { type: 'string', description: "Text for the task's page, one paragraph per line." }
-      },
-      required: ['text'],
-      additionalProperties: false
-    }
-  },
-  {
-    name: 'complete_task',
-    description: 'Marks a task done. A repeating task moves on to its next date instead and stays open.',
-    inputSchema: { type: 'object', properties: { id: ID }, required: ['id'], additionalProperties: false }
-  },
-  {
-    name: 'reschedule_task',
-    description:
-      'Moves a task to another day: "YYYY-MM-DD", "YYYY-MM-DDTHH:mm" (local time) or words such as "tomorrow" or "sexta 14h". null removes the date.',
-    inputSchema: {
-      type: 'object',
-      properties: { id: ID, when: { type: ['string', 'null'] } },
-      required: ['id', 'when'],
-      additionalProperties: false
-    }
-  }
-]
-
-export const TASK_TOOL_NAMES = new Set([...TASK_READ_SPECS, ...TASK_WRITE_SPECS].map((spec) => spec.name))
 
 // ---- reading ----------------------------------------------------------------------
 
@@ -106,6 +52,8 @@ interface Task {
   project: string | null
   labels: string[]
   repeats: string | null
+  /** When it was last completed, a wall-clock moment. */
+  completedAt: string | null
 }
 
 function schemaOf(database: Block): Record<string, PropertySchema> {
@@ -133,7 +81,8 @@ function readTask(row: Block, schema: Record<string, PropertySchema>): Task {
     labels: Array.isArray(tagged)
       ? tagged.map((id) => (typeof id === 'string' ? labels.get(id) : undefined)).filter((n): n is string => !!n)
       : [],
-    repeats: readRecurrence(own(TASK_PROPS.recurrence))?.text ?? null
+    repeats: readRecurrence(own(TASK_PROPS.recurrence))?.text ?? null,
+    completedAt: startOf(own(TASK_PROPS.completedAt))
   }
 }
 
@@ -144,6 +93,7 @@ export function taskLine(task: Task): string {
   if (task.project) parts.push(`#${task.project}`)
   for (const label of task.labels) parts.push(`@${label}`)
   if (task.repeats) parts.push(`repeats ${oneLine(task.repeats)}`)
+  if (task.done && task.completedAt) parts.push(`done ${task.completedAt.replace('T', ' ')}`)
   return parts.join(' · ')
 }
 
@@ -156,15 +106,16 @@ function tasksDatabase(repo: Repository): Block {
   return database
 }
 
-function openTasks(repo: Repository, database: Block): Task[] {
+function allTasks(repo: Repository, database: Block): Task[] {
   const hidden = privacyChecker(repo)
   const schema = schemaOf(database)
   return repo
     .children(database.id)
     .filter((row) => row.type === 'page' && row.trashedAt === null && !hidden(row.id))
     .map((row) => readTask(row, schema))
-    .filter((task) => !task.done)
 }
+
+const openTasks = (repo: Repository, database: Block): Task[] => allTasks(repo, database).filter((task) => !task.done)
 
 const PRIORITY_RANK: Record<string, number> = { P1: 1, P2: 2, P3: 3 }
 const byDue = (a: Task, b: Task): number =>
@@ -177,7 +128,13 @@ export function listTasks(repo: Repository, raw: unknown, now: Date): string {
     typeof input['limit'] === 'number' && Number.isInteger(input['limit']) ? Math.min(Math.max(input['limit'], 1), TASK_TOOL_CAPS.list) : 50
   const today = localDay(now)
   const week = localDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7))
-  const tasks = openTasks(repo, tasksDatabase(repo))
+  const project = typeof input['project'] === 'string' ? input['project'].trim() : ''
+  const label = typeof input['label'] === 'string' ? input['label'].trim() : ''
+  const wanted = (task: Task): boolean =>
+    (!project || (task.project !== null && fold(task.project) === fold(project))) &&
+    (!label || task.labels.some((name) => fold(name) === fold(label)))
+  const database = tasksDatabase(repo)
+  const tasks = (list === 'completed' ? allTasks(repo, database).filter((task) => task.done) : openTasks(repo, database)).filter(wanted)
   const day = (task: Task): string | null => task.due?.slice(0, 10) ?? null
   let picked: Task[]
   let head: string
@@ -203,13 +160,38 @@ export function listTasks(repo: Repository, raw: unknown, now: Date): string {
       picked = tasks.sort(byDue)
       head = 'Every open task'
       break
+    case 'completed':
+      picked = tasks.sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
+      head = 'Done, the latest first'
+      break
     default:
-      throw new ToolError('list is one of today, upcoming, inbox, all.')
+      throw new ToolError('list is one of today, upcoming, inbox, all, completed.')
   }
-  if (!picked.length) return `${head}: nothing open.`
+  if (project) head += `, project ${oneLine(project).slice(0, 60)}`
+  if (label) head += `, label ${oneLine(label).slice(0, 60)}`
+  const word = list === 'completed' ? 'done' : 'open'
+  if (!picked.length) return `${head}: nothing ${word}.`
   const shown = picked.slice(0, limit)
   const more = picked.length > shown.length ? `\n…and ${picked.length - shown.length} more.` : ''
-  return `${head}: ${picked.length} open.\n${shown.map(taskLine).join('\n')}${more}`
+  return `${head}: ${picked.length} ${word}.\n${shown.map(taskLine).join('\n')}${more}`
+}
+
+export function listProjects(repo: Repository): string {
+  const database = tasksDatabase(repo)
+  const schema = schemaOf(database)
+  const hiddenProjects = new Set(privateProjects(database))
+  const open = openTasks(repo, database)
+  const lines = (title: string, propertyId: string, count: (name: string) => number): string => {
+    const options = optionsOf(schema, propertyId).filter((option) => !hiddenProjects.has(option.id))
+    return options.length
+      ? `${title}:\n${options.map((option) => `- ${oneLine(option.name)}: ${count(option.name)} open`).join('\n')}`
+      : `${title}: none yet.`
+  }
+  return [
+    lines('Projects', TASK_PROPS.project, (name) => open.filter((task) => task.project === name).length),
+    lines('Labels', TASK_PROPS.labels, (name) => open.filter((task) => task.labels.includes(name)).length),
+    `Inbox (no project): ${open.filter((task) => !task.project).length} open.`
+  ].join('\n\n')
 }
 
 // ---- writing ----------------------------------------------------------------------
@@ -311,17 +293,114 @@ export function rescheduleTask(repo: Repository, raw: unknown, now: Date): strin
   return due ? `${titleOf(row)} [${row.id}] is now due ${due.replace('T', ' ')}.` : `${titleOf(row)} [${row.id}] has no date now.`
 }
 
+export function updateTask(repo: Repository, raw: unknown, now: Date): string {
+  const input = args(raw)
+  const row = taskRow(repo, input['id'])
+  const database = tasksDatabase(repo)
+  const schema = structuredClone(schemaOf(database))
+  const before = JSON.stringify(schema)
+  const values = { ...((row.props.values ?? {}) as Record<string, PropertyValue>) }
+  const changed: string[] = []
+  let title: string | null = null
+  if (input['title'] !== undefined) {
+    if (typeof input['title'] !== 'string' || !input['title'].trim()) throw new ToolError('title must be text.')
+    title = oneLine(input['title']).slice(0, TASK_TOOL_CAPS.text)
+    changed.push('title')
+  }
+  if (Object.hasOwn(input, 'priority')) {
+    const priority = input['priority']
+    if (priority === null) delete values[TASK_PROPS.priority]
+    else if (priority === 1 || priority === 2 || priority === 3 || priority === 4) values[TASK_PROPS.priority] = `tasks.p${priority}`
+    else throw new ToolError('priority is 1 (most urgent) to 4, or null.')
+    changed.push('priority')
+  }
+  if (Object.hasOwn(input, 'project')) {
+    const project = input['project']
+    if (project === null || (typeof project === 'string' && !project.trim())) delete values[TASK_PROPS.project]
+    else if (typeof project === 'string') {
+      const projectId = optionFor(schema, TASK_PROPS.project, oneLine(project))
+      // A project kept private from the AI takes no task from it.
+      if (privateProjects(database).includes(projectId)) throw new ToolError(AI_PRIVATE_MESSAGE)
+      values[TASK_PROPS.project] = projectId
+    } else throw new ToolError('project is a name, or null.')
+    changed.push('project')
+  }
+  if (input['labels'] !== undefined) {
+    const labels = input['labels']
+    if (!Array.isArray(labels) || labels.length > 20 || !labels.every((name) => typeof name === 'string' && name.trim()))
+      throw new ToolError('labels is a list of names.')
+    const ids = [...new Set(labels.map((name) => optionFor(schema, TASK_PROPS.labels, oneLine(name as string))))]
+    if (ids.length) values[TASK_PROPS.labels] = ids
+    else delete values[TASK_PROPS.labels]
+    changed.push('labels')
+  }
+  if (Object.hasOwn(input, 'repeat')) {
+    const repeat = input['repeat']
+    if (repeat === null || (typeof repeat === 'string' && !repeat.trim())) delete values[TASK_PROPS.recurrence]
+    else if (typeof repeat === 'string') {
+      const parsed = parseTask(repeat.slice(0, 200), { now })
+      if (!parsed.recurrence)
+        throw new ToolError(`"${oneLine(repeat).slice(0, 60)}" is not a repeat sel can read. Try "every week" or "todo dia 5".`)
+      values[TASK_PROPS.recurrence] = JSON.stringify(parsed.recurrence)
+      // A repeating task needs a day to count from: the one the words gave, when it had none.
+      if (!values[TASK_PROPS.due] && parsed.due) values[TASK_PROPS.due] = { start: parsed.due }
+    } else throw new ToolError('repeat is words such as "every week", or null.')
+    changed.push('repeat')
+  }
+  const notes = typeof input['notes'] === 'string' ? input['notes'].slice(0, TASK_TOOL_CAPS.notes) : ''
+  if (input['notes'] !== undefined && typeof input['notes'] !== 'string') throw new ToolError('notes must be text.')
+  const lines = notes
+    .split(/\r?\n/u)
+    .filter((line) => line.trim())
+    .slice(0, 200)
+  if (lines.length) changed.push('notes')
+  if (!changed.length) throw new ToolError('Say what to change.')
+  const ops: Op[] = []
+  if (JSON.stringify(schema) !== before) ops.push({ op: 'update', id: TASKS_DATABASE_ID, patch: { props: { schema } } })
+  ops.push({ op: 'update', id: row.id, patch: { props: { ...(title !== null ? { title: [[title]] } : {}), values } } })
+  for (const line of lines) ops.push({ op: 'create', input: { type: 'text', parentId: row.id, props: { title: [[line]] } } })
+  repo.apply(ops)
+  const stored = repo.get(row.id)
+  const storedDatabase = repo.get(TASKS_DATABASE_ID)
+  if (!stored || !storedDatabase) throw new ToolError('The task could not be changed.')
+  return `Updated (${changed.join(', ')}):\n${taskLine(readTask(stored, schemaOf(storedDatabase)))}`
+}
+
+export function reopenTask(repo: Repository, raw: unknown): string {
+  const row = taskRow(repo, args(raw)['id'])
+  const values = { ...((row.props.values ?? {}) as Record<string, PropertyValue>) }
+  if (values[TASK_PROPS.done] !== true) return `${titleOf(row)} [${row.id}] is already open.`
+  delete values[TASK_PROPS.done]
+  delete values[TASK_PROPS.completedAt]
+  repo.apply([{ op: 'update', id: row.id, patch: { props: { values } } }])
+  return `Open again: ${titleOf(row)} [${row.id}].`
+}
+
+export function deleteTask(repo: Repository, raw: unknown): string {
+  const row = taskRow(repo, args(raw)['id'])
+  repo.apply([{ op: 'delete', id: row.id }])
+  return `Moved to the trash: ${titleOf(row)} [${row.id}]. It can be restored in sel (Trash), or with restore_page.`
+}
+
 /** Runs one task tool. */
 export function callTaskTool(repo: Repository, name: string, raw: unknown, now: Date = new Date()): string {
   switch (name) {
     case 'list_tasks':
       return listTasks(repo, raw, now)
+    case 'list_projects':
+      return listProjects(repo)
     case 'add_task':
       return addTask(repo, raw, now)
     case 'complete_task':
       return completeTask(repo, raw, now)
     case 'reschedule_task':
       return rescheduleTask(repo, raw, now)
+    case 'update_task':
+      return updateTask(repo, raw, now)
+    case 'reopen_task':
+      return reopenTask(repo, raw)
+    case 'delete_task':
+      return deleteTask(repo, raw)
     default:
       throw new ToolError('No such tool.')
   }

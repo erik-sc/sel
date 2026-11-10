@@ -86,6 +86,42 @@ Arguments arrive as `unknown`: narrow them with `arg.*` (src/main/validate.ts) o
 The wrapper in src/main/ipc.ts already checks the sender and the client id, waits for `ready`,
 drains changes and reduces errors; nothing calls `ipcMain.handle` by itself.
 
+## Adicionar um bloco
+
+Since 0.12.0 a **block** ("bloco", what a plugin would be) is a part of sel that owns its data and
+offers its own tools over MCP, instead of leaning on a generic database: Tasks, the pages and
+databases themselves, Finance. It is built to measure and lives in the repo; adding one is asking
+for a folder that follows this contract. A block has up to four parts:
+
+| Part | Where | Joins the app with |
+|---|---|---|
+| Its data | `src/shared/<block>/index.ts`: the ids of the pages and databases it owns, their property ids and built-in option ids, as constants (two devices that create them before syncing write the same blocks). Pure arithmetic on plain records next to it (`calc.ts`), tested by itself. | nothing: the block's `store.ts` in main creates them the first time something is entered (`ensureFinance`), never at start-up and never on a read |
+| Its tools, as data | `src/main/<block>/toolspecs.ts`: `<BLOCK>_PACK = definePack({ id, title, summary, tools })`, each tool with the scope a remote connection needs for it (`scoped('read', …)`). Plain data, no imports of the app: the server script bundles it. | one line in `PACKS` (src/main/tools/catalog.ts) |
+| Its tools, as code | `src/main/<block>/tools.ts`: `call<Block>Tool(target, name, args, now)`, which returns text and throws `ToolError` for a call that cannot be made | one line in `runners` (src/main/tools/run.ts): a pack without a runner does not typecheck |
+| Its screen | a feature like any other (see "Adicionar uma feature") | the feature lists |
+
+The rules the blocks keep:
+
+- **The data are ordinary pages and databases**, written through the repository as an edit in the
+  window is: history, sync, export, search and "Private from AI" apply with nothing added. A tool
+  finds a property by its id, never its name, and an option by its name ignoring case and accents,
+  adding it when it is new (`Options` in src/main/finance/store.ts).
+- **A tool never deletes for good.** It moves to the trash (`repo.delete`), says so, and names how
+  to put it back.
+- **Check the arguments before touching the workspace**: a call that cannot be made creates
+  nothing.
+- **What is private from the AI is refused**, with `AI_PRIVATE_MESSAGE`, and left out of every list.
+- **Scopes** are the lines of the remote connector's consent screen (`REMOTE_SCOPES`,
+  src/shared/mcp.ts; their words in `SCOPE_TEXT`, src/main/remote/server.ts, and in
+  src/renderer/src/external/labels.ts with each tool's label). A block whose data is of a kind of
+  its own (money) gets a scope of its own.
+- src/main/tools/tools.test.ts checks every tool has one name, a closed schema, a listed scope and
+  a runner that knows it. A block's own test calls its tools on an in-memory repository
+  (src/main/finance/finance.test.ts).
+
+Herman's own tools (`TOOL_SPECS`, read-only) are not a pack: his changes stay proposals the user
+applies.
+
 ## Teclado e leitor de tela
 
 Since 0.7.0 (item 4): what lists, popovers and dialogs do with the keyboard and say to a screen

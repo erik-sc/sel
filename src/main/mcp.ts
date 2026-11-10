@@ -10,17 +10,19 @@
  * - For other apps (see external/): an MCP client the user set up from Settings → MCP starts it
  *   with no such variables. It then reads the discovery file sel writes in its profile folder
  *   while "Connect other apps" is on (`--discovery <path>` names it), and asks the endpoint named
- *   there. Reading and writing; never deleting. When sel is closed, or the setting is off, every
+ *   there. The tools of every block (./tools/catalog.ts): reading, writing, and deleting to the
+ *   trash, never for good. When sel is closed, or the setting is off, every
  *   call answers with what to do about it.
  *
  * Either way the program runs it with this app's own executable as Node. It is bundled on its
- * own (out/main/mcp.js) and imports nothing of the app but the list of tools and the protocol.
+ * own (out/main/mcp.js) and imports nothing of the app but the lists of tools and the protocol.
  */
 import { readFileSync } from 'node:fs'
 import { createConnection, type Socket } from 'node:net'
 import { createInterface } from 'node:readline'
 import { defaultDiscoveryPath, EXTERNAL_MESSAGES, MAX_CALL_CHARS, parseDiscovery } from './external/protocol'
-import { EXTERNAL_TOOL_SPECS, TOOL_SERVER, TOOL_SPECS } from './ai/toolspecs'
+import { TOOL_SERVER, TOOL_SPECS } from './ai/toolspecs'
+import { BLOCKS_SUMMARY, EXTERNAL_TOOL_SPECS } from './tools/catalog'
 
 const GRANT_PIPE = process.env['SEL_TOOLS_PIPE'] ?? ''
 const GRANT_TOKEN = process.env['SEL_TOOLS_TOKEN'] ?? ''
@@ -151,7 +153,7 @@ async function call(name: string, args: unknown): Promise<Reply> {
 
 const INSTRUCTIONS = GRANTED
   ? "Read-only access to the user's sel workspace: their pages and databases. What the user keeps private from the AI is left out."
-  : "The user's notes in sel, a notes app on this computer: search and read their pages and databases, create pages, add to the end of a page, and add or update rows of a database. Nothing can be deleted, and what the user keeps private from the AI can be neither read nor changed. Ids are shown in square brackets after titles; read_database lists the property names and options that rows take. sel must be open for any of it."
+  : `The user's sel, a notes app on this computer, by its blocks. ${BLOCKS_SUMMARY} What is deleted goes to the trash and can be restored (restore_page); nothing is deleted for good, and a page's history keeps what it said before a rewrite. What the user keeps private from the AI can be neither read nor changed. Ids are shown in square brackets after titles; read_database lists the property names and options that rows take. sel must be open for any of it.`
 
 async function handle(message: Json): Promise<void> {
   const id = message['id']

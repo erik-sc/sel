@@ -3,8 +3,9 @@
  * default. When the user turns it on, the main process opens an endpoint of its own on this
  * computer and writes, in the profile folder, where it is and the token it takes; the client
  * starts sel's MCP server script (out/main/mcp.js) with sel's own executable, and the script
- * asks the running app. Connected apps can read and write pages and database rows, never
- * delete. Nothing goes on the network. See src/main/external.
+ * asks the running app. Connected apps get the tools of every block (src/main/tools): they read
+ * and write pages, databases, tasks and finances. What they delete goes to the trash, never for
+ * good. Nothing goes on the network. See src/main/external.
  *
  * Pure: no Electron, Node or React. Both sides and the tests import it.
  */
@@ -110,7 +111,7 @@ export const DEFAULT_REMOTE_CONFIG: RemoteConfig = {
 }
 
 /** What the remote connector may be granted, as the consent screen lists them. */
-export const REMOTE_SCOPES = ['read', 'tasks', 'write'] as const
+export const REMOTE_SCOPES = ['read', 'tasks', 'write', 'finance'] as const
 export type RemoteScope = (typeof REMOTE_SCOPES)[number]
 
 /** A clean public address: https, a host, no credentials, query or fragment; the trailing slash dropped. Null otherwise. */

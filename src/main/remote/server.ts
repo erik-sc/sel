@@ -3,6 +3,7 @@ import type { Socket } from 'node:net'
 import { REMOTE_SCOPES, type McpCall, type RemoteConfig, type RemoteGrant, type RemoteScope } from '../../shared/mcp'
 import type { ToolSpec } from '../ai/toolspecs'
 import { ToolError } from '../ai/tools'
+import { BLOCKS_SUMMARY } from '../tools/catalog'
 import { type AuthStore, cleanScopes, OAuthError, type Pending, redirectMatches } from './auth'
 import { type DeviceCode, type DevicePoll, type Fetch, pollDeviceFlow, SEL_GITHUB_CLIENT_ID, startDeviceFlow } from './github'
 
@@ -47,8 +48,7 @@ const CALL_LOG_SIZE = 30
 const COOKIE = 'sel_flow_'
 /** The MCP versions sel answers in, the newest first. */
 const PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
-const SERVER_INSTRUCTIONS =
-  "The user's sel workspace, on their own computer: their tasks (list, add with quick-add words, complete, reschedule) and, depending on what they granted, their pages and databases (search, read, create pages, append, add or update rows). Nothing can be deleted, and what the user keeps private from the AI can be neither read nor changed. Ids are shown in square brackets after titles."
+const SERVER_INSTRUCTIONS = `The user's sel workspace, on their own computer, by its blocks; which of their tools are here depends on what the user granted. ${BLOCKS_SUMMARY} What is deleted goes to the trash and can be restored (restore_page); nothing is deleted for good, and a page's history keeps what it said before a rewrite. What the user keeps private from the AI can be neither read nor changed. Ids are shown in square brackets after titles.`
 
 type Json = Record<string, unknown>
 
@@ -57,8 +57,9 @@ const escape = (text: string): string =>
 
 const SCOPE_TEXT: Record<RemoteScope, string> = {
   read: 'Search and read your pages, databases and tasks',
-  tasks: 'Add tasks, complete them and change their dates',
-  write: 'Create pages, add to pages, add and change database rows'
+  tasks: 'Add, complete, change and delete tasks',
+  write: 'Create, rewrite, move and delete pages, databases and rows',
+  finance: 'Read and write your finances: accounts, cards, bills, budget and shared expenses'
 }
 
 function page(title: string, body: string): string {
@@ -101,7 +102,7 @@ function consentPage(input: {
   return page(
     'Allow access',
     `<h1>Let ${escape(input.client)} use sel?</h1>
-<p>Signed in on GitHub as <b>${escape(input.login)}</b>. It will be sent back to <code>${escape(input.redirectHost)}</code>. This app was connected to sel on ${escape(new Date(input.registered).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}: if you did not just add it, choose Deny. Nothing can be deleted, and what you keep private from the AI stays out. You can end this any time in sel → Settings → MCP.</p>
+<p>Signed in on GitHub as <b>${escape(input.login)}</b>. It will be sent back to <code>${escape(input.redirectHost)}</code>. This app was connected to sel on ${escape(new Date(input.registered).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }))}: if you did not just add it, choose Deny. What it deletes goes to the trash, never for good, and what you keep private from the AI stays out. You can end this any time in sel → Settings → MCP.</p>
 <form method="post" action="/oauth/consent"><input type="hidden" name="flow" value="${escape(input.flow)}">${boxes}
 <div class="row"><button type="submit" name="decision" value="deny">Deny</button><button class="go" type="submit" name="decision" value="allow">Allow</button></div></form>`
   )

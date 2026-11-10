@@ -10,7 +10,8 @@ import { openTestRepository } from '../db/testing'
 import * as markdown from '../markdown'
 import { ToolHost } from '../ai/toolhost'
 import { ToolError } from '../ai/tools'
-import { EXTERNAL_TOOL_SPECS, TOOL_NAMES, WRITE_TOOL_NAMES } from '../ai/toolspecs'
+import { TOOL_NAMES, WRITE_TOOL_NAMES } from '../ai/toolspecs'
+import { EXTERNAL_TOOL_SPECS } from '../tools/catalog'
 import { callWriteTool } from '../ai/writes'
 import { ExternalEndpoint, pipeName, type EndpointOptions } from './endpoint'
 import { DISCOVERY_FILE, EXTERNAL_MESSAGES, defaultDiscoveryPath, parseDiscovery } from './protocol'
@@ -486,7 +487,7 @@ describe('the server script for other apps', () => {
     })
     const init = (await reply(1))['result'] as { instructions: string }
     expect(init.instructions).not.toMatch(/read-only/i)
-    expect(init.instructions).toContain('Nothing can be deleted')
+    expect(init.instructions).toContain('nothing is deleted for good')
     send({ id: 2, method: 'tools/list' })
     expect(((await reply(2))['result'] as { tools: { name: string }[] }).tools.map((tool) => tool.name)).toEqual(
       EXTERNAL_TOOL_SPECS.map((spec) => spec.name)

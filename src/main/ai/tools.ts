@@ -269,6 +269,21 @@ function audit(source: ToolSource, now: number, hidden: Hidden): string {
   return sections.join('\n\n')
 }
 
+/** What is in the trash, the latest first. Not one of Herman's tools: the apps the user connected get it (see toolspecs, EXTRA_READ_SPECS). */
+export function listTrash(repo: Pick<Repository, 'listTrash' | 'get'>, rawArgs: unknown): string {
+  const args = rawArgs !== null && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? (rawArgs as Record<string, unknown>) : {}
+  const limit = clamp(args['limit'], 1, TOOL_CAPS.trash, 20)
+  const hidden = privacyChecker(repo)
+  const blocks = repo.listTrash().filter((block) => (block.type === 'page' || block.type === 'database') && !hidden(block.id))
+  if (!blocks.length) return 'The trash is empty.'
+  const lines = blocks.slice(0, limit).map((block) => {
+    const parent = block.parentId ? repo.get(block.parentId) : null
+    const where = parent && parent.trashedAt === null ? `, was in ${titleOf(parent)}` : ''
+    return `- ${titleOf(block)} [${block.id}]${block.type === 'database' ? ' (database)' : ''}${where}, deleted ${day(block.trashedAt ?? block.updatedAt)}`
+  })
+  return `${lines.join('\n')}${blocks.length > limit ? `\n- (and ${blocks.length - limit} more)` : ''}`
+}
+
 // ---- calling -------------------------------------------------------------------
 
 /** A mistake in how a tool was called: said to the model, which can try again. */

@@ -21,6 +21,33 @@ export const TOOL_LABELS: Record<string, string> = {
   add_task: 'Add a task',
   complete_task: 'Complete a task',
   reschedule_task: 'Reschedule a task',
+  list_projects: 'List projects',
+  update_task: 'Change a task',
+  reopen_task: 'Reopen a task',
+  delete_task: 'Delete a task',
+  list_trash: 'List the trash',
+  update_page: 'Change a page',
+  move_page: 'Move a page',
+  delete_page: 'Delete a page',
+  restore_page: 'Restore from the trash',
+  create_database: 'Create a database',
+  add_database_property: 'Add a property',
+  add_select_options: 'Add options',
+  finance_month: 'Finances: the month',
+  finance_entries: 'Finances: entries',
+  finance_balances: 'Finances: who owes whom',
+  finance_projection: 'Finances: projection',
+  finance_add: 'Finances: add an entry',
+  finance_receipt: 'Finances: add a receipt',
+  finance_update: 'Finances: change an entry',
+  finance_delete: 'Finances: delete',
+  finance_settle: 'Finances: settle up',
+  finance_recurring: 'Finances: recurring line',
+  finance_pay: 'Finances: pay a bill',
+  finance_pay_invoice: 'Finances: pay an invoice',
+  finance_budget: 'Finances: budget',
+  finance_account: 'Finances: account',
+  finance_box: 'Finances: box',
   unknown: 'Unknown tool'
 }
 
@@ -52,7 +79,12 @@ export function remoteLine(status: RemoteStatus): { text: string; error: boolean
   return { text: `On: listening on port ${status.port} for ${status.publicUrl}.`, error: false }
 }
 
-const SCOPE_WORDS: Record<RemoteScope, string> = { read: 'reads', tasks: 'manages tasks', write: 'writes pages' }
+const SCOPE_WORDS: Record<RemoteScope, string> = {
+  read: 'reads',
+  tasks: 'manages tasks',
+  write: 'writes pages',
+  finance: 'manages finances'
+}
 
 /** What a grant may do, in words: "reads, manages tasks". */
 export function scopeWords(scopes: readonly RemoteScope[]): string {
