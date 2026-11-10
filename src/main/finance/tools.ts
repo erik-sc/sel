@@ -25,6 +25,7 @@ import { ToolError } from '../ai/tools'
 import type { Repository } from '../db/repository'
 import { financeDatabase, financeExists, financeRow, Options, readBooks, readEntry, rowNamed, rowsOf, schemaOf, titleOf } from './store'
 import { FINANCE_CAPS } from './toolspecs'
+import { financeMonthView } from './views'
 
 /**
  * The Finance block's tools (./toolspecs.ts): what you ask Claude on the phone about money ("how
@@ -45,18 +46,18 @@ type Args = Record<string, unknown>
 
 // ---- arguments ---------------------------------------------------------------------
 
-const args = (raw: unknown): Args => (raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Args) : {})
+export const args = (raw: unknown): Args => (raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Args) : {})
 
-const oneLine = (text: string, max: number = FINANCE_CAPS.text): string =>
+export const oneLine = (text: string, max: number = FINANCE_CAPS.text): string =>
   text
     .replace(/[\u0000-\u001f\u007f]+/gu, ' ')
     .replace(/\s+/gu, ' ')
     .trim()
     .slice(0, max)
 
-function text(value: unknown, what: string, required: true): string
-function text(value: unknown, what: string, required?: false): string | undefined
-function text(value: unknown, what: string, required = false): string | undefined {
+export function text(value: unknown, what: string, required: true): string
+export function text(value: unknown, what: string, required?: false): string | undefined
+export function text(value: unknown, what: string, required = false): string | undefined {
   if (value === undefined || value === null) {
     if (required) throw new ToolError(`Give ${what}.`)
     return undefined
@@ -100,7 +101,7 @@ export function parseAmount(value: unknown): number | null {
   return Math.abs(cents) <= MAX_CENTS ? cents : null
 }
 
-function amount(value: unknown, what = 'amount', allowZero = false): number {
+export function amount(value: unknown, what = 'amount', allowZero = false): number {
   const cents = parseAmount(value)
   if (cents === null) throw new ToolError(`${what}: give a number such as 42.9, or text such as "R$ 42,90".`)
   if (cents < 0 || (cents === 0 && !allowZero))
@@ -109,9 +110,9 @@ function amount(value: unknown, what = 'amount', allowZero = false): number {
 }
 
 const pad = (n: number, width = 2): string => String(n).padStart(width, '0')
-const localDay = (now: Date): string => `${pad(now.getFullYear(), 4)}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+export const localDay = (now: Date): string => `${pad(now.getFullYear(), 4)}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 
-function date(value: unknown, now: Date): string {
+export function date(value: unknown, now: Date): string {
   if (value === undefined || value === null || value === '') return localDay(now)
   const day = typeof value === 'string' ? value.trim().slice(0, 10) : ''
   // dayOf holds a day to its month: a day the month does not have comes back as another.
@@ -120,7 +121,7 @@ function date(value: unknown, now: Date): string {
   return day
 }
 
-function month(value: unknown, now: Date): string {
+export function month(value: unknown, now: Date): string {
   if (value === undefined || value === null || value === '') return localDay(now).slice(0, 7)
   const text = typeof value === 'string' ? value.trim() : ''
   if (!/^\d{4}-(0[1-9]|1[0-2])$/u.test(text)) throw new ToolError('A month is "YYYY-MM".')
@@ -173,12 +174,12 @@ export function entryLine(entry: Entry): string {
   return out.join(' · ')
 }
 
-const reais = (cents: number): number => cents / 100
+export const reais = (cents: number): number => cents / 100
 
 // ---- sharing -----------------------------------------------------------------------
 
 /** `total` among people in the proportions of `weights`, to the cent: the largest parts take what rounding leaves. */
-function proportional(total: number, weights: readonly (readonly [string, number])[]): Record<string, number> {
+export function proportional(total: number, weights: readonly (readonly [string, number])[]): Record<string, number> {
   const sum = weights.reduce((all, [, weight]) => all + weight, 0)
   const out: Record<string, number> = Object.create(null) as Record<string, number>
   if (sum <= 0) return out
@@ -225,7 +226,7 @@ function sharesFrom(a: Args, total: number, payer: string): Record<string, numbe
 
 // ---- writing entries ------------------------------------------------------------------
 
-interface Draft {
+export interface Draft {
   title: string
   cents: number
   kind: Kind
@@ -244,7 +245,7 @@ interface Draft {
   note?: string
 }
 
-const cardNamed = (books: Books, name: string | null | undefined): Account | null =>
+export const cardNamed = (books: Books, name: string | null | undefined): Account | null =>
   books.accounts.find((account) => account.type === 'card' && same(account.name, name)) ?? null
 
 /** The stored values of one ledger row. */
@@ -268,7 +269,7 @@ function ledgerValues(options: Options, draft: Draft, extra: Record<string, Prop
 }
 
 /** Adds a draft to the ledger: one row, or one a month for a purchase in instalments. Returns the rows as stored. */
-function addEntries({ repo, markdown }: FinanceTarget, books: Books, draft: Draft, body?: string): Entry[] {
+export function addEntries({ repo, markdown }: FinanceTarget, books: Books, draft: Draft, body?: string): Entry[] {
   const options = new Options(repo)
   const card = draft.kind === 'expense' && isMe(draft.paidBy) ? cardNamed(books, draft.account) : null
   const count = draft.instalments && draft.instalments > 1 ? draft.instalments : 1
@@ -515,7 +516,7 @@ function settle(target: FinanceTarget, a: Args, now: Date): string {
 // ---- the lists entries lean on ---------------------------------------------------------
 
 /** Creates or updates the row of `db` called `name`. `values` by property id; null clears. */
-function upsert(
+export function upsert(
   repo: Repository,
   db: FinanceDb,
   name: string,
@@ -777,87 +778,6 @@ function monthText(books: Books, ref: string, today: string): string {
   return out.join('\n')
 }
 
-function monthJson(books: Books, ref: string, today: string): string {
-  const p = monthPicture(books, ref, today)
-  const next = forecast(books, addMonths(ref, 1))
-  const bill = (line: (typeof p.bills.lines)[number]): Record<string, unknown> => ({
-    id: line.recurring.id,
-    name: line.recurring.title,
-    amount: reais(line.entry?.cents ?? line.recurring.cents),
-    due: line.due,
-    done: line.entry !== null,
-    doneOn: line.entry?.date ?? null,
-    category: line.recurring.category
-  })
-  const entry = (each: Entry): Record<string, unknown> => ({
-    id: each.id,
-    date: each.date,
-    description: each.title,
-    amount: reais(each.cents),
-    category: each.category,
-    instalment: each.instalment
-  })
-  return JSON.stringify(
-    {
-      month: ref,
-      today,
-      currency: 'BRL',
-      accounts: p.accounts
-        .filter((account) => account.type !== 'card')
-        .map((account) => ({ name: account.name, type: account.type, balance: reais(account.cents) })),
-      inAccounts: reais(p.inAccounts),
-      income: { received: reais(p.income.received + p.otherIncome), expected: reais(p.income.expected), lines: p.income.lines.map(bill) },
-      bills: { paid: reais(p.bills.paid), pending: reais(p.bills.pending), lines: p.bills.lines.map(bill) },
-      cards: p.invoices.map((each) => {
-        const card = books.accounts.find((account) => same(account.name, each.card)) as Account
-        const upcoming = invoice(books, card, addMonths(ref, 1))
-        return {
-          card: each.card,
-          invoice: each.month,
-          due: each.due,
-          paid: each.paid,
-          total: reais(each.cents),
-          entries: each.entries.slice(0, 100).map(entry),
-          next: { invoice: upcoming.month, total: reais(upcoming.cents) }
-        }
-      }),
-      budget: {
-        limit: reais(p.budget.limit),
-        spent: reais(p.budget.spent),
-        left: reais(p.budget.left),
-        daysLeft: p.budget.daysLeft,
-        perWeek: p.budget.perWeek === null ? null : reais(p.budget.perWeek),
-        categories: p.budget.lines.map((line) => ({
-          category: line.category,
-          group: line.group,
-          limit: line.limit === null ? null : reais(line.limit),
-          spent: reais(line.spent),
-          left: line.left === null ? null : reais(line.left)
-        }))
-      },
-      boxes: p.boxes.map((box) => ({
-        name: box.name,
-        balance: reais(box.cents),
-        goal: box.goal === null ? null : reais(box.goal),
-        purpose: box.purpose
-      })),
-      inBoxes: reais(p.inBoxes),
-      owed: p.owed.map((each) => ({ person: each.person, amount: reais(each.cents) })),
-      freeAtEndOfMonth: reais(p.free),
-      nextMonth: {
-        month: next.month,
-        income: reais(next.income),
-        bills: reais(next.bills),
-        budget: reais(next.budget),
-        invoices: reais(next.invoices),
-        free: reais(next.free)
-      }
-    },
-    null,
-    1
-  )
-}
-
 function entries(repo: Repository, a: Args, now: Date): string {
   const books = readBooks(repo)
   const limit = typeof a['limit'] === 'number' && Number.isInteger(a['limit']) ? Math.min(Math.max(a['limit'], 1), FINANCE_CAPS.list) : 50
@@ -954,7 +874,19 @@ export function callFinanceTool(target: FinanceTarget, name: string, raw: unknow
       if (format !== undefined && format !== 'text' && format !== 'json') throw new ToolError('format is text or json.')
       const books = readBooks(target.repo)
       const ref = month(a['month'], now)
-      return format === 'json' ? monthJson(books, ref, localDay(now)) : monthText(books, ref, localDay(now))
+      if (format === 'json') {
+        // The same a screen is given, without what only its forms use.
+        const {
+          entries: _entries,
+          categories: _categories,
+          accountNames: _accounts,
+          boxNames: _boxes,
+          empty: _empty,
+          ...data
+        } = financeMonthView(target.repo, ref, localDay(now))
+        return JSON.stringify(data, null, 1)
+      }
+      return monthText(books, ref, localDay(now))
     }
     case 'finance_entries':
       return entries(target.repo, a, now)

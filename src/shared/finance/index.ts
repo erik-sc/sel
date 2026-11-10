@@ -95,7 +95,12 @@ export const RECURRING = {
   day: 'fin.day',
   category: 'fin.category',
   account: 'fin.account',
-  active: 'fin.active'
+  active: 'fin.active',
+  /** Who pays it. Empty: the user. */
+  paidBy: 'fin.paidBy',
+  /** A bill shared with the household: the group it belongs to, and the user's part of it in percent. */
+  group: 'fin.group',
+  share: 'fin.share'
 } as const
 
 export const BUDGET = {
@@ -208,7 +213,10 @@ export const FINANCE_PROPS: Readonly<Record<FinanceDb, () => BlockProps>> = {
       number(RECURRING.day, 'Dia'),
       select(RECURRING.category, 'Categoria'),
       select(RECURRING.account, 'Conta'),
-      { id: RECURRING.active, name: 'Ativa', type: 'checkbox' }
+      { id: RECURRING.active, name: 'Ativa', type: 'checkbox' },
+      select(RECURRING.paidBy, 'Pago por', [{ id: ME_OPTION, name: ME, color: 'blue' }]),
+      select(RECURRING.group, 'Grupo'),
+      { id: RECURRING.share, name: 'Minha parte (%)', type: 'number' }
     ]),
     views: [
       table('fin.recurring.all', 'Todas', [
@@ -218,7 +226,10 @@ export const FINANCE_PROPS: Readonly<Record<FinanceDb, () => BlockProps>> = {
         RECURRING.day,
         RECURRING.category,
         RECURRING.account,
-        RECURRING.active
+        RECURRING.active,
+        RECURRING.paidBy,
+        RECURRING.group,
+        RECURRING.share
       ])
     ]
   }),

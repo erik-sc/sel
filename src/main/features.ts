@@ -6,6 +6,7 @@ import { dataFeature } from './data/register'
 import { transferFeature } from './transfer/register'
 import { mcpFeature } from './external/register'
 import { feedbackFeature } from './feedback/register'
+import { financeFeature } from './finance/register'
 import { hermanFeature } from './herman/register'
 import { meetingsFeature } from './meetings/register'
 import { notebookFeature } from './notebook/register'
@@ -41,7 +42,8 @@ export const FEATURES = [
   updatesFeature,
   mcpFeature,
   activityFeature,
-  routinesFeature
+  routinesFeature,
+  financeFeature
 ] as const
 
 /** The namespace of a feature in the list. */

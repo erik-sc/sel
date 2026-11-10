@@ -22,6 +22,8 @@ describe('the built-in commands', () => {
       'week-review',
       'open-notebook',
       'open-sky',
+      'open-finance',
+      'open-split',
       'open-flows',
       'close-day',
       'new-meeting',

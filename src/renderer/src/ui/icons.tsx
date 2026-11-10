@@ -26,6 +26,23 @@ function make(body: ReactNode, filled = false) {
 
 export const Plus = make(<path d="M8 3v10M3 8h10" />)
 
+/** Two coins, one over the other: Finances. */
+export const Coins = make(
+  <>
+    <ellipse cx="8" cy="5" rx="4.5" ry="2" />
+    <path d="M3.5 5v3c0 1.1 2 2 4.5 2s4.5-.9 4.5-2V5" />
+    <path d="M3.5 8v3c0 1.1 2 2 4.5 2s4.5-.9 4.5-2V8" />
+  </>
+)
+
+/** A circle halved: what is shared between two. */
+export const Split = make(
+  <>
+    <circle cx="8" cy="8" r="5.5" />
+    <path d="M8 2.5v11" />
+  </>
+)
+
 /** A column (the line) with a new one added on its left, or on its right. */
 export const InsertLeft = make(<path d="M12 3v10M2 8h6M5 5v6" />)
 export const InsertRight = make(<path d="M4 3v10M8 8h6M11 5v6" />)

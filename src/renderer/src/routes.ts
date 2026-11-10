@@ -19,3 +19,7 @@ export const REVIEW_ROUTE = '_week'
 export const SKY_ROUTE = '_sky'
 /** The heatmaps and flows of the activity log (see flows/route.ts). */
 export const FLOWS_ROUTE = '_flows'
+/** The Finance screen (see finance/route.ts). */
+export const FINANCE_ROUTE = '_finance'
+/** The household screen, "Divisão de contas" (see split/route.ts). */
+export const SPLIT_ROUTE = '_split'

@@ -21,7 +21,7 @@ describe('the catalog of blocks', () => {
       expect(spec.inputSchema).toMatchObject({ type: 'object', additionalProperties: false })
       expect(REMOTE_SCOPES).toContain(scope)
     }
-    expect(PACKS.map((pack) => pack.id)).toEqual(['tasks', 'workspace', 'finance'])
+    expect(PACKS.map((pack) => pack.id)).toEqual(['tasks', 'workspace', 'finance', 'split'])
     for (const name of names) expect(PACK_OF.has(name)).toBe(true)
   })
 
@@ -42,7 +42,7 @@ describe('the catalog of blocks', () => {
       'add_database_property',
       'add_select_options'
     ])
-    expect(names(['finance']).every((name) => name.startsWith('finance_'))).toBe(true)
+    expect(names(['finance']).every((name) => name.startsWith('finance_') || name.startsWith('split_'))).toBe(true)
     expect(names([])).toEqual([])
     expect(names([...REMOTE_SCOPES])).toHaveLength(EXTERNAL_TOOL_SPECS.length)
   })

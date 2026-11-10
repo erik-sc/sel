@@ -6,6 +6,7 @@ import { aiFeature } from './ai/feature'
 import { alarmsFeature } from './alarms/feature'
 import { briefingFeature } from './briefing/feature'
 import { feedbackFeature } from './feedback/feature'
+import { financeFeature } from './finance/feature'
 import { flowsFeature } from './flows/feature'
 import { hermanFeature } from './herman/feature'
 import { homeFeature } from './home/feature'
@@ -16,6 +17,7 @@ import { reviewFeature } from './review/feature'
 import { routinesFeature } from './routines/feature'
 import { shellFeature } from './shell/feature'
 import { skyFeature } from './sky/feature'
+import { splitFeature } from './split/feature'
 import { syncFeature } from './sync/feature'
 import { tasksFeature } from './tasks/feature'
 import { templatesFeature } from './templates/feature'
@@ -42,7 +44,9 @@ export const FEATURES = [
   activityFeature,
   transferFeature,
   flowsFeature,
-  routinesFeature
+  routinesFeature,
+  financeFeature,
+  splitFeature
 ] as const
 
 /** Runs every feature's start-up, in the order above. */

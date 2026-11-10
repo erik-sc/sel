@@ -1,4 +1,5 @@
 import { ACTIVITY_INVOKE, type ActivityApi } from './activity'
+import { FINANCE_INVOKE, type FinanceApi } from './finance/api'
 import { AI_INVOKE, type AiApi } from './ai'
 import { ALARMS_INVOKE, type AlarmsApi } from './alarms'
 import { SYNC_INVOKE, type SyncApi } from './sync'
@@ -230,6 +231,11 @@ export interface Api {
    */
   activity: ActivityApi
   /**
+   * The Finance and household blocks: a month added up for their screens, and what is entered in
+   * them, through the same tools an app connected over MCP has. See shared/finance/api.ts.
+   */
+  finance: FinanceApi
+  /**
    * The persona's routines: answers prepared in the background at a few moments of the day, said
    * in its corner and opened in the balloon; and how much AI was used. See shared/routines.ts.
    */
@@ -385,6 +391,7 @@ export const INVOKE = {
   ...POMODORO_INVOKE,
   ...SKY_INVOKE,
   ...ACTIVITY_INVOKE,
+  ...FINANCE_INVOKE,
   ...ROUTINES_INVOKE
 } as const satisfies Record<InvokeChannel, true>
 

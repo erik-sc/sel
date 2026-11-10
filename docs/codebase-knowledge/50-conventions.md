@@ -98,7 +98,7 @@ for a folder that follows this contract. A block has up to four parts:
 | Its data | `src/shared/<block>/index.ts`: the ids of the pages and databases it owns, their property ids and built-in option ids, as constants (two devices that create them before syncing write the same blocks). Pure arithmetic on plain records next to it (`calc.ts`), tested by itself. | nothing: the block's `store.ts` in main creates them the first time something is entered (`ensureFinance`), never at start-up and never on a read |
 | Its tools, as data | `src/main/<block>/toolspecs.ts`: `<BLOCK>_PACK = definePack({ id, title, summary, tools })`, each tool with the scope a remote connection needs for it (`scoped('read', …)`). Plain data, no imports of the app: the server script bundles it. | one line in `PACKS` (src/main/tools/catalog.ts) |
 | Its tools, as code | `src/main/<block>/tools.ts`: `call<Block>Tool(target, name, args, now)`, which returns text and throws `ToolError` for a call that cannot be made | one line in `runners` (src/main/tools/run.ts): a pack without a runner does not typecheck |
-| Its screen | a feature like any other (see "Adicionar uma feature") | the feature lists |
+| Its screen | a feature like any other (see "Adicionar uma feature"), with an item of the sidebar (`SIDEBAR_ITEMS`, src/shared/sidebar.ts; its entry in src/renderer/src/shell/sidebarItems.tsx and its name in sidebarCopy.ts). The screen asks main for what it shows already added up (`api.finance.month`), and writes by running the block's own tools (`api.finance.run`, src/main/finance/register.ts), inside `asUser`: "Private from AI" does not close a block to its own window. src/renderer/src/finance/kit.tsx has the pieces the blocks' screens share (a month kept current, a form that sends a tool its arguments). | the feature lists |
 
 The rules the blocks keep:
 
@@ -111,6 +111,9 @@ The rules the blocks keep:
 - **Check the arguments before touching the workspace**: a call that cannot be made creates
   nothing.
 - **What is private from the AI is refused**, with `AI_PRIVATE_MESSAGE`, and left out of every list.
+- **Two blocks may share their data** when it is one thing seen two ways: the household block
+  (src/main/split) writes entries of the Finance ledger with the household's group, so the user's
+  part of a shared expense is in their own month without being entered twice.
 - **Scopes** are the lines of the remote connector's consent screen (`REMOTE_SCOPES`,
   src/shared/mcp.ts; their words in `SCOPE_TEXT`, src/main/remote/server.ts, and in
   src/renderer/src/external/labels.ts with each tool's label). A block whose data is of a kind of

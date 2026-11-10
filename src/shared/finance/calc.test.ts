@@ -146,10 +146,58 @@ describe('the month', () => {
     accounts: [checking, card],
     boxes: [{ id: 'b', name: 'Reserva', cents: 1_000_000, asOf: 0, goal: 2_000_000, purpose: 'emergência', yield: 1 }],
     recurring: [
-      { id: 'r1', title: 'Salário', cents: 800_000, kind: 'income', day: 1, category: null, account: 'Conta', active: true },
-      { id: 'r2', title: 'Aluguel', cents: 200_000, kind: 'expense', day: 5, category: 'Casa', account: 'Conta', active: true },
-      { id: 'r3', title: 'Internet', cents: 10_000, kind: 'expense', day: 20, category: 'Casa', account: 'Conta', active: true },
-      { id: 'r4', title: 'Academia', cents: 9_000, kind: 'expense', day: 10, category: null, account: null, active: false }
+      {
+        id: 'r1',
+        title: 'Salário',
+        cents: 800_000,
+        kind: 'income',
+        day: 1,
+        category: null,
+        account: 'Conta',
+        active: true,
+        paidBy: 'Eu',
+        group: null,
+        share: null
+      },
+      {
+        id: 'r2',
+        title: 'Aluguel',
+        cents: 200_000,
+        kind: 'expense',
+        day: 5,
+        category: 'Casa',
+        account: 'Conta',
+        active: true,
+        paidBy: 'Eu',
+        group: null,
+        share: null
+      },
+      {
+        id: 'r3',
+        title: 'Internet',
+        cents: 10_000,
+        kind: 'expense',
+        day: 20,
+        category: 'Casa',
+        account: 'Conta',
+        active: true,
+        paidBy: 'Eu',
+        group: null,
+        share: null
+      },
+      {
+        id: 'r4',
+        title: 'Academia',
+        cents: 9_000,
+        kind: 'expense',
+        day: 10,
+        category: null,
+        account: null,
+        active: false,
+        paidBy: 'Eu',
+        group: null,
+        share: null
+      }
     ],
     budget: [
       { id: 'g1', category: 'Mercado', cents: 100_000, group: null },

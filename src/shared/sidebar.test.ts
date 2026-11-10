@@ -13,7 +13,20 @@ import {
   type SidebarItemId
 } from './sidebar'
 
-const DEFAULT_TOP = ['search', 'home', 'today', 'calendar', 'tasks', 'meditations', 'sky', 'close-day', 'new-page', 'new-meeting']
+const DEFAULT_TOP = [
+  'search',
+  'home',
+  'today',
+  'calendar',
+  'tasks',
+  'finance',
+  'split',
+  'meditations',
+  'sky',
+  'close-day',
+  'new-page',
+  'new-meeting'
+]
 const DEFAULT_FOOTER = ['trash', 'archive', 'feedback', 'settings', 'sync']
 
 describe('the sidebar layout', () => {
@@ -97,13 +110,13 @@ describe('the sidebar layout', () => {
     expect(down.indexOf('new-meeting')).toBe(down.indexOf('pages') + 1)
     expect(stepItem(down, all, 'new-meeting', -1)).toEqual(order)
     // The middle items only change places with each other.
-    expect(stepItem(order, all, 'favorites', 1)!.slice(10, 12)).toEqual(['pages', 'favorites'])
+    expect(stepItem(order, all, 'favorites', 1)!.slice(12, 14)).toEqual(['pages', 'favorites'])
     expect(stepItem(order, all, 'favorites', -1)).toBeNull()
     // An item the list does not show keeps its neighbour.
     const shown = all.filter((id) => id !== 'sky')
     const moved = stepItem(order, shown, 'meditations', -1)!
     expect(moved.indexOf('sky')).toBe(moved.indexOf('meditations') + 1)
-    expect(moved.indexOf('meditations')).toBe(order.indexOf('tasks'))
+    expect(moved.indexOf('meditations')).toBe(order.indexOf('split'))
   })
 
   it('drops an item into a zone, never a middle item outside the middle', () => {
@@ -115,8 +128,8 @@ describe('the sidebar layout', () => {
     expect(zoneOf(beforeTrash, 'today')).toBe('footer')
     const toTop = dropItem(order, 'settings', 'top', null)!
     expect(toTop.indexOf('settings')).toBe(toTop.indexOf('favorites') - 1)
-    expect(dropItem(order, 'pages', 'middle', 'favorites')!.slice(10, 12)).toEqual(['pages', 'favorites'])
-    expect(dropItem(order, 'favorites', 'middle', null)!.slice(10, 12)).toEqual(['pages', 'favorites'])
+    expect(dropItem(order, 'pages', 'middle', 'favorites')!.slice(12, 14)).toEqual(['pages', 'favorites'])
+    expect(dropItem(order, 'favorites', 'middle', null)!.slice(12, 14)).toEqual(['pages', 'favorites'])
     expect(dropItem(order, 'pages', 'top', null)).toBeNull()
     expect(dropItem(order, 'search', 'middle', null)).toBeNull()
     expect(dropItem(order, 'search', 'footer', 'home')).toBeNull()

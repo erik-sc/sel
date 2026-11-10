@@ -300,7 +300,7 @@ export const FINANCE_PACK = definePack({
   id: 'finance',
   title: 'Finanças',
   summary:
-    'The month at a glance, a ledger of expenses and income, fixed bills, credit cards with instalments, a budget by category, boxes of savings, and shared expenses settled up as Splitwise does (receipts line by line among them).',
+    "The user's own money: the month at a glance, a ledger of expenses and income, fixed bills, credit cards with instalments, a budget by category and boxes of savings. Expenses shared now and then with other people (a trip, a dinner) are split and settled here too; what is shared with the person the user lives with belongs to Divisão de contas (split_*).",
   tools: [...scoped('finance', READ), ...scoped('finance', WRITE)]
 })
 
