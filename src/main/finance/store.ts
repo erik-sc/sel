@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { AI_PRIVATE_MESSAGE, isPrivateForAi, privacyChecker } from '../../shared/aiPrivate'
 import type { Account, AccountType, Books, Box, BudgetLine, Entry, Kind, Recurring } from '../../shared/finance/calc'
-import { key } from '../../shared/finance/calc'
+import { key, localDay, withInvoices } from '../../shared/finance/calc'
 import {
   ACCOUNTS,
   BOXES,
@@ -131,11 +131,6 @@ const dayOf = (value: unknown): string | null => {
   return typeof start === 'string' && /^\d{4}-\d{2}-\d{2}/u.test(start) ? start.slice(0, 10) : null
 }
 
-const localDay = (ms: number): string => {
-  const d = new Date(ms)
-  return `${String(d.getFullYear()).padStart(4, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 /** A shared expense's parts, as stored: cents by person. Null for anything else. */
 export function readShares(value: unknown): Record<string, number> | null {
   if (typeof value !== 'string' || !value.trim().startsWith('{') || value.length > 20_000) return null
@@ -197,7 +192,7 @@ export function readBooks(repo: Repository): Books {
   const budgetSchema = schemaOf(financeDatabase(repo, 'budget'))
   financeDatabase(repo, 'accounts')
   financeDatabase(repo, 'boxes')
-  return {
+  const books: Books = {
     entries: rowsOf(repo, 'ledger').map((row) => readEntry(row, ledgerSchema)),
     recurring: rowsOf(repo, 'recurring').map(
       (row): Recurring => ({
@@ -245,6 +240,8 @@ export function readBooks(repo: Repository): Books {
       })
     )
   }
+  books.entries = withInvoices(books.entries, books.accounts)
+  return books
 }
 
 // ---- writing -----------------------------------------------------------------------

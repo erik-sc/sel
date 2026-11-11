@@ -37,6 +37,7 @@ export const TOOL_LABELS: Record<string, string> = {
   finance_entries: 'Finances: entries',
   finance_balances: 'Finances: who owes whom',
   finance_projection: 'Finances: projection',
+  finance_review: 'Finances: review',
   finance_add: 'Finances: add an entry',
   finance_receipt: 'Finances: add a receipt',
   finance_update: 'Finances: change an entry',

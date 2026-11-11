@@ -25,6 +25,7 @@ import { Herman64 } from './Herman64'
 import { usePersona } from './gate'
 import { PERSONA_OPTIONS, saveHermanSetting, SkinChoice, WARDROBES } from './wardrobe'
 import { fromClock, toClock } from './mood'
+import { Advanced } from '@/ui/Advanced'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'On' },
@@ -157,81 +158,6 @@ export function HermanSection(): JSX.Element {
               ))}
             </div>
           </div>
-          <div className="ap-row herman-skins-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Outfits of the season</span>
-              <span className="ap-row-help">
-                {values.seasonalSkins
-                  ? say('Worn only in their month; the rest of the year he wears the classic one.')
-                  : say('Off: he never wears them.')}
-              </span>
-            </div>
-            <div className="ap-row-control">
-              <Segmented
-                label="Outfits of the season"
-                value={values.seasonalSkins ? 'on' : 'off'}
-                options={ON_OFF}
-                onChange={(value) => change('seasonalSkins', value === 'on')}
-              />
-            </div>
-            {values.seasonalSkins && (
-              <div className="herman-skins" role="group" aria-label="Outfits of the season">
-                {seasonal.map((skin) => (
-                  <SkinChoice
-                    key={skin}
-                    persona={values.persona}
-                    skin={skin}
-                    label={wardrobe.labels[skin] ?? skin}
-                    chosen={worn === skin}
-                    note={MONTHS[(wardrobe.seasons[skin] ?? 1) - 1]}
-                    onChoose={() => wear(skin)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Voice</span>
-              <span className="ap-row-help">
-                {say(VOICE_HELP[values.voice])} Used in the conversation and on Today; the writing tools are not affected.
-              </span>
-            </div>
-            <div className="ap-row-control">
-              <Segmented label="Voice" value={values.voice} options={voices} onChange={(value) => change('voice', value)} />
-            </div>
-          </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Size</span>
-            </div>
-            <div className="ap-row-control">
-              <Segmented label="Size" value={values.size} options={SIZES} onChange={(value) => change('size', value)} />
-            </div>
-          </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Corner</span>
-              <span className="ap-row-help">
-                {say('Where he sits in the page area. He can also be dragged there, or moved with the arrow keys.')}
-              </span>
-            </div>
-            <div className="ap-row-control">
-              <select
-                className="ap-field ai-select"
-                value={values.corner}
-                aria-label="Corner"
-                disabled={!enabled}
-                onChange={(event) => change('corner', event.target.value as HermanCorner)}
-              >
-                {HERMAN_CORNERS.map((corner) => (
-                  <option key={corner} value={corner}>
-                    {CORNER_LABELS[corner]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -256,56 +182,6 @@ export function HermanSection(): JSX.Element {
               />
             </div>
           </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">How often</span>
-              <span className="ap-row-help">{FREQUENCY_HELP[values.frequency]} Never while you type.</span>
-            </div>
-            <div className="ap-row-control">
-              <Segmented
-                label="How often"
-                value={values.frequency}
-                options={FREQUENCIES}
-                onChange={(value) => change('frequency', value)}
-              />
-            </div>
-          </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Quiet hours</span>
-              <span className="ap-row-help">
-                {quietOn ? say('He says nothing between these hours, and sleeps.') : 'The same hour twice: no quiet hours.'}
-              </span>
-            </div>
-            <div className="ap-row-control">
-              <input
-                className="ap-field herman-time"
-                type="time"
-                aria-label="Quiet hours start"
-                value={toClock(values.quietHours.from)}
-                disabled={!enabled || !values.nudges}
-                onChange={(event) => setQuiet('from', event.target.value)}
-              />
-              <span className="ap-unit">to</span>
-              <input
-                className="ap-field herman-time"
-                type="time"
-                aria-label="Quiet hours end"
-                value={toClock(values.quietHours.to)}
-                disabled={!enabled || !values.nudges}
-                onChange={(event) => setQuiet('to', event.target.value)}
-              />
-            </div>
-          </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">{say('What he has learned')}</span>
-              <span className="ap-row-help">{say('Which kinds of remark you asked to see less of, and what he said lately.')}</span>
-            </div>
-            <div className="ap-row-control">
-              <ConfirmButton label="Reset" confirmLabel="Reset now" onConfirm={reset} />
-            </div>
-          </div>
         </div>
         <p className="ap-note">
           {say(
@@ -315,6 +191,148 @@ export function HermanSection(): JSX.Element {
       </section>
 
       <AlarmSettings />
+
+      <Advanced>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">{say('How he looks and sounds')}</h3>
+          </div>
+          <div className="ap-list">
+            <div className="ap-row herman-skins-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Outfits of the season</span>
+                <span className="ap-row-help">
+                  {values.seasonalSkins
+                    ? say('Worn only in their month; the rest of the year he wears the classic one.')
+                    : say('Off: he never wears them.')}
+                </span>
+              </div>
+              <div className="ap-row-control">
+                <Segmented
+                  label="Outfits of the season"
+                  value={values.seasonalSkins ? 'on' : 'off'}
+                  options={ON_OFF}
+                  onChange={(value) => change('seasonalSkins', value === 'on')}
+                />
+              </div>
+              {values.seasonalSkins && (
+                <div className="herman-skins" role="group" aria-label="Outfits of the season">
+                  {seasonal.map((skin) => (
+                    <SkinChoice
+                      key={skin}
+                      persona={values.persona}
+                      skin={skin}
+                      label={wardrobe.labels[skin] ?? skin}
+                      chosen={worn === skin}
+                      note={MONTHS[(wardrobe.seasons[skin] ?? 1) - 1]}
+                      onChoose={() => wear(skin)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Voice</span>
+                <span className="ap-row-help">
+                  {say(VOICE_HELP[values.voice])} Used in the conversation and on Today; the writing tools are not affected.
+                </span>
+              </div>
+              <div className="ap-row-control">
+                <Segmented label="Voice" value={values.voice} options={voices} onChange={(value) => change('voice', value)} />
+              </div>
+            </div>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Size</span>
+              </div>
+              <div className="ap-row-control">
+                <Segmented label="Size" value={values.size} options={SIZES} onChange={(value) => change('size', value)} />
+              </div>
+            </div>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Corner</span>
+                <span className="ap-row-help">
+                  {say('Where he sits in the page area. He can also be dragged there, or moved with the arrow keys.')}
+                </span>
+              </div>
+              <div className="ap-row-control">
+                <select
+                  className="ap-field ai-select"
+                  value={values.corner}
+                  aria-label="Corner"
+                  disabled={!enabled}
+                  onChange={(event) => change('corner', event.target.value as HermanCorner)}
+                >
+                  {HERMAN_CORNERS.map((corner) => (
+                    <option key={corner} value={corner}>
+                      {CORNER_LABELS[corner]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">{say('When he speaks')}</h3>
+          </div>
+          <div className="ap-list">
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">How often</span>
+                <span className="ap-row-help">{FREQUENCY_HELP[values.frequency]} Never while you type.</span>
+              </div>
+              <div className="ap-row-control">
+                <Segmented
+                  label="How often"
+                  value={values.frequency}
+                  options={FREQUENCIES}
+                  onChange={(value) => change('frequency', value)}
+                />
+              </div>
+            </div>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Quiet hours</span>
+                <span className="ap-row-help">
+                  {quietOn ? say('He says nothing between these hours, and sleeps.') : 'The same hour twice: no quiet hours.'}
+                </span>
+              </div>
+              <div className="ap-row-control">
+                <input
+                  className="ap-field herman-time"
+                  type="time"
+                  aria-label="Quiet hours start"
+                  value={toClock(values.quietHours.from)}
+                  disabled={!enabled || !values.nudges}
+                  onChange={(event) => setQuiet('from', event.target.value)}
+                />
+                <span className="ap-unit">to</span>
+                <input
+                  className="ap-field herman-time"
+                  type="time"
+                  aria-label="Quiet hours end"
+                  value={toClock(values.quietHours.to)}
+                  disabled={!enabled || !values.nudges}
+                  onChange={(event) => setQuiet('to', event.target.value)}
+                />
+              </div>
+            </div>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">{say('What he has learned')}</span>
+                <span className="ap-row-help">{say('Which kinds of remark you asked to see less of, and what he said lately.')}</span>
+              </div>
+              <div className="ap-row-control">
+                <ConfirmButton label="Reset" confirmLabel="Reset now" onConfirm={reset} />
+              </div>
+            </div>
+          </div>
+        </section>
+      </Advanced>
     </div>
   )
 }

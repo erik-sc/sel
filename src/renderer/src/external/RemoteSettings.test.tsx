@@ -123,7 +123,7 @@ describe('Settings → MCP', () => {
     await settle()
     expect(text()).toContain('Claude on your phone')
     expect(text()).toContain('Off: Claude cannot reach sel from outside this computer.')
-    const advanced = document.querySelector('details.mcp-advanced') as HTMLDetailsElement
+    const advanced = document.querySelector('details.ui-advanced') as HTMLDetailsElement
     expect(advanced.open).toBe(false)
     expect(advanced.textContent).toContain('Public address')
     expect(advanced.textContent).toContain('Apps on this computer')

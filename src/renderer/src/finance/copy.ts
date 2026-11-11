@@ -32,6 +32,15 @@ export interface FinanceCopy {
   invoiceDue: (day: string) => string
   invoicePaid: string
   nextInvoice: (month: string, total: string) => string
+  invoiceEmpty: string
+  onInvoice: (month: string) => string
+  refund: string
+  filter: string
+  everything: string
+  noAccount: string
+  nothingHere: string
+  rawData: string
+  rawDataHint: string
   budget: string
   budgetLine: (spent: string, limit: string) => string
   budgetLeft: (left: string, days: number, perWeek: string | null) => string
@@ -122,6 +131,15 @@ export const FINANCE_COPY: Record<HomeLocale, FinanceCopy> = {
     invoiceDue: (day) => `due ${day}`,
     invoicePaid: 'paid',
     nextInvoice: (month, total) => `The one of ${month} already holds ${total}.`,
+    invoiceEmpty: 'Nothing on this invoice.',
+    onInvoice: (month) => `invoice of ${month}`,
+    refund: 'refund',
+    filter: 'Show',
+    everything: 'Everything',
+    noAccount: 'No account',
+    nothingHere: 'Nothing here this month.',
+    rawData: 'Open the databases',
+    rawDataHint: 'Everything here is kept in five databases, out of the sidebar. Open them to see or fix a row by hand.',
     budget: 'Day-to-day budget',
     budgetLine: (spent, limit) => `${spent} of ${limit}`,
     budgetLeft: (left, days, perWeek) =>
@@ -212,6 +230,15 @@ export const FINANCE_COPY: Record<HomeLocale, FinanceCopy> = {
     invoiceDue: (day) => `vence em ${day}`,
     invoicePaid: 'paga',
     nextInvoice: (month, total) => `A de ${month} já tem ${total}.`,
+    invoiceEmpty: 'Nada nesta fatura.',
+    onInvoice: (month) => `fatura de ${month}`,
+    refund: 'estorno',
+    filter: 'Mostrar',
+    everything: 'Tudo',
+    noAccount: 'Sem conta',
+    nothingHere: 'Nada aqui neste mês.',
+    rawData: 'Abrir os bancos de dados',
+    rawDataHint: 'Tudo aqui fica em cinco bancos de dados, fora da barra lateral. Abra para ver ou corrigir uma linha à mão.',
     budget: 'Orçamento do dia a dia',
     budgetLine: (spent, limit) => `${spent} de ${limit}`,
     budgetLeft: (left, days, perWeek) =>

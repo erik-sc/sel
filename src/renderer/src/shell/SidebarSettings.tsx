@@ -19,6 +19,7 @@ import { IS_MAC } from '@/ui/platform'
 import { SIDEBAR_ITEM_DEFS, useAvailableItem } from './sidebarItems'
 import { restoreSidebar, setSidebarItemHidden, setSidebarOrder, useLayout, useSidebarCopy } from './sidebarLayout'
 import './sidebar.css'
+import { Advanced } from '@/ui/Advanced'
 
 const ZONES: SidebarZone[] = ['top', 'middle', 'footer']
 const PALETTE = formatAccelerator(acceleratorOf('command-palette', IS_MAC) ?? '', IS_MAC)
@@ -199,21 +200,23 @@ export function SidebarSection(): JSX.Element {
         </div>
       </section>
 
-      <section className="ap-group">
-        <div className="ap-list">
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">{copy.restore}</span>
-              <span className="ap-row-help">{copy.restoreHelp}</span>
-            </div>
-            <div className="ap-row-control">
-              <Button disabled={isDefaultSidebar(layout)} onClick={() => void restoreSidebar()}>
-                {copy.restore}
-              </Button>
+      <Advanced>
+        <section className="ap-group">
+          <div className="ap-list">
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">{copy.restore}</span>
+                <span className="ap-row-help">{copy.restoreHelp}</span>
+              </div>
+              <div className="ap-row-control">
+                <Button disabled={isDefaultSidebar(layout)} onClick={() => void restoreSidebar()}>
+                  {copy.restore}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </Advanced>
     </div>
   )
 }

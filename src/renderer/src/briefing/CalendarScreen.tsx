@@ -51,6 +51,7 @@ import { TaskPanel } from '@/tasks/lazy'
 import { useTaskRows } from '@/tasks/TaskRow'
 import { useCompleteTask } from './complete'
 import { BriefingTaskItem, EventRow, openSettings, useLive, useNow, useTaskViews } from './parts'
+import { NewEventForm, type NewEventCopy } from './NewEvent'
 import { canMove, moveTask, slotTime, undoMove, type Move } from './reschedule'
 import '@/tasks/tasks.css'
 import './today.css'
@@ -108,7 +109,26 @@ const CAL_COPY = {
     undoFailed: 'Could not put the task back.',
     newTask: (when: string) => `New task, ${when}`,
     placeholder: 'A task: Call the bank p1 #Home',
-    dragHint: 'drag to another day or hour to move it'
+    dragHint: 'drag to another day or hour to move it',
+    kinds: { task: 'Task', event: 'Event' },
+    kindLabel: 'What to add',
+    newEvent: 'New event',
+    newEventOn: (when: string) => `New event, ${when}`,
+    opened: 'Opened in Google Calendar. Save it there; it shows here when the calendar refreshes.',
+    refresh: 'Refresh',
+    openFailed: 'Could not open Google Calendar.',
+    event: {
+      what: 'What',
+      whatPlaceholder: 'Dentist',
+      day: 'Day',
+      allDay: 'All day',
+      from: 'From',
+      until: 'Until',
+      where: 'Where',
+      create: 'Create in Google Calendar',
+      hint: 'Opens Google Calendar with it filled in: pick the calendar and save there.',
+      problems: { title: 'Say what the event is.', day: 'Choose a day.', time: 'Choose the hours.' }
+    } satisfies NewEventCopy
   },
   'pt-BR': {
     moved: (when: string) => `Movida para ${when}.`,
@@ -118,7 +138,26 @@ const CAL_COPY = {
     undoFailed: 'Não foi possível desfazer.',
     newTask: (when: string) => `Nova tarefa, ${when}`,
     placeholder: 'Uma tarefa: Ligar pro banco p1 #Casa',
-    dragHint: 'arraste para outro dia ou horário para mover'
+    dragHint: 'arraste para outro dia ou horário para mover',
+    kinds: { task: 'Tarefa', event: 'Evento' },
+    kindLabel: 'O que adicionar',
+    newEvent: 'Novo evento',
+    newEventOn: (when: string) => `Novo evento, ${when}`,
+    opened: 'Abriu no Google Calendar. Salve por lá; ele aparece aqui quando o calendário atualizar.',
+    refresh: 'Atualizar',
+    openFailed: 'Não foi possível abrir o Google Calendar.',
+    event: {
+      what: 'O quê',
+      whatPlaceholder: 'Dentista',
+      day: 'Dia',
+      allDay: 'Dia inteiro',
+      from: 'Das',
+      until: 'Até',
+      where: 'Onde',
+      create: 'Criar no Google Calendar',
+      hint: 'Abre o Google Calendar já preenchido: escolha a agenda e salve por lá.',
+      problems: { title: 'Diga o que é o evento.', day: 'Escolha um dia.', time: 'Escolha os horários.' }
+    } satisfies NewEventCopy
   }
 }
 
@@ -855,7 +894,12 @@ export function CalendarScreen(): JSX.Element {
     return () => window.removeEventListener('keydown', onUndoKey)
   }, [putBack])
 
-  const [adding, setAdding] = useState<{ day: string; time: string | null; point: { x: number; y: number } } | null>(null)
+  const [adding, setAdding] = useState<{
+    day: string
+    time: string | null
+    point: { x: number; y: number }
+    kind: 'task' | 'event'
+  } | null>(null)
   const planner = useMemo<Planner>(
     () => ({
       dragging,
@@ -864,7 +908,7 @@ export function CalendarScreen(): JSX.Element {
       startDrag: (task) => setTimeout(() => setDragging(task), 0),
       endDrag: () => setDragging(null),
       drop,
-      add: (day, time, point) => setAdding({ day, time, point })
+      add: (day, time, point) => setAdding({ day, time, point, kind: 'task' })
     }),
     [dragging, copy, drop]
   )
@@ -925,6 +969,16 @@ export function CalendarScreen(): JSX.Element {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              className="cal-nav-button is-text"
+              onClick={(event) => {
+                const box = event.currentTarget.getBoundingClientRect()
+                setAdding({ day: selected, time: null, point: { x: box.left, y: box.bottom + 6 }, kind: 'event' })
+              }}
+            >
+              {copy.newEvent}
+            </button>
             <button type="button" className="cal-nav-button" aria-label={`Previous ${view}`} onClick={() => turn(-1)}>
               <ChevronLeft size={14} />
             </button>
@@ -1035,21 +1089,53 @@ export function CalendarScreen(): JSX.Element {
         <Popover
           open={!!adding}
           anchor={adding?.point ?? null}
-          label={adding ? copy.newTask(longDate(adding.day)) : undefined}
+          label={adding ? (adding.kind === 'event' ? copy.newEventOn : copy.newTask)(longDate(adding.day)) : undefined}
           onClose={() => setAdding(null)}
         >
           {adding && (
-            <CalendarQuickAdd
-              key={`${adding.day}T${adding.time ?? ''}`}
-              day={adding.day}
-              time={adding.time}
-              today={today}
-              title={copy.newTask(
-                adding.time ? `${longDate(adding.day)}, ${shortClock(momentOf(adding.day, adding.time))}` : longDate(adding.day)
+            <div className="cal-add">
+              <div className="cal-views cal-add-kinds" role="group" aria-label={copy.kindLabel}>
+                {(['task', 'event'] as const).map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    className="cal-view"
+                    aria-pressed={adding.kind === kind}
+                    onClick={() => setAdding({ ...adding, kind })}
+                  >
+                    {copy.kinds[kind]}
+                  </button>
+                ))}
+              </div>
+              {adding.kind === 'task' ? (
+                <CalendarQuickAdd
+                  key={`${adding.day}T${adding.time ?? ''}`}
+                  day={adding.day}
+                  time={adding.time}
+                  today={today}
+                  title={copy.newTask(
+                    adding.time ? `${longDate(adding.day)}, ${shortClock(momentOf(adding.day, adding.time))}` : longDate(adding.day)
+                  )}
+                  placeholder={copy.placeholder}
+                  onClose={() => setAdding(null)}
+                />
+              ) : (
+                <NewEventForm
+                  key={`${adding.day}T${adding.time ?? ''}`}
+                  day={adding.day}
+                  time={adding.time}
+                  copy={copy.event}
+                  onCancel={() => setAdding(null)}
+                  onOpen={(url) => {
+                    setAdding(null)
+                    window.api.app.openExternal(url).then(
+                      () => toast(copy.opened, { action: { label: copy.refresh, run: refresh } }),
+                      (error: unknown) => notifyError(copy.openFailed, error)
+                    )
+                  }}
+                />
               )}
-              placeholder={copy.placeholder}
-              onClose={() => setAdding(null)}
-            />
+            </div>
           )}
         </Popover>
       </article>

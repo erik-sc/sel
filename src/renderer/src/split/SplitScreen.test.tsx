@@ -21,6 +21,7 @@ const entry = (over: Partial<EntryView>): EntryView => ({
   account: null,
   to: null,
   instalment: null,
+  invoice: null,
   planned: false,
   paidByMe: true,
   paidBy: 'Eu',

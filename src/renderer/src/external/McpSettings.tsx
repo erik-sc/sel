@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import { MCP_ENABLED_KEY, type McpStatus } from '@shared/mcp'
 import { Segmented } from '@/appearance/controls'
+import { Advanced } from '@/ui/Advanced'
 import { Button } from '@/ui/Button'
 import { notifyError, toast } from '@/ui/toast'
 import { callTime, stateLine, TOOL_LABELS } from './labels'
@@ -67,8 +68,7 @@ export function McpSection(): JSX.Element {
       <PhoneSection remote={remote} />
 
       {/* Everything about how it is done: most people never open this. */}
-      <details className="mcp-advanced">
-        <summary>Advanced</summary>
+      <Advanced>
         <RemoteAdvanced remote={remote} />
 
         <section className="ap-group">
@@ -177,7 +177,7 @@ export function McpSection(): JSX.Element {
           </div>
           <p className="ap-note">Only which tool and when. What the apps ask and what they get is not kept.</p>
         </section>
-      </details>
+      </Advanced>
     </div>
   )
 }

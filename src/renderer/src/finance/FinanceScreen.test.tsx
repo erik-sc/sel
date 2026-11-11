@@ -31,6 +31,7 @@ const EMPTY: FinanceMonthView = {
   entries: [],
   categories: [],
   accountNames: [],
+  cardNames: [],
   boxNames: []
 }
 
@@ -91,6 +92,7 @@ const FULL: FinanceMonthView = {
       account: 'Nubank',
       to: null,
       instalment: null,
+      invoice: null,
       planned: false,
       paidByMe: true,
       paidBy: 'Eu',
@@ -100,6 +102,7 @@ const FULL: FinanceMonthView = {
   ],
   categories: ['Mercado', 'Lazer'],
   accountNames: ['Nubank', 'Roxinho'],
+  cardNames: [],
   boxNames: ['Reserva']
 }
 
@@ -215,6 +218,36 @@ describe('the Finance screen', () => {
 
     await click(button('Mover Feira para a lixeira'))
     expect(run).toHaveBeenLastCalledWith('finance_delete', { id: 'e1' })
+  })
+
+  it('keeps the card apart from the account: its invoice opens, and the entries show one account at a time', async () => {
+    const entry = FULL.entries[0]
+    const onCard = { ...entry, id: 'e2', description: 'Cinema', amount: 80, account: 'Roxinho', category: 'Lazer', invoice: '2026-12' }
+    const refund = { ...onCard, id: 'e3', description: 'Devolução', amount: 30, kind: 'income' as const }
+    install({
+      ...FULL,
+      cardNames: ['Roxinho'],
+      cards: [{ ...FULL.cards[0], entries: [onCard] }],
+      entries: [entry, onCard, refund, { ...entry, id: 'e4', description: 'Avulso', account: null }]
+    })
+    await render(<FinanceScreen now={NOW} />)
+    const invoice = document.querySelector('details.fin-card') as HTMLDetailsElement
+    expect(invoice.open).toBe(false)
+    expect(invoice.textContent).toContain('Cinema')
+    const rows = (): string[] =>
+      [...document.querySelectorAll('.fin-section:last-of-type .fin-row-title, .fin-filter ~ .fin-rows .fin-row-title')].map(
+        (el) => el.textContent ?? ''
+      )
+    expect(text()).toContain('fatura de dezembro')
+    // What the card gave back is a refund, not income.
+    expect(text()).toContain('estorno')
+    expect(button('Tudo').getAttribute('aria-pressed')).toBe('true')
+    await click(button('Roxinho'))
+    expect([...new Set(rows())]).toEqual(['Cinema', 'Devolução'])
+    await click(button('Sem conta'))
+    expect([...new Set(rows())]).toEqual(['Avulso'])
+    await click(button('Tudo'))
+    expect(new Set(rows()).size).toBe(4)
   })
 
   it('goes to another month and back', async () => {

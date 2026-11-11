@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AI_PRIVATE_MESSAGE } from '../../shared/aiPrivate'
 import { FINANCE_PAGE_ID } from '../../shared/finance'
 import { cleanHousehold, splitByShare } from '../../shared/finance/household'
@@ -34,7 +34,13 @@ describe('the household tools', () => {
   const idOf = (text: string): string => /\[([0-9a-f-]{36})\]/u.exec(text)?.[1] as string
 
   beforeEach(() => {
+    // The rows are stamped on the clock the entries are dated on.
+    vi.useFakeTimers({ toFake: ['Date'], now: NOW })
     repo = openTestRepository()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('asks who the household is shared with before anything else', () => {

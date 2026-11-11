@@ -50,16 +50,3 @@
   gap: 8px;
   margin-top: 8px;
 }
-
-/* Everything but the one switch: closed until asked for. */
-.mcp-advanced {
-  margin-top: 28px;
-}
-
-.mcp-advanced > summary {
-  width: fit-content;
-  margin-bottom: 16px;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  cursor: pointer;
-}
