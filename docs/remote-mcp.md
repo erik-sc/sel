@@ -2,6 +2,14 @@
 
 Status: prototype. Off by default; nothing listens until you turn it on in Settings → MCP.
 
+**The short way** (since 0.14.0): Settings → MCP → **Claude on your phone → On**. sel starts the
+server, opens the tunnel by itself with Tailscale Funnel, keeps itself running in the notification
+area and starting with the computer, and shows the address to give Claude. From then on the
+server and the tunnel come up whenever sel starts; nothing else has to be run. If Tailscale is
+not installed or signed in, or asks to allow Funnel once, the same row says so and offers the one
+step. The rest of this page is what that switch does, and how to do it by hand (Settings → MCP →
+Advanced).
+
 The notes stay on your main computer. sel runs a small server on that computer, and Claude on
 your phone, claude.ai, Claude Desktop or Claude Code on another machine reach it through a
 tunnel you run:
@@ -49,7 +57,11 @@ GitHub account and forgets GitHub's token at once.
 The first GitHub account that signs in becomes the owner, pinned by its numeric id; after that,
 only it gets in. "End every connection" in Settings forgets it.
 
-### For the phone: a tunnel
+### For the phone: a tunnel, by hand
+
+The switch above does this with Tailscale Funnel (src/main/remote/tunnel.ts). To use another
+tunnel, type its address in Settings → MCP → Advanced → Public address: sel then stops keeping
+its own.
 
 Claude's connectors are called from Anthropic's cloud, so the phone needs a public https address.
 Pick one; sel listens on `127.0.0.1` only and the tunnel is the one way in.

@@ -8,13 +8,15 @@ import {
   REMOTE_CONFIG_KEY,
   type RemoteConfig,
   type RemoteConfigInput,
-  type RemoteStatus
+  type RemoteStatus,
+  type TunnelStatus
 } from '../../shared/mcp'
 import type { Repository } from '../db/repository'
 import * as arg from '../validate'
 import type { AuthStore } from './auth'
 import type { Fetch } from './github'
 import type { RemoteServer } from './server'
+import { closeTunnel, findTailscale, openTunnel, spawnRunner } from './tunnel'
 
 /**
  * The remote connector's side of the `mcp` feature (see ./server.ts): its three channels, and
@@ -32,6 +34,7 @@ export interface RemoteHooks {
   configure(raw: unknown): Promise<RemoteStatus>
   revoke(raw: unknown): Promise<RemoteStatus>
   pair(): Promise<RemoteStatus>
+  phone(raw: unknown): Promise<RemoteStatus>
 }
 
 export function registerRemote({ repo, ready, changed }: { repo: Repository; ready: Promise<void>; changed(): void }): RemoteHooks {
@@ -101,6 +104,25 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
       }
     })
 
+  // ---- the tunnel sel keeps by itself (./tunnel.ts) ----
+
+  let tunnel: TunnelStatus = { state: 'off', address: '', approveUrl: null }
+  const runner = (): ReturnType<typeof spawnRunner> | null => {
+    const path = findTailscale()
+    return path ? spawnRunner(path) : null
+  }
+
+  /** Opens the tunnel to the port in use and keeps its address as the public one. */
+  const tunnelUp = (): Promise<void> =>
+    enqueue(async () => {
+      const wanted = config()
+      if (!wanted.enabled || wanted.tunnel !== 'tailscale') return
+      tunnel = await openTunnel(runner(), wanted.port)
+      // The address is the computer's name in Tailscale: it changes when the computer is renamed.
+      if (tunnel.state === 'on' && tunnel.address !== wanted.publicUrl)
+        repo.setSetting(REMOTE_CONFIG_KEY, { ...wanted, publicUrl: tunnel.address })
+    })
+
   const status = (): RemoteStatus => {
     const current = config()
     // Without a public address: this computer's, for Claude Code here (the phone needs the tunnel).
@@ -115,11 +137,13 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
       grants: loaded?.auth.list() ?? [],
       calls: loaded?.server.calls ?? [],
       pairingUntil: loaded?.server.running ? loaded.auth.pairingUntil : null,
-      staysRunning: repo.getSetting(ALARMS_SETTING.tray) === true
+      staysRunning: repo.getSetting(ALARMS_SETTING.tray) === true,
+      tunnelStatus: current.enabled && current.tunnel === 'tailscale' ? tunnel : { state: 'off', address: '', approveUrl: null }
     }
   }
 
-  void ready.then(follow)
+  // With sel, the server; with the server, the tunnel: nothing else has to be started.
+  void ready.then(follow).then(tunnelUp)
   app.on('will-quit', () => void loaded?.server.stop())
 
   return {
@@ -137,6 +161,22 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
       const id = raw === undefined || raw === null ? undefined : arg.id(raw, 'authorization')
       const { auth } = await load()
       auth.revoke(id)
+      return status()
+    },
+    phone: async (raw) => {
+      const on = raw === true
+      const before = config()
+      if (on) {
+        repo.setSetting(REMOTE_CONFIG_KEY, { ...before, enabled: true, tunnel: 'tailscale' })
+        await follow()
+        await tunnelUp()
+      } else {
+        repo.setSetting(REMOTE_CONFIG_KEY, { ...before, enabled: false })
+        await follow()
+        // Only the tunnel sel opened: one the user runs is theirs to close.
+        if (before.tunnel === 'tailscale') await enqueue(() => closeTunnel(runner()))
+        tunnel = { state: 'off', address: '', approveUrl: null }
+      }
       return status()
     },
     pair: async () => {
