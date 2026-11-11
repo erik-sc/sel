@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clockPlus, dayAfter, googleEventUrl, newEventProblem } from './newEvent'
+import { clockPlus, dayAfter, googleEventUrl, newEventProblem } from './eventLink'
 
 const params = (url: string | null): URLSearchParams => new URL(url as string).searchParams
 

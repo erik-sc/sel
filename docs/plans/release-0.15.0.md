@@ -49,7 +49,7 @@ owner of the account), which this release does not have. What it does instead ne
 - "New event" in the calendar's header, and an Event tab beside Task in the popover a click on a
   day or an hour opens: what, day, all day or from/until, where.
 - "Create in Google Calendar" opens Google Calendar's own new-event page already filled in
-  (briefing/newEvent.ts); he picks the calendar and saves there. The event shows in sel with the
+  (briefing/eventLink.ts); he picks the calendar and saves there. The event shows in sel with the
   calendar's next refresh (the toast offers it).
 
 Creating the event without leaving sel is a later release, once there is an OAuth client.

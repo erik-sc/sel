@@ -1,10 +1,10 @@
 // The calendar's new event: what, when, and a button that opens Google Calendar with it filled
-// in (./newEvent.ts). sel cannot write to a calendar, so the event is saved there, and shows
+// in (./eventLink.ts). sel cannot write to a calendar, so the event is saved there, and shows
 // here with the calendar's next refresh.
 import { useId, useRef, useEffect, useState } from 'react'
 import type { FormEvent, JSX } from 'react'
 import { Button } from '@/ui/Button'
-import { clockPlus, googleEventUrl, newEventProblem, type NewEvent } from './newEvent'
+import { clockPlus, googleEventUrl, newEventProblem, type NewEvent } from './eventLink'
 
 export interface NewEventCopy {
   what: string
