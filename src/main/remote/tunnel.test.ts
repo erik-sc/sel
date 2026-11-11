@@ -32,7 +32,9 @@ describe('finding tailscale', () => {
     expect(findTailscale('linux', { PATH: `relative:/opt/ts` }, (path) => path === onPath)).toBe(onPath)
     // A relative folder of PATH is never searched.
     expect(findTailscale('linux', { PATH: 'bin' }, (path) => path === 'bin/tailscale')).toBeNull()
-    expect(findTailscale('win32', { Path: 'D:\\tools;relative' }, (path) => path === 'D:\\tools\\tailscale.exe')).toBe('D:\\tools\\tailscale.exe')
+    expect(findTailscale('win32', { Path: 'D:\\tools;relative' }, (path) => path === 'D:\\tools\\tailscale.exe')).toBe(
+      'D:\\tools\\tailscale.exe'
+    )
     expect(findTailscale('win32', {}, () => false)).toBeNull()
   })
 })
