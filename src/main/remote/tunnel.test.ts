@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addressOf, approvalUrl, closeTunnel, findTailscale, funnelReaches, openTunnel, type Runner } from './tunnel'
+import { addressOf, approvalUrl, closeTunnel, findTailscale, funnelReaches, keepTunnel, openTunnel, type Runner } from './tunnel'
 
 const STATUS = JSON.stringify({ BackendState: 'Running', Self: { DNSName: 'Erik-PC.tail1234.ts.net.' } })
 const SERVING = (port: number, funnel = true): string =>
@@ -108,5 +108,32 @@ describe('opening the tunnel', () => {
     await closeTunnel(ts.run)
     expect(ts.asked).toEqual(['funnel --https=443 off'])
     await closeTunnel(null)
+  })
+})
+
+describe('keeping the tunnel', () => {
+  const ON = { state: 'on' as const, address: 'https://erik-pc.tail1234.ts.net', approveUrl: null }
+
+  it('asks one quick question while it is open, and opens nothing', async () => {
+    const tailscale = fake({ 'funnel status': { out: SERVING(47615) } })
+    expect(await keepTunnel(tailscale.run, 47615, ON)).toBe(ON)
+    expect(tailscale.asked).toEqual(['funnel status --json'])
+  })
+
+  it('opens it again when it is gone, or when it never opened', async () => {
+    let served = false
+    const asked: string[] = []
+    const run: Runner = async (args) => {
+      const line = args.join(' ')
+      asked.push(line)
+      if (line.startsWith('status')) return { code: 0, out: STATUS }
+      if (line.startsWith('funnel --bg')) served = true
+      return { code: 0, out: line.startsWith('funnel status') && served ? SERVING(47615) : '{}' }
+    }
+    expect(await keepTunnel(run, 47615, ON)).toEqual(ON)
+    expect(asked).toContain('funnel --bg --https=443 http://127.0.0.1:47615')
+    served = false
+    expect((await keepTunnel(run, 47615, { state: 'failed', address: '', approveUrl: null })).state).toBe('on')
+    expect((await keepTunnel(null, 47615, ON)).state).toBe('no-tailscale')
   })
 })

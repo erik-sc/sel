@@ -16,7 +16,7 @@ import * as arg from '../validate'
 import type { AuthStore } from './auth'
 import type { Fetch } from './github'
 import type { RemoteServer } from './server'
-import { closeTunnel, findTailscale, openTunnel, spawnRunner } from './tunnel'
+import { closeTunnel, findTailscale, keepTunnel, openTunnel, spawnRunner } from './tunnel'
 
 /**
  * The remote connector's side of the `mcp` feature (see ./server.ts): its three channels, and
@@ -28,6 +28,8 @@ import { closeTunnel, findTailscale, openTunnel, spawnRunner } from './tunnel'
  */
 
 const AUTH_FILE = 'remote-auth.json'
+/** How often the server and the tunnel are looked at, and put back when they fell. */
+const KEEP_MS = 2 * 60_000
 
 export interface RemoteHooks {
   status(): RemoteStatus
@@ -112,12 +114,12 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
     return path ? spawnRunner(path) : null
   }
 
-  /** Opens the tunnel to the port in use and keeps its address as the public one. */
-  const tunnelUp = (): Promise<void> =>
+  /** Opens the tunnel to the port in use and keeps its address as the public one; `keep` only looks first. */
+  const tunnelUp = (keep = false): Promise<void> =>
     enqueue(async () => {
       const wanted = config()
       if (!wanted.enabled || wanted.tunnel !== 'tailscale') return
-      tunnel = await openTunnel(runner(), wanted.port)
+      tunnel = keep ? await keepTunnel(runner(), wanted.port, tunnel) : await openTunnel(runner(), wanted.port)
       // The address is the computer's name in Tailscale: it changes when the computer is renamed.
       if (tunnel.state === 'on' && tunnel.address !== wanted.publicUrl)
         repo.setSetting(REMOTE_CONFIG_KEY, { ...wanted, publicUrl: tunnel.address })
@@ -143,8 +145,17 @@ export function registerRemote({ repo, ready, changed }: { repo: Repository; rea
   }
 
   // With sel, the server; with the server, the tunnel: nothing else has to be started.
-  void ready.then(follow).then(tunnelUp)
-  app.on('will-quit', () => void loaded?.server.stop())
+  void ready.then(follow).then(() => tunnelUp())
+  // And it is kept: a server that fell, or a tunnel Tailscale dropped (the computer slept, the
+  // network changed), is put back within minutes, and the status the app shows is never older.
+  const keeper = setInterval(() => {
+    if (config().enabled) void follow().then(() => tunnelUp(true))
+  }, KEEP_MS)
+  keeper.unref()
+  app.on('will-quit', () => {
+    clearInterval(keeper)
+    void loaded?.server.stop()
+  })
 
   return {
     status,

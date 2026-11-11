@@ -144,6 +144,19 @@ export async function openTunnel(run: Runner | null, port: number): Promise<Tunn
   return { state: 'failed', address, approveUrl: null }
 }
 
+/**
+ * Looks at a tunnel that was opened and puts it back when it is gone (the computer slept, the
+ * network changed, Tailscale restarted). One quick question while all is well; the whole opening
+ * again otherwise, which is also how a tunnel that could not open is tried again.
+ */
+export async function keepTunnel(run: Runner | null, port: number, last: TunnelStatus): Promise<TunnelStatus> {
+  if (run && last.state === 'on') {
+    const config = await run(['funnel', 'status', '--json'], 10_000)
+    if (funnelReaches(config.out, port)) return last
+  }
+  return openTunnel(run, port)
+}
+
 /** Closes the tunnel sel opened. */
 export async function closeTunnel(run: Runner | null): Promise<void> {
   if (run) await run(['funnel', '--https=443', 'off'], 10_000)

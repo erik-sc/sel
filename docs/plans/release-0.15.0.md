@@ -78,6 +78,19 @@ The page that holds the five databases no longer shows in the sidebar's tree
 (renderer store/tree.ts), as the Tasks database does not. It is still a page: search finds it, and
 "Open the databases" under the Finances screen's set-up opens it. Nothing is migrated.
 
+## 5. The MCP light
+
+Érik, later the same day: he wants to see in sel whether the MCP server is on.
+
+- At the foot of the sidebar, under Settings: a dot and two words. **MCP on** (Claude reaches sel
+  from outside), **MCP on, this computer only**, **MCP starting…**, **MCP needs attention** (turned
+  on, and something is in the way: the tooltip says what), **MCP off**. A click opens
+  Settings → MCP. It is not a sidebar item: it shows whatever the sidebar was made to show
+  (external/McpLight.tsx, external/light.ts).
+- So that the light is true, and the server stays up: every two minutes, while the connector is
+  on, sel looks at the server and at the tunnel and puts back what fell (`keepTunnel` in
+  main/remote/tunnel.ts: one quick question to Tailscale while all is well).
+
 ## Checked
 
 - Unit tests: the arithmetic (balances by date, derived invoices, refunds, payment by month), the
