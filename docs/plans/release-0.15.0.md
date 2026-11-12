@@ -91,6 +91,20 @@ The page that holds the five databases no longer shows in the sidebar's tree
   on, sel looks at the server and at the tunnel and puts back what fell (`keepTunnel` in
   main/remote/tunnel.ts: one quick question to Tailscale while all is well).
 
+## 6. Skipping a repeating task
+
+Érik, 2026-11-12: for a task that repeats, he wants to go straight to its next time, without
+rescheduling it by hand or completing it.
+
+- `skipTaskValues` (shared/tasks/recur.ts): the task moves on exactly as when completed (due
+  date, reminder, one off "N times"), but nothing is marked as done: no completion date, so the
+  day's count and the Sky do not see it. Nothing to skip to on the last time, or for a task that
+  does not repeat.
+- On a task row: "Skip to the next time" in its menu, right after Repeat, and **Shift+R** (R is
+  how it repeats). In the task panel: under Repeat. Offered only to an open task that repeats.
+  The message says the next date and has Undo, which puts back only what the skip moved.
+- MCP: `skip_task` (scope tasks).
+
 ## Checked
 
 - Unit tests: the arithmetic (balances by date, derived invoices, refunds, payment by month), the

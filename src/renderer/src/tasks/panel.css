@@ -191,6 +191,11 @@
   text-underline-offset: 2px;
 }
 
+.task-panel-skip {
+  display: block;
+  font-size: var(--text-xs);
+}
+
 .task-panel-open:hover {
   color: var(--text);
 }

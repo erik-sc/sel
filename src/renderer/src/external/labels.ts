@@ -20,6 +20,7 @@ export const TOOL_LABELS: Record<string, string> = {
   list_tasks: 'List tasks',
   add_task: 'Add a task',
   complete_task: 'Complete a task',
+  skip_task: 'Skip a repeating task',
   reschedule_task: 'Reschedule a task',
   list_projects: 'List projects',
   update_task: 'Change a task',

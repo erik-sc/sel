@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PropertyValue } from '../types'
 import { TASK_PROPS } from './index'
 import { parseTask } from './parse'
-import { completeTaskOps, completeTaskValues, nextOccurrence, readRecurrence } from './recur'
+import { completeTaskOps, completeTaskValues, nextOccurrence, readRecurrence, skipTaskValues } from './recur'
 
 // 2026-10-15 is a Thursday.
 describe('the next occurrence', () => {
@@ -152,5 +152,60 @@ describe('a repeat that ends after N times', () => {
     const result = completeTaskValues(values('FREQ=DAILY;COUNT=1'), now)
     expect(result?.next).toBeUndefined()
     expect(result?.values[TASK_PROPS.done]).toBe(true)
+  })
+})
+
+describe('skipping a repeating task', () => {
+  const NOW = new Date(2026, 9, 15, 18, 40)
+  const repeat = (rule: string, from: 'due' | 'completion' = 'due'): string => JSON.stringify({ rule, from, text: '' })
+
+  it('moves on with its reminder, and nothing is marked as done', () => {
+    const values = {
+      [TASK_PROPS.due]: { start: '2026-10-15T09:00' },
+      [TASK_PROPS.remind]: { start: '2026-10-14T20:00' },
+      [TASK_PROPS.recurrence]: repeat('FREQ=WEEKLY;BYDAY=MO,TH')
+    }
+    const result = skipTaskValues(values, NOW)
+    expect(result?.next).toBe('2026-10-19T09:00')
+    expect(result?.values).toEqual({
+      [TASK_PROPS.due]: { start: '2026-10-19T09:00' },
+      [TASK_PROPS.remind]: { start: '2026-10-18T20:00' },
+      [TASK_PROPS.recurrence]: values[TASK_PROPS.recurrence]
+    })
+    // What Undo puts back: only what moved.
+    expect(result?.previous).toEqual({ [TASK_PROPS.due]: values[TASK_PROPS.due], [TASK_PROPS.remind]: values[TASK_PROPS.remind] })
+  })
+
+  it('goes past today for one that is late, and past its own date for one still to come', () => {
+    const late = skipTaskValues({ [TASK_PROPS.due]: { start: '2026-10-10' }, [TASK_PROPS.recurrence]: repeat('FREQ=DAILY') }, NOW)
+    expect(late?.next).toBe('2026-10-16')
+    const ahead = skipTaskValues({ [TASK_PROPS.due]: { start: '2026-10-20' }, [TASK_PROPS.recurrence]: repeat('FREQ=WEEKLY') }, NOW)
+    expect(ahead?.next).toBe('2026-10-27')
+    const monthly = skipTaskValues(
+      { [TASK_PROPS.due]: { start: '2026-10-10' }, [TASK_PROPS.recurrence]: repeat('FREQ=MONTHLY', 'completion') },
+      NOW
+    )
+    expect(monthly?.next).toBe('2026-11-15')
+  })
+
+  it('takes one of "N times", and has nowhere to go on the last', () => {
+    const values = (rule: string) => ({ [TASK_PROPS.due]: { start: '2026-10-15' }, [TASK_PROPS.recurrence]: repeat(rule) })
+    const result = skipTaskValues(values('FREQ=DAILY;COUNT=3'), NOW)
+    expect(JSON.parse(result?.values[TASK_PROPS.recurrence] as string).rule).toBe('FREQ=DAILY;COUNT=2')
+    expect(skipTaskValues(values('FREQ=DAILY;COUNT=1'), NOW)).toBeNull()
+  })
+
+  it('is nothing for a task that does not repeat, has ended, or is done', () => {
+    expect(skipTaskValues({ [TASK_PROPS.due]: { start: '2026-10-15' } }, NOW)).toBeNull()
+    expect(skipTaskValues(undefined, NOW)).toBeNull()
+    expect(
+      skipTaskValues({ [TASK_PROPS.due]: { start: '2026-10-15' }, [TASK_PROPS.recurrence]: repeat('FREQ=DAILY;UNTIL=20261015') }, NOW)
+    ).toBeNull()
+    expect(
+      skipTaskValues(
+        { [TASK_PROPS.done]: true, [TASK_PROPS.due]: { start: '2026-10-15' }, [TASK_PROPS.recurrence]: repeat('FREQ=DAILY') },
+        NOW
+      )
+    ).toBeNull()
   })
 })

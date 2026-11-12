@@ -124,6 +124,20 @@ describe('the task tools', () => {
     expect(callTaskTool(repo, 'list_tasks', { list: 'all' }, NOW)).toContain('Write the Q4 report')
   })
 
+  it('skips a repeating task to its next time, without completing it', () => {
+    const added = callTaskTool(repo, 'add_task', { text: 'Regar as plantas hoje todo dia' }, NOW)
+    const id = /\[([0-9a-f-]{36})\]/u.exec(added)?.[1] as string
+    const skipped = callTaskTool(repo, 'skip_task', { id }, NOW)
+    expect(skipped).toContain('Skipped, not completed')
+    expect(callTaskTool(repo, 'list_tasks', { list: 'today' }, NOW)).not.toContain('Regar as plantas')
+    expect(callTaskTool(repo, 'list_tasks', { list: 'all' }, NOW)).toContain('Regar as plantas')
+    // Nothing was done: it is not among the completed.
+    expect(callTaskTool(repo, 'list_tasks', { list: 'completed' }, NOW)).not.toContain('Regar as plantas')
+    callTaskTool(repo, 'add_task', { text: 'Once' }, NOW)
+    const once = /Once \[([^\]]+)\]/u.exec(callTaskTool(repo, 'list_tasks', { list: 'inbox' }, NOW))?.[1] as string
+    expect(() => callTaskTool(repo, 'skip_task', { id: once }, NOW)).toThrow(/no next time to skip to/)
+  })
+
   it('keeps a private Tasks database closed', () => {
     callTaskTool(repo, 'add_task', { text: 'Secret' }, NOW)
     repo.update(TASKS_DATABASE_ID, { props: { aiPrivate: true } })
@@ -135,7 +149,15 @@ describe('the task tools', () => {
     const names = (scopes: Parameters<typeof toolsFor>[0]): string[] => toolsFor(scopes).map((tool) => tool.name)
     expect(names(['read'])).toContain('list_tasks')
     expect(names(['read'])).not.toContain('add_task')
-    expect(names(['tasks'])).toEqual(['add_task', 'complete_task', 'reschedule_task', 'update_task', 'reopen_task', 'delete_task'])
+    expect(names(['tasks'])).toEqual([
+      'add_task',
+      'complete_task',
+      'skip_task',
+      'reschedule_task',
+      'update_task',
+      'reopen_task',
+      'delete_task'
+    ])
     expect(names(['read', 'tasks', 'write'])).not.toContain('finance_month')
     expect(names(['finance'])).toContain('finance_add')
     expect(names(['read'])).not.toContain('delete_page')
