@@ -60,7 +60,9 @@ jobs:
       # A version with a pre-release part would be written as `rc.yml`; the computers that take
       # test builds read `latest.yml` (detectUpdateChannel off).
       - run: npx electron-vite build
-      - run: npx electron-builder --publish never -c.detectUpdateChannel=false
+      # In bash: PowerShell splits `-c.name=value` at the dot.
+      - run: npx electron-builder --publish never --config.detectUpdateChannel=false
+        shell: bash
 
       - name: Attach the build to the preview pre-release
         shell: bash
