@@ -6,14 +6,16 @@
 import type { Block, PropertySchema, PropertyValue, SelectOption } from '@shared/types'
 import { TASK_PROPS, TASKS_DATABASE_ID } from '@shared/tasks'
 import type { TaskRecurrence } from '@shared/tasks/parse'
+import { skipTaskValues } from '@shared/tasks/recur'
 import { firstOccurrence } from '@shared/tasks/repeat'
-import { fetchBlocks, getBlock } from '@/store/blocks'
+import { applyOps, fetchBlocks, getBlock } from '@/store/blocks'
 import { useHome } from '@/home/store'
 import { notifyError, toast } from '@/ui/toast'
 import * as L from '@/database/logic'
 import * as actions from '@/database/actions'
 import { findOption, readName, renamedValues, taskValues, type IgnoredSpan } from './addTask'
 import { TASK_COPY, type TaskCopy } from './copy'
+import { dueLabel } from './lists'
 import { priorityValue, type Priority } from './model'
 
 function copy(): TaskCopy {
@@ -157,6 +159,42 @@ export function renameTask(id: string, text: string, ignored: readonly IgnoredSp
 }
 
 /** Moves a task to the trash, with "Undo" on the toast that says so. */
+/**
+ * Skips this time of a repeating task: it moves on to its next date without being completed or
+ * rescheduled by hand, and "Undo" on the message puts it back. Says so, and changes nothing, when
+ * there is nothing to skip to.
+ */
+export function skipTask(id: string, today: string): void {
+  withRow(id, (row) => {
+    const words = copy()
+    const skipped = skipTaskValues(valuesOf(row), new Date())
+    if (!skipped) {
+      toast(words.nothingToSkip)
+      return
+    }
+    const write = (values: L.Values): void => {
+      applyOps([{ op: 'update', id: row.id, patch: { props: { values } } }]).catch((error: unknown) => notifyError(words.saveFailed, error))
+    }
+    write(skipped.values)
+    toast(words.skipped(L.titleOf(row) || words.untitled, dueLabel(skipped.next, today, undefined, words.days).text), {
+      action: {
+        label: words.undo,
+        // Only what the skip moved goes back: a change made to the task meanwhile is kept.
+        run: () => {
+          const now = getBlock(row.id)
+          if (!now || now.trashedAt) return
+          const values = { ...valuesOf(now) }
+          for (const [prop, before] of Object.entries(skipped.previous)) {
+            if (before === undefined) delete values[prop]
+            else values[prop] = before
+          }
+          write(values)
+        }
+      }
+    })
+  })
+}
+
 export function deleteTask(id: string): void {
   const row = getBlock(id)
   const words = copy()

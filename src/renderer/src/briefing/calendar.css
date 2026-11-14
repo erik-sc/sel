@@ -569,3 +569,60 @@
     animation: none;
   }
 }
+
+/* ---- adding: a task, or an event for Google Calendar ---- */
+
+.cal-add-kinds {
+  width: fit-content;
+  margin: 10px 12px 0;
+}
+
+.cal-event-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 12px;
+}
+
+.cal-event-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.cal-event-field.is-wide,
+.cal-event-problem,
+.cal-event-actions {
+  grid-column: 1 / -1;
+}
+
+.cal-event-check {
+  display: flex;
+  align-items: center;
+  align-self: end;
+  gap: 8px;
+  min-height: var(--control-height);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.cal-event-problem {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.cal-event-actions {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.cal-event-hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}

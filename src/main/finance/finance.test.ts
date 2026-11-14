@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AI_PRIVATE_MESSAGE } from '../../shared/aiPrivate'
 import { FINANCE_DB, FINANCE_PAGE_ID, LEDGER } from '../../shared/finance'
 import { ToolError } from '../ai/tools'
@@ -36,7 +36,13 @@ describe('the finance tools', () => {
   const idOf = (text: string, title: string): string => new RegExp(`${title} \\[([^\\]]+)\\]`, 'u').exec(text)?.[1] as string
 
   beforeEach(() => {
+    // The rows are stamped on the clock the entries are dated on.
+    vi.useFakeTimers({ toFake: ['Date'], now: NOW })
     repo = openTestRepository()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('reads nothing, and creates nothing, before something is entered', () => {
@@ -205,6 +211,53 @@ describe('the finance tools', () => {
     expect(repo.get(id)?.props.values?.[LEDGER.invoice]).toBeUndefined()
     expect(() => call('finance_update', { id })).toThrow(/what to change/)
     expect(() => call('finance_update', { id: 'nope', amount: 1 })).toThrow(/Nothing in Finance/)
+  })
+
+  it('sorts out a statement brought in whole: the card apart from the account', () => {
+    // The account's balance is told today; the statement of the days before moves nothing.
+    call('finance_account', { name: 'Conta', balance: 2000 })
+    call('finance_add', { description: 'Mercado', amount: 300, account: 'Conta', category: 'Mercado', date: '2026-11-04' })
+    call('finance_add', { description: 'Cinema', amount: 80, account: 'Nubank', date: '2026-10-20' })
+    const payment = call('finance_add', { description: 'Pagamento de fatura Nubank', amount: 80, account: 'Conta', date: '2026-11-03' })
+    call('finance_add', { description: 'Mercado', amount: 300, account: 'Conta', category: 'Mercado', date: '2026-11-04' })
+    call('finance_add', { description: 'Sem conta', amount: 10, date: '2026-11-05' })
+    expect(call('finance_month')).toContain('In the accounts: R$ 2.000,00')
+
+    // The card is registered after its purchases were entered: they fall on its invoices all the same.
+    call('finance_account', { name: 'Nubank', type: 'card', closing_day: 26, due_day: 3 })
+    expect(call('finance_month')).toContain('Card Nubank: the 2026-11 invoice is R$ 80,00')
+
+    const review = call('finance_review')
+    expect(review).toContain('Invoice payments entered as expenses (1)')
+    expect(review).toContain('Entries that look entered twice (2)')
+    expect(review).toContain('Entries with no account (1)')
+    expect(review).toContain('Expenses with no category (2)')
+
+    // The payment becomes a transfer to the card: counted once, and the invoice is paid.
+    const fixed = call('finance_update', { id: idOf(payment, 'Pagamento de fatura Nubank'), kind: 'transfer', to: 'Nubank' })
+    expect(fixed).toContain('transferência')
+    expect(fixed).toContain('→ Nubank')
+    expect(call('finance_month')).toContain('the 2026-11 invoice is R$ 80,00, due 2026-11-03 (paid)')
+    expect(call('finance_review')).not.toContain('Invoice payments entered as expenses')
+    expect(() => call('finance_update', { id: idOf(payment, 'Pagamento de fatura Nubank'), kind: 'transfer', to: null })).toThrow(ToolError)
+  })
+
+  it('walks a balance forward from the day it is of', () => {
+    call('finance_account', { name: 'Conta', balance: 1000, as_of: '2026-10-31' })
+    call('finance_add', { description: 'Antes', amount: 50, account: 'Conta', date: '2026-10-30' })
+    call('finance_add', { description: 'Depois', amount: 200, account: 'Conta', date: '2026-11-02' })
+    expect(call('finance_month')).toContain('In the accounts: R$ 800,00')
+    expect(() => call('finance_account', { name: 'Conta', as_of: '2026-10-31' })).toThrow(ToolError)
+    expect(() => call('finance_account', { name: 'Conta', balance: 1, as_of: '2026-12-31' })).toThrow(ToolError)
+  })
+
+  it('moves a card purchase to the invoice said', () => {
+    call('finance_account', { name: 'Nubank', type: 'card', closing_day: 26, due_day: 3 })
+    const added = call('finance_add', { description: 'Livro', amount: 60, account: 'Nubank', date: '2026-10-26' })
+    expect(added).toContain('fatura 2026-11')
+    expect(call('finance_update', { id: idOf(added, 'Livro'), invoice: '2026-12' })).toContain('fatura 2026-12')
+    expect(call('finance_update', { id: idOf(added, 'Livro'), invoice: null })).toContain('fatura 2026-11')
+    expect(() => call('finance_update', { id: idOf(added, 'Livro'), invoice: 'dezembro' })).toThrow(ToolError)
   })
 
   it('gives the month as data for a dashboard', () => {

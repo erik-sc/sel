@@ -106,6 +106,52 @@ export interface TaskCompletion {
 }
 
 /**
+ * Moves a repeating task on to its next date, counting from `at`: the due date, the reminder
+ * (by as many days as the due date) and what is left of "N times". Writes into `current` and
+ * notes what was there in `previous`. Null, and nothing touched, when the task does not repeat or
+ * this is its last time.
+ */
+function moveOn(current: Record<string, PropertyValue>, previous: Record<string, PropertyValue | undefined>, at: string): string | null {
+  const own = (id: string): PropertyValue | undefined => (Object.hasOwn(current, id) ? current[id] : undefined)
+  const recurrence = readRecurrence(own(TASK_PROPS.recurrence))
+  if (!recurrence) return null
+  const due = startOf(own(TASK_PROPS.due))
+  // "N times": the occurrences left, this one included. The last one has no next.
+  const left = readRule(recurrence.rule).rule?.count
+  const next = left === undefined || left > 1 ? nextOccurrence(recurrence.rule, recurrence.from, due, at) : null
+  if (!next) return null
+  previous[TASK_PROPS.due] = own(TASK_PROPS.due)
+  current[TASK_PROPS.due] = { start: next }
+  if (left !== undefined) {
+    previous[TASK_PROPS.recurrence] = own(TASK_PROPS.recurrence)
+    current[TASK_PROPS.recurrence] = JSON.stringify({ ...recurrence, rule: recurrence.rule.replace(/COUNT=\d+/i, `COUNT=${left - 1}`) })
+  }
+  const remind = startOf(own(TASK_PROPS.remind))
+  const from = due ? split(due) : null
+  const to = split(next)
+  const time = remind ? split(remind) : null
+  if (time && from && to) {
+    previous[TASK_PROPS.remind] = own(TASK_PROPS.remind)
+    current[TASK_PROPS.remind] = { start: isoOf(time.day + (to.day - from.day), time.time) }
+  }
+  return next
+}
+
+/**
+ * The values of a repeating task once this time is skipped `now`: it moves on to its next date
+ * exactly as when completed, but nothing is marked as done, so it does not count as a completion
+ * (no completion date; the day's count and the Sky do not see it). Null when there is nothing to
+ * skip to: the task is done, does not repeat, or this is its last time.
+ */
+export function skipTaskValues(values: Readonly<Record<string, PropertyValue>> | undefined, now: Date): Required<TaskCompletion> | null {
+  const current: Record<string, PropertyValue> = values && typeof values === 'object' && !Array.isArray(values) ? { ...values } : {}
+  if (Object.hasOwn(current, TASK_PROPS.done) && current[TASK_PROPS.done] === true) return null
+  const previous: Record<string, PropertyValue | undefined> = {}
+  const next = moveOn(current, previous, localMoment(now))
+  return next ? { values: current, previous, next } : null
+}
+
+/**
  * The values of a task of the Tasks database once completed `now`; null when it is already done.
  * A repeating task moves on (its reminder moves by as many days as its due date); any other is done.
  */
@@ -117,28 +163,8 @@ export function completeTaskValues(values: Readonly<Record<string, PropertyValue
   const previous: Record<string, PropertyValue | undefined> = { [TASK_PROPS.completedAt]: own(TASK_PROPS.completedAt) }
   current[TASK_PROPS.completedAt] = { start: completedAt }
 
-  const recurrence = readRecurrence(own(TASK_PROPS.recurrence))
-  const due = startOf(own(TASK_PROPS.due))
-  // "N times": the occurrences left, this one included. The last one is done like any task.
-  const left = recurrence ? readRule(recurrence.rule).rule?.count : undefined
-  const next = recurrence && (left === undefined || left > 1) ? nextOccurrence(recurrence.rule, recurrence.from, due, completedAt) : null
-  if (recurrence && next) {
-    previous[TASK_PROPS.due] = own(TASK_PROPS.due)
-    current[TASK_PROPS.due] = { start: next }
-    if (left !== undefined) {
-      previous[TASK_PROPS.recurrence] = own(TASK_PROPS.recurrence)
-      current[TASK_PROPS.recurrence] = JSON.stringify({ ...recurrence, rule: recurrence.rule.replace(/COUNT=\d+/i, `COUNT=${left - 1}`) })
-    }
-    const remind = startOf(own(TASK_PROPS.remind))
-    const from = due ? split(due) : null
-    const to = split(next)
-    const at = remind ? split(remind) : null
-    if (at && from && to) {
-      previous[TASK_PROPS.remind] = own(TASK_PROPS.remind)
-      current[TASK_PROPS.remind] = { start: isoOf(at.day + (to.day - from.day), at.time) }
-    }
-    return { values: current, previous, next }
-  }
+  const next = moveOn(current, previous, completedAt)
+  if (next) return { values: current, previous, next }
   previous[TASK_PROPS.done] = own(TASK_PROPS.done)
   current[TASK_PROPS.done] = true
   return { values: current, previous }

@@ -215,6 +215,10 @@ To build by hand, `npm run dist` writes the same three files into `release/` and
 
 sel 0.2.0 and earlier have no update check: install the first version that has one by hand.
 
+### Test builds
+
+Every push to a `release/*` branch builds the installer as `<version>-rc.<run>` (the Preview workflow, `.github/workflows/preview.yml`) and attaches it to the pre-release tagged `preview`, replacing the build before; nothing is published as a release. A computer with **Settings → General → Updates → Test builds on this computer** on looks for one every half hour, downloads it by itself and installs it at the next restart, and comes back to the releases when one is published. Install the first test build by hand from the `preview` page. A test build works on that computer's real data.
+
 ## Keys
 
 | | |

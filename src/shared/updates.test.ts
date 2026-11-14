@@ -10,6 +10,9 @@ describe('versions from the feed', () => {
   it('name their release page on GitHub', () => {
     expect(releaseNotesUrl('0.3.0')).toBe('https://github.com/erik-sc/sel/releases/tag/v0.3.0')
     expect(releaseNotesUrl('0.3.0?x=1')).toBeNull()
+    // The test builds of a release share one page.
+    expect(releaseNotesUrl('0.15.0-rc.7')).toBe('https://github.com/erik-sc/sel/releases/tag/preview')
+    expect(releaseNotesUrl('1.0.0-beta.1')).toBe('https://github.com/erik-sc/sel/releases/tag/v1.0.0-beta.1')
   })
 })
 
@@ -18,6 +21,8 @@ describe('the updates setting', () => {
     expect(cleanUpdatesSetting('updates.check', true)).toBe(true)
     expect(cleanUpdatesSetting('updates.check', false)).toBe(false)
     expect(cleanUpdatesSetting('updates.check', 'on')).toBeUndefined()
+    expect(cleanUpdatesSetting('updates.preview', true)).toBe(true)
+    expect(cleanUpdatesSetting('updates.preview', 1)).toBeUndefined()
     expect(cleanUpdatesSetting('updates.lastCheck', 5)).toBeUndefined()
   })
 })

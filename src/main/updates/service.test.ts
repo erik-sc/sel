@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { UPDATES_CHECK_KEY, UPDATES_KEYS, UPDATES_LAST_CHECK_KEY, type UpdateStatus } from '../../shared/updates'
+import { UPDATES_CHECK_KEY, UPDATES_KEYS, UPDATES_LAST_CHECK_KEY, UPDATES_PREVIEW_KEY, type UpdateStatus } from '../../shared/updates'
 import * as arg from '../validate'
 import { UPDATE_TIMING } from './schedule'
 import { UpdatesService, type UpdaterDriver } from './service'
@@ -15,9 +15,16 @@ function setup(
     found?: string | null
     failCheck?: boolean
     failDownload?: boolean
+    /** `updates.preview`, and what the test builds' feed answers: a version, null for none, 'fail'. */
+    preview?: unknown
+    previewFound?: string | null | 'fail'
   } = {}
 ) {
-  const settings: Record<string, unknown> = { [UPDATES_CHECK_KEY]: options.enabled, [UPDATES_LAST_CHECK_KEY]: options.lastCheck }
+  const settings: Record<string, unknown> = {
+    [UPDATES_CHECK_KEY]: options.enabled,
+    [UPDATES_LAST_CHECK_KEY]: options.lastCheck,
+    [UPDATES_PREVIEW_KEY]: options.preview
+  }
   const calls: string[] = []
   const published: UpdateStatus[] = []
   let now = START
@@ -55,9 +62,26 @@ function setup(
     setSetting: (key, value) => (settings[key] = value),
     recording: () => recording,
     now: () => now,
-    loadDriver: async () => {
+    loadDriver: async (feed) => {
       loads += 1
-      return driver
+      if (feed === 'stable') return driver
+      // The test builds: a driver of its own, whose calls are told apart.
+      return {
+        async check() {
+          calls.push('preview check')
+          if (options.previewFound === 'fail') throw new Error('net::ERR_CONNECTION_RESET')
+          return options.previewFound ? { version: options.previewFound } : null
+        },
+        download(onProgress) {
+          calls.push('preview download')
+          onProgress(50)
+          return new Promise<void>((resolve) => (finishDownload = resolve))
+        },
+        install(relaunch) {
+          calls.push(`preview install ${relaunch ? 'and relaunch' : 'quietly'}`)
+          return true
+        }
+      }
     },
     publish: (status) => published.push(status),
     quit: () => calls.push('quit'),
@@ -315,7 +339,7 @@ describe('what the user decides', () => {
 
 describe('the update setting', () => {
   it('can be written by a window, as a boolean only; the time of the last check cannot', () => {
-    expect([...UPDATES_KEYS]).toEqual(['updates.check'])
+    expect([...UPDATES_KEYS]).toEqual(['updates.check', 'updates.preview'])
     expect(arg.isWritableSetting('updates.check')).toBe(true)
     expect(arg.isWritableSetting('updates.lastCheck')).toBe(false)
     expect(arg.isWritableSetting('updates.anything')).toBe(false)
@@ -323,5 +347,54 @@ describe('the update setting', () => {
     expect(arg.settingValueFor('updates.check', false)).toBe(false)
     expect(arg.settingValueFor('updates.check', null)).toBeNull()
     for (const value of ['true', 1, {}, []]) expect(() => arg.settingValueFor('updates.check', value)).toThrow('Invalid setting value')
+  })
+})
+
+describe('on a computer that takes test builds', () => {
+  it('looks soon after start and every half hour, without the daily check being on', async () => {
+    const t = setup({ preview: true, previewFound: null, found: null })
+    t.service.plan()
+    await t.advance(UPDATE_TIMING.previewStartDelayMs - 1)
+    expect(t.calls).toEqual([])
+    await t.advance(1)
+    // No test build newer than what runs: the releases are asked as well.
+    expect(t.calls).toEqual(['preview check', 'check'])
+    expect(t.service.status().phase).toBe('current')
+    await t.advance(UPDATE_TIMING.previewIntervalMs)
+    expect(t.calls).toEqual(['preview check', 'check', 'preview check', 'check'])
+  })
+
+  it('downloads a test build by itself and installs it on the way out, from the feed it came from', async () => {
+    const t = setup({ preview: true, previewFound: '0.3.0-rc.7' })
+    await t.service.check()
+    await t.flush()
+    expect(t.calls).toEqual(['preview check', 'preview download'])
+    expect(t.service.status()).toMatchObject({
+      phase: 'downloading',
+      version: '0.3.0-rc.7',
+      notesUrl: 'https://github.com/erik-sc/sel/releases/tag/preview'
+    })
+    t.finishDownload()
+    await t.flush()
+    expect(t.service.status().phase).toBe('ready')
+    t.service.quitting(0)
+    expect(t.calls).toEqual(['preview check', 'preview download', 'preview install quietly'])
+  })
+
+  it('still offers a release when the test builds cannot be read, and asks before downloading it', async () => {
+    const t = setup({ preview: true, previewFound: 'fail', found: '0.3.0' })
+    await t.service.check()
+    await t.flush()
+    expect(t.calls).toEqual(['preview check', 'check'])
+    expect(t.service.status()).toMatchObject({ phase: 'available', version: '0.3.0' })
+    t.service.download()
+    await t.flush()
+    expect(t.calls).toEqual(['preview check', 'check', 'download'])
+  })
+
+  it('never asks for test builds on a computer that does not take them', async () => {
+    const t = setup({ enabled: true, previewFound: '0.3.0-rc.7' })
+    await t.service.check()
+    expect(t.calls).toEqual(['check'])
   })
 })

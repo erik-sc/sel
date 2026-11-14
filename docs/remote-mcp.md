@@ -2,6 +2,14 @@
 
 Status: prototype. Off by default; nothing listens until you turn it on in Settings → MCP.
 
+**The short way** (since 0.14.0): Settings → MCP → **Claude on your phone → On**. sel starts the
+server, opens the tunnel by itself with Tailscale Funnel, keeps itself running in the notification
+area and starting with the computer, and shows the address to give Claude. From then on the
+server and the tunnel come up whenever sel starts; nothing else has to be run. If Tailscale is
+not installed or signed in, or asks to allow Funnel once, the same row says so and offers the one
+step. The rest of this page is what that switch does, and how to do it by hand (Settings → MCP →
+Advanced).
+
 The notes stay on your main computer. sel runs a small server on that computer, and Claude on
 your phone, claude.ai, Claude Desktop or Claude Code on another machine reach it through a
 tunnel you run:
@@ -21,9 +29,9 @@ On the consent screen you choose what each connection gets:
 | Access | Tools |
 | --- | --- |
 | Read | `list_tasks` (today with overdue, upcoming, inbox, all, completed; by project or label), `list_projects`, `search`, `outline`, `read_page`, `read_database`, `recent`, `audit`, `list_trash` |
-| Tasks | `add_task` (quick-add words in Portuguese or English: `Pagar aluguel amanhã 9h p1 #Casa @contas`), `complete_task` (a repeating task moves on), `reschedule_task`, `update_task` (title, priority, project, labels, repeat, notes), `reopen_task`, `delete_task` |
+| Tasks | `add_task` (quick-add words in Portuguese or English: `Pagar aluguel amanhã 9h p1 #Casa @contas`), `complete_task` (a repeating task moves on), `skip_task` (a repeating task moves on to its next date without being completed), `reschedule_task`, `update_task` (title, priority, project, labels, repeat, notes), `reopen_task`, `delete_task` |
 | Write pages | `create_page`, `append_to_page`, `update_page` (title, icon, or the whole text), `move_page`, `delete_page`, `restore_page`, `create_database`, `add_database_property`, `add_select_options`, `add_database_row`, `update_database_row` |
-| Finance | `finance_month` (the month at a glance, as text or as data for a dashboard), `finance_entries`, `finance_balances` (who owes whom), `finance_projection`, `finance_add` (expense, income, transfer; card instalments; shared), `finance_receipt` (a receipt line by line, split among people), `finance_update`, `finance_delete`, `finance_settle`, `finance_recurring`, `finance_pay`, `finance_pay_invoice`, `finance_budget`, `finance_account`, `finance_box`; and the household shared with one person: `split_summary`, `split_config`, `split_add` (who paid, how it is divided, a receipt line by line), `split_bill`, `split_launch`, `split_settle` |
+| Finance | `finance_month` (the month at a glance, as text or as data for a dashboard), `finance_entries`, `finance_balances` (who owes whom), `finance_projection`, `finance_review` (what a statement brought in whole gets mixed up, and how to fix each), `finance_add` (expense, income, transfer; card instalments; shared), `finance_receipt` (a receipt line by line, split among people), `finance_update`, `finance_delete`, `finance_settle`, `finance_recurring`, `finance_pay`, `finance_pay_invoice`, `finance_budget`, `finance_account`, `finance_box`; and the household shared with one person: `split_summary`, `split_config`, `split_add` (who paid, how it is divided, a receipt line by line), `split_bill`, `split_launch`, `split_settle` |
 
 The tools come from sel's blocks (src/main/tools/catalog.ts): each block declares its own, and an
 app connected on this computer (Settings → MCP → Connect other apps) gets all of them.
@@ -49,7 +57,11 @@ GitHub account and forgets GitHub's token at once.
 The first GitHub account that signs in becomes the owner, pinned by its numeric id; after that,
 only it gets in. "End every connection" in Settings forgets it.
 
-### For the phone: a tunnel
+### For the phone: a tunnel, by hand
+
+The switch above does this with Tailscale Funnel (src/main/remote/tunnel.ts). To use another
+tunnel, type its address in Settings → MCP → Advanced → Public address: sel then stops keeping
+its own.
 
 Claude's connectors are called from Anthropic's cloud, so the phone needs a public https address.
 Pick one; sel listens on `127.0.0.1` only and the tunnel is the one way in.

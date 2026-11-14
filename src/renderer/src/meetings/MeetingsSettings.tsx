@@ -20,6 +20,7 @@ import { notifyError } from '@/ui/toast'
 import { DownloadProgress, formatBytes, useEngine } from './EngineSheet'
 import { openMeetingSetup } from './gate'
 import './meetings.css'
+import { Advanced } from '@/ui/Advanced'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'On' },
@@ -186,79 +187,81 @@ export function MeetingsSection(): JSX.Element {
         </p>
       </section>
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Recording</h3>
-        </div>
-        <div className="ap-list">
-          <Row label="Computer audio" help="Record what the computer plays, next to your microphone, when a recording starts.">
-            <Segmented
-              label="Computer audio"
-              value={values.defaultSystem ? 'on' : 'off'}
-              options={ON_OFF}
-              onChange={(value) => save('defaultSystem', value === 'on')}
-            />
-          </Row>
-          <Row label="Reminder before recording" help="“Make sure everyone in the meeting knows it is being recorded.”">
-            <Segmented
-              label="Reminder before recording"
-              value={values.consentReminder ? 'on' : 'off'}
-              options={ON_OFF}
-              onChange={(value) => save('consentReminder', value === 'on')}
-            />
-          </Row>
-        </div>
-      </section>
+      <Advanced>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Recording</h3>
+          </div>
+          <div className="ap-list">
+            <Row label="Computer audio" help="Record what the computer plays, next to your microphone, when a recording starts.">
+              <Segmented
+                label="Computer audio"
+                value={values.defaultSystem ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => save('defaultSystem', value === 'on')}
+              />
+            </Row>
+            <Row label="Reminder before recording" help="“Make sure everyone in the meeting knows it is being recorded.”">
+              <Segmented
+                label="Reminder before recording"
+                value={values.consentReminder ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => save('consentReminder', value === 'on')}
+              />
+            </Row>
+          </div>
+        </section>
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Storage</h3>
-        </div>
-        <div className="ap-list">
-          <Row
-            label="Keep original audio"
-            help="The uncompressed recording (about 115 MB an hour for each input). Off keeps only the compact copy once a meeting is transcribed."
-          >
-            <Segmented
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Storage</h3>
+          </div>
+          <div className="ap-list">
+            <Row
               label="Keep original audio"
-              value={values.keepOriginal ? 'on' : 'off'}
-              options={ON_OFF}
-              onChange={(value) => save('keepOriginal', value === 'on')}
-            />
-          </Row>
-          <Row label="Delete audio" help="Transcripts and notes are pages and are never deleted by this.">
-            <select
-              className="ap-field mt-select"
-              value={values.deleteAfterDays}
-              aria-label="Delete audio"
-              onChange={(event) => save('deleteAfterDays', Number(event.target.value))}
+              help="The uncompressed recording (about 115 MB an hour for each input). Off keeps only the compact copy once a meeting is transcribed."
             >
-              {DELETE_AFTER_DAYS.map((days) => (
-                <option key={days} value={days}>
-                  {DAYS_LABELS[days]}
-                </option>
-              ))}
-            </select>
-          </Row>
-          <Row
-            label="Recordings"
-            help={
-              storage
-                ? `${formatBytes(storage.bytes)} in ${storage.meetings} ${storage.meetings === 1 ? 'meeting' : 'meetings'}${storage.engineBytes > 0 ? `; the program and models take ${formatBytes(storage.engineBytes)}` : ''}.`
-                : 'Measuring…'
-            }
-          >
-            <Button
-              onClick={() =>
-                void window.api.meetings.openFolder().catch((error: unknown) => notifyError('The folder could not be opened.', error))
+              <Segmented
+                label="Keep original audio"
+                value={values.keepOriginal ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => save('keepOriginal', value === 'on')}
+              />
+            </Row>
+            <Row label="Delete audio" help="Transcripts and notes are pages and are never deleted by this.">
+              <select
+                className="ap-field mt-select"
+                value={values.deleteAfterDays}
+                aria-label="Delete audio"
+                onChange={(event) => save('deleteAfterDays', Number(event.target.value))}
+              >
+                {DELETE_AFTER_DAYS.map((days) => (
+                  <option key={days} value={days}>
+                    {DAYS_LABELS[days]}
+                  </option>
+                ))}
+              </select>
+            </Row>
+            <Row
+              label="Recordings"
+              help={
+                storage
+                  ? `${formatBytes(storage.bytes)} in ${storage.meetings} ${storage.meetings === 1 ? 'meeting' : 'meetings'}${storage.engineBytes > 0 ? `; the program and models take ${formatBytes(storage.engineBytes)}` : ''}.`
+                  : 'Measuring…'
               }
             >
-              Open recordings folder
-            </Button>
-          </Row>
-        </div>
-        <p className="ap-note">Recordings stay in this folder on this computer. They are not part of sync.</p>
-      </section>
+              <Button
+                onClick={() =>
+                  void window.api.meetings.openFolder().catch((error: unknown) => notifyError('The folder could not be opened.', error))
+                }
+              >
+                Open recordings folder
+              </Button>
+            </Row>
+          </div>
+          <p className="ap-note">Recordings stay in this folder on this computer. They are not part of sync.</p>
+        </section>
+      </Advanced>
     </div>
   )
 }

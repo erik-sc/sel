@@ -30,6 +30,7 @@ import { notifyError } from '@/ui/toast'
 import { updatedLabel } from './format'
 import './settings.css'
 import { IconGlyph } from '@/ui/IconGlyph'
+import { Advanced } from '@/ui/Advanced'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'On' },
@@ -487,170 +488,179 @@ export function TodaySection(): JSX.Element {
 
   return (
     <div className="settings2-scroll" aria-busy={!loaded}>
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Today</h3>
-        </div>
-        <div className="ap-list">
-          <Row label="Open at start-up" help="Once a day shows Today the first time you open sel each day.">
-            <Segmented
-              label="Open at start-up"
-              value={values.openOnLaunch}
-              options={LAUNCH}
-              onChange={(value) => set('openOnLaunch', value)}
-            />
-          </Row>
-          <Row label="Your name" help="For the greeting. Leave empty for none.">
-            <input
-              className="ap-field"
-              aria-label="Your name"
-              value={name}
-              maxLength={BRIEFING_LIMITS.name}
-              placeholder="None"
-              onChange={(event) => setName(event.target.value)}
-              onBlur={commitName}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  commitName()
-                }
-              }}
-            />
-          </Row>
-        </div>
-      </section>
-
       <Calendars />
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Open tasks</h3>
-        </div>
-        <div className="ap-list">
-          <Row label="Tasks without a date" help="Also list open tasks that have no due date, under “No date”.">
-            <Segmented
-              label="Tasks without a date"
-              value={values.includeNoDate ? 'on' : 'off'}
-              options={ON_OFF}
-              onChange={(value) => set('includeNoDate', value === 'on')}
-            />
-          </Row>
-          <Row label="To-dos from pages" help="Also list unchecked to-dos from pages edited in the last seven days.">
-            <Segmented
-              label="To-dos from pages"
-              value={values.includeTodos ? 'on' : 'off'}
-              options={ON_OFF}
-              onChange={(value) => set('includeTodos', value === 'on')}
-            />
-          </Row>
-          <Row label="Show at most" help="The rest folds behind “and more…”.">
-            <input
-              className="ap-field is-number"
-              inputMode="numeric"
-              aria-label="Show at most, in tasks"
-              value={maxItems}
-              onChange={(event) => setMaxItems(event.target.value.replace(/[^\d]/g, '').slice(0, 2))}
-              onBlur={commitMaxItems}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  commitMaxItems()
-                }
-              }}
-            />
-            <span className="ap-unit">tasks</span>
-          </Row>
-        </div>
-        <div className="ap-list ts-checks" role="group" aria-label="Databases to draw tasks from">
-          {databases.length === 0 && (
-            <Row
-              label="Databases"
-              help="No database yet. A database becomes a task list when it has a Status with a “Done” option, or a “Done” checkbox."
-            />
-          )}
-          {databases.map((database) => (
-            <label className="ap-row ts-check" key={database.id}>
-              <input type="checkbox" checked={isChosen(database)} disabled={!database.detected} onChange={() => toggleDatabase(database)} />
-              <span className="ap-row-text">
-                <span className="ap-row-label">
-                  {database.icon && (
-                    <span className="ts-check-icon">
-                      <IconGlyph icon={database.icon} />
+      <Advanced>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Today</h3>
+          </div>
+          <div className="ap-list">
+            <Row label="Open at start-up" help="Once a day shows Today the first time you open sel each day.">
+              <Segmented
+                label="Open at start-up"
+                value={values.openOnLaunch}
+                options={LAUNCH}
+                onChange={(value) => set('openOnLaunch', value)}
+              />
+            </Row>
+            <Row label="Your name" help="For the greeting. Leave empty for none.">
+              <input
+                className="ap-field"
+                aria-label="Your name"
+                value={name}
+                maxLength={BRIEFING_LIMITS.name}
+                placeholder="None"
+                onChange={(event) => setName(event.target.value)}
+                onBlur={commitName}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    commitName()
+                  }
+                }}
+              />
+            </Row>
+          </div>
+        </section>
+
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Open tasks</h3>
+          </div>
+          <div className="ap-list">
+            <Row label="Tasks without a date" help="Also list open tasks that have no due date, under “No date”.">
+              <Segmented
+                label="Tasks without a date"
+                value={values.includeNoDate ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => set('includeNoDate', value === 'on')}
+              />
+            </Row>
+            <Row label="To-dos from pages" help="Also list unchecked to-dos from pages edited in the last seven days.">
+              <Segmented
+                label="To-dos from pages"
+                value={values.includeTodos ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => set('includeTodos', value === 'on')}
+              />
+            </Row>
+            <Row label="Show at most" help="The rest folds behind “and more…”.">
+              <input
+                className="ap-field is-number"
+                inputMode="numeric"
+                aria-label="Show at most, in tasks"
+                value={maxItems}
+                onChange={(event) => setMaxItems(event.target.value.replace(/[^\d]/g, '').slice(0, 2))}
+                onBlur={commitMaxItems}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    commitMaxItems()
+                  }
+                }}
+              />
+              <span className="ap-unit">tasks</span>
+            </Row>
+          </div>
+          <div className="ap-list ts-checks" role="group" aria-label="Databases to draw tasks from">
+            {databases.length === 0 && (
+              <Row
+                label="Databases"
+                help="No database yet. A database becomes a task list when it has a Status with a “Done” option, or a “Done” checkbox."
+              />
+            )}
+            {databases.map((database) => (
+              <label className="ap-row ts-check" key={database.id}>
+                <input
+                  type="checkbox"
+                  checked={isChosen(database)}
+                  disabled={!database.detected}
+                  onChange={() => toggleDatabase(database)}
+                />
+                <span className="ap-row-text">
+                  <span className="ap-row-label">
+                    {database.icon && (
+                      <span className="ts-check-icon">
+                        <IconGlyph icon={database.icon} />
+                      </span>
+                    )}
+                    {database.name}
+                  </span>
+                  {!database.detected && (
+                    <span className="ap-row-help">
+                      No Status with a “Done” option and no “Done” checkbox, so its rows cannot be told open from done.
                     </span>
                   )}
-                  {database.name}
                 </span>
-                {!database.detected && (
-                  <span className="ap-row-help">
-                    No Status with a “Done” option and no “Done” checkbox, so its rows cannot be told open from done.
-                  </span>
-                )}
-              </span>
-            </label>
-          ))}
-        </div>
-        <p className="ap-note">
-          A row is open until its Status says done (or cancelled) or its Done checkbox is ticked. It is overdue when its date is before
-          today, and for today when its date is today or its Status is one like “In progress”.
-        </p>
-      </section>
+              </label>
+            ))}
+          </div>
+          <p className="ap-note">
+            A row is open until its Status says done (or cancelled) or its Done checkbox is ticked. It is overdue when its date is before
+            today, and for today when its date is today or its Status is one like “In progress”.
+          </p>
+        </section>
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Phrase of the day</h3>
-        </div>
-        <div className="ap-list ts-checks" role="group" aria-label="Traditions to draw phrases from">
-          {TRADITIONS.map((tradition) => (
-            <label className="ap-row ts-check" key={tradition}>
-              <input type="checkbox" checked={traditions.includes(tradition)} onChange={() => toggleTradition(tradition)} />
-              <span className="ap-row-text">
-                <span className="ap-row-label">{TRADITION_LABELS[tradition]}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-        <div className="ap-list ts-own">
-          <Row
-            label="Your own phrases"
-            help="A database with one row per phrase: its author, its source and a Favourite checkbox. Favourites come up more often. Create one called Phrases, or choose a database you already have."
-          >
-            <select
-              className="ap-field ts-select"
-              aria-label="Database that holds your phrases"
-              value={
-                values.phrasesDatabaseId && all.some((database) => database.id === values.phrasesDatabaseId) ? values.phrasesDatabaseId : ''
-              }
-              onChange={(event) => set('phrasesDatabaseId', event.target.value || null)}
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Phrase of the day</h3>
+          </div>
+          <div className="ap-list ts-checks" role="group" aria-label="Traditions to draw phrases from">
+            {TRADITIONS.map((tradition) => (
+              <label className="ap-row ts-check" key={tradition}>
+                <input type="checkbox" checked={traditions.includes(tradition)} onChange={() => toggleTradition(tradition)} />
+                <span className="ap-row-text">
+                  <span className="ap-row-label">{TRADITION_LABELS[tradition]}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <div className="ap-list ts-own">
+            <Row
+              label="Your own phrases"
+              help="A database with one row per phrase: its author, its source and a Favourite checkbox. Favourites come up more often. Create one called Phrases, or choose a database you already have."
             >
-              <option value="">{all.some((database) => database.id === values.phrasesDatabaseId) ? 'None' : 'Not created yet'}</option>
-              {all.map((database) => (
-                <option key={database.id} value={database.id}>
-                  {database.name}
-                </option>
-              ))}
-            </select>
-            <Button onClick={openPhrases}>
-              {values.phrasesDatabaseId && all.some((database) => database.id === values.phrasesDatabaseId) ? 'Open' : 'Create'}
-            </Button>
-          </Row>
-          <Row label="Use your own" help="Balanced: half of the days, once you have ten of your own. Mostly mine: four days in five.">
-            <Segmented
-              label="Use your own phrases"
-              value={values.ownPhrases}
-              options={OWN}
-              onChange={(value) => set('ownPhrases', value)}
-            />
-          </Row>
-        </div>
-        <p className="ap-note">
-          The phrases that come with sel are passages from texts in the public domain — Marcus Aurelius, Epictetus, Seneca, the Dhammapada,
-          the Tao Te Ching, Thoreau, Tagore and others — and the same one stays all day. Writers still in copyright, Hermann Hesse among
-          them, cannot be bundled: add the passages you love to your own phrases, where they are yours alone.
-        </p>
-      </section>
+              <select
+                className="ap-field ts-select"
+                aria-label="Database that holds your phrases"
+                value={
+                  values.phrasesDatabaseId && all.some((database) => database.id === values.phrasesDatabaseId)
+                    ? values.phrasesDatabaseId
+                    : ''
+                }
+                onChange={(event) => set('phrasesDatabaseId', event.target.value || null)}
+              >
+                <option value="">{all.some((database) => database.id === values.phrasesDatabaseId) ? 'None' : 'Not created yet'}</option>
+                {all.map((database) => (
+                  <option key={database.id} value={database.id}>
+                    {database.name}
+                  </option>
+                ))}
+              </select>
+              <Button onClick={openPhrases}>
+                {values.phrasesDatabaseId && all.some((database) => database.id === values.phrasesDatabaseId) ? 'Open' : 'Create'}
+              </Button>
+            </Row>
+            <Row label="Use your own" help="Balanced: half of the days, once you have ten of your own. Mostly mine: four days in five.">
+              <Segmented
+                label="Use your own phrases"
+                value={values.ownPhrases}
+                options={OWN}
+                onChange={(value) => set('ownPhrases', value)}
+              />
+            </Row>
+          </div>
+          <p className="ap-note">
+            The phrases that come with sel are passages from texts in the public domain — Marcus Aurelius, Epictetus, Seneca, the
+            Dhammapada, the Tao Te Ching, Thoreau, Tagore and others — and the same one stays all day. Writers still in copyright, Hermann
+            Hesse among them, cannot be bundled: add the passages you love to your own phrases, where they are yours alone.
+          </p>
+        </section>
 
-      <CloseDaySettings />
-      <SkySettings />
+        <CloseDaySettings />
+        <SkySettings />
+      </Advanced>
     </div>
   )
 }

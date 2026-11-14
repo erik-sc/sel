@@ -27,7 +27,7 @@ import { Calendar } from '@/ui/icons'
 import { Menu, type MenuItem } from '@/ui/Menu'
 import { Popover, type PopoverAnchor } from '@/ui/Popover'
 import { TASK_COPY, type TaskCopy, type TaskField } from './copy'
-import { deleteTask, renameTask, setPriority } from './edit'
+import { deleteTask, renameTask, setPriority, skipTask } from './edit'
 import { setNextAction } from './projects'
 import { dueLabel } from './lists'
 import { manyKeyAction, nextPriority, rowKeyAction, type ManyAction, type Priority, type RowAction, type TaskView } from './model'
@@ -171,6 +171,13 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
     if (!task.done && !calm) leave()
     onToggle(task)
   }
+  const canSkip = !!task.recurrence && !task.done
+  const skip = (): void => {
+    if (!canSkip) return
+    // It leaves the list of today for the day it moves to: the focus moves on.
+    leave()
+    skipTask(task.id, today)
+  }
   const remove = (): void => {
     leave()
     deleteTask(task.id)
@@ -183,6 +190,7 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
   const menuItems = (): MenuItem[] => [
     { id: 'date', label: words.field.date, hint: 'D', onSelect: () => edit('date') },
     { id: 'repeat', label: words.field.repeat, hint: 'R', onSelect: () => edit('repeat') },
+    ...(canSkip ? [{ id: 'skip', label: words.skip, hint: 'Shift+R', onSelect: skip }] : []),
     { id: 'priority', label: words.field.priority, hint: '1–4', submenu: priorityItems(task.priority, words, pickPriority) },
     { id: 'project', label: words.field.project, hint: '#', onSelect: () => edit('project') },
     { id: 'labels', label: words.field.labels, hint: '@', onSelect: () => edit('labels') },
@@ -270,6 +278,9 @@ export function TaskRow(props: TaskRowProps): JSX.Element {
         break
       case 'toggle':
         toggle()
+        break
+      case 'skip':
+        skip()
         break
       case 'delete':
         remove()

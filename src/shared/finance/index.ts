@@ -9,7 +9,9 @@ import type { BlockProps, DatabaseView, PropertySchema, PropertyType } from '../
  *
  * Unlike Tasks they are ordinary pages and databases (no `props.system`): they can be moved,
  * archived or kept private from the AI as any other, and what the tools need is put back when it
- * is missing (main/finance/store.ts).
+ * is missing (main/finance/store.ts). Like Tasks, the page stays out of the sidebar's tree
+ * (renderer store/tree.ts): the Finances and Shared bills screens stand for it, and the Finances
+ * screen has the way to the databases themselves.
  *
  *   Ledger      every expense, income, transfer and settlement, one row each
  *   Recurring   what comes every month: fixed bills and expected income

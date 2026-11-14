@@ -5,9 +5,11 @@
 // Loaded on demand through Host.tsx.
 import { useId, useState } from 'react'
 import type { JSX } from 'react'
-import type { BillView, EntryView, FinanceMonthView } from '@shared/finance/api'
+import { FINANCE_PAGE_ID } from '@shared/finance'
+import type { BillView, CardView, EntryView, FinanceMonthView } from '@shared/finance/api'
 import type { HomeLocale } from '@/home/copy'
 import { useHome } from '@/home/store'
+import { openPage } from '@/store/tabs'
 import { Button } from '@/ui/Button'
 import { FINANCE_COPY, type FinanceCopy } from './copy'
 import { ToolForm } from './Form'
@@ -68,9 +70,12 @@ export function EntryRow({
   locale: HomeLocale
   note?: string
 }): JSX.Element {
-  const notes = [dayName(entry.date, locale), copy.kinds[entry.kind]]
+  // What a card gives back is not income: it takes from its invoice.
+  const refund = entry.kind === 'income' && entry.invoice !== null
+  const notes = [dayName(entry.date, locale), refund ? copy.refund : copy.kinds[entry.kind]]
   if (entry.category) notes.push(entry.category)
   if (entry.account) notes.push(entry.to ? `${entry.account} → ${entry.to}` : entry.account)
+  if (entry.invoice) notes.push(copy.onInvoice(monthName(entry.invoice, locale)))
   if (entry.instalment) notes.push(copy.instalment(entry.instalment))
   if (note) notes.push(note)
   else if (entry.mine !== null) notes.push(copy.shared(money(entry.mine)))
@@ -92,6 +97,82 @@ export function EntryRow({
         ×
       </button>
     </li>
+  )
+}
+
+/** A card's invoice of the month: its total, and, opened, what is on it. Card purchases are kept apart from what left the accounts. */
+function CardInvoice({ card, copy, locale }: { card: CardView; copy: FinanceCopy; locale: HomeLocale }): JSX.Element {
+  return (
+    <details className="fin-card">
+      <summary className="fin-row">
+        <span className="fin-row-main">
+          <span className="fin-row-title">{card.card}</span>
+          <span className="fin-row-note">
+            {[
+              copy.invoice(monthName(card.invoice, locale)),
+              card.paid ? copy.invoicePaid : card.due ? copy.invoiceDue(dayName(card.due, locale)) : null,
+              copy.nextInvoice(monthName(card.next.invoice, locale), money(card.next.total))
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+        </span>
+        <span className="fin-money">{money(card.total)}</span>
+      </summary>
+      {card.entries.length ? (
+        <ul className="fin-rows fin-card-entries">
+          {card.entries.map((entry) => (
+            <EntryRow key={entry.id} entry={entry} copy={copy} locale={locale} />
+          ))}
+        </ul>
+      ) : (
+        <p className="fin-hint">{copy.invoiceEmpty}</p>
+      )}
+    </details>
+  )
+}
+
+const NO_ACCOUNT = '\u0000none'
+
+/** The month's entries, all together or those of one account or card. */
+function Entries({ data, copy, locale }: { data: FinanceMonthView; copy: FinanceCopy; locale: HomeLocale }): JSX.Element {
+  const [only, setOnly] = useState<string | null>(null)
+  const used = new Set(data.entries.map((entry) => entry.account ?? NO_ACCOUNT))
+  const choices = [
+    ...data.accountNames.filter((name) => used.has(name)),
+    ...[...used].filter((name) => name !== NO_ACCOUNT && !data.accountNames.includes(name))
+  ]
+  if (used.has(NO_ACCOUNT)) choices.push(NO_ACCOUNT)
+  // A filter that the month no longer has (another month, an entry removed) shows everything.
+  const picked = only !== null && used.has(only) ? only : null
+  const shown = picked === null ? data.entries : data.entries.filter((entry) => (entry.account ?? NO_ACCOUNT) === picked)
+  return (
+    <>
+      {choices.length > 1 && (
+        <div className="fin-filter" role="group" aria-label={copy.filter}>
+          {[null, ...choices].map((choice) => (
+            <button
+              key={choice ?? 'all'}
+              type="button"
+              className={choice === picked ? 'fin-chip is-on' : 'fin-chip'}
+              aria-pressed={choice === picked}
+              onClick={() => setOnly(choice)}
+            >
+              {choice === null ? copy.everything : choice === NO_ACCOUNT ? copy.noAccount : choice}
+            </button>
+          ))}
+        </div>
+      )}
+      {shown.length ? (
+        <ul className="fin-rows">
+          {shown.map((entry) => (
+            <EntryRow key={entry.id} entry={entry} copy={copy} locale={locale} />
+          ))}
+        </ul>
+      ) : (
+        <p className="fin-hint">{copy.nothingHere}</p>
+      )}
+    </>
   )
 }
 
@@ -183,6 +264,14 @@ function Setup({ copy, data, open }: { copy: FinanceCopy; data: FinanceMonthView
         done={copy.saved}
       />
       <p className="fin-hint">{copy.setupHint}</p>
+      {!data.empty && (
+        <p className="fin-hint fin-raw">
+          {copy.rawDataHint}{' '}
+          <button type="button" className="fin-link" onClick={() => openPage(FINANCE_PAGE_ID)}>
+            {copy.rawData}
+          </button>
+        </p>
+      )}
     </details>
   )
 }
@@ -294,25 +383,9 @@ export function FinanceScreen({ now }: { now?: Date }): JSX.Element {
 
           {data.cards.length > 0 && (
             <Section title={copy.cards}>
-              <ul className="fin-rows">
-                {data.cards.map((card) => (
-                  <li key={card.card} className="fin-row">
-                    <span className="fin-row-main">
-                      <span className="fin-row-title">{card.card}</span>
-                      <span className="fin-row-note">
-                        {[
-                          copy.invoice(monthName(card.invoice, locale)),
-                          card.paid ? copy.invoicePaid : card.due ? copy.invoiceDue(dayName(card.due, locale)) : null,
-                          copy.nextInvoice(monthName(card.next.invoice, locale), money(card.next.total))
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </span>
-                    </span>
-                    <span className="fin-money">{money(card.total)}</span>
-                  </li>
-                ))}
-              </ul>
+              {data.cards.map((card) => (
+                <CardInvoice key={card.card} card={card} copy={copy} locale={locale} />
+              ))}
             </Section>
           )}
 
@@ -407,15 +480,7 @@ export function FinanceScreen({ now }: { now?: Date }): JSX.Element {
 
           {!data.empty && (
             <Section title={copy.entries}>
-              {data.entries.length ? (
-                <ul className="fin-rows">
-                  {data.entries.map((entry) => (
-                    <EntryRow key={entry.id} entry={entry} copy={copy} locale={locale} />
-                  ))}
-                </ul>
-              ) : (
-                <p className="fin-hint">{copy.noEntries}</p>
-              )}
+              {data.entries.length ? <Entries data={data} copy={copy} locale={locale} /> : <p className="fin-hint">{copy.noEntries}</p>}
             </Section>
           )}
 
