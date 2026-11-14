@@ -1,0 +1,90 @@
+# Builds a test build of the release being prepared, at every push to its `release/*` branch, so
+# that it can be tried on a real computer before its pull request is merged.
+#
+# The build is the branch as it is, with the version `<package.json's version>-rc.<run number>`
+# (0.15.0-rc.7): newer than the release before, older than the release it becomes. It is attached
+# to one pre-release, tagged `preview`, whose files are replaced at every run:
+#
+#   sel-<version>-setup.exe, its .blockmap, and latest.yml
+#
+# A computer with Settings → General → Updates → "Test builds on this computer" on reads that
+# latest.yml every half hour, downloads the build by itself and installs it at the next restart
+# (src/main/updates). A pre-release is never GitHub's "latest release", so no other computer
+# sees it. The first test build is installed by hand, from the release's page.
+#
+# Nothing here publishes a release: that is release.yml, on the merge of the pull request.
+name: Preview
+
+on:
+  push:
+    branches: ['release/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: preview
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Work out the version
+        shell: bash
+        run: |
+          case "$GITHUB_REF_NAME" in
+            release/*) ;;
+            *) echo "::error::Run this workflow on a release/* branch"; exit 1 ;;
+          esac
+          base=$(node -p "require('./package.json').version")
+          echo "VERSION=$base-rc.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node node_modules/electron/install.js
+
+      # The version of the build only: nothing is committed.
+      - run: npm version "$VERSION" --no-git-tag-version --allow-same-version
+        shell: bash
+
+      # A version with a pre-release part would be written as `rc.yml`; the computers that take
+      # test builds read `latest.yml` (detectUpdateChannel off).
+      - run: npx electron-vite build
+      - run: npx electron-builder --publish never -c.detectUpdateChannel=false
+
+      - name: Attach the build to the preview pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd release
+          test -f "sel-$VERSION-setup.exe" && test -f "sel-$VERSION-setup.exe.blockmap" && test -f latest.yml
+          grep -q "^version: $VERSION$" latest.yml
+          notes="Test build of \`$GITHUB_REF_NAME\` at $GITHUB_SHA: sel $VERSION. Not a release: it is replaced at every push to a release branch. Install it once by hand; with Settings → General → Updates → \"Test builds on this computer\" on, sel keeps itself on the newest one."
+          if gh release view preview --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # The tag follows the commit the build was made from.
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/preview" -f sha="$GITHUB_SHA" -F force=true >/dev/null
+          else
+            gh release create preview --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" --title "sel test build" --notes "$notes"
+          fi
+          # The installer first, latest.yml last: a computer never reads of a build that is not there yet.
+          gh release upload preview "sel-$VERSION-setup.exe" "sel-$VERSION-setup.exe.blockmap" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload preview latest.yml --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit preview --repo "$GITHUB_REPOSITORY" --prerelease --title "sel test build $VERSION" --notes "$notes"
+          # The builds before this one go.
+          gh release view preview --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | while read -r name; do
+            case "$name" in
+              latest.yml | "sel-$VERSION-setup.exe" | "sel-$VERSION-setup.exe.blockmap") ;;
+              *) gh release delete-asset preview "$name" --repo "$GITHUB_REPOSITORY" --yes ;;
+            esac
+          done

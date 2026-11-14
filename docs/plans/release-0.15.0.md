@@ -105,6 +105,26 @@ rescheduling it by hand or completing it.
   The message says the next date and has Undo, which puts back only what the skip moved.
 - MCP: `skip_task` (scope tasks).
 
+## 7. Test builds, before the pull request is merged
+
+Érik, 2026-11-13: he wants every release installed on his computer before its pull request, to
+try it there.
+
+- `.github/workflows/preview.yml`: every push to a `release/*` branch builds the installer as
+  `<version>-rc.<run number>` and attaches it, with its `latest.yml`, to one pre-release tagged
+  `preview`, replacing the build before. A pre-release is never "the latest release": no other
+  computer sees it, and nothing is published as a release.
+- Settings → General → Updates → **Test builds on this computer** (`updates.preview`, off by
+  default, each computer by itself). On, sel reads the preview's `latest.yml` a minute after
+  start and every half hour, downloads a newer build without asking and installs it at the next
+  restart (the notice offers "Restart now"). The releases are still asked after the test builds:
+  a release is newer than its own test builds, so the computer comes back to the releases by
+  itself when the pull request is merged.
+- A test build runs on the real data of that computer. A change to how data is stored that is
+  not meant to go back should be said in the pull request before it is tried this way.
+- The first test build is installed by hand, from the `preview` page of the releases: the
+  version installed before this one has no such switch.
+
 ## Checked
 
 - Unit tests: the arithmetic (balances by date, derived invoices, refunds, payment by month), the
