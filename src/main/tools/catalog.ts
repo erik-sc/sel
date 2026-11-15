@@ -1,6 +1,7 @@
 import type { RemoteScope } from '../../shared/mcp'
 import { WORKSPACE_PACK, type ToolSpec } from '../ai/toolspecs'
 import { FINANCE_PACK } from '../finance/toolspecs'
+import { SKILLS_PACK } from '../skills/toolspecs'
 import { SPLIT_PACK } from '../split/toolspecs'
 import { TASKS_PACK } from '../tasks/toolspecs'
 import type { PackTool } from './pack'
@@ -12,7 +13,7 @@ import type { PackTool } from './pack'
  *
  * Plain data: the server script (../mcp.ts) bundles this file.
  */
-export const PACKS = [TASKS_PACK, WORKSPACE_PACK, FINANCE_PACK, SPLIT_PACK] as const
+export const PACKS = [TASKS_PACK, WORKSPACE_PACK, FINANCE_PACK, SPLIT_PACK, SKILLS_PACK] as const
 
 export type PackId = (typeof PACKS)[number]['id']
 

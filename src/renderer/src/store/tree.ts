@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { FINANCE_PAGE_ID } from '../../../shared/finance'
+import { SKILLS_DATABASE_ID } from '../../../shared/skills'
 import { isSystemBlock } from '../../../shared/system'
 import { notifyError } from '../ui/toast'
 import { addCacheRoots, fetchBlocks, getBlock } from './blocks'
@@ -34,9 +35,11 @@ function sameIds(a: string[] | undefined, b: string[]): boolean {
 async function fetchChildren(key: string): Promise<string[]> {
   const blocks = await fetchBlocks(() => (key === ROOT ? window.api.pages.listRoot() : window.api.pages.listChildren(key)))
   // Built-in blocks at the root (the Tasks database, the ink notebook) have places of their own in
-  // the sidebar, above the tree; so does the page that holds the Finance block's databases, which
-  // the Finances and Shared bills screens stand for.
-  return blocks.filter((b) => key !== ROOT || !(isSystemBlock(b) || b.id === FINANCE_PAGE_ID)).map((b) => b.id)
+  // the sidebar, above the tree; so does the page that holds the Finance block's databases and the
+  // Skills database, which the blocks' own screens stand for.
+  return blocks
+    .filter((b) => key !== ROOT || !(isSystemBlock(b) || b.id === FINANCE_PAGE_ID || b.id === SKILLS_DATABASE_ID))
+    .map((b) => b.id)
 }
 
 export async function loadTreeChildren(key: string): Promise<void> {

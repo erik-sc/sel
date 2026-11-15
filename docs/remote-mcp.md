@@ -124,6 +124,10 @@ Safeguards:
 - Server-sent events: every answer is a plain JSON reply.
 - An undo list per connection (the page history already keeps the state before each change).
 
+## Skills
+
+`list_skills` and `get_skill` (scope read) give the user's own skills, kept as pages of sel, and sel's own (how to work each block, and `skill-creator`, how to make one); `save_skill` and `delete_skill` (scope write) write them. A skill comes as a `SKILL.md`: its name and description, then its instructions. See docs/plans/release-0.16.0.md.
+
 ## The tasks' calendar
 
 Besides `/mcp`, the same server answers `GET /calendar/<secret>.ics` when Settings → Today →

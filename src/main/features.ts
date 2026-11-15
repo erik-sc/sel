@@ -7,6 +7,7 @@ import { transferFeature } from './transfer/register'
 import { mcpFeature } from './external/register'
 import { feedbackFeature } from './feedback/register'
 import { financeFeature } from './finance/register'
+import { skillsFeature } from './skills/register'
 import { hermanFeature } from './herman/register'
 import { meetingsFeature } from './meetings/register'
 import { notebookFeature } from './notebook/register'
@@ -43,7 +44,8 @@ export const FEATURES = [
   mcpFeature,
   activityFeature,
   routinesFeature,
-  financeFeature
+  financeFeature,
+  skillsFeature
 ] as const
 
 /** The namespace of a feature in the list. */

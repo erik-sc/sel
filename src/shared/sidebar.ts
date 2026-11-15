@@ -23,6 +23,7 @@ export const SIDEBAR_ITEMS = [
   'tasks',
   'finance',
   'split',
+  'skills',
   'meditations',
   'sky',
   'close-day',

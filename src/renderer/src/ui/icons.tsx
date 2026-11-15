@@ -43,6 +43,14 @@ export const Split = make(
   </>
 )
 
+/** A page with a step marked on it: a procedure written down. */
+export const Puzzle = make(
+  <>
+    <path d="M4 2.5h8v11H4z" />
+    <path d="M6 6l1 1 2.2-2.2M6 10h4" />
+  </>
+)
+
 /** A column (the line) with a new one added on its left, or on its right. */
 export const InsertLeft = make(<path d="M12 3v10M2 8h6M5 5v6" />)
 export const InsertRight = make(<path d="M4 3v10M8 8h6M11 5v6" />)

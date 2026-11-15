@@ -10,6 +10,7 @@
  */
 import { ACTIVITY_COMMANDS } from './activity'
 import { FINANCE_COMMANDS } from './finance/api'
+import { SKILLS_COMMANDS } from './skills/api'
 import { AI_COMMANDS, AI_ONBOARDING_COMMANDS } from './ai'
 import { BRIEFING_COMMANDS } from './briefing'
 import { FEEDBACK_COMMANDS } from './feedback'
@@ -200,6 +201,7 @@ export const COMMANDS = [
   ...SKY_COMMANDS,
   ...ACTIVITY_COMMANDS,
   ...FINANCE_COMMANDS,
+  ...SKILLS_COMMANDS,
   ...POMODORO_COMMANDS,
   ...MEETINGS_COMMANDS,
   ...AI_COMMANDS,

@@ -1,0 +1,128 @@
+/* The Skills screen, on the blocks' own page layout (finance/finance.css). */
+
+.skl-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skl-skill {
+  padding: 12px 0;
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.skl-skill:last-child {
+  border-bottom: 0;
+}
+
+.skl-skill-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.skl-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.skl-name.is-plain {
+  cursor: default;
+}
+
+button.skl-name:hover {
+  text-decoration: underline;
+}
+
+.skl-name:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.skl-description {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.skl-description.is-missing {
+  color: var(--c-orange);
+}
+
+.skl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
+  font-size: var(--text-sm);
+}
+
+.skl-describe {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.skl-textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.skl-new-fields {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(0, 2fr);
+  gap: 10px 12px;
+  width: 100%;
+}
+
+.skl-hint {
+  margin: 0;
+}
+
+.skl-hint:empty {
+  display: none;
+}
+
+.skl-read {
+  margin-top: 8px;
+}
+
+.skl-file {
+  max-height: 360px;
+  margin: 0 0 8px;
+  padding: 12px;
+  overflow: auto;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.skl-how {
+  margin: 0;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.9;
+  list-style: none;
+}
+
+@media (width <= 640px) {
+  .skl-new-fields {
+    grid-template-columns: 1fr;
+  }
+}
