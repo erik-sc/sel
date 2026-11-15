@@ -17,6 +17,7 @@ import { reviewFeature } from './review/feature'
 import { routinesFeature } from './routines/feature'
 import { shellFeature } from './shell/feature'
 import { skyFeature } from './sky/feature'
+import { skillsFeature } from './skills/feature'
 import { splitFeature } from './split/feature'
 import { syncFeature } from './sync/feature'
 import { tasksFeature } from './tasks/feature'
@@ -46,7 +47,8 @@ export const FEATURES = [
   flowsFeature,
   routinesFeature,
   financeFeature,
-  splitFeature
+  splitFeature,
+  skillsFeature
 ] as const
 
 /** Runs every feature's start-up, in the order above. */

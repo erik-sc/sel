@@ -1,7 +1,9 @@
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { AI_PRIVATE_MESSAGE, isPrivateForAi, privacyChecker, privateProjects } from '../../shared/aiPrivate'
 import { TASK_PRIORITIES, TASK_PROPS, TASKS_DATABASE_ID } from '../../shared/tasks'
+import { cleanRemoteConfig, REMOTE_CONFIG_KEY } from '../../shared/mcp'
 import { fold } from '../../shared/tasks/dates'
+import { cleanTasksFeed, feedPath, TASKS_FEED_KEY, type TasksFeed } from '../../shared/tasks/ics'
 import { parseTask } from '../../shared/tasks/parse'
 import { completeTaskValues, readRecurrence, skipTaskValues } from '../../shared/tasks/recur'
 import type { Block, Op, PropertySchema, PropertyValue, SelectOption } from '../../shared/types'
@@ -283,6 +285,41 @@ export function skipTask(repo: Repository, raw: unknown, now: Date): string {
   return `Skipped, not completed: ${titleOf(row)} [${row.id}] is next on ${result.next.replace('T', ' ')}.`
 }
 
+const HOW_TO_SUBSCRIBE =
+  'To subscribe: in Google Calendar on the web, Other calendars → + → From URL (it reads the address again only a few times a day); on the iPhone, Settings → Apps → Calendar → Calendar Accounts → Add Account → Other → Add Subscribed Calendar. Whoever has the address reads the tasks.'
+
+/**
+ * The tasks' calendar for other calendars (shared/tasks/ics.ts), from a conversation: the same
+ * switch as Settings → Today, for a sel that runs on a computer nobody sits at.
+ */
+export function tasksCalendarTool(repo: Repository, raw: unknown): string {
+  const action = args(raw)['action'] ?? 'status'
+  if (action !== 'status' && action !== 'on' && action !== 'off' && action !== 'new_address')
+    throw new ToolError('action is status, on, off or new_address.')
+  const before = cleanTasksFeed(repo.getSetting(TASKS_FEED_KEY))
+  let feed: TasksFeed = before
+  // Turned on, it keeps the address it had; a new address is asked for by name.
+  if (action === 'on') feed = { enabled: true, token: before.token || newFeedToken() }
+  if (action === 'new_address') feed = { enabled: true, token: newFeedToken() }
+  if (action === 'off') feed = { enabled: false, token: before.token }
+  if (feed !== before) repo.setSetting(TASKS_FEED_KEY, feed)
+  if (!feed.enabled)
+    return action === 'off'
+      ? 'The tasks’ calendar is off: its address no longer answers.'
+      : 'The tasks’ calendar is off. "on" publishes it.'
+  // The address others reach sel by: the one the remote connector has while it is on.
+  const remote = cleanRemoteConfig(repo.getSetting(REMOTE_CONFIG_KEY))
+  const base = remote.enabled && remote.publicUrl ? remote.publicUrl.replace(/\/+$/u, '') : null
+  if (!base)
+    return 'The tasks’ calendar is on, but this sel has no address others can reach: turn on “Claude on your phone” in Settings → MCP on the computer sel runs on.'
+  const lead =
+    action === 'new_address' ? 'The tasks’ calendar has a new address; the old one no longer answers.' : 'The tasks’ calendar is on.'
+  return `${lead}\nAddress: ${base}${feedPath(feed.token)}\n${HOW_TO_SUBSCRIBE}`
+}
+
+/** A secret for the calendar's address: 32 random bytes, as an address takes them. */
+const newFeedToken = (): string => randomBytes(32).toString('base64url')
+
 const STORED_DATE = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?$/u
 
 export function rescheduleTask(repo: Repository, raw: unknown, now: Date): string {
@@ -406,6 +443,8 @@ export function callTaskTool(repo: Repository, name: string, raw: unknown, now: 
       return completeTask(repo, raw, now)
     case 'skip_task':
       return skipTask(repo, raw, now)
+    case 'tasks_calendar':
+      return tasksCalendarTool(repo, raw)
     case 'reschedule_task':
       return rescheduleTask(repo, raw, now)
     case 'update_task':

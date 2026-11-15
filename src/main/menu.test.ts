@@ -65,6 +65,7 @@ const VIEW = [
   'Meditations (CmdOrCtrl+Alt+N)',
   'Finances',
   'Shared Bills',
+  'Skills',
   'Sky (CmdOrCtrl+Alt+G)',
   'Flows',
   'Close the Day',

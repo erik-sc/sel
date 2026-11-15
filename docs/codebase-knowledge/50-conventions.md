@@ -90,7 +90,8 @@ drains changes and reduces errors; nothing calls `ipcMain.handle` by itself.
 
 Since 0.12.0 a **block** ("bloco", what a plugin would be) is a part of sel that owns its data and
 offers its own tools over MCP, instead of leaning on a generic database: Tasks, the pages and
-databases themselves, Finance. It is built to measure and lives in the repo; adding one is asking
+databases themselves, Finance, the household, Skills (the smallest one to read: src/shared/skills,
+src/main/skills, src/renderer/src/skills). It is built to measure and lives in the repo; adding one is asking
 for a folder that follows this contract. A block has up to four parts:
 
 | Part | Where | Joins the app with |

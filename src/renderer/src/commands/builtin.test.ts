@@ -24,6 +24,7 @@ describe('the built-in commands', () => {
       'open-sky',
       'open-finance',
       'open-split',
+      'open-skills',
       'open-flows',
       'close-day',
       'new-meeting',

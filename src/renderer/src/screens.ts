@@ -9,6 +9,7 @@ import { FLOWS_SCREENS } from './flows/screens'
 import { NOTEBOOK_SCREENS } from './notebook/screens'
 import { REVIEW_SCREENS } from './review/screens'
 import { SKY_SCREENS } from './sky/screens'
+import { SKILLS_SCREENS } from './skills/screens'
 import { SPLIT_SCREENS } from './split/screens'
 import { TASKS_SCREENS } from './tasks/screens'
 
@@ -31,7 +32,8 @@ export const SCREENS: readonly Screen[] = [
   ...SKY_SCREENS,
   ...FLOWS_SCREENS,
   ...FINANCE_SCREENS,
-  ...SPLIT_SCREENS
+  ...SPLIT_SCREENS,
+  ...SKILLS_SCREENS
 ]
 
 /** The screen a tab showing `pageId` shows: by its route, or by the page it stands for. */
