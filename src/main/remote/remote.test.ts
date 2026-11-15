@@ -153,6 +153,7 @@ describe('the task tools', () => {
       'add_task',
       'complete_task',
       'skip_task',
+      'tasks_calendar',
       'reschedule_task',
       'update_task',
       'reopen_task',
@@ -333,6 +334,31 @@ describe('the remote server', () => {
     expect((await fetch(`${base}/calendar/${token}.ics`)).status).toBe(404)
     repo.setSetting(TASKS_FEED_KEY, { enabled: false, token })
     expect((await fetch(`${base}/calendar/${token}.ics`)).status).toBe(404)
+  })
+
+  it('turns the calendar on from a conversation, and gives the address that then answers', async () => {
+    const { REMOTE_CONFIG_KEY } = await import('../../shared/mcp')
+    const now = new Date(clock)
+    expect(callTaskTool(repo, 'tasks_calendar', {}, now)).toContain('is off')
+    // Without an address from outside there is nothing to give.
+    expect(callTaskTool(repo, 'tasks_calendar', { action: 'on' }, now)).toContain('no address others can reach')
+    repo.setSetting(REMOTE_CONFIG_KEY, { enabled: true, tunnel: 'tailscale', publicUrl: 'https://erik-pc.tail1234.ts.net/' })
+    const on = callTaskTool(repo, 'tasks_calendar', { action: 'on' }, now)
+    const address = /Address: (\S+)/u.exec(on)?.[1] as string
+    expect(address).toMatch(/^https:\/\/erik-pc\.tail1234\.ts\.net\/calendar\/[A-Za-z0-9_-]{43}\.ics$/u)
+    const path = new URL(address).pathname
+    callTaskTool(repo, 'add_task', { text: 'Dentista amanhã 14h' }, now)
+    expect(await (await fetch(`${base}${path}`)).text()).toContain('SUMMARY:Dentista')
+    // Asked again, or turned on again: the same address.
+    expect(callTaskTool(repo, 'tasks_calendar', { action: 'status' }, now)).toContain(address)
+    expect(callTaskTool(repo, 'tasks_calendar', { action: 'on' }, now)).toContain(address)
+    const fresh = callTaskTool(repo, 'tasks_calendar', { action: 'new_address' }, now)
+    expect(fresh).not.toContain(address)
+    expect((await fetch(`${base}${path}`)).status).toBe(404)
+    expect(callTaskTool(repo, 'tasks_calendar', { action: 'off' }, now)).toContain('no longer answers')
+    const again = /Address: (\S+)/u.exec(fresh)?.[1] as string
+    expect((await fetch(`${base}${new URL(again).pathname}`)).status).toBe(404)
+    expect(() => callTaskTool(repo, 'tasks_calendar', { action: 'delete' }, now)).toThrow(/status, on, off or new_address/)
   })
 
   it('keeps a task that is private from the AI out of the calendar', async () => {

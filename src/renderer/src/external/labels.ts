@@ -21,6 +21,7 @@ export const TOOL_LABELS: Record<string, string> = {
   add_task: 'Add a task',
   complete_task: 'Complete a task',
   skip_task: 'Skip a repeating task',
+  tasks_calendar: 'Tasks as a calendar',
   reschedule_task: 'Reschedule a task',
   list_projects: 'List projects',
   update_task: 'Change a task',
