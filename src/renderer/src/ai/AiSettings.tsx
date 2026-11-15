@@ -23,6 +23,7 @@ import { RoutinesSettings } from '@/routines/RoutinesSettings'
 import '@/routines/routines.css'
 import { INSTALL_COMMAND, unavailableText } from './labels'
 import './ai.css'
+import { Advanced } from '@/ui/Advanced'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'On' },
@@ -177,120 +178,124 @@ export function AiSection(): JSX.Element {
         </p>
       </section>
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Claude Code</h3>
-        </div>
-        <div className="ap-list">
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Program</span>
-              <span className={found || !enabled || (checking && !status) ? 'ap-row-help' : 'ap-row-help is-error'}>{programHelp}</span>
-              {found && status.path && <span className="ap-row-name ai-path">{status.path}</span>}
-            </div>
-            <div className="ap-row-control">
-              {values.chosen && (
-                <Button variant="ghost" disabled={!enabled} onClick={reset}>
-                  Reset
-                </Button>
-              )}
-              <Button disabled={!enabled} onClick={choose}>
-                Choose…
-              </Button>
-              <Button disabled={!enabled || checking} onClick={() => check(true)}>
-                {checking ? 'Checking…' : 'Check again'}
-              </Button>
-            </div>
-          </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Model</span>
-              <span className={modelInvalid ? 'ap-row-help is-error' : 'ap-row-help'}>
-                {modelInvalid
-                  ? 'Letters, digits, dots and dashes only.'
-                  : 'A model name or alias, such as opus or sonnet. Empty uses the default of Claude Code.'}
-              </span>
-            </div>
-            <div className="ap-row-control">
-              <input
-                className={modelInvalid ? 'ap-field is-invalid' : 'ap-field'}
-                value={model}
-                maxLength={64}
-                spellCheck={false}
-                placeholder="default"
-                aria-label="Model"
-                aria-invalid={modelInvalid}
-                disabled={!enabled}
-                onChange={(event) => setModel(event.target.value)}
-                onBlur={commitModel}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    commitModel()
-                  }
-                }}
-              />
-            </div>
-          </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Language</span>
-              <span className="ap-row-help">For summaries, answers and new text. Rewrites keep the language of the text.</span>
-            </div>
-            <div className="ap-row-control">
-              <select
-                className="ap-field ai-select"
-                value={values.language}
-                aria-label="Language"
-                disabled={!enabled}
-                onChange={(event) => setLanguage(event.target.value as AiLanguage | 'auto')}
-              >
-                <option value="auto">Same as the content</option>
-                {AI_LANGUAGES.map((language) => (
-                  <option key={language} value={language}>
-                    {AI_LANGUAGE_LABELS[language]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Give up after</span>
-              <span className="ap-row-help">A request that takes longer is stopped.</span>
-            </div>
-            <div className="ap-row-control">
-              <input
-                className="ap-field is-number"
-                inputMode="numeric"
-                aria-label="Give up after, in seconds"
-                value={timeout}
-                disabled={!enabled}
-                onChange={(event) => setTimeoutText(event.target.value.replace(/[^\d]/g, '').slice(0, 4))}
-                onBlur={commitTimeout}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    commitTimeout()
-                  }
-                }}
-              />
-              <span className="ap-unit">s</span>
-            </div>
-          </div>
-        </div>
-        {enabled && status && !found && status.reason !== 'disabled' && (
-          <p className="ap-note">
-            To install it, run <code className="ai-code">{INSTALL_COMMAND}</code> in a terminal, then run{' '}
-            <code className="ai-code">claude</code> once to sign in.
-          </p>
-        )}
-      </section>
-
-      <ClaudeSettings enabled={enabled} />
       <MemorySettings enabled={enabled} locale={locale} />
-      <RoutinesSettings enabled={enabled} />
-      <HistorySettings />
+
+      {/* How it is done: opened by itself only when Claude Code is missing, which is where that is fixed. */}
+      <Advanced open={enabled && !!status && !found}>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Claude Code</h3>
+          </div>
+          <div className="ap-list">
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Program</span>
+                <span className={found || !enabled || (checking && !status) ? 'ap-row-help' : 'ap-row-help is-error'}>{programHelp}</span>
+                {found && status.path && <span className="ap-row-name ai-path">{status.path}</span>}
+              </div>
+              <div className="ap-row-control">
+                {values.chosen && (
+                  <Button variant="ghost" disabled={!enabled} onClick={reset}>
+                    Reset
+                  </Button>
+                )}
+                <Button disabled={!enabled} onClick={choose}>
+                  Choose…
+                </Button>
+                <Button disabled={!enabled || checking} onClick={() => check(true)}>
+                  {checking ? 'Checking…' : 'Check again'}
+                </Button>
+              </div>
+            </div>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Model</span>
+                <span className={modelInvalid ? 'ap-row-help is-error' : 'ap-row-help'}>
+                  {modelInvalid
+                    ? 'Letters, digits, dots and dashes only.'
+                    : 'A model name or alias, such as opus or sonnet. Empty uses the default of Claude Code.'}
+                </span>
+              </div>
+              <div className="ap-row-control">
+                <input
+                  className={modelInvalid ? 'ap-field is-invalid' : 'ap-field'}
+                  value={model}
+                  maxLength={64}
+                  spellCheck={false}
+                  placeholder="default"
+                  aria-label="Model"
+                  aria-invalid={modelInvalid}
+                  disabled={!enabled}
+                  onChange={(event) => setModel(event.target.value)}
+                  onBlur={commitModel}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      commitModel()
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Language</span>
+                <span className="ap-row-help">For summaries, answers and new text. Rewrites keep the language of the text.</span>
+              </div>
+              <div className="ap-row-control">
+                <select
+                  className="ap-field ai-select"
+                  value={values.language}
+                  aria-label="Language"
+                  disabled={!enabled}
+                  onChange={(event) => setLanguage(event.target.value as AiLanguage | 'auto')}
+                >
+                  <option value="auto">Same as the content</option>
+                  {AI_LANGUAGES.map((language) => (
+                    <option key={language} value={language}>
+                      {AI_LANGUAGE_LABELS[language]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Give up after</span>
+                <span className="ap-row-help">A request that takes longer is stopped.</span>
+              </div>
+              <div className="ap-row-control">
+                <input
+                  className="ap-field is-number"
+                  inputMode="numeric"
+                  aria-label="Give up after, in seconds"
+                  value={timeout}
+                  disabled={!enabled}
+                  onChange={(event) => setTimeoutText(event.target.value.replace(/[^\d]/g, '').slice(0, 4))}
+                  onBlur={commitTimeout}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      commitTimeout()
+                    }
+                  }}
+                />
+                <span className="ap-unit">s</span>
+              </div>
+            </div>
+          </div>
+          {enabled && status && !found && status.reason !== 'disabled' && (
+            <p className="ap-note">
+              To install it, run <code className="ai-code">{INSTALL_COMMAND}</code> in a terminal, then run{' '}
+              <code className="ai-code">claude</code> once to sign in.
+            </p>
+          )}
+        </section>
+
+        <ClaudeSettings enabled={enabled} />
+        <RoutinesSettings enabled={enabled} />
+        <HistorySettings />
+      </Advanced>
     </div>
   )
 }

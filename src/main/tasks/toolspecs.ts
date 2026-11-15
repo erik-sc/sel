@@ -54,6 +54,12 @@ export const TASK_WRITE_SPECS: readonly ToolSpec[] = [
     inputSchema: { type: 'object', properties: { id: ID }, required: ['id'], additionalProperties: false }
   },
   {
+    name: 'skip_task',
+    description:
+      'Skips this time of a repeating task: it moves on to its next date and stays open, without counting as completed. For a task that will not be done this time. Fails when the task does not repeat or this is its last time.',
+    inputSchema: { type: 'object', properties: { id: ID }, required: ['id'], additionalProperties: false }
+  },
+  {
     name: 'reschedule_task',
     description:
       'Moves a task to another day: "YYYY-MM-DD", "YYYY-MM-DDTHH:mm" (local time) or words such as "tomorrow" or "sexta 14h". null removes the date.',

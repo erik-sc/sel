@@ -8,6 +8,7 @@ import { Segmented } from '@/appearance/controls'
 import { IS_MAC } from '@/ui/platform'
 import { notifyError } from '@/ui/toast'
 import { usePomodoro } from './gate'
+import { Advanced } from '@/ui/Advanced'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'on', label: 'On' },
@@ -82,24 +83,26 @@ export function PomodoroSection(): JSX.Element {
         <p className="ap-note">A new length applies from the next phase. A phase never starts by itself: at its end, sel asks.</p>
       </section>
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Starting</h3>
-        </div>
-        <div className="ap-list">
-          <Row label="Enter focus mode" help="Starting a pomodoro hides everything but the page.">
-            <Segmented
-              label="Enter focus mode"
-              value={settings.focusMode ? 'on' : 'off'}
-              options={ON_OFF}
-              onChange={(value) => save('focusMode', value === 'on')}
-            />
-          </Row>
-        </div>
-        <p className="ap-note">
-          Start one from the View menu, the command palette or {SHORTCUT}. Nothing rings while a meeting is being recorded.
-        </p>
-      </section>
+      <Advanced>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Starting</h3>
+          </div>
+          <div className="ap-list">
+            <Row label="Enter focus mode" help="Starting a pomodoro hides everything but the page.">
+              <Segmented
+                label="Enter focus mode"
+                value={settings.focusMode ? 'on' : 'off'}
+                options={ON_OFF}
+                onChange={(value) => save('focusMode', value === 'on')}
+              />
+            </Row>
+          </div>
+          <p className="ap-note">
+            Start one from the View menu, the command palette or {SHORTCUT}. Nothing rings while a meeting is being recorded.
+          </p>
+        </section>
+      </Advanced>
     </div>
   )
 }

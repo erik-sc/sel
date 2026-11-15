@@ -17,6 +17,10 @@ describe('the keys of a focused task row', () => {
     expect(rowKeyAction(key('F2'))).toEqual({ kind: 'rename' })
     expect(rowKeyAction(key(' '))).toEqual({ kind: 'toggle' })
     expect(rowKeyAction(key('Delete'))).toEqual({ kind: 'delete' })
+    // Shift+R skips a repeating task to its next time; R alone still opens how it repeats.
+    expect(rowKeyAction(key('R', { shift: true }))).toEqual({ kind: 'skip' })
+    expect(rowKeyAction(key('D', { shift: true }))).toBeNull()
+    expect(manyKeyAction({ kind: 'skip' })).toEqual({ kind: 'ignore' })
   })
 
   it('open the editor of a field', () => {

@@ -24,6 +24,7 @@ export interface AlarmsCopy {
   reminders: string
   remindersHelp: string
   /** Reminders to refine the tasks still without a date, a priority or a project. */
+  advanced: string
   refineGroup: string
   refineHelp: string
   refineBriefing: string
@@ -76,6 +77,7 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
     tasksGroup: 'Tasks',
     reminders: 'Reminders of tasks',
     remindersHelp: 'A task with a reminder, or due at a time of day, is announced when it comes.',
+    advanced: 'Advanced',
     refineGroup: 'Refining',
     refineHelp: 'A task is refined once it has a date, a priority and a project. Those still missing one are kept in “To refine”.',
     refineBriefing: 'In the briefing',
@@ -128,6 +130,7 @@ export const ALARMS_COPY: Record<AlarmsLocale, AlarmsCopy> = {
     tasksGroup: 'Tarefas',
     reminders: 'Lembretes de tarefas',
     remindersHelp: 'Uma tarefa com lembrete, ou com prazo numa hora do dia, é avisada quando chega a hora.',
+    advanced: 'Avançado',
     refineGroup: 'Refino',
     refineHelp: 'Uma tarefa está refinada quando tem data, prioridade e projeto. As que ainda não têm ficam em “A refinar”.',
     refineBriefing: 'No briefing',

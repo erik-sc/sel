@@ -1,0 +1,64 @@
+/* The MCP light at the foot of the sidebar (McpLight.tsx). */
+
+.mcp-light {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 8px 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-align: left;
+}
+
+.mcp-light:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.mcp-light:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.mcp-light-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border: var(--hairline) solid currentcolor;
+  border-radius: 50%;
+}
+
+.mcp-light-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* On: the dot is full and green. The words say it too: the colour is not the only sign. */
+.mcp-light.is-on,
+.mcp-light.is-local {
+  color: var(--text-secondary);
+}
+
+.mcp-light.is-on .mcp-light-dot {
+  border-color: var(--c-green);
+  background: var(--c-green);
+}
+
+.mcp-light.is-local .mcp-light-dot {
+  border-color: var(--c-green);
+}
+
+.mcp-light.is-problem {
+  color: var(--c-orange);
+}
+
+.mcp-light.is-problem .mcp-light-dot {
+  background: var(--c-orange);
+}
+
+.mcp-light.is-starting .mcp-light-dot {
+  border-style: dashed;
+}

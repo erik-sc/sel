@@ -1,5 +1,5 @@
 import { app, BrowserWindow } from 'electron'
-import { UPDATES_CHANNEL } from '../../shared/updates'
+import { PREVIEW_FEED_URL, UPDATES_CHANNEL } from '../../shared/updates'
 import type { Repository } from '../db/repository'
 import type { Handlers } from '../invoke'
 import { resolveDevUrl } from '../security'
@@ -31,7 +31,12 @@ export function registerUpdatesIpc({ repo, recording }: { repo: Repository; reco
     setSetting: (key, value) => repo.setSetting(key, value),
     recording,
     now: () => Date.now(),
-    loadDriver: async () => (await import('./driver')).createDriver(devFeed),
+    loadDriver: async (feed) => {
+      const { createDriver } = await import('./driver')
+      // In development there is one feed, the one named; the installed app has the releases and the test builds.
+      if (devFeed) return createDriver({ url: devFeed, name: 'dev' })
+      return feed === 'preview' ? createDriver({ url: PREVIEW_FEED_URL, name: 'preview' }) : createDriver()
+    },
     publish: (status) => {
       for (const win of BrowserWindow.getAllWindows()) {
         if (!win.isDestroyed() && !win.webContents.isDestroyed()) win.webContents.send(UPDATES_CHANNEL, status)

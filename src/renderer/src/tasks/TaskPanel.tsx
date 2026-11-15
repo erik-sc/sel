@@ -11,7 +11,7 @@ import { PageEditor } from '@/editor/lazy'
 import { Close } from '@/ui/icons'
 import { TASK_COPY, type TaskField } from './copy'
 import { useTasksDatabase } from './data'
-import { addSubtask, renameTask } from './edit'
+import { addSubtask, renameTask, skipTask } from './edit'
 import { dueLabel, nestTasks, readTasks, type TaskItem } from './lists'
 import { TaskFieldPopover } from './TaskEditors'
 import { TaskRow, useTaskRows } from './TaskRow'
@@ -150,6 +150,11 @@ export function TaskPanel({ taskId, today, onClose, onToggle, onSelect, overlay 
                 >
                   {shown || '—'}
                 </button>
+                {field === 'repeat' && task.recurrence && !task.done && (
+                  <button type="button" className="task-panel-open task-panel-skip" onClick={() => skipTask(task.id, today)}>
+                    {words.skip}
+                  </button>
+                )}
               </dd>
             </div>
           )

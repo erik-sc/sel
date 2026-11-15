@@ -12,6 +12,7 @@ const calls = vi.hoisted(() => ({
   rename: [] as unknown[][],
   priority: [] as unknown[][],
   deleted: [] as string[],
+  skipped: [] as string[],
   opened: [] as unknown[][],
   editor: [] as string[],
   next: [] as unknown[][],
@@ -25,7 +26,8 @@ vi.mock('./edit', () => ({
     return true
   },
   setPriority: (...args: unknown[]) => void calls.priority.push(args),
-  deleteTask: (id: string) => void calls.deleted.push(id)
+  deleteTask: (id: string) => void calls.deleted.push(id),
+  skipTask: (id: string) => void calls.skipped.push(id)
 }))
 vi.mock('./lazy', () => ({
   preloadTaskEditors: () => undefined,
@@ -103,6 +105,7 @@ beforeEach(() => {
   calls.next.length = 0
   calls.priority.length = 0
   calls.deleted.length = 0
+  calls.skipped.length = 0
   calls.opened.length = 0
   calls.editor.length = 0
   calls.many.length = 0
@@ -255,6 +258,32 @@ describe('a list of task rows', () => {
     await press(menu, 'End')
     await press(menu, 'Enter')
     expect(calls.deleted).toEqual(['a'])
+  })
+
+  it('skips a repeating task to its next time, from the menu or with Shift+R, and offers it only to one that repeats', async () => {
+    await render(<List onToggle={() => undefined} onOpen={() => undefined} />)
+    // "Pay rent" repeats: the menu has the action, right after Repeat.
+    await focus(rowOf('b'))
+    await press(rowOf('b'), 'F10', { shiftKey: true })
+    await settle()
+    const labels = (): string[] =>
+      [...document.querySelectorAll('[role="menuitem"]')].map((each) => each.querySelector('.ui-menu-label')?.textContent ?? '')
+    expect(labels().slice(0, 3)).toEqual(['Date', 'Repeat', 'Skip to the next time'])
+    const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((each) =>
+      each.textContent?.includes('Skip to the next time')
+    )
+    await act(async () => item?.click())
+    expect(calls.skipped).toEqual(['b'])
+    await focus(rowOf('b'))
+    await press(rowOf('b'), 'R', { shiftKey: true })
+    expect(calls.skipped).toEqual(['b', 'b'])
+    // A task that does not repeat has nothing to skip to: no action, and the key does nothing.
+    await focus(rowOf('a'))
+    await press(rowOf('a'), 'R', { shiftKey: true })
+    expect(calls.skipped).toEqual(['b', 'b'])
+    await press(rowOf('a'), 'F10', { shiftKey: true })
+    await settle()
+    expect(labels()).not.toContain('Skip to the next time')
   })
 
   it('makes a task of a project its next action from the menu, and offers it only then', async () => {

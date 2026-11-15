@@ -9,6 +9,7 @@ import { ChevronLeft } from '@/ui/icons'
 import { ArchivePopover } from '@/archive/ArchivePopover'
 import { TrashPopover } from './TrashPopover'
 import { SIDEBAR_ITEM_DEFS, useAvailableItem } from './sidebarItems'
+import { McpLight } from '@/external/McpLight'
 import { customizeSidebar, setSidebarItemHidden, useLayout, useSidebarCopy } from './sidebarLayout'
 import { closeSidebarPanel, useSidebarPanel } from './sidebarPanels'
 import './sidebar.css'
@@ -177,6 +178,8 @@ export const Sidebar = memo(function Sidebar() {
             )}
           </>
         )}
+        {/* Not an item: it is there whatever the sidebar was made to show. */}
+        <McpLight copy={copy.mcp} />
       </div>
       <Resizer />
       <TrashPopover anchor={panel.anchor} open={panel.open === 'trash'} onClose={closeSidebarPanel} />

@@ -12,6 +12,7 @@ import { notifyError } from '@/ui/toast'
 import { alarmsCopy, type AlarmsLocale } from './copy'
 import { useHerman } from '@/herman/gate'
 import './alarms.css'
+import { Advanced } from '@/ui/Advanced'
 
 /** Monday first, as a week is read; the stored days count from Sunday (0). */
 const WEEK = [1, 2, 3, 4, 5, 6, 0]
@@ -115,59 +116,6 @@ export function NotificationsSection(): JSX.Element {
 
       <section className="ap-group">
         <div className="ap-group-head">
-          <h3 className="ap-group-title">{copy.refineGroup}</h3>
-        </div>
-        <p className="ap-note">{copy.refineHelp}</p>
-        <div className="ap-list">
-          {refineRow('briefing', copy.refineBriefing, copy.refineBriefingHelp)}
-          {refineRow('herman', copy.refineHerman, copy.refineHermanHelp)}
-          <div className="ap-row alarm-times-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">{copy.refineTime}</span>
-              <span className="ap-row-help">{copy.refineTimeHelp}</span>
-            </div>
-            <div className="ap-row-control alarm-times">
-              <div className={time.enabled ? 'alarm-time' : 'alarm-time is-off'}>
-                <input
-                  type="checkbox"
-                  className="alarm-enabled"
-                  aria-label={copy.refineTime}
-                  checked={time.enabled}
-                  onChange={(event) => changeRefine('time', { ...time, enabled: event.target.checked })}
-                />
-                <input
-                  className="ap-field herman-time"
-                  type="time"
-                  aria-label={copy.time}
-                  value={time.time}
-                  onChange={(event) => {
-                    if (/^\d{2}:\d{2}$/.test(event.target.value)) changeRefine('time', { ...time, time: event.target.value })
-                  }}
-                />
-                <div className="alarm-days" role="group" aria-label={copy.days}>
-                  {WEEK.map((day) => (
-                    <button
-                      key={day}
-                      type="button"
-                      className={time.days.includes(day) ? 'alarm-day is-on' : 'alarm-day'}
-                      aria-pressed={time.days.includes(day)}
-                      aria-label={copy.dayNames[day]}
-                      title={copy.dayNames[day]}
-                      onClick={() => toggleDay(day)}
-                    >
-                      {copy.dayLetters[day]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          {refineRow('mark', copy.refineMark, copy.refineMarkHelp)}
-        </div>
-      </section>
-
-      <section className="ap-group">
-        <div className="ap-group-head">
           <h3 className="ap-group-title">{copy.eventsGroup}</h3>
         </div>
         <div className="ap-list">
@@ -178,8 +126,68 @@ export function NotificationsSection(): JSX.Element {
             </div>
             <div className="ap-row-control">{toggle('events', copy.events)}</div>
           </div>
-          {values.events && (
-            <>
+        </div>
+      </section>
+
+      <Advanced label={copy.advanced}>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">{copy.refineGroup}</h3>
+          </div>
+          <p className="ap-note">{copy.refineHelp}</p>
+          <div className="ap-list">
+            {refineRow('briefing', copy.refineBriefing, copy.refineBriefingHelp)}
+            {refineRow('herman', copy.refineHerman, copy.refineHermanHelp)}
+            <div className="ap-row alarm-times-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">{copy.refineTime}</span>
+                <span className="ap-row-help">{copy.refineTimeHelp}</span>
+              </div>
+              <div className="ap-row-control alarm-times">
+                <div className={time.enabled ? 'alarm-time' : 'alarm-time is-off'}>
+                  <input
+                    type="checkbox"
+                    className="alarm-enabled"
+                    aria-label={copy.refineTime}
+                    checked={time.enabled}
+                    onChange={(event) => changeRefine('time', { ...time, enabled: event.target.checked })}
+                  />
+                  <input
+                    className="ap-field herman-time"
+                    type="time"
+                    aria-label={copy.time}
+                    value={time.time}
+                    onChange={(event) => {
+                      if (/^\d{2}:\d{2}$/.test(event.target.value)) changeRefine('time', { ...time, time: event.target.value })
+                    }}
+                  />
+                  <div className="alarm-days" role="group" aria-label={copy.days}>
+                    {WEEK.map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        className={time.days.includes(day) ? 'alarm-day is-on' : 'alarm-day'}
+                        aria-pressed={time.days.includes(day)}
+                        aria-label={copy.dayNames[day]}
+                        title={copy.dayNames[day]}
+                        onClick={() => toggleDay(day)}
+                      >
+                        {copy.dayLetters[day]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {refineRow('mark', copy.refineMark, copy.refineMarkHelp)}
+          </div>
+        </section>
+        {values.events && (
+          <section className="ap-group">
+            <div className="ap-group-head">
+              <h3 className="ap-group-title">{copy.eventsGroup}</h3>
+            </div>
+            <div className="ap-list">
               <div className="ap-row">
                 <div className="ap-row-text">
                   <span className="ap-row-label">{copy.lead}</span>
@@ -208,41 +216,40 @@ export function NotificationsSection(): JSX.Element {
                   />
                 </div>
               </div>
-            </>
-          )}
-        </div>
-      </section>
-
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">{copy.soundGroup}</h3>
-        </div>
-        <div className="ap-list">
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">{copy.sound}</span>
-              <span className="ap-row-help">{copy.soundHelp}</span>
             </div>
-            <div className="ap-row-control">{toggle('sound', copy.sound)}</div>
+          </section>
+        )}
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">{copy.soundGroup}</h3>
           </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">{copy.tray}</span>
-              <span className="ap-row-help">{copy.trayHelp}</span>
-              {!values.tray && <span className="ap-row-help alarm-warning">{copy.trayOff}</span>}
+          <div className="ap-list">
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">{copy.sound}</span>
+                <span className="ap-row-help">{copy.soundHelp}</span>
+              </div>
+              <div className="ap-row-control">{toggle('sound', copy.sound)}</div>
             </div>
-            <div className="ap-row-control">{toggle('tray', copy.tray)}</div>
-          </div>
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">{copy.openAtLogin}</span>
-              <span className="ap-row-help">{copy.openAtLoginHelp(values.tray)}</span>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">{copy.tray}</span>
+                <span className="ap-row-help">{copy.trayHelp}</span>
+                {!values.tray && <span className="ap-row-help alarm-warning">{copy.trayOff}</span>}
+              </div>
+              <div className="ap-row-control">{toggle('tray', copy.tray)}</div>
             </div>
-            <div className="ap-row-control">{toggle('openAtLogin', copy.openAtLogin)}</div>
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">{copy.openAtLogin}</span>
+                <span className="ap-row-help">{copy.openAtLoginHelp(values.tray)}</span>
+              </div>
+              <div className="ap-row-control">{toggle('openAtLogin', copy.openAtLogin)}</div>
+            </div>
           </div>
-        </div>
-        <p className="ap-note">{copy.note}</p>
-      </section>
+          <p className="ap-note">{copy.note}</p>
+        </section>
+      </Advanced>
     </div>
   )
 }

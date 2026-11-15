@@ -65,6 +65,8 @@ export type RowAction =
   | { kind: 'edit'; field: TaskField }
   | { kind: 'priority'; level: Priority }
   | { kind: 'toggle' }
+  /** A repeating task: on to its next date, not completed. */
+  | { kind: 'skip' }
   | { kind: 'delete' }
 
 interface Keyed {
@@ -92,7 +94,8 @@ export function rowKeyAction(event: Keyed): RowAction | null {
   if (key === 'Delete') return { kind: 'delete' }
   if (key === '#') return { kind: 'edit', field: 'project' }
   if (key === '@') return { kind: 'edit', field: 'labels' }
-  if (event.shiftKey) return null
+  // Shift+R: R is how it repeats; with Shift, this time is skipped.
+  if (event.shiftKey) return key.toLowerCase() === 'r' ? { kind: 'skip' } : null
   if (key >= '1' && key <= '4' && key.length === 1) return { kind: 'priority', level: Number(key) as Priority }
   const field = LETTERS[key.toLowerCase()]
   return field ? { kind: 'edit', field } : null

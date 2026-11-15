@@ -186,10 +186,27 @@ function effect(entry: Entry, name: string): number {
   }
 }
 
-/** What a holder has now: what it held when last told, moved by the entries made from then on. */
+/** The local day of a moment, `YYYY-MM-DD`. */
+export function localDay(ms: number): string {
+  const d = new Date(ms)
+  return `${String(d.getFullYear()).padStart(4, '0')}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/**
+ * True when `entry` happened after the holder's balance was told. The balance told is what the
+ * bank shows, so everything dated before that day is already in it, whenever it was entered: a
+ * statement of past months brought in later moves nothing. On the day itself, what was entered
+ * after the balance counts.
+ */
+export function after(entry: Pick<Entry, 'date' | 'createdAt'>, asOf: number): boolean {
+  const day = localDay(asOf)
+  return entry.date > day || (entry.date === day && entry.createdAt >= asOf)
+}
+
+/** What a holder has now: what it held when last told, moved by what happened from then on. */
 export function balanceOf(holder: Holder, entries: readonly Entry[]): number {
   let cents = holder.cents
-  for (const entry of entries) if (entry.createdAt >= holder.asOf) cents += effect(entry, holder.name)
+  for (const entry of entries) if (after(entry, holder.asOf)) cents += effect(entry, holder.name)
   return cents
 }
 
@@ -206,14 +223,43 @@ export interface Invoice {
   due: string | null
 }
 
-/** A card's invoice of one month: its purchases, and whether a transfer paid it. */
+/** True for what goes on a card's invoice: the user's purchases on it, and what the card gave back (a refund). */
+const onCard = (entry: Entry, card: Account): boolean =>
+  (entry.kind === 'expense' || entry.kind === 'income') && isMe(entry.paidBy) && same(entry.account, card.name)
+
+/**
+ * The entries with the invoice each card purchase falls on: the one stored, or, for a purchase
+ * entered before its account was known to be a card (a statement brought in whole), the one its
+ * date gives. Read once, so that every sum sees the same.
+ */
+export function withInvoices(entries: readonly Entry[], accounts: readonly Account[]): Entry[] {
+  const cards = accounts.filter((account) => account.type === 'card')
+  if (!cards.length) return [...entries]
+  return entries.map((entry) => {
+    if (entry.invoice) return entry
+    const card = cards.find((each) => onCard(entry, each))
+    return card ? { ...entry, invoice: invoiceOf(entry.date, card) } : entry
+  })
+}
+
+/** True when `name` is one of the cards. */
+export const isCard = (books: Pick<Books, 'accounts'>, name: string | null | undefined): boolean =>
+  books.accounts.some((account) => account.type === 'card' && same(account.name, name))
+
+/**
+ * A card's invoice of one month: its purchases less what the card gave back, and whether a
+ * transfer to the card paid it. A transfer that does not say which invoice it pays is taken as
+ * paying the one of the month it was made in.
+ */
 export function invoice(books: Books, card: Account, month: string): Invoice {
-  const entries = books.entries.filter((entry) => entry.kind === 'expense' && same(entry.account, card.name) && entry.invoice === month)
-  const paid = books.entries.some((entry) => entry.kind === 'transfer' && entry.paid && same(entry.to, card.name) && entry.ref === month)
+  const entries = books.entries.filter((entry) => onCard(entry, card) && entry.invoice === month)
+  const paid = books.entries.some(
+    (entry) => entry.kind === 'transfer' && entry.paid && same(entry.to, card.name) && (entry.ref ?? monthOf(entry.date)) === month
+  )
   return {
     card: card.name,
     month,
-    cents: entries.reduce((sum, entry) => sum + entry.cents, 0),
+    cents: entries.reduce((sum, entry) => sum + (entry.kind === 'income' ? -entry.cents : entry.cents), 0),
     entries,
     paid,
     due: card.dueDay ? dayOf(month, card.dueDay) : null
@@ -263,13 +309,19 @@ export interface BudgetState {
 export function budget(books: Books, month: string): BudgetState[] {
   const spent = new Map<string, { name: string; cents: number }>()
   for (const entry of books.entries) {
-    if (entry.kind !== 'expense' || entry.recurring || monthOf(entry.date) !== month) continue
+    if (entry.recurring || monthOf(entry.date) !== month) continue
+    // What a card gave back takes from what was spent in its category; it is not income.
+    const refund = entry.kind === 'income' && isCard(books, entry.account)
+    if (entry.kind !== 'expense' && !refund) continue
     const cents = mine(entry)
     if (!cents) continue
     const name = entry.category ?? 'Sem categoria'
     const line = spent.get(key(name)) ?? { name, cents: 0 }
-    line.cents += cents
+    line.cents += refund ? -cents : cents
     spent.set(key(name), line)
+  }
+  for (const [id, line] of spent) {
+    if (line.cents <= 0) spent.delete(id)
   }
   const lines: BudgetState[] = books.budget.map((line) => {
     const used = spent.get(key(line.category))?.cents ?? 0
@@ -384,7 +436,9 @@ export function monthPicture(books: Books, month: string, today: string): MonthP
   const daysLeft = current ? daysIn(month) - Number(today.slice(8, 10)) + 1 : month > monthOf(today) ? daysIn(month) : 0
   const boxes = books.boxes.map((box) => ({ name: box.name, cents: balanceOf(box, books.entries), goal: box.goal, purpose: box.purpose }))
   const otherIncome = books.entries
-    .filter((entry) => entry.kind === 'income' && !entry.recurring && monthOf(entry.date) === month && entry.paid)
+    .filter(
+      (entry) => entry.kind === 'income' && !entry.recurring && monthOf(entry.date) === month && entry.paid && !isCard(books, entry.account)
+    )
     .reduce((sum, entry) => sum + mine(entry), 0)
   const invoicesDue = invoices.filter((each) => !each.paid).reduce((sum, each) => sum + each.cents, 0)
   return {

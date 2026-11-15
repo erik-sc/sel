@@ -10,6 +10,7 @@ import { SyncAlert, SyncBusy, SyncDone, SyncOff, SyncPending } from './icons'
 import { conflictCount, describeActivity, lastSynced, passphraseProblem, plural, summarize, urlProblem, when } from './labels'
 import { acceptStatus, useSync } from './store'
 import './sync.css'
+import { Advanced } from '@/ui/Advanced'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -472,104 +473,106 @@ function Connected({ status }: { status: SyncStatus }): JSX.Element {
         )}
       </section>
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Repository</h3>
-        </div>
-        <div className="ap-list">
-          <Fact label="Address" value={status.remoteUrl ?? ''} mono />
-          <Fact label="Branch" value={status.branch} mono />
-          <Fact label="This device" value={status.deviceName} />
-          <Fact
-            label="Git"
-            value={status.gitVersion ? `Version ${status.gitVersion}, signed in by itself. sel stores no token.` : 'Not checked yet'}
-          />
-          <Encryption
-            status={status}
-            busy={working !== null || syncing}
-            onChange={(passphrase) =>
-              act('encrypt', () => window.api.sync.setEncryption(passphrase), 'The encryption could not be changed.')
-            }
-            working={working === 'encrypt'}
-          />
-        </div>
-      </section>
+      <Advanced>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Repository</h3>
+          </div>
+          <div className="ap-list">
+            <Fact label="Address" value={status.remoteUrl ?? ''} mono />
+            <Fact label="Branch" value={status.branch} mono />
+            <Fact label="This device" value={status.deviceName} />
+            <Fact
+              label="Git"
+              value={status.gitVersion ? `Version ${status.gitVersion}, signed in by itself. sel stores no token.` : 'Not checked yet'}
+            />
+            <Encryption
+              status={status}
+              busy={working !== null || syncing}
+              onChange={(passphrase) =>
+                act('encrypt', () => window.api.sync.setEncryption(passphrase), 'The encryption could not be changed.')
+              }
+              working={working === 'encrypt'}
+            />
+          </div>
+        </section>
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Recent activity</h3>
-        </div>
-        {status.activity.length === 0 ? (
-          <p className="ap-note">Nothing has been synced yet.</p>
-        ) : (
-          <ol className="ap-list sync-activity">
-            {status.activity.map((entry) => (
-              <li className="ap-row" key={entry.at}>
-                <div className="ap-row-text">
-                  <span className={entry.error ? 'ap-row-label sync-activity-failed' : 'ap-row-label'}>{describeActivity(entry)}</span>
-                  {entry.conflicts.length > 0 && (
-                    <span className="ap-row-help">
-                      {plural(conflictCount(entry), 'block')} changed on both devices. The other{' '}
-                      {conflictCount(entry) === 1 ? 'version is' : 'versions are'} in the history of{' '}
-                      {entry.conflicts.map((page, index) => (
-                        <span key={page.pageId}>
-                          {index > 0 && ', '}
-                          <button type="button" className="sync-link" onClick={() => review(page.pageId)}>
-                            {page.title}
-                          </button>
-                        </span>
-                      ))}
-                      .
-                    </span>
-                  )}
-                </div>
-                <time className="sync-activity-time" dateTime={new Date(entry.at).toISOString()}>
-                  {when(entry.at, now)}
-                </time>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Recent activity</h3>
+          </div>
+          {status.activity.length === 0 ? (
+            <p className="ap-note">Nothing has been synced yet.</p>
+          ) : (
+            <ol className="ap-list sync-activity">
+              {status.activity.map((entry) => (
+                <li className="ap-row" key={entry.at}>
+                  <div className="ap-row-text">
+                    <span className={entry.error ? 'ap-row-label sync-activity-failed' : 'ap-row-label'}>{describeActivity(entry)}</span>
+                    {entry.conflicts.length > 0 && (
+                      <span className="ap-row-help">
+                        {plural(conflictCount(entry), 'block')} changed on both devices. The other{' '}
+                        {conflictCount(entry) === 1 ? 'version is' : 'versions are'} in the history of{' '}
+                        {entry.conflicts.map((page, index) => (
+                          <span key={page.pageId}>
+                            {index > 0 && ', '}
+                            <button type="button" className="sync-link" onClick={() => review(page.pageId)}>
+                              {page.title}
+                            </button>
+                          </span>
+                        ))}
+                        .
+                      </span>
+                    )}
+                  </div>
+                  <time className="sync-activity-time" dateTime={new Date(entry.at).toISOString()}>
+                    {when(entry.at, now)}
+                  </time>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">This device</h3>
-        </div>
-        <div className="ap-list">
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Stop syncing on this device</span>
-              <span className="ap-row-help">
-                {confirming
-                  ? 'Your pages stay on this device, and the repository is left exactly as it is. Disconnect?'
-                  : 'Your pages stay here and in the repository. Nothing is deleted anywhere.'}
-              </span>
-            </div>
-            <div className="ap-row-control">
-              {confirming ? (
-                <>
-                  <Button variant="ghost" onClick={() => setConfirming(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="danger"
-                    disabled={working !== null}
-                    onClick={() => {
-                      setConfirming(false)
-                      act('disconnect', () => window.api.sync.disconnect({ keepRemote: true }), 'Could not disconnect.')
-                    }}
-                  >
-                    Disconnect
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={() => setConfirming(true)}>Disconnect…</Button>
-              )}
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">This device</h3>
+          </div>
+          <div className="ap-list">
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Stop syncing on this device</span>
+                <span className="ap-row-help">
+                  {confirming
+                    ? 'Your pages stay on this device, and the repository is left exactly as it is. Disconnect?'
+                    : 'Your pages stay here and in the repository. Nothing is deleted anywhere.'}
+                </span>
+              </div>
+              <div className="ap-row-control">
+                {confirming ? (
+                  <>
+                    <Button variant="ghost" onClick={() => setConfirming(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="danger"
+                      disabled={working !== null}
+                      onClick={() => {
+                        setConfirming(false)
+                        act('disconnect', () => window.api.sync.disconnect({ keepRemote: true }), 'Could not disconnect.')
+                      }}
+                    >
+                      Disconnect
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={() => setConfirming(true)}>Disconnect…</Button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </Advanced>
     </>
   )
 }

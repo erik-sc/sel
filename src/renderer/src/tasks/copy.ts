@@ -78,6 +78,10 @@ export interface TaskCopy {
   todayLine: (count: number) => string
   /** The row's menu: make the task its project's next action (shared/tasks/projects.ts). */
   makeNext: string
+  /** A repeating task: on to its next date, without completing it. */
+  skip: string
+  skipped: (title: string, when: string) => string
+  nothingToSkip: string
   nextSet: (title: string) => string
   /** A selection of rows (selection.ts): the count said politely, the row's mark, the menu entry. */
   selected: (count: number) => string
@@ -154,6 +158,9 @@ const EN: TaskCopy = {
   refineNext: 'Next →',
   todayLine: (count) => `${count} to refine`,
   makeNext: 'Make next action',
+  skip: 'Skip to the next time',
+  skipped: (title, when) => `Skipped "${title}": next ${when}.`,
+  nothingToSkip: 'This task has no next time to skip to.',
   nextSet: (title) => `"${title}" is the project's next action.`,
   selected: (count) => `${count} selected`,
   selectionCleared: 'Selection cleared',
@@ -235,6 +242,9 @@ const PT: TaskCopy = {
   refineNext: 'Próxima →',
   todayLine: (count) => `${count} para refinar`,
   makeNext: 'Tornar próxima ação',
+  skip: 'Pular para a próxima vez',
+  skipped: (title, when) => `"${title}" pulada: próxima ${when}.`,
+  nothingToSkip: 'Esta tarefa não tem uma próxima vez para pular.',
   nextSet: (title) => `"${title}" é a próxima ação do projeto.`,
   selected: (count) => (count === 1 ? '1 selecionada' : `${count} selecionadas`),
   selectionCleared: 'Seleção desfeita',

@@ -59,6 +59,11 @@ export interface McpApi {
   revokeRemote(id?: string): Promise<RemoteStatus>
   /** Lets a new app register for ten minutes: the window in which you add the connector in Claude. */
   pairRemote(): Promise<RemoteStatus>
+  /**
+   * "Claude on your phone", in one step: turns the remote connector on and opens the tunnel
+   * (Tailscale Funnel) by itself, or closes both. The status says what is missing when it cannot.
+   */
+  phone(on: boolean): Promise<RemoteStatus>
 }
 
 /** Whether other apps may connect decides whether sel opens an endpoint for them: a boolean. */
@@ -71,7 +76,8 @@ export const MCP_INVOKE = {
   'mcp:remoteStatus': true,
   'mcp:configureRemote': true,
   'mcp:revokeRemote': true,
-  'mcp:pairRemote': true
+  'mcp:pairRemote': true,
+  'mcp:phone': true
 } as const satisfies Record<InvokeChannels<{ mcp: McpApi }>, true>
 
 // ---- from anywhere: the remote connector -----------------------------------------
@@ -97,6 +103,23 @@ export interface RemoteConfig {
   githubClientId: string
   /** When set, only this GitHub login may become the owner. Empty: whoever signs in first while pairing. */
   githubLogin: string
+  /**
+   * Who keeps the tunnel. `tailscale`: sel opens Tailscale Funnel itself and fills `publicUrl`
+   * (the one switch of Settings → MCP). `manual`: the user runs a tunnel and types its address.
+   */
+  tunnel: 'tailscale' | 'manual'
+}
+
+/** Where the tunnel sel opens by itself stands. */
+export interface TunnelStatus {
+  /**
+   * off: not asked for. on: the internet reaches sel at `address`. no-tailscale: the program is
+   * not installed. signed-out: installed, not signed in. needs-approval: Tailscale wants the user
+   * to allow Funnel for this computer, once, at `approveUrl`. failed: it would not open.
+   */
+  state: 'off' | 'on' | 'no-tailscale' | 'signed-out' | 'needs-approval' | 'failed'
+  address: string
+  approveUrl: string | null
 }
 
 export const REMOTE_CONFIG_KEY = 'mcp.remote'
@@ -107,7 +130,8 @@ export const DEFAULT_REMOTE_CONFIG: RemoteConfig = {
   publicUrl: '',
   port: DEFAULT_REMOTE_PORT,
   githubClientId: '',
-  githubLogin: ''
+  githubLogin: '',
+  tunnel: 'manual'
 }
 
 /** What the remote connector may be granted, as the consent screen lists them. */
@@ -147,7 +171,8 @@ export function cleanRemoteConfig(value: unknown): RemoteConfig {
     port: typeof port === 'number' && Number.isInteger(port) && port >= 1024 && port <= 65535 ? port : DEFAULT_REMOTE_PORT,
     githubClientId: text('githubClientId', /^[A-Za-z0-9._-]{1,100}$/u),
     // GitHub logins: letters, digits and single hyphens, at most 39.
-    githubLogin: text('githubLogin', /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/u)
+    githubLogin: text('githubLogin', /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/u),
+    tunnel: record['tunnel'] === 'tailscale' ? 'tailscale' : 'manual'
   }
 }
 
@@ -179,6 +204,8 @@ export interface RemoteStatus extends RemoteConfig {
   pairingUntil: number | null
   /** sel stays running in the notification area when its windows close (alarms.tray): the server needs it. */
   staysRunning: boolean
+  /** The tunnel sel keeps by itself, when it does. */
+  tunnelStatus: TunnelStatus
 }
 
 /** What `mcp:configureRemote` takes. */

@@ -4,6 +4,7 @@ import {
   releaseNotesUrl,
   UPDATES_CHECK_KEY,
   UPDATES_LAST_CHECK_KEY,
+  UPDATES_PREVIEW_KEY,
   type UpdateStatus
 } from '../../shared/updates'
 import { nextCheck } from './schedule'
@@ -28,6 +29,9 @@ export interface UpdaterDriver {
   install(relaunch: boolean): boolean
 }
 
+/** `stable`: the published releases. `preview`: the test build of the release being prepared. */
+export type Feed = 'stable' | 'preview'
+
 export interface Timers {
   set(run: () => void, ms: number): unknown
   clear(handle: unknown): void
@@ -43,8 +47,11 @@ export interface UpdatesDeps {
   /** A meeting is being recorded. */
   recording(): boolean
   now(): number
-  /** Loads electron-updater. Called on the first question to GitHub, never before. */
-  loadDriver(): Promise<UpdaterDriver>
+  /**
+   * Loads electron-updater for a feed: the releases, or the test builds. Called on the first
+   * question to that feed, never before.
+   */
+  loadDriver(feed: Feed): Promise<UpdaterDriver>
   /** Tells every window. */
   publish(status: UpdateStatus): void
   /** Quits the app the ordinary way (sync, recording guard, then `quitting`). */
@@ -58,8 +65,9 @@ const DOWNLOAD_FAILED = 'The download did not finish. Try again later.'
 
 export class UpdatesService {
   private state: UpdateStatus
+  /** The driver of the feed the version on offer came from: the one that downloads and installs it. */
   private driver: UpdaterDriver | null = null
-  private loading: Promise<UpdaterDriver> | null = null
+  private readonly loading = new Map<Feed, Promise<UpdaterDriver>>()
   private asking: Promise<void> | null = null
   private timer: unknown = null
   private readonly startedAt: number
@@ -83,6 +91,7 @@ export class UpdatesService {
     const { phase } = this.state
     const decision = nextCheck({
       enabled: this.read(UPDATES_CHECK_KEY),
+      preview: this.read(UPDATES_PREVIEW_KEY),
       supported: this.deps.supported,
       recording: this.deps.recording(),
       pending: phase === 'downloading' || phase === 'ready',
@@ -156,11 +165,15 @@ export class UpdatesService {
     this.write(UPDATES_LAST_CHECK_KEY, now)
     this.update({ phase: 'checking', checkedAt: now, error: null })
     try {
-      const found = await (await this.load()).check()
+      const found = await this.newest()
       const version = found ? cleanVersion(found.version) : null
-      if (version) {
+      if (version && found) {
         const same = version === this.state.version
+        this.driver = found.driver
         this.update({ phase: 'available', version, notesUrl: releaseNotesUrl(version), dismissed: same && this.state.dismissed })
+        // A test build is what this computer was asked to keep installed: it is downloaded
+        // without asking, and installed at the next restart.
+        if (found.feed === 'preview') this.download()
       } else {
         this.update({ phase: 'current', version: null, notesUrl: null, dismissed: false })
       }
@@ -170,9 +183,30 @@ export class UpdatesService {
     }
   }
 
+  /**
+   * The newest version there is for this computer: a test build when it takes them and there is
+   * one newer than what runs, otherwise a release. A release is always newer than its own test
+   * builds, so the computer comes back to the releases by itself once one is published.
+   */
+  private async newest(): Promise<{ version: string; feed: Feed; driver: UpdaterDriver } | null> {
+    if (this.read(UPDATES_PREVIEW_KEY) === true) {
+      try {
+        const driver = await this.load('preview')
+        const found = await driver.check()
+        if (found) return { version: found.version, feed: 'preview', driver }
+      } catch (err) {
+        // The releases are still asked: a test build that cannot be read is not a reason to miss one.
+        this.deps.log('the check for a test build failed', err)
+      }
+    }
+    const driver = await this.load('stable')
+    const found = await driver.check()
+    return found ? { version: found.version, feed: 'stable', driver } : null
+  }
+
   private async fetch(): Promise<void> {
     try {
-      const driver = await this.load()
+      const driver = this.driver ?? (await this.load('stable'))
       await driver.download((percent) => {
         const rounded = Math.max(0, Math.min(100, Math.floor(percent)))
         if (this.state.phase === 'downloading' && rounded !== this.state.percent) this.update({ percent: rounded })
@@ -186,15 +220,16 @@ export class UpdatesService {
     }
   }
 
-  private load(): Promise<UpdaterDriver> {
-    this.loading ??= this.deps.loadDriver().then(
-      (driver) => (this.driver = driver),
-      (err: unknown) => {
-        this.loading = null
+  private load(feed: Feed): Promise<UpdaterDriver> {
+    let loading = this.loading.get(feed)
+    if (!loading) {
+      loading = this.deps.loadDriver(feed).catch((err: unknown) => {
+        this.loading.delete(feed)
         throw err
-      }
-    )
-    return this.loading
+      })
+      this.loading.set(feed, loading)
+    }
+    return loading
   }
 
   private update(patch: Partial<UpdateStatus>): void {

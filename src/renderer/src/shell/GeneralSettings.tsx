@@ -9,6 +9,7 @@ import { setSettingsOpen, setTheme, setWordCount, useUi } from '@/store/ui'
 import { Button } from '@/ui/Button'
 import { UpdatesGroup } from '@/updates/UpdatesSettings'
 import { importMarkdown } from './actions'
+import { Advanced } from '@/ui/Advanced'
 
 const THEMES: { value: Theme; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -58,52 +59,6 @@ export function GeneralSection() {
         </div>
       </section>
 
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Pages</h3>
-        </div>
-        <div className="ap-list">
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Word count</span>
-              <span className="ap-row-help">Words and reading time of the page, in the top bar.</span>
-            </div>
-            <div className="ap-row-control">
-              <Segmented
-                label="Word count"
-                value={wordCount ? 'on' : 'off'}
-                options={ON_OFF}
-                onChange={(value) => setWordCount(value === 'on')}
-              />
-            </div>
-          </div>
-          <HomeSettingsRows />
-        </div>
-      </section>
-
-      <section className="ap-group">
-        <div className="ap-group-head">
-          <h3 className="ap-group-title">Data</h3>
-        </div>
-        <div className="ap-list">
-          <DataSettingsRows />
-          <ActivitySettingsRows />
-          <div className="ap-row">
-            <div className="ap-row-text">
-              <span className="ap-row-label">Import Markdown</span>
-              <span className={importState === 'failed' ? 'ap-row-help is-error' : 'ap-row-help'}>
-                {importState === 'failed' ? 'The file could not be imported.' : 'Create a new page from a .md file.'}
-              </span>
-            </div>
-            <div className="ap-row-control">
-              <Button disabled={importState === 'busy'} onClick={runImport}>
-                {importState === 'busy' ? 'Importing…' : 'Choose file…'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <UpdatesGroup />
 
       <section className="ap-group">
@@ -121,6 +76,54 @@ export function GeneralSection() {
           </div>
         </div>
       </section>
+
+      <Advanced>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Pages</h3>
+          </div>
+          <div className="ap-list">
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Word count</span>
+                <span className="ap-row-help">Words and reading time of the page, in the top bar.</span>
+              </div>
+              <div className="ap-row-control">
+                <Segmented
+                  label="Word count"
+                  value={wordCount ? 'on' : 'off'}
+                  options={ON_OFF}
+                  onChange={(value) => setWordCount(value === 'on')}
+                />
+              </div>
+            </div>
+            <HomeSettingsRows />
+          </div>
+        </section>
+
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Data</h3>
+          </div>
+          <div className="ap-list">
+            <DataSettingsRows />
+            <ActivitySettingsRows />
+            <div className="ap-row">
+              <div className="ap-row-text">
+                <span className="ap-row-label">Import Markdown</span>
+                <span className={importState === 'failed' ? 'ap-row-help is-error' : 'ap-row-help'}>
+                  {importState === 'failed' ? 'The file could not be imported.' : 'Create a new page from a .md file.'}
+                </span>
+              </div>
+              <div className="ap-row-control">
+                <Button disabled={importState === 'busy'} onClick={runImport}>
+                  {importState === 'busy' ? 'Importing…' : 'Choose file…'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Advanced>
     </div>
   )
 }

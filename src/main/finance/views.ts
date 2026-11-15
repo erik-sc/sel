@@ -46,6 +46,7 @@ export function entryView(entry: Entry, household?: Household): EntryView {
     account: entry.account,
     to: entry.to,
     instalment: entry.instalment,
+    invoice: entry.invoice,
     planned: !entry.paid,
     paidByMe: isMe(entry.paidBy),
     paidBy: entry.paidBy,
@@ -98,7 +99,10 @@ export function financeMonthView(repo: Repository, month: string, today: string)
         due: each.due,
         paid: each.paid,
         total: reais(each.cents),
-        entries: each.entries.slice(0, 100).map((entry) => entryView(entry)),
+        entries: [...each.entries]
+          .sort(newest)
+          .slice(0, 300)
+          .map((entry) => entryView(entry)),
         next: { invoice: upcoming.month, total: reais(upcoming.cents) }
       }
     }),
@@ -136,10 +140,11 @@ export function financeMonthView(repo: Repository, month: string, today: string)
     entries: books.entries
       .filter((entry) => monthOf(entry.date) === month)
       .sort(newest)
-      .slice(0, 200)
+      .slice(0, 1000)
       .map((entry) => entryView(entry)),
     categories: exists ? optionNames(repo, LEDGER.category) : [],
     accountNames: books.accounts.map((account) => account.name),
+    cardNames: books.accounts.filter((account) => account.type === 'card').map((account) => account.name),
     boxNames: books.boxes.map((box) => box.name)
   }
 }

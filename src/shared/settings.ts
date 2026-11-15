@@ -21,6 +21,7 @@ import { SIDEBAR_SETTINGS } from './sidebar'
 import { SKY_SETTINGS } from './sky'
 import { ROUTINES_SETTINGS } from './routines'
 import { REFINE_SETTINGS } from './tasks/refine'
+import { cleanTasksFeedSetting, TASKS_FEED_KEY } from './tasks/ics'
 import { UPDATES_SETTINGS } from './updates'
 import { HISTORY_SETTINGS } from './versions'
 
@@ -50,6 +51,9 @@ export const CORE_SETTINGS: SettingsSpec = {
   syncedAt: { appearance: 'sync.appearanceAt' }
 }
 
+/** The tasks' calendar for other calendars: on or off, and the secret its address ends with (./tasks/ics.ts). */
+export const TASKS_FEED_SETTINGS: SettingsSpec = { keys: [TASKS_FEED_KEY], clean: cleanTasksFeedSetting }
+
 /** Every writable setting. A feature adds its spec here, one line. */
 export const SETTINGS: readonly SettingsSpec[] = [
   CORE_SETTINGS,
@@ -68,7 +72,8 @@ export const SETTINGS: readonly SettingsSpec[] = [
   SKY_SETTINGS,
   REFINE_SETTINGS,
   ACTIVITY_SETTINGS,
-  ROUTINES_SETTINGS
+  ROUTINES_SETTINGS,
+  TASKS_FEED_SETTINGS
 ]
 
 /** The spec a key is written under: one that names it exactly, else one that owns its namespace; null when none does. */

@@ -71,3 +71,18 @@ describe('lastCheckTime', () => {
     expect(lastCheckTime(null, START)).toBeNull()
   })
 })
+
+describe('with test builds on', () => {
+  it('checks without the daily check, a minute after start and every half hour', () => {
+    const base = input({ enabled: false, preview: true, lastCheck: null })
+    expect(nextCheck({ ...base, now: base.startedAt })).toEqual({ kind: 'wait', ms: UPDATE_TIMING.previewStartDelayMs })
+    expect(nextCheck({ ...base, now: base.startedAt + UPDATE_TIMING.previewStartDelayMs })).toEqual({ kind: 'now' })
+    const now = base.startedAt + 2 * 60 * 60_000
+    expect(nextCheck({ ...base, now, lastCheck: now - 10 * 60_000 })).toEqual({ kind: 'wait', ms: 20 * 60_000 })
+    expect(nextCheck({ ...base, now, lastCheck: now - UPDATE_TIMING.previewIntervalMs })).toEqual({ kind: 'now' })
+    expect(nextCheck({ ...base, now, recording: true })).toEqual({ kind: 'wait', ms: UPDATE_TIMING.recordingRetryMs })
+    expect(nextCheck({ ...base, now, supported: false })).toEqual({ kind: 'off' })
+    // Anything but true is off.
+    expect(nextCheck({ ...base, now, preview: 'yes' })).toEqual({ kind: 'off' })
+  })
+})

@@ -23,6 +23,8 @@ export interface EntryView {
   account: string | null
   to: string | null
   instalment: string | null
+  /** A card purchase: the month its invoice is due, `YYYY-MM`. */
+  invoice: string | null
   planned: boolean
   /** True when the user paid it. */
   paidByMe: boolean
@@ -87,6 +89,8 @@ export interface FinanceMonthView {
   /** Names to offer when something is entered. */
   categories: string[]
   accountNames: string[]
+  /** The accounts that are cards, among `accountNames`. */
+  cardNames: string[]
   boxNames: string[]
 }
 

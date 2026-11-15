@@ -64,12 +64,24 @@ export const UPDATES_CHECK_KEY = 'updates.check'
 /** When GitHub was last asked. Written by the main process only. */
 export const UPDATES_LAST_CHECK_KEY = 'updates.lastCheck'
 
+/**
+ * Whether this computer installs test builds: the build of the release being prepared, made at
+ * every push to its `release/*` branch (.github/workflows/preview.yml), before its pull request
+ * is merged. On, sel looks for one every half hour and downloads it by itself; it is installed
+ * at the next restart. Off unless the user turns it on, on each computer by itself.
+ */
+export const UPDATES_PREVIEW_KEY = 'updates.preview'
+/** The release the test builds are attached to: a pre-release, so it is never "the latest". */
+export const PREVIEW_TAG = 'preview'
+/** Where a test build and its `latest.yml` are read from. */
+export const PREVIEW_FEED_URL = `https://github.com/erik-sc/sel/releases/download/${PREVIEW_TAG}/`
+
 /** The keys a renderer may write. `updates.lastCheck` belongs to the main process. */
-export const UPDATES_KEYS = [UPDATES_CHECK_KEY] as const
+export const UPDATES_KEYS = [UPDATES_CHECK_KEY, UPDATES_PREVIEW_KEY] as const
 
 /** The value an updates setting accepts from a renderer, or undefined when it does not. */
 export function cleanUpdatesSetting(key: string, value: unknown): unknown {
-  return key === UPDATES_CHECK_KEY && typeof value === 'boolean' ? value : undefined
+  return (key === UPDATES_CHECK_KEY || key === UPDATES_PREVIEW_KEY) && typeof value === 'boolean' ? value : undefined
 }
 
 // ---- versions -----------------------------------------------------------------
@@ -81,10 +93,16 @@ export function cleanVersion(value: unknown): string | null {
   return typeof value === 'string' && VERSION_RE.test(value) ? value : null
 }
 
-/** The release page of a version; releases are tagged `v<version>`. */
+/** True for a test build's version: `0.15.0-rc.7`. */
+export function isPreviewVersion(version: string): boolean {
+  return /-rc\.\d+$/u.test(version)
+}
+
+/** The release page of a version; releases are tagged `v<version>`, and the test builds share one page. */
 export function releaseNotesUrl(version: string): string | null {
   const clean = cleanVersion(version)
-  return clean ? `${RELEASES_URL}/tag/v${clean}` : null
+  if (!clean) return null
+  return `${RELEASES_URL}/tag/${isPreviewVersion(clean) ? PREVIEW_TAG : `v${clean}`}`
 }
 
 export function emptyUpdateStatus(current: string, supported: boolean): UpdateStatus {

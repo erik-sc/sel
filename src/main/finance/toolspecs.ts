@@ -93,6 +93,16 @@ const READ: readonly ToolSpec[] = [
       },
       additionalProperties: false
     }
+  },
+  {
+    name: 'finance_review',
+    description:
+      'Looks over the ledger for what a bank or card statement brought in whole gets mixed up, with the ids and what to do about each: invoice payments entered as expenses (counted twice), payments entered on the card, entries with no account or on one that is not registered, entries entered twice, expenses with no category. Use it after bringing a statement in, and when the month does not add up.',
+    inputSchema: {
+      type: 'object',
+      properties: { month: { type: 'string', description: '"YYYY-MM". Left out, or "all": every month.' } },
+      additionalProperties: false
+    }
   }
 ]
 
@@ -155,14 +165,21 @@ const WRITE: readonly ToolSpec[] = [
   },
   {
     name: 'finance_update',
-    description: 'Changes an entry of the ledger: only what is given. null clears category, account, group or the split.',
+    description:
+      'Changes an entry of the ledger: only what is given. null clears category, account, group or the split. "kind" turns it into something else: a card invoice payment that a bank statement brought in as an expense becomes a transfer with "kind": "transfer" and "to": the card, so that it is not counted twice.',
     inputSchema: {
       type: 'object',
       properties: {
         id: ID,
         description: ENTRY.description,
         amount: AMOUNT,
+        kind: { type: 'string', enum: ['expense', 'income', 'transfer'] },
         date: DATE,
+        invoice: {
+          type: ['string', 'null'],
+          description:
+            'A card purchase: the invoice it falls on, "YYYY-MM" (the month it is due), when the date does not give the right one. A transfer to a card: the invoice it pays. null: the one the date gives.'
+        },
         category: { type: ['string', 'null'] },
         account: { type: ['string', 'null'] },
         to: { type: ['string', 'null'] },
@@ -263,13 +280,18 @@ const WRITE: readonly ToolSpec[] = [
   {
     name: 'finance_account',
     description:
-      'Adds or changes an account or a card, by name. "balance" says what it holds now (from the bank\'s app): entries made from then on move it. A card takes the days its invoice closes and is due.',
+      'Adds or changes an account or a card, by name. "balance" says what it holds now (from the bank\'s app): what happens from then on moves it, and entries dated before are taken to be in it already (a statement of past months moves nothing). A card takes the days its invoice closes and is due.',
     inputSchema: {
       type: 'object',
       properties: {
         name: { type: 'string' },
         type: { type: 'string', enum: ['checking', 'card', 'cash'] },
         balance: AMOUNT,
+        as_of: {
+          type: 'string',
+          description:
+            'With "balance": the day that balance is of, "YYYY-MM-DD" (what it held at the end of that day). Left out: now. Use it to bring a statement in from its starting balance.'
+        },
         closing_day: { type: 'integer', minimum: 1, maximum: 31 },
         due_day: { type: 'integer', minimum: 1, maximum: 31 }
       },
@@ -280,12 +302,17 @@ const WRITE: readonly ToolSpec[] = [
   {
     name: 'finance_box',
     description:
-      'Adds or changes a box of money set aside ("caixinha"), by name. "balance" says what it holds now; transfers made from then on move it.',
+      'Adds or changes a box of money set aside ("caixinha"), by name. "balance" says what it holds now; transfers from then on move it.',
     inputSchema: {
       type: 'object',
       properties: {
         name: { type: 'string' },
         balance: AMOUNT,
+        as_of: {
+          type: 'string',
+          description:
+            'With "balance": the day that balance is of, "YYYY-MM-DD" (what it held at the end of that day). Left out: now. Use it to bring a statement in from its starting balance.'
+        },
         goal: AMOUNT,
         purpose: { type: 'string', description: 'What it is for.' },
         yield: { type: 'number', description: 'What it yields, in percent a month (0.9).' }

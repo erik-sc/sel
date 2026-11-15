@@ -10,13 +10,18 @@ import {
   debts,
   type Entry,
   forecast,
+  invoice,
   invoiceOf,
   mine,
   monthPicture,
   owedToMe,
   parts,
-  projection
+  projection,
+  withInvoices
 } from './calc'
+
+/** When the checking account's balance was told: the morning of 10 November 2026. */
+const TOLD = new Date(2026, 10, 10, 9).getTime()
 
 let n = 0
 const entry = (over: Partial<Entry>): Entry => ({
@@ -37,12 +42,12 @@ const entry = (over: Partial<Entry>): Entry => ({
   series: null,
   recurring: null,
   ref: null,
-  createdAt: 100,
+  createdAt: TOLD + 1000,
   ...over
 })
 
 const card: Account = { id: 'c', name: 'Nubank', type: 'card', cents: 0, asOf: 0, closingDay: 26, dueDay: 3 }
-const checking: Account = { id: 'a', name: 'Conta', type: 'checking', cents: 500_000, asOf: 50, closingDay: null, dueDay: null }
+const checking: Account = { id: 'a', name: 'Conta', type: 'checking', cents: 500_000, asOf: TOLD, closingDay: null, dueDay: null }
 const books = (over: Partial<Books> = {}): Books => ({ entries: [], recurring: [], budget: [], accounts: [], boxes: [], ...over })
 
 describe('months and days', () => {
@@ -79,14 +84,15 @@ describe('the invoice a card purchase falls on', () => {
 })
 
 describe('balances', () => {
-  it('moves an account by what was entered since its balance was told', () => {
+  it('moves an account by what happened since its balance was told', () => {
     const entries = [
-      entry({ cents: 10_000, account: 'Conta', createdAt: 10 }), // before: already in the balance told
-      entry({ cents: 20_000, account: 'conta', createdAt: 60 }),
-      entry({ kind: 'income', cents: 100_000, account: 'Conta', createdAt: 70 }),
-      entry({ kind: 'transfer', cents: 30_000, account: 'Conta', to: 'Reserva', createdAt: 80 }),
-      entry({ cents: 5_000, account: 'Conta', paid: false, createdAt: 90 }), // planned
-      entry({ cents: 7_000, account: 'Conta', paidBy: 'Ana', shares: { Eu: 3500, Ana: 3500 }, createdAt: 95 }) // Ana paid
+      entry({ cents: 10_000, account: 'Conta', createdAt: TOLD - 1 }), // entered before: already in the balance told
+      entry({ cents: 15_000, account: 'Conta', date: '2026-10-28' }), // a statement brought in later: already in it too
+      entry({ cents: 20_000, account: 'conta' }),
+      entry({ kind: 'income', cents: 100_000, account: 'Conta', date: '2026-11-12' }),
+      entry({ kind: 'transfer', cents: 30_000, account: 'Conta', to: 'Reserva' }),
+      entry({ cents: 5_000, account: 'Conta', paid: false }), // planned
+      entry({ cents: 7_000, account: 'Conta', paidBy: 'Ana', shares: { Eu: 3500, Ana: 3500 } }) // Ana paid
     ]
     expect(balanceOf(checking, entries)).toBe(500_000 - 20_000 + 100_000 - 30_000)
     expect(balanceOf({ id: 'b', name: 'Reserva', cents: 0, asOf: 0 }, entries)).toBe(30_000)
@@ -94,8 +100,8 @@ describe('balances', () => {
 
   it('counts a settlement into the account it came to, and out of the one that paid', () => {
     const entries = [
-      entry({ kind: 'settlement', cents: 4_000, paidBy: 'Ana', to: 'Eu', account: 'Conta', createdAt: 60 }),
-      entry({ kind: 'settlement', cents: 1_000, paidBy: 'Eu', to: 'Bia', account: 'Conta', createdAt: 61 })
+      entry({ kind: 'settlement', cents: 4_000, paidBy: 'Ana', to: 'Eu', account: 'Conta' }),
+      entry({ kind: 'settlement', cents: 1_000, paidBy: 'Eu', to: 'Bia', account: 'Conta' })
     ]
     expect(balanceOf(checking, entries)).toBe(500_000 + 4_000 - 1_000)
   })
@@ -263,5 +269,51 @@ describe('the month', () => {
     ])
     // By default: what the forecast leaves free.
     expect(projection(all, '2026-12', 1)[0].saved).toBe(420_000)
+  })
+})
+
+describe('a statement brought in whole', () => {
+  it('finds the invoice of a card purchase that was stored without one', () => {
+    const entries = withInvoices(
+      [
+        entry({ account: 'Nubank', date: '2026-10-20' }),
+        entry({ account: 'Nubank', date: '2026-10-28' }),
+        entry({ account: 'Nubank', date: '2026-10-20', invoice: '2027-01' }), // said: kept
+        entry({ account: 'Conta', date: '2026-10-20' }),
+        entry({ account: 'Nubank', paidBy: 'Ana', shares: { Eu: 500, Ana: 500 } }) // on Ana's card, not mine
+      ],
+      [checking, card]
+    )
+    expect(entries.map((each) => each.invoice)).toEqual(['2026-11', '2026-12', '2027-01', null, null])
+  })
+
+  it('takes what the card gave back from its invoice and from the budget, not as income', () => {
+    const all = books({
+      accounts: [checking, card],
+      entries: withInvoices(
+        [
+          entry({ account: 'Nubank', cents: 30_000, category: 'Roupas', date: '2026-11-05' }),
+          entry({ kind: 'income', account: 'Nubank', cents: 10_000, category: 'Roupas', date: '2026-11-08' }),
+          entry({ kind: 'income', account: 'Conta', cents: 5_000, date: '2026-11-08' })
+        ],
+        [checking, card]
+      )
+    })
+    expect(invoice(all, card, '2026-12').cents).toBe(20_000)
+    const p = monthPicture(all, '2026-11', '2026-11-10')
+    expect(p.otherIncome).toBe(5_000)
+    expect(p.budget.lines).toMatchObject([{ category: 'Roupas', spent: 20_000 }])
+  })
+
+  it('takes a transfer to the card as paying the invoice of its month when it names none', () => {
+    const all = books({
+      accounts: [checking, card],
+      entries: [
+        entry({ account: 'Nubank', cents: 30_000, invoice: '2026-11' }),
+        entry({ kind: 'transfer', account: 'Conta', to: 'Nubank', cents: 30_000, date: '2026-11-03' })
+      ]
+    })
+    expect(invoice(all, card, '2026-11').paid).toBe(true)
+    expect(invoice(all, card, '2026-12').paid).toBe(false)
   })
 })

@@ -11,6 +11,8 @@ export interface SidebarCopy {
   items: Record<SidebarItemId, string>
   /** Read after Tasks while its quiet mark shows: tasks are waiting to be refined. */
   toRefine: string
+  /** The MCP light at the foot: whether Claude reaches sel. */
+  mcp: Record<'on' | 'local' | 'starting' | 'problem' | 'off', string> & { open: string }
   /** The heading over the page tree. */
   privatePages: string
   addPage: string
@@ -62,6 +64,14 @@ export const SIDEBAR_COPY: Record<SidebarLocale, SidebarCopy> = {
       sync: 'Sync'
     },
     toRefine: 'tasks to refine',
+    mcp: {
+      on: 'MCP on',
+      local: 'MCP on, this computer only',
+      starting: 'MCP starting…',
+      problem: 'MCP needs attention',
+      off: 'MCP off',
+      open: 'Open the MCP settings'
+    },
     privatePages: 'Private',
     addPage: 'Add a page',
     closeSidebar: 'Close sidebar',
@@ -107,6 +117,14 @@ export const SIDEBAR_COPY: Record<SidebarLocale, SidebarCopy> = {
       sync: 'Sincronização'
     },
     toRefine: 'tarefas a refinar',
+    mcp: {
+      on: 'MCP ligado',
+      local: 'MCP ligado, só neste computador',
+      starting: 'MCP iniciando…',
+      problem: 'MCP precisa de atenção',
+      off: 'MCP desligado',
+      open: 'Abrir as configurações do MCP'
+    },
     privatePages: 'Privadas',
     addPage: 'Adicionar uma página',
     closeSidebar: 'Fechar a barra lateral',

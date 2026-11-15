@@ -1,3 +1,4 @@
+import { feedTokenOf } from '../../shared/tasks/ics'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { Socket } from 'node:net'
 import { REMOTE_SCOPES, type McpCall, type RemoteConfig, type RemoteGrant, type RemoteScope } from '../../shared/mcp'
@@ -37,6 +38,11 @@ export interface RemoteServerOptions {
   /** After every tool call: what it changed goes to the windows and to sync. */
   changed(): void
   fetch: Fetch
+  /**
+   * The tasks' calendar for the secret in its address, or null when there is none for it. Not
+   * behind the sign-in: a calendar cannot sign in, so the address itself is the key (tasks/feed.ts).
+   */
+  calendar?(token: string): string | null
   now?: () => number
   /** Calls answered in any minute; the OAuth endpoints get a quarter of it. */
   perMinute?: number
@@ -306,6 +312,17 @@ export class RemoteServer {
       if (method === 'GET' && path === '/.well-known/oauth-authorization-server') return this.json(res, 200, this.serverMetadata())
       if (method === 'GET' && path === '/')
         return this.html(res, 200, errorPage('sel', 'This is the sel connector. Add its /mcp address to Claude.'))
+      const calendar = method === 'GET' || method === 'HEAD' ? feedTokenOf(path) : null
+      if (calendar !== null) {
+        // Guessing an address is slowed like guessing a sign-in; a wrong one looks like any page that is not there.
+        if (this.limited('auth')) return this.json(res, 429, { error: 'slow_down', error_description: 'Too many requests.' })
+        const body = this.options.calendar?.(calendar) ?? null
+        if (body === null) return this.json(res, 404, { error: 'not_found' })
+        return this.send(res, 200, method === 'HEAD' ? '' : body, {
+          'Content-Type': 'text/calendar; charset=utf-8',
+          'Content-Disposition': 'inline; filename="sel.ics"'
+        })
+      }
       const route = `${method} ${path}`
       const routes = ['POST /register', 'GET /authorize', 'GET /oauth/device', 'POST /oauth/consent', 'POST /token', 'POST /revoke']
       if (!routes.includes(route)) return this.json(res, 404, { error: 'not_found' })

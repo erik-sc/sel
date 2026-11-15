@@ -77,3 +77,16 @@ describe('tree refresh on change events', () => {
     expect(await reloads(['row'], 'another-window')).toBe(true)
   })
 })
+
+describe('what the root of the sidebar leaves out', () => {
+  it('keeps the built-in blocks and the Finance block’s page out of the tree', async () => {
+    const { FINANCE_PAGE_ID } = await import('../../../shared/finance')
+    api.pages.listRoot.mockResolvedValueOnce([
+      block('notes', 'page', null),
+      { ...block('tasks', 'database', null), props: { system: 'tasks' } },
+      block(FINANCE_PAGE_ID, 'page', null)
+    ])
+    await tree.loadTreeChildren(tree.ROOT)
+    expect(tree.useTree.getState().children[tree.ROOT]).toEqual(['notes'])
+  })
+})

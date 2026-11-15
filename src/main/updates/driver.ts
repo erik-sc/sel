@@ -30,19 +30,27 @@ const logger: Logger = {
 const NOTHING_TO_UPDATE_TO: ReadonlySet<string> = new Set(['ERR_UPDATER_NO_PUBLISHED_VERSIONS', 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND'])
 
 /**
- * `devFeed`: development only, a feed on this computer (`SEL_UPDATE_FEED`, see register.ts).
- * It is written as the dev update config, which electron-updater reads instead of the packaged one.
+ * `feed`: an address to read instead of the project's releases, as a plain folder with a
+ * `latest.yml` in it. In development, a feed on this computer (`SEL_UPDATE_FEED`, see
+ * register.ts); in the installed app, the test builds (`PREVIEW_FEED_URL`). It is written as an
+ * update config of its own (`name`), which electron-updater reads instead of the packaged one.
  */
-export function createDriver(devFeed?: string): UpdaterDriver {
+export function createDriver(feed?: { url: string; name: string }): UpdaterDriver {
   const updater = new NsisUpdater()
   updater.logger = logger
   updater.autoDownload = false
   updater.autoInstallOnAppQuit = false
   updater.allowDowngrade = false
+  // A test build has a pre-release version, which would make electron-updater look among the
+  // pre-releases by itself: the releases are asked for releases only.
+  updater.allowPrerelease = false
   updater.disableWebInstaller = true
-  if (devFeed) {
-    const config = join(app.getPath('userData'), 'dev-app-update.yml')
-    writeFileSync(config, `provider: generic\nurl: ${JSON.stringify(devFeed)}\nupdaterCacheDirName: sel-updater-dev\n`)
+  if (feed) {
+    const config = join(app.getPath('userData'), `${feed.name}-app-update.yml`)
+    writeFileSync(
+      config,
+      `provider: generic\nurl: ${JSON.stringify(feed.url)}\nchannel: latest\nupdaterCacheDirName: sel-updater-${feed.name}\n`
+    )
     updater.updateConfigPath = config
     updater.forceDevUpdateConfig = true
   }

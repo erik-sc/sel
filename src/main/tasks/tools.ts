@@ -3,7 +3,7 @@ import { AI_PRIVATE_MESSAGE, isPrivateForAi, privacyChecker, privateProjects } f
 import { TASK_PRIORITIES, TASK_PROPS, TASKS_DATABASE_ID } from '../../shared/tasks'
 import { fold } from '../../shared/tasks/dates'
 import { parseTask } from '../../shared/tasks/parse'
-import { completeTaskValues, readRecurrence } from '../../shared/tasks/recur'
+import { completeTaskValues, readRecurrence, skipTaskValues } from '../../shared/tasks/recur'
 import type { Block, Op, PropertySchema, PropertyValue, SelectOption } from '../../shared/types'
 import { ToolError } from '../ai/tools'
 import { ensureTasksDatabase } from '../db/tasks'
@@ -272,6 +272,17 @@ export function completeTask(repo: Repository, raw: unknown, now: Date): string 
     : `Done: ${titleOf(row)} [${row.id}].`
 }
 
+export function skipTask(repo: Repository, raw: unknown, now: Date): string {
+  const row = taskRow(repo, args(raw)['id'])
+  const result = skipTaskValues(row.props.values as Record<string, PropertyValue> | undefined, now)
+  if (!result)
+    throw new ToolError(
+      `${titleOf(row)} [${row.id}] has no next time to skip to: it is done, does not repeat, or this is its last time. Use reschedule_task or complete_task.`
+    )
+  repo.apply([{ op: 'update', id: row.id, patch: { props: { values: result.values } } }])
+  return `Skipped, not completed: ${titleOf(row)} [${row.id}] is next on ${result.next.replace('T', ' ')}.`
+}
+
 const STORED_DATE = /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?$/u
 
 export function rescheduleTask(repo: Repository, raw: unknown, now: Date): string {
@@ -393,6 +404,8 @@ export function callTaskTool(repo: Repository, name: string, raw: unknown, now: 
       return addTask(repo, raw, now)
     case 'complete_task':
       return completeTask(repo, raw, now)
+    case 'skip_task':
+      return skipTask(repo, raw, now)
     case 'reschedule_task':
       return rescheduleTask(repo, raw, now)
     case 'update_task':

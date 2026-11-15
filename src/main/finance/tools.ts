@@ -10,6 +10,7 @@ import {
   forecast,
   invoice,
   invoiceOf,
+  isCard,
   isMe,
   key,
   type Kind,
@@ -452,18 +453,53 @@ function update({ repo }: FinanceTarget, a: Args, now: Date): string {
   if (typeof a['planned'] === 'boolean') set(LEDGER.status, a['planned'] ? 'fin.status.planned' : 'fin.status.paid', 'planned')
   const paidBy = a['paid_by'] === undefined ? before.paidBy : person(text(a['paid_by'], 'paid_by'))
   if (a['paid_by'] !== undefined) set(LEDGER.paidBy, options.id('ledger', LEDGER.paidBy, paidBy), 'paid_by')
-  const shares = before.kind === 'expense' ? sharesFrom(a, cents, paidBy) : undefined
+  const asked = a['kind']
+  if (asked !== undefined && asked !== 'expense' && asked !== 'income' && asked !== 'transfer')
+    throw new ToolError('kind is expense, income or transfer.')
+  const kind: Kind = asked ?? before.kind
+  if (kind !== before.kind && before.kind === 'settlement')
+    throw new ToolError('A settlement stays one: delete it and add what it should have been.')
+  if (kind !== before.kind && before.series) throw new ToolError('An instalment stays an expense.')
+  const shares = kind === 'expense' ? sharesFrom(a, cents, paidBy) : undefined
   if (shares !== undefined) set(LEDGER.split, shares ? JSON.stringify(shares) : null, 'split')
   else if (before.shares && cents !== before.cents) {
     // The amount changed and the split was not given again: every part keeps its proportion.
     set(LEDGER.split, JSON.stringify(proportional(cents, Object.entries(before.shares))), 'split (same proportions)')
   }
-  // A card purchase that changed day or card falls on the invoice of what it is now; instalments keep theirs.
-  if ((a['date'] !== undefined || Object.hasOwn(a, 'account')) && before.kind === 'expense' && !before.series) {
-    const account = Object.hasOwn(a, 'account') ? clearable(a, 'account') : before.account
-    const card = isMe(paidBy) ? cardNamed(readBooks(repo), account) : null
-    if (card) values[LEDGER.invoice] = invoiceOf(day, card)
-    else delete values[LEDGER.invoice]
+  const account = Object.hasOwn(a, 'account') ? clearable(a, 'account') : before.account
+  const goesTo = to === undefined ? before.to : to
+  if (kind === 'transfer' && (!account || !goesTo))
+    throw new ToolError('A transfer needs where it left from ("account") and where it went ("to").')
+  if (kind !== before.kind) {
+    set(LEDGER.kind, KIND_ID[kind], 'kind')
+    // What only an expense has does not stay on what is no longer one.
+    if (kind !== 'expense' && before.shares) set(LEDGER.split, null, 'split')
+    if (kind !== 'transfer' && before.to && to === undefined) set(LEDGER.to, null, 'to')
+  }
+  const books = readBooks(repo)
+  const which = a['invoice']
+  if (which !== undefined && which !== null && (typeof which !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/u.test(which)))
+    throw new ToolError('invoice is a month, "YYYY-MM", or null for the one the date gives.')
+  if (kind === 'transfer') {
+    // A transfer to a card pays an invoice: the one said, or the one of the month it was made in.
+    delete values[LEDGER.invoice]
+    if (typeof which === 'string') {
+      if (!cardNamed(books, goesTo)) throw new ToolError('invoice says which invoice a transfer to a card pays: "to" is not a card.')
+      set(LEDGER.ref, which, 'invoice')
+    } else if (which === null) set(LEDGER.ref, null, 'invoice')
+  } else if (kind === 'expense' || kind === 'income') {
+    const card = isMe(paidBy) ? cardNamed(books, account) : null
+    if (typeof which === 'string') {
+      if (!card) throw new ToolError('invoice says which invoice a card purchase falls on: "account" is not a card.')
+      set(LEDGER.invoice, which, 'invoice')
+    } else if (which === null || a['date'] !== undefined || Object.hasOwn(a, 'account') || kind !== before.kind) {
+      // A card purchase that changed day or card falls on the invoice of what it is now; instalments keep theirs.
+      if (!before.series || which === null) {
+        if (card) values[LEDGER.invoice] = invoiceOf(day, card)
+        else delete values[LEDGER.invoice]
+        if (which === null) changed.push('invoice')
+      }
+    }
   }
   if (!changed.length && title === undefined) throw new ToolError('Say what to change.')
   repo.apply([...options.ops(), { op: 'update', id: row.id, patch: { props: { ...(title ? { title: [[title]] } : {}), values } } }])
@@ -540,12 +576,28 @@ export function upsert(
   return { row: repo.get(id) as Block, created: !existing }
 }
 
-/** Says what a holder has now and since when: the row's own stamp, so it is on the clock the entries are on. */
-function stampBalance(repo: Repository, row: Block, asOf: string): void {
+/**
+ * Says what a holder has and since when. Left alone, since now: the row's own stamp, so it is on
+ * the clock the entries are on. With a day, what it held at the end of that day: the first
+ * moment of the day after, so that everything dated later moves it (a statement brought in from
+ * a starting balance).
+ */
+function stampBalance(repo: Repository, row: Block, asOf: string, day?: string): void {
   const stored = repo.get(row.id) as Block
+  const [y, m, d] = (day ?? '').split('-').map(Number)
+  const stamp = day ? new Date(y, m - 1, d + 1).getTime() : stored.updatedAt
   repo.update(row.id, {
-    props: { values: { ...((stored.props.values ?? {}) as Record<string, PropertyValue>), [asOf]: stored.updatedAt } }
+    props: { values: { ...((stored.props.values ?? {}) as Record<string, PropertyValue>), [asOf]: stamp } }
   })
+}
+
+/** The day a balance is of, when the call says one. */
+function balanceDay(a: Args, now: Date): string | undefined {
+  if (a['as_of'] === undefined || a['as_of'] === null) return undefined
+  if (a['balance'] === undefined) throw new ToolError('as_of says the day a balance is of: give "balance" with it.')
+  const day = date(a['as_of'], now)
+  if (day > localDay(now)) throw new ToolError('as_of is today or a day before.')
+  return day
 }
 
 function recurring({ repo }: FinanceTarget, a: Args): string {
@@ -651,7 +703,7 @@ function setBudget({ repo }: FinanceTarget, a: Args): string {
 
 const TYPE_ID = { checking: 'fin.account.checking', card: 'fin.account.card', cash: 'fin.account.cash' } as const
 
-function setAccount({ repo }: FinanceTarget, a: Args): string {
+function setAccount({ repo }: FinanceTarget, a: Args, now: Date): string {
   const name = text(a['name'], 'the name', true)
   const options = new Options(repo)
   const existing = rowNamed(repo, 'accounts', name)
@@ -673,16 +725,17 @@ function setAccount({ repo }: FinanceTarget, a: Args): string {
       throw new ToolError(`${key_} is a day of the month, 1 to 31.`)
     values[id] = day
   }
+  const asOf = balanceDay(a, now)
   // Entries name the account by the same word.
   options.id('ledger', LEDGER.account, name)
   const { row, created } = upsert(repo, 'accounts', name, values, options)
-  if (balance !== undefined) stampBalance(repo, row, ACCOUNTS.asOf)
+  if (balance !== undefined) stampBalance(repo, row, ACCOUNTS.asOf, asOf)
   const account = readBooks(repo).accounts.find((each) => each.id === row.id)
   const days = account?.type === 'card' ? ` · closes on day ${account.closingDay ?? '?'}, due on day ${account.dueDay ?? '?'}` : ''
   return `${created ? 'Added' : 'Updated'}: ${titleOf(row)} [${row.id}] · ${account?.type ?? 'checking'}${account && account.type !== 'card' ? ` · ${brl(account.cents)}` : ''}${days}.`
 }
 
-function setBox({ repo }: FinanceTarget, a: Args): string {
+function setBox({ repo }: FinanceTarget, a: Args, now: Date): string {
   const name = text(a['name'], 'the name', true)
   const options = new Options(repo)
   const values: Record<string, PropertyValue | null> = {}
@@ -697,8 +750,9 @@ function setBox({ repo }: FinanceTarget, a: Args): string {
       throw new ToolError('yield is a percentage a month, such as 0.9.')
     values[BOXES.yield] = rate
   }
+  const asOf = balanceDay(a, now)
   const { row, created } = upsert(repo, 'boxes', name, values, options)
-  if (balance !== undefined) stampBalance(repo, row, BOXES.asOf)
+  if (balance !== undefined) stampBalance(repo, row, BOXES.asOf, asOf)
   const box = readBooks(repo).boxes.find((each) => each.id === row.id)
   return `${created ? 'Added' : 'Updated'}: ${titleOf(row)} [${row.id}] · ${brl(box?.cents ?? 0)}${box?.goal ? ` of ${brl(box.goal)}` : ''}${box?.purpose ? ` · for ${box.purpose}` : ''}.`
 }
@@ -860,7 +914,81 @@ function project(repo: Repository, a: Args, now: Date): string {
   ].join('\n')
 }
 
-const READS = new Set(['finance_month', 'finance_entries', 'finance_balances', 'finance_projection'])
+/** Words a bank statement uses for paying a card's invoice. */
+const INVOICE_PAYMENT = /fatura|pagamento (de |do )?cart[aã]o|pgto\.? ?(de |do )?cart|cart[aã]o de cr[eé]dito|credit card/iu
+/** Words a card statement uses for the payment it received. */
+const PAYMENT_RECEIVED = /pagamento (recebido|efetuado|de fatura)|pgto\.? ?(recebido|fatura)|fatura paga/iu
+
+/** What looks wrong in the ledger, with what to do about each: the things a statement brought in whole gets mixed up. */
+function review(repo: Repository, a: Args, now: Date): string {
+  const books = readBooks(repo)
+  const ref = a['month'] === undefined || a['month'] === 'all' ? null : month(a['month'], now)
+  const all = books.entries.filter((entry) => !ref || monthOf(entry.date) === ref).sort((x, y) => y.date.localeCompare(x.date))
+  const known = (name: string | null): boolean => !!name && books.accounts.some((account) => same(account.name, name))
+  const holder = (name: string | null): boolean => known(name) || books.boxes.some((box) => same(box.name, name))
+  const cap = 25
+  const out: string[] = []
+  const section = (title: string, advice: string, found: Entry[]): void => {
+    if (!found.length) return
+    out.push('', `${title} (${found.length}). ${advice}`, ...found.slice(0, cap).map(entryLine))
+    if (found.length > cap) out.push(`…and ${found.length - cap} more.`)
+  }
+  const cards = books.accounts.filter((account) => account.type === 'card')
+  if (!cards.length)
+    out.push(
+      '',
+      'No account is a card. If some of these entries are credit card purchases, register the card with finance_account (type "card", closing_day, due_day): its purchases then go to its invoices instead of leaving an account.'
+    )
+  for (const card of cards) {
+    if (!card.closingDay || !card.dueDay)
+      out.push(
+        '',
+        `The card “${card.name}” has no closing or due day: every purchase is taken to fall on the invoice of the month after. Set them with finance_account.`
+      )
+  }
+  section(
+    'Invoice payments entered as expenses',
+    'Each counts twice: once as this expense, once as the purchases on the card. Turn it into a transfer to the card with finance_update ("kind": "transfer", "to": the card, "category": null).',
+    all.filter((entry) => entry.kind === 'expense' && !isCard(books, entry.account) && INVOICE_PAYMENT.test(entry.title))
+  )
+  section(
+    'Payments a card received, entered on the card',
+    "They are the other side of the invoice's payment, not a purchase or a refund: delete them (finance_delete), or, when the payment is nowhere else, turn them into a transfer from the account that paid.",
+    all.filter(
+      (entry) => (entry.kind === 'income' || entry.kind === 'expense') && isCard(books, entry.account) && PAYMENT_RECEIVED.test(entry.title)
+    )
+  )
+  section(
+    'Entries with no account',
+    'They move no balance and fall on no invoice. Say where each left from or came into with finance_update ("account").',
+    all.filter((entry) => entry.kind !== 'settlement' && isMe(entry.paidBy) && !entry.account)
+  )
+  section(
+    'Entries on an account that is not registered',
+    'Register the account or card with finance_account, or move them with finance_update.',
+    all.filter((entry) => (entry.account && !known(entry.account)) || (entry.kind === 'transfer' && entry.to && !holder(entry.to)))
+  )
+  const seen = new Map<string, Entry[]>()
+  for (const entry of all) {
+    if (entry.series || entry.recurring) continue
+    const id = [entry.date, entry.cents, entry.kind, key(entry.account ?? ''), key(entry.title)].join('|')
+    seen.set(id, [...(seen.get(id) ?? []), entry])
+  }
+  section(
+    'Entries that look entered twice',
+    'Same day, amount, account and description. Delete the copies with finance_delete, unless they really are two purchases.',
+    [...seen.values()].filter((group) => group.length > 1).flat()
+  )
+  section(
+    'Expenses with no category',
+    'They show under “Sem categoria” in the budget. Give each one with finance_update ("category").',
+    all.filter((entry) => entry.kind === 'expense' && !entry.recurring && !entry.category && !INVOICE_PAYMENT.test(entry.title))
+  )
+  const head = `Review of the ledger${ref ? `, ${ref}` : ', every month'}: ${all.length} entr${all.length === 1 ? 'y' : 'ies'}.`
+  return out.length ? [head, ...out].join('\n') : `${head} Nothing looks wrong.`
+}
+
+const READS = new Set(['finance_month', 'finance_entries', 'finance_balances', 'finance_projection', 'finance_review'])
 const NOT_YET =
   "Finanças has nothing yet. Start with the accounts and cards (finance_account), what comes every month (finance_recurring), the budget's limits (finance_budget) and the boxes (finance_box); then add what is spent as it happens (finance_add, finance_receipt). The first of them creates the Finanças page and its databases."
 
@@ -880,6 +1008,7 @@ export function callFinanceTool(target: FinanceTarget, name: string, raw: unknow
           entries: _entries,
           categories: _categories,
           accountNames: _accounts,
+          cardNames: _cards,
           boxNames: _boxes,
           empty: _empty,
           ...data
@@ -894,6 +1023,8 @@ export function callFinanceTool(target: FinanceTarget, name: string, raw: unknow
       return balances(target.repo, a)
     case 'finance_projection':
       return project(target.repo, a, now)
+    case 'finance_review':
+      return review(target.repo, a, now)
     case 'finance_add':
       return add(target, a, now)
     case 'finance_receipt':
@@ -913,9 +1044,9 @@ export function callFinanceTool(target: FinanceTarget, name: string, raw: unknow
     case 'finance_budget':
       return setBudget(target, a)
     case 'finance_account':
-      return setAccount(target, a)
+      return setAccount(target, a, now)
     case 'finance_box':
-      return setBox(target, a)
+      return setBox(target, a, now)
     default:
       throw new ToolError('No such tool.')
   }

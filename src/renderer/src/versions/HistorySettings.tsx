@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import { HISTORY_DEFAULTS, HISTORY_LIMITS, type HistorySettings, type VersionStats } from '@shared/versions'
 import { ConfirmButton, Segmented } from '@/appearance/controls'
+import { Advanced } from '@/ui/Advanced'
 import { notifyError, toast } from '@/ui/toast'
 import { countLabel, formatBytes } from './format'
 
@@ -145,14 +146,6 @@ export function HistorySection(): JSX.Element {
               />
             </div>
           </div>
-          <NumberRow
-            label="New version after a pause of"
-            help="The first edit after this long without editing a page saves the page as it was."
-            unit="min"
-            name="sessionMinutes"
-            value={settings.sessionMinutes}
-            onCommit={save}
-          />
         </div>
         <p className="ap-note">Open a page's history from its ⋯ menu. Versions you save or name yourself are never cleaned up.</p>
       </section>
@@ -162,22 +155,6 @@ export function HistorySection(): JSX.Element {
           <h3 className="ap-group-title">Storage</h3>
         </div>
         <div className="ap-list">
-          <NumberRow
-            label="Versions kept per page"
-            help="Above this, the oldest automatic versions of the page are removed."
-            unit=""
-            name="maxPerPage"
-            value={settings.maxPerPage}
-            onCommit={save}
-          />
-          <NumberRow
-            label="Space for all history"
-            help="Above this, the oldest automatic versions of any page are removed."
-            unit="MB"
-            name="budgetMb"
-            value={settings.budgetMb}
-            onCommit={save}
-          />
           <div className="ap-row">
             <div className="ap-row-text">
               <span className="ap-row-label">Storage used</span>
@@ -191,11 +168,45 @@ export function HistorySection(): JSX.Element {
             </div>
           </div>
         </div>
-        <p className="ap-note">
-          Older automatic versions are thinned out over time: one per hour after a day, one per day after a week, one per week after 90
-          days.
-        </p>
       </section>
+
+      <Advanced>
+        <section className="ap-group">
+          <div className="ap-group-head">
+            <h3 className="ap-group-title">Automatic versions</h3>
+          </div>
+          <div className="ap-list">
+            <NumberRow
+              label="New version after a pause of"
+              help="The first edit after this long without editing a page saves the page as it was."
+              unit="min"
+              name="sessionMinutes"
+              value={settings.sessionMinutes}
+              onCommit={save}
+            />
+            <NumberRow
+              label="Versions kept per page"
+              help="Above this, the oldest automatic versions of the page are removed."
+              unit=""
+              name="maxPerPage"
+              value={settings.maxPerPage}
+              onCommit={save}
+            />
+            <NumberRow
+              label="Space for all history"
+              help="Above this, the oldest automatic versions of any page are removed."
+              unit="MB"
+              name="budgetMb"
+              value={settings.budgetMb}
+              onCommit={save}
+            />
+          </div>
+          <p className="ap-note">
+            Older automatic versions are thinned out over time: one per hour after a day, one per day after a week, one per week after 90
+            days.
+          </p>
+        </section>
+      </Advanced>
     </div>
   )
 }

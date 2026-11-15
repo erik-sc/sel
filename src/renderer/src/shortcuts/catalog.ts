@@ -212,6 +212,12 @@ const OWN_GROUPS: readonly ShortcutGroup[] = [
       },
       { id: 'task-date', label: 'Change the date of the task', keys: ['D'], keywords: ['due', 'schedule'] },
       { id: 'task-repeat', label: 'Change how the task repeats', keys: ['R'], keywords: ['recurrence', 'recurring'] },
+      {
+        id: 'task-skip',
+        label: 'Skip a repeating task to its next time, without completing it',
+        keys: ['Shift+R'],
+        keywords: ['recurrence', 'recurring', 'next', 'pular']
+      },
       { id: 'task-priority', label: 'Priority 1 to 4; the same again takes it away', keys: ['1…4'], keywords: ['p1', 'urgent'] },
       { id: 'task-project', label: 'Change the project of the task', keys: ['#'] },
       { id: 'task-labels', label: 'Change the labels of the task', keys: ['@'], keywords: ['tags'] },
