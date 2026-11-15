@@ -60,6 +60,16 @@ export const TASK_WRITE_SPECS: readonly ToolSpec[] = [
     inputSchema: { type: 'object', properties: { id: ID }, required: ['id'], additionalProperties: false }
   },
   {
+    name: 'tasks_calendar',
+    description:
+      'The tasks as a calendar that Google Calendar and the iPhone subscribe to by address: the open tasks that have a date, one way only. "status" (the default) says whether it is published and its address; "on" publishes it and gives the address; "off" stops it; "new_address" replaces the address, and the old one stops answering. Whoever has the address reads the tasks: give it only to the user, for their own calendars. It is published by the computer sel runs on, and reachable while sel is open there.',
+    inputSchema: {
+      type: 'object',
+      properties: { action: { type: 'string', enum: ['status', 'on', 'off', 'new_address'] } },
+      additionalProperties: false
+    }
+  },
+  {
     name: 'reschedule_task',
     description:
       'Moves a task to another day: "YYYY-MM-DD", "YYYY-MM-DDTHH:mm" (local time) or words such as "tomorrow" or "sexta 14h". null removes the date.',
