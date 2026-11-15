@@ -123,3 +123,12 @@ Safeguards:
 - A public address with a path (`https://host/sel`): sel answers at the root, so give it an origin.
 - Server-sent events: every answer is a plain JSON reply.
 - An undo list per connection (the page history already keeps the state before each change).
+
+## The tasks' calendar
+
+Besides `/mcp`, the same server answers `GET /calendar/<secret>.ics` when Settings → Today →
+"Tasks in other calendars" is on: the open tasks with a date, as an iCalendar text for Google
+Calendar and the iPhone to subscribe to. It is the one address not behind the sign-in (a calendar
+cannot sign in): the secret in it is the key, and "New address" replaces it. What is private from
+the AI is not in it.
+

@@ -306,6 +306,46 @@ describe('the remote server', () => {
     return (await reply.json()) as Record<string, unknown>
   }
 
+  it('gives the tasks as a calendar to whoever has its address, and to no one else', async () => {
+    const { TASKS_FEED_KEY } = await import('../../shared/tasks/ics')
+    const token = 'a'.repeat(43)
+    callTaskTool(repo, 'add_task', { text: 'Dentista amanhã 14h' }, new Date(clock))
+    callTaskTool(repo, 'add_task', { text: 'Regar as plantas hoje todo dia' }, new Date(clock))
+    callTaskTool(repo, 'add_task', { text: 'Sem data' }, new Date(clock))
+    // Not published: the address answers as any page that is not there.
+    expect((await fetch(`${base}/calendar/${token}.ics`)).status).toBe(404)
+    repo.setSetting(TASKS_FEED_KEY, { enabled: true, token })
+    const reply = await fetch(`${base}/calendar/${token}.ics`)
+    expect(reply.status).toBe(200)
+    expect(reply.headers.get('content-type')).toBe('text/calendar; charset=utf-8')
+    const text = await reply.text()
+    expect(text.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true)
+    expect(text).toContain('SUMMARY:Dentista')
+    expect(text).toContain('SUMMARY:Regar as plantas')
+    expect(text).toContain('RRULE:FREQ=DAILY')
+    expect(text).not.toContain('Sem data')
+    expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(2)
+    // Another secret, a closed address, or anything but reading it.
+    expect((await fetch(`${base}/calendar/${'b'.repeat(43)}.ics`)).status).toBe(404)
+    expect((await fetch(`${base}/calendar/short.ics`)).status).toBe(404)
+    expect((await post(`/calendar/${token}.ics`, {})).status).toBe(404)
+    repo.setSetting(TASKS_FEED_KEY, { enabled: true, token: 'c'.repeat(43) })
+    expect((await fetch(`${base}/calendar/${token}.ics`)).status).toBe(404)
+    repo.setSetting(TASKS_FEED_KEY, { enabled: false, token })
+    expect((await fetch(`${base}/calendar/${token}.ics`)).status).toBe(404)
+  })
+
+  it('keeps a task that is private from the AI out of the calendar', async () => {
+    const { TASKS_FEED_KEY } = await import('../../shared/tasks/ics')
+    const token = 'a'.repeat(43)
+    repo.setSetting(TASKS_FEED_KEY, { enabled: true, token })
+    const added = callTaskTool(repo, 'add_task', { text: 'Segredo hoje' }, new Date(clock))
+    const id = /\[([0-9a-f-]{36})\]/u.exec(added)?.[1] as string
+    expect(await (await fetch(`${base}/calendar/${token}.ics`)).text()).toContain('SUMMARY:Segredo')
+    repo.apply([{ op: 'update', id, patch: { props: { aiPrivate: true } } }])
+    expect(await (await fetch(`${base}/calendar/${token}.ics`)).text()).not.toContain('Segredo')
+  })
+
   it('asks for authorization and says where', async () => {
     const reply = await post('/mcp', { jsonrpc: '2.0', id: 1, method: 'initialize' })
     expect(reply.status).toBe(401)

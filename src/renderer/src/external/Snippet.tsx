@@ -4,6 +4,7 @@ import type { JSX } from 'react'
 import { IconButton } from '@/ui/Button'
 import { Check, Copy } from '@/ui/icons'
 import { notifyError } from '@/ui/toast'
+import './mcp.css'
 
 export function Snippet({ text, label, block = false }: { text: string; label: string; block?: boolean }): JSX.Element {
   const [copied, setCopied] = useState(false)

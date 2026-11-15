@@ -1,6 +1,7 @@
 import type { Repository } from '../db/repository'
 import { toolsFor } from '../tools/catalog'
 import { createToolRunner } from '../tools/run'
+import { tasksFeed } from '../tasks/feed'
 import { AuthStore } from './auth'
 import { RemoteServer, type RemoteServerOptions } from './server'
 
@@ -26,7 +27,8 @@ export async function createRemoteServer(
     ...options,
     auth,
     tools: toolsFor,
-    run: createToolRunner(repo, markdown)
+    run: createToolRunner(repo, markdown),
+    calendar: (token) => tasksFeed(repo, token, new Date(options.now?.() ?? Date.now()))
   })
   return { server, auth }
 }

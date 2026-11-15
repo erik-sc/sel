@@ -125,6 +125,26 @@ try it there.
 - The first test build is installed by hand, from the `preview` page of the releases: the
   version installed before this one has no such switch.
 
+## 8. The tasks in Google Calendar and on the iPhone
+
+Érik, 2026-11-15: he wants to see what is on sel's calendar in his Google Calendar and on his
+iPhone.
+
+- sel publishes the open tasks that have a date as a calendar those two subscribe to by address
+  (iCalendar, shared/tasks/ics.ts): the whole day for a task with a day, half an hour for one
+  with an hour, a series for what repeats by its date. One way: nothing comes back from them.
+- It is served by the remote connector, at the address Claude reaches sel by
+  (`/calendar/<secret>.ics`, main/remote/server.ts and main/tasks/feed.ts). A calendar cannot
+  sign in, so the address is the key: a 32-byte secret, compared in constant time, slowed like a
+  sign-in when guessed, 404 for anything else. "New address" closes the old one. What is private
+  from the AI stays out of it.
+- Settings → Today → **Tasks in other calendars**: the switch (off by default), the address to
+  copy, and where to paste it in Google Calendar and on the iPhone. It needs "Claude on your
+  phone" on, which is what gives sel an address from outside.
+- Limits, said in the settings: Google reads a subscribed calendar again only a few times a day;
+  both reach it only while the computer is on with sel open. The events of his calendars are
+  already in Google; the tasks were what was missing there.
+
 ## Checked
 
 - Unit tests: the arithmetic (balances by date, derived invoices, refunds, payment by month), the
