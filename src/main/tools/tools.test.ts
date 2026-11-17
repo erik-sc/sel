@@ -21,14 +21,14 @@ describe('the catalog of blocks', () => {
       expect(spec.inputSchema).toMatchObject({ type: 'object', additionalProperties: false })
       expect(REMOTE_SCOPES).toContain(scope)
     }
-    expect(PACKS.map((pack) => pack.id)).toEqual(['tasks', 'workspace', 'finance', 'split'])
+    expect(PACKS.map((pack) => pack.id)).toEqual(['tasks', 'workspace', 'finance', 'split', 'skills'])
     for (const name of names) expect(PACK_OF.has(name)).toBe(true)
   })
 
   it('offers by scope: reading never brings a tool that writes', () => {
     const names = (scopes: Parameters<typeof toolsFor>[0]): string[] => toolsFor(scopes).map((tool) => tool.name)
     // What Herman reads with, the task lists and the trash; nothing else.
-    expect(names(['read']).sort()).toEqual([...TOOL_NAMES, 'list_tasks', 'list_projects', 'list_trash'].sort())
+    expect(names(['read']).sort()).toEqual([...TOOL_NAMES, 'list_tasks', 'list_projects', 'list_trash', 'list_skills', 'get_skill'].sort())
     expect(names(['write'])).toEqual([
       'create_page',
       'append_to_page',
@@ -40,7 +40,9 @@ describe('the catalog of blocks', () => {
       'restore_page',
       'create_database',
       'add_database_property',
-      'add_select_options'
+      'add_select_options',
+      'save_skill',
+      'delete_skill'
     ])
     expect(names(['finance']).every((name) => name.startsWith('finance_') || name.startsWith('split_'))).toBe(true)
     expect(names([])).toEqual([])

@@ -124,11 +124,15 @@ Safeguards:
 - Server-sent events: every answer is a plain JSON reply.
 - An undo list per connection (the page history already keeps the state before each change).
 
+## Skills
+
+`list_skills` and `get_skill` (scope read) give the user's own skills, kept as pages of sel, and sel's own (how to work each block, and `skill-creator`, how to make one); `save_skill` and `delete_skill` (scope write) write them. A skill comes as a `SKILL.md`: its name and description, then its instructions. See docs/plans/release-0.16.0.md.
+
 ## The tasks' calendar
 
 Besides `/mcp`, the same server answers `GET /calendar/<secret>.ics` when Settings → Today →
 "Tasks in other calendars" is on: the open tasks with a date, as an iCalendar text for Google
 Calendar and the iPhone to subscribe to. It is the one address not behind the sign-in (a calendar
-cannot sign in): the secret in it is the key, and "New address" replaces it. What is private from
+cannot sign in): the secret in it is the key, and "New address" replaces it. From a conversation the same switch is the tool `tasks_calendar` (scope tasks): status, on, off, new_address. What is private from
 the AI is not in it.
 

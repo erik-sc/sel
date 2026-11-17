@@ -22,6 +22,7 @@ import {
   Search,
   Settings,
   Sky,
+  Puzzle,
   Split,
   Star,
   Page,
@@ -29,6 +30,7 @@ import {
 } from '@/ui/icons'
 import { openFeedback } from '@/feedback/gate'
 import { openFinance } from '@/finance/route'
+import { openSkills } from '@/skills/route'
 import { openSplit } from '@/split/route'
 import { preloadFeedback } from '@/feedback/Host'
 import { openCalendar, openToday } from '@/briefing/route'
@@ -175,6 +177,7 @@ export const SIDEBAR_ITEM_DEFS: Record<SidebarItemId, SidebarItemDef> = {
   tasks: { id: 'tasks', icon: <Check />, Render: TasksItem },
   finance: { id: 'finance', icon: <Coins />, Render: () => <Action id="finance" icon={<Coins />} onClick={openFinance} /> },
   split: { id: 'split', icon: <Split />, Render: () => <Action id="split" icon={<Split />} onClick={openSplit} /> },
+  skills: { id: 'skills', icon: <Puzzle />, Render: () => <Action id="skills" icon={<Puzzle />} onClick={openSkills} /> },
   meditations: { id: 'meditations', icon: <Pen />, Render: () => <Action id="meditations" icon={<Pen />} onClick={openNotebook} /> },
   // Gone while the Sky is turned off (see useAvailableItem).
   sky: { id: 'sky', icon: <Sky />, Render: () => <Action id="sky" icon={<Sky />} onClick={openSky} /> },

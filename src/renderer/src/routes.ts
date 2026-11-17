@@ -23,3 +23,5 @@ export const FLOWS_ROUTE = '_flows'
 export const FINANCE_ROUTE = '_finance'
 /** The household screen, "Divisão de contas" (see split/route.ts). */
 export const SPLIT_ROUTE = '_split'
+/** The Skills screen (see skills/route.ts). */
+export const SKILLS_ROUTE = '_skills'
