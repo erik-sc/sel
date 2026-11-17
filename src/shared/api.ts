@@ -1,5 +1,6 @@
 import { ACTIVITY_INVOKE, type ActivityApi } from './activity'
 import { FINANCE_INVOKE, type FinanceApi } from './finance/api'
+import { GOOGLE_INVOKE, type GoogleApi } from './google'
 import { SKILLS_INVOKE, type SkillsApi } from './skills/api'
 import { AI_INVOKE, type AiApi } from './ai'
 import { ALARMS_INVOKE, type AlarmsApi } from './alarms'
@@ -237,6 +238,7 @@ export interface Api {
    */
   finance: FinanceApi
   skills: SkillsApi
+  google: GoogleApi
   /**
    * The persona's routines: answers prepared in the background at a few moments of the day, said
    * in its corner and opened in the balloon; and how much AI was used. See shared/routines.ts.
@@ -395,6 +397,7 @@ export const INVOKE = {
   ...ACTIVITY_INVOKE,
   ...FINANCE_INVOKE,
   ...SKILLS_INVOKE,
+  ...GOOGLE_INVOKE,
   ...ROUTINES_INVOKE
 } as const satisfies Record<InvokeChannel, true>
 

@@ -18,7 +18,7 @@ const same = (a: string, b: string): boolean => {
   return x.length === y.length && timingSafeEqual(x, y)
 }
 
-function feedTasks(repo: Repository): FeedTask[] {
+export function feedTasks(repo: Repository): FeedTask[] {
   const database = repo.get(TASKS_DATABASE_ID)
   if (!database || database.type !== 'database' || database.trashedAt !== null || isPrivateForAi(repo, database.id)) return []
   const hidden = privacyChecker(repo)

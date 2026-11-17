@@ -1,0 +1,28 @@
+/* Settings → Today → Tasks in Google Calendar (GoogleSettings.tsx). */
+
+.gcal-field {
+  display: grid;
+  gap: 4px;
+  max-width: 420px;
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.gcal-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.gcal-link:hover {
+  text-decoration: underline;
+}
+
+.gcal-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}

@@ -31,6 +31,7 @@ import { updatedLabel } from './format'
 import './settings.css'
 import { IconGlyph } from '@/ui/IconGlyph'
 import { FeedSettings } from '@/tasks/FeedSettings'
+import { GoogleSettings } from '@/tasks/GoogleSettings'
 import { Advanced } from '@/ui/Advanced'
 
 const ON_OFF: { value: 'on' | 'off'; label: string }[] = [
@@ -490,6 +491,7 @@ export function TodaySection(): JSX.Element {
   return (
     <div className="settings2-scroll" aria-busy={!loaded}>
       <Calendars />
+      <GoogleSettings />
       <FeedSettings />
 
       <Advanced>

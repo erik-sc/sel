@@ -100,7 +100,7 @@ const DUE_RE = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/u
 const RULE_RE = /^[A-Z]+=[A-Z0-9,+-]+(?:;[A-Z]+=[A-Z0-9,+-]+)*$/u
 
 /** The rule as a calendar reads it beside a start with an hour: an UNTIL that is a day becomes the end of that day. */
-function ruleFor(rule: string, timed: boolean): string | null {
+export function ruleFor(rule: string, timed: boolean): string | null {
   const clean = rule.trim().toUpperCase()
   if (!RULE_RE.test(clean) || !clean.includes('FREQ=')) return null
   return timed ? clean.replace(/UNTIL=(\d{8})(?=;|$)/u, 'UNTIL=$1T235959Z') : clean
